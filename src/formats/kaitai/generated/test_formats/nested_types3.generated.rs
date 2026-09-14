@@ -87,6 +87,7 @@ impl KStruct for NestedTypes3 {
         *self_rc.a_c_d.borrow_mut() = t;
         let t = Self::read_into::<_, NestedTypes3_SubtypeB>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -135,6 +136,7 @@ impl KStruct for NestedTypes3_SubtypeA {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -168,6 +170,7 @@ impl KStruct for NestedTypes3_SubtypeA_SubtypeC {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -203,6 +206,7 @@ impl KStruct for NestedTypes3_SubtypeA_SubtypeC_SubtypeD {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_d.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -243,6 +247,7 @@ impl KStruct for NestedTypes3_SubtypeA_SubtypeCc {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value_cc.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -289,6 +294,7 @@ impl KStruct for NestedTypes3_SubtypeB {
         *self_rc.a_cc.borrow_mut() = t;
         let t = Self::read_into::<_, NestedTypes3_SubtypeA_SubtypeC_SubtypeD>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.a_c_d.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

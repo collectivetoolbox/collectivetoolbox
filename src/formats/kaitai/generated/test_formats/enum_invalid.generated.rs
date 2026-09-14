@@ -82,6 +82,7 @@ impl KStruct for EnumInvalid {
         let _io = io;
         *self_rc.pet_1.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.pet_2.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

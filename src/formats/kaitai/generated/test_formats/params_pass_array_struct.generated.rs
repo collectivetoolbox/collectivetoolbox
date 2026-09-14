@@ -91,6 +91,7 @@ impl KStruct for ParamsPassArrayStruct {
         let f = |t : &mut ParamsPassArrayStruct_StructType| Ok(t.set_params(*self_rc.one_two()?.clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayStruct_StructType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_structs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -152,6 +153,7 @@ impl KStruct for ParamsPassArrayStruct_Bar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.b.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -192,6 +194,7 @@ impl KStruct for ParamsPassArrayStruct_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.f.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -231,6 +234,7 @@ impl KStruct for ParamsPassArrayStruct_StructType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

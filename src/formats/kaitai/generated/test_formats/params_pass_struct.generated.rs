@@ -85,6 +85,7 @@ impl KStruct for ParamsPassStruct {
         let f = |t : &mut ParamsPassStruct_StructType| Ok(t.set_params(self_rc.first().clone()));
         let t = Self::read_into_with_init::<_, ParamsPassStruct_StructType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.one.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -130,6 +131,7 @@ impl KStruct for ParamsPassStruct_Block {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -173,6 +175,7 @@ impl KStruct for ParamsPassStruct_StructType {
         let f = |t : &mut ParamsPassStruct_StructType_Baz| Ok(t.set_params(self_rc.foo().clone()));
         let t = Self::read_into_with_init::<_, ParamsPassStruct_StructType_Baz>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.bar.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -224,6 +227,7 @@ impl KStruct for ParamsPassStruct_StructType_Baz {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qux.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

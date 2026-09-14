@@ -84,6 +84,7 @@ impl KStruct for ValidFailMaxInt {
         if !(*self_rc.foo() <= max_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

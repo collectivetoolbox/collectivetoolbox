@@ -161,6 +161,7 @@ impl KStruct for SwitchRepeatExpr {
                 }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -211,6 +212,7 @@ impl KStruct for SwitchRepeatExpr_One {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.first.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -251,6 +253,7 @@ impl KStruct for SwitchRepeatExpr_Two {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.second.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

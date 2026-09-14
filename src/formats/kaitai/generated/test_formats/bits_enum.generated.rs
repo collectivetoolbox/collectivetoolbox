@@ -84,6 +84,7 @@ impl KStruct for BitsEnum {
         *self_rc.one.borrow_mut() = i64::try_from(_io.read_bits_int_be(4)?)?.try_into()?;
         *self_rc.two.borrow_mut() = i64::try_from(_io.read_bits_int_be(8)?)?.try_into()?;
         *self_rc.three.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

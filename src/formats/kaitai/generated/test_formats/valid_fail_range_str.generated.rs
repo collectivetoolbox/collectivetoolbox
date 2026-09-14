@@ -79,7 +79,14 @@ impl KStruct for ValidFailRangeStr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.foo.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "UTF-8")?;
+        *self_rc.foo.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        if !((*(self_rc.foo())).as_str() >= "P") {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
+        }
+        if !((*(self_rc.foo())).as_str() <= "P1") {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

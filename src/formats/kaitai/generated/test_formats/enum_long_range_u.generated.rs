@@ -86,6 +86,7 @@ impl KStruct for EnumLongRangeU {
         *self_rc.f2.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
         *self_rc.f3.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
         *self_rc.f4.borrow_mut() = i64::try_from(_io.read_u8be()?)?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

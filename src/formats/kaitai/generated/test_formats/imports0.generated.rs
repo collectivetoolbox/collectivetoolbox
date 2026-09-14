@@ -86,6 +86,7 @@ impl KStruct for Imports0 {
         *self_rc.two.borrow_mut() = _io.read_u1()?;
         let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
         *self_rc.hw.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

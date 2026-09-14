@@ -91,6 +91,7 @@ impl KStruct for NestedTypesImport {
         *self_rc.a_c_d.borrow_mut() = t;
         let t = Self::read_into::<_, NestedTypes3_SubtypeB>(&*_io, None, None)?.into();
         *self_rc.b.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

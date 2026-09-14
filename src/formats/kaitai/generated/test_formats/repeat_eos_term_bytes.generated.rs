@@ -87,6 +87,7 @@ impl KStruct for RepeatEosTermBytes {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

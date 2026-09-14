@@ -83,13 +83,14 @@ impl KStruct for RepeatUntilBytesPad {
         {
             let mut _i = 0_usize;
             loop {
-                self_rc.records.borrow_mut().push(bytes_strip_right(&_io.read_bytes(5_usize)?, 170));
+                self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, None, false, Some(170)));
                 let _t_records = self_rc.records.borrow();
                 let Some(_tmpa) = _t_records.last() else { break; };
                 _i = _i.saturating_add(1);
                 if _tmpa.len() == 5 { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

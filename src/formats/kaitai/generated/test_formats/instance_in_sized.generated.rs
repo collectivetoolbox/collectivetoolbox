@@ -85,6 +85,7 @@ impl KStruct for InstanceInSized {
         let _io_cont = BytesReader::from(_raw_cont);
         let t = Self::read_into::<BytesReader, InstanceInSized_Wrapper>(&_io_cont, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.cont.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -132,6 +133,7 @@ impl KStruct for InstanceInSized_Bar {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -188,6 +190,7 @@ impl KStruct for InstanceInSized_Baz {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -248,6 +251,7 @@ impl KStruct for InstanceInSized_Qux {
         if ((to_i128(*self_rc.inst_invoked()?)) > (to_i128(0))) {
             *self_rc.seq_f.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -329,6 +333,7 @@ impl KStruct for InstanceInSized_Wrapper {
         *self_rc.seq_sized.borrow_mut() = t;
         let t = Self::read_into::<_, InstanceInSized_Bar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_in_stream.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -82,10 +82,11 @@ impl KStruct for TermStrzUtf16V3 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, false, true)?, "UTF-8")?;
+        *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], false, false, true)?, "UTF-16LE")?;
         *self_rc.term.borrow_mut() = _io.read_u2le()?;
-        *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, false, true)?, "UTF-8")?;
-        *self_rc.s3.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], false, false, true)?, "UTF-16LE")?;
+        *self_rc.s3.borrow_mut() = bytes_to_str(&_io.read_bytes_term_multi(&[0, 0], false, true, true)?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

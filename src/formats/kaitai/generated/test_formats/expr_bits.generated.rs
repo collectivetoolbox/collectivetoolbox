@@ -88,13 +88,28 @@ impl From<&ExprBits_SwitchOnType> for i8 {
         *v
     }
 }
+impl TryFrom<&ExprBits_SwitchOnType> for i64 {
+    type Error = KError;
+    fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
+        match e {
+            ExprBits_SwitchOnType::S1(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&ExprBits_SwitchOnType> for i8 {
     type Error = KError;
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
-        if let ExprBits_SwitchOnType::S1(v) = e {
-            return Ok(*v);
+        match e {
+            ExprBits_SwitchOnType::S1(v) => Ok(i8::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&ExprBits_SwitchOnType> for u64 {
+    type Error = KError;
+    fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
+        match e {
+            ExprBits_SwitchOnType::S1(v) => Ok(u64::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&ExprBits_SwitchOnType> for usize {
@@ -138,6 +153,7 @@ impl KStruct for ExprBits {
         }
         let t = Self::read_into::<_, ExprBits_EndianSwitch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.switch_on_endian.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -277,6 +293,7 @@ impl KStruct for ExprBits_EndianSwitch {
             return Err(KError::UndecidedEndianness { src_path: "/types/endian_switch".to_string() });
         }
         *self_rc.foo.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_s2le()? } else { _io.read_s2be()? };
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -86,6 +86,7 @@ impl KStruct for ImportsCircularB {
             let t = Self::read_into::<_, ImportsCircularA>(&*_io, None, None)?.into();
             *self_rc.back_ref.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

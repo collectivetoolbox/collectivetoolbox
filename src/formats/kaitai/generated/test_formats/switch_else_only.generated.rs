@@ -83,13 +83,28 @@ impl From<&SwitchElseOnly_PrimByte> for i8 {
         *v
     }
 }
+impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
+    type Error = KError;
+    fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
+        match e {
+            SwitchElseOnly_PrimByte::S1(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&SwitchElseOnly_PrimByte> for i8 {
     type Error = KError;
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
-        if let SwitchElseOnly_PrimByte::S1(v) = e {
-            return Ok(*v);
+        match e {
+            SwitchElseOnly_PrimByte::S1(v) => Ok(i8::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&SwitchElseOnly_PrimByte> for u64 {
+    type Error = KError;
+    fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
+        match e {
+            SwitchElseOnly_PrimByte::S1(v) => Ok(u64::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for usize {
@@ -156,6 +171,7 @@ impl KStruct for SwitchElseOnly {
                 *self_rc.ut.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -220,6 +236,7 @@ impl KStruct for SwitchElseOnly_Data {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

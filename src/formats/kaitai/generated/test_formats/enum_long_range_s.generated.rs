@@ -92,6 +92,7 @@ impl KStruct for EnumLongRangeS {
         *self_rc.f5.borrow_mut() = _io.read_s8be()?.try_into()?;
         *self_rc.f6.borrow_mut() = _io.read_s8be()?.try_into()?;
         *self_rc.f7.borrow_mut() = _io.read_s8be()?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

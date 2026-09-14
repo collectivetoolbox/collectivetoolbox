@@ -128,6 +128,9 @@ pub struct ResolvedAttr {
     /// Pad byte to strip from right side of buffer.
     #[serde(default)]
     pub pad_right: Option<u8>,
+    /// Whether hitting EOS before terminator is considered an error.
+    #[serde(default = "default_true")]
+    pub eos_error: bool,
 }
 
 fn default_true() -> bool {

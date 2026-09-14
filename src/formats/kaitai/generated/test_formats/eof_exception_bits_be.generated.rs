@@ -82,6 +82,7 @@ impl KStruct for EofExceptionBitsBe {
         let _io = io;
         *self_rc.pre_bits.borrow_mut() = _io.read_bits_int_be(7)?;
         *self_rc.fail_bits.borrow_mut() = _io.read_bits_int_be(18)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

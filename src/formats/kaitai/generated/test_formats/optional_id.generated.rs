@@ -84,6 +84,7 @@ impl KStruct for OptionalId {
         *self_rc.unnamed0.borrow_mut() = _io.read_u1()?;
         *self_rc.unnamed1.borrow_mut() = _io.read_u1()?;
         *self_rc.unnamed2.borrow_mut() = _io.read_bytes(5_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

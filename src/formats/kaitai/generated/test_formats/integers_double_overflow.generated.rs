@@ -102,6 +102,7 @@ impl KStruct for IntegersDoubleOverflow {
         *self_rc.signed_unsafe_neg_le.borrow_mut() = _io.read_s8le()?;
         *self_rc.signed_unsafe_pos_be.borrow_mut() = _io.read_s8be()?;
         *self_rc.signed_unsafe_pos_le.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

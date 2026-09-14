@@ -98,6 +98,7 @@ impl KStruct for Expr2 {
         *self_rc.str1.borrow_mut() = t;
         let t = Self::read_into::<_, Expr2_ModStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -233,6 +234,7 @@ impl KStruct for Expr2_ModStr {
         let _io_rest = BytesReader::from(_raw_rest);
         let t = Self::read_into::<BytesReader, Expr2_Tuple>(&_io_rest, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -333,6 +335,7 @@ impl KStruct for Expr2_Tuple {
         *self_rc.byte0.borrow_mut() = _io.read_u1()?;
         *self_rc.byte1.borrow_mut() = _io.read_u1()?;
         *self_rc.byte2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

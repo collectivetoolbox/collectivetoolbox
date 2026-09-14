@@ -84,6 +84,7 @@ impl KStruct for TermStrz3 {
         *self_rc.s1.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, false, true)?, "UTF-8")?;
         *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, false, false, true)?, "UTF-8")?;
         *self_rc.s3.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -84,6 +84,7 @@ impl KStruct for NavParent {
         *self_rc.header.borrow_mut() = t;
         let t = Self::read_into::<_, NavParent_IndexObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -129,6 +130,7 @@ impl KStruct for NavParent_Entry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header().filename_len())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -171,6 +173,7 @@ impl KStruct for NavParent_HeaderObj {
         let _io = io;
         *self_rc.qty_entries.borrow_mut() = _io.read_u4le()?;
         *self_rc.filename_len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -223,6 +226,7 @@ impl KStruct for NavParent_IndexObj {
             let t = Self::read_into::<_, NavParent_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

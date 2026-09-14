@@ -88,6 +88,7 @@ impl KStruct for SwitchMultiBoolOps {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -125,27 +126,9 @@ impl From<u8> for SwitchMultiBoolOps_Opcode_Body {
         Self::U1(v)
     }
 }
-impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u8 {
-    type Error = KError;
-    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchMultiBoolOps_Opcode_Body::U1(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
-    }
-}
 impl From<u16> for SwitchMultiBoolOps_Opcode_Body {
     fn from(v: u16) -> Self {
         Self::U2(v)
-    }
-}
-impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u16 {
-    type Error = KError;
-    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchMultiBoolOps_Opcode_Body::U2(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
     }
 }
 impl From<u32> for SwitchMultiBoolOps_Opcode_Body {
@@ -153,27 +136,64 @@ impl From<u32> for SwitchMultiBoolOps_Opcode_Body {
         Self::U4(v)
     }
 }
-impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u32 {
-    type Error = KError;
-    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchMultiBoolOps_Opcode_Body::U4(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
-    }
-}
 impl From<u64> for SwitchMultiBoolOps_Opcode_Body {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
+impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for i64 {
+    type Error = KError;
+    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
+        match e {
+            SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(i64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U2(v) => Ok(i64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U4(v) => Ok(i64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U8(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u16 {
+    type Error = KError;
+    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
+        match e {
+            SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u16::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U2(v) => Ok(u16::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U4(v) => Ok(u16::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U8(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u32 {
+    type Error = KError;
+    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
+        match e {
+            SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u32::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U2(v) => Ok(u32::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U4(v) => Ok(u32::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u64 {
     type Error = KError;
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
-        if let SwitchMultiBoolOps_Opcode_Body::U8(v) = e {
-            return Ok(*v);
+        match e {
+            SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U2(v) => Ok(u64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U4(v) => Ok(u64::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U8(v) => Ok(u64::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u8 {
+    type Error = KError;
+    fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
+        match e {
+            SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u8::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U2(v) => Ok(u8::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U4(v) => Ok(u8::try_from(*v)?),
+            SwitchMultiBoolOps_Opcode_Body::U8(v) => Ok(u8::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for usize {
@@ -219,6 +239,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

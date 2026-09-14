@@ -94,6 +94,7 @@ impl KStruct for StrEncodings {
         *self_rc.str3.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_3()))?, "SJIS")?;
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc.str4.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_4()))?, "IBM437")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -84,6 +84,7 @@ impl KStruct for ValidFailMinInt {
         if !(*self_rc.foo() >= min_val) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

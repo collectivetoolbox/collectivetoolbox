@@ -86,6 +86,7 @@ impl KStruct for ProcessToUser {
         let _io_buf1 = BytesReader::from(_processed_buf1);
         let t = Self::read_into::<BytesReader, ProcessToUser_JustStr>(&_io_buf1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -131,6 +132,7 @@ impl KStruct for ProcessToUser_JustStr {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

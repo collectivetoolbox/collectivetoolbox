@@ -86,6 +86,7 @@ impl KStruct for Expr1 {
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
         *self_rc.str1.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_of_1_mod()?)?)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

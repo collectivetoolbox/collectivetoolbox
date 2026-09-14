@@ -82,6 +82,7 @@ impl KStruct for EnumIntRangeU {
         let _io = io;
         *self_rc.f1.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.f2.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

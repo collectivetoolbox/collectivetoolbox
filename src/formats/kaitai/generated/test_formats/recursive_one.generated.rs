@@ -120,21 +120,21 @@ impl KStruct for RecursiveOne {
                 *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let next_raw = self_rc.next_raw.borrow();
                 let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             1 => {
                 *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let next_raw = self_rc.next_raw.borrow();
                 let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             2 => {
                 *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let next_raw = self_rc.next_raw.borrow();
                 let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             3 => {
@@ -146,6 +146,7 @@ impl KStruct for RecursiveOne {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -196,6 +197,7 @@ impl KStruct for RecursiveOne_Fini {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.finisher.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

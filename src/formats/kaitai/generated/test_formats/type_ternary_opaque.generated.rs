@@ -102,6 +102,7 @@ impl KStruct for TypeTernaryOpaque {
             let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_with_hack, None, None)?.into();
             *self_rc.dif_with_hack.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

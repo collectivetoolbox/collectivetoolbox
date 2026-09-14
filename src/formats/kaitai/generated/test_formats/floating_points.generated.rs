@@ -94,6 +94,7 @@ impl KStruct for FloatingPoints {
         *self_rc.single_value_be.borrow_mut() = _io.read_f4be()?;
         *self_rc.double_value_be.borrow_mut() = _io.read_f8be()?;
         *self_rc.approximate_value.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

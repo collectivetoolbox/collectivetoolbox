@@ -82,6 +82,7 @@ impl KStruct for EnumNegative {
         let _io = io;
         *self_rc.f1.borrow_mut() = i64::from(_io.read_s1()?).try_into()?;
         *self_rc.f2.borrow_mut() = i64::from(_io.read_s1()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

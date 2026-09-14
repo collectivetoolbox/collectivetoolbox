@@ -113,7 +113,8 @@ impl KStruct for ExprStrOps {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.one.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "UTF-8")?;
+        *self_rc.one.borrow_mut() = bytes_to_str(&_io.read_bytes(5_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

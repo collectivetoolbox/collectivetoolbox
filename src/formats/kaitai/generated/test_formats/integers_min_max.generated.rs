@@ -90,6 +90,7 @@ impl KStruct for IntegersMinMax {
         *self_rc.signed_min.borrow_mut() = t;
         let t = Self::read_into::<_, IntegersMinMax_Signed>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.signed_max.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -157,6 +158,7 @@ impl KStruct for IntegersMinMax_Signed {
         *self_rc.s2be.borrow_mut() = _io.read_s2be()?;
         *self_rc.s4be.borrow_mut() = _io.read_s4be()?;
         *self_rc.s8be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -239,6 +241,7 @@ impl KStruct for IntegersMinMax_Unsigned {
         *self_rc.u2be.borrow_mut() = _io.read_u2be()?;
         *self_rc.u4be.borrow_mut() = _io.read_u4be()?;
         *self_rc.u8be.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

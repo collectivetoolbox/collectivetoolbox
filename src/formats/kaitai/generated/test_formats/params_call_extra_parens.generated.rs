@@ -82,6 +82,7 @@ impl KStruct for ParamsCallExtraParens {
         let f = |t : &mut ParamsCallExtraParens_MyStr1| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, ParamsCallExtraParens_MyStr1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.buf1.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -123,6 +124,7 @@ impl KStruct for ParamsCallExtraParens_MyStr1 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

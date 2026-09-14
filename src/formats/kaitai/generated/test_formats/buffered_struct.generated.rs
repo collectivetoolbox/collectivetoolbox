@@ -98,6 +98,7 @@ impl KStruct for BufferedStruct {
         let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block2.borrow_mut() = t;
         *self_rc.finisher.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -170,6 +171,7 @@ impl KStruct for BufferedStruct_Block {
         let _io = io;
         *self_rc.number1.borrow_mut() = _io.read_u4le()?;
         *self_rc.number2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

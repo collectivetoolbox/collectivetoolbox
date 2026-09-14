@@ -84,6 +84,7 @@ impl KStruct for ValidFailInst {
         if ((to_i128(*self_rc.inst()?)) >= (to_i128(0))) {
             *self_rc.a.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

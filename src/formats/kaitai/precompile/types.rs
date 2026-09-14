@@ -143,6 +143,9 @@ pub enum DataType {
         pad_right: Option<u8>,
         /// Processing algorithm name (e.g. `zlib`).
         process: Option<String>,
+        /// Whether hitting EOS before terminator is an error.
+        #[serde(default = "default_true")]
+        eos_error: bool,
     },
     /// Text string.
     Str {
@@ -160,6 +163,9 @@ pub enum DataType {
         include: bool,
         /// Pad byte to strip from right.
         pad_right: Option<u8>,
+        /// Whether hitting EOS before terminator is an error.
+        #[serde(default = "default_true")]
+        eos_error: bool,
     },
     /// Custom user-defined or imported struct type.
     UserType {
@@ -206,6 +212,10 @@ pub enum DataType {
     CalcStrType,
     /// Calculated byte vector from expression.
     CalcBytesType,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl DataType {

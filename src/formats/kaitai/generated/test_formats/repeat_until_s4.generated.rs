@@ -93,6 +93,7 @@ impl KStruct for RepeatUntilS4 {
             }
         }
         *self_rc.afterall.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

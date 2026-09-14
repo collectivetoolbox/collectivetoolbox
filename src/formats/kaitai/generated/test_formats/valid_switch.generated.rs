@@ -80,13 +80,28 @@ impl From<&ValidSwitch_B> for u16 {
         *v
     }
 }
+impl TryFrom<&ValidSwitch_B> for i64 {
+    type Error = KError;
+    fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
+        match e {
+            ValidSwitch_B::U2(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&ValidSwitch_B> for u16 {
     type Error = KError;
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
-        if let ValidSwitch_B::U2(v) = e {
-            return Ok(*v);
+        match e {
+            ValidSwitch_B::U2(v) => Ok(u16::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&ValidSwitch_B> for u64 {
+    type Error = KError;
+    fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
+        match e {
+            ValidSwitch_B::U2(v) => Ok(u64::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&ValidSwitch_B> for usize {
@@ -130,6 +145,7 @@ impl KStruct for ValidSwitch {
         if !(self_rc.b() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

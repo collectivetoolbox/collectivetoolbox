@@ -88,6 +88,7 @@ impl KStruct for SwitchManualIntSize {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -199,6 +200,7 @@ impl KStruct for SwitchManualIntSize_Chunk {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -261,6 +263,7 @@ impl KStruct for SwitchManualIntSize_Chunk_ChunkDir {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -303,6 +306,7 @@ impl KStruct for SwitchManualIntSize_Chunk_ChunkMeta {
         let _io = io;
         *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
         *self_rc.author.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

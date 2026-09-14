@@ -84,6 +84,7 @@ impl KStruct for CastToTop {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -97,7 +98,7 @@ impl CastToTop {
         }
         let _pos = _io.pos();
         _io.seek(1_usize)?;
-        let t = Self::read_into::<_, CastToTop>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, CastToTop>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.header.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.header.borrow())

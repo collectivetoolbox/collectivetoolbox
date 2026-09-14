@@ -86,6 +86,7 @@ impl KStruct for NavParentOverride {
         *self_rc.child_1.borrow_mut() = t;
         let t = Self::read_into::<_, NavParentOverride_Mediator>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mediator_2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -136,6 +137,7 @@ impl KStruct for NavParentOverride_Child {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.child_size()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -177,6 +179,7 @@ impl KStruct for NavParentOverride_Mediator {
         let _io = io;
         let t = Self::read_into::<_, NavParentOverride_Child>(&*_io, Some(self_rc._root.clone()), Some(SharedType::new(self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.clone())))?.into();
         *self_rc.child_2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

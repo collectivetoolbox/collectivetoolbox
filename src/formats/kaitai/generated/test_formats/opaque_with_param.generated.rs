@@ -83,6 +83,7 @@ impl KStruct for OpaqueWithParam {
         let f = |t : &mut ParamsDef| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?, true));
         let t = Self::read_into_with_init::<_, ParamsDef>(&*_io, None, None, &f)?.into();
         *self_rc.one.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

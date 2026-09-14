@@ -82,8 +82,9 @@ impl KStruct for RepeatNBytesPadTerm {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = 3_usize;
         for _i in 0_usize..l_records {
-            self_rc.records.borrow_mut().push(bytes_terminate(&bytes_strip_right(&_io.read_bytes(5_usize)?, 170), 85, true));
+            self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, Some(85), true, Some(170)));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

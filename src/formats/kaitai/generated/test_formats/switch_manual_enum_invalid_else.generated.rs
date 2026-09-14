@@ -88,6 +88,7 @@ impl KStruct for SwitchManualEnumInvalidElse {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -201,6 +202,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode {
                 *self_rc.body.borrow_mut() = Some(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -286,6 +288,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Defval {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -332,6 +335,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Intval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -372,6 +376,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Strval {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

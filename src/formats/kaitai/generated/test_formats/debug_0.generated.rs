@@ -88,6 +88,7 @@ impl KStruct for Debug0 {
             self_rc.array_of_ints.borrow_mut().push(_io.read_u1()?);
         }
         *self_rc.unnamed2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

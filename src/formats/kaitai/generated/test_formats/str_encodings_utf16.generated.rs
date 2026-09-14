@@ -96,6 +96,7 @@ impl KStruct for StrEncodingsUtf16 {
         let _io_le_bom_removed = BytesReader::from(_raw_le_bom_removed);
         let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrLeBomRemoved>(&_io_le_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.le_bom_removed.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -163,6 +164,7 @@ impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2be()?;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16BE")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -210,6 +212,7 @@ impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_u2le()?;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

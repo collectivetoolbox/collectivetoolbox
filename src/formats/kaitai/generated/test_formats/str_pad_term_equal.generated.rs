@@ -82,10 +82,11 @@ impl KStruct for StrPadTermEqual {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.s1.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 64), 64, false), "UTF-8")?;
-        *self_rc.s2.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 43), 64, true), "UTF-8")?;
-        *self_rc.s3.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 43), 43, false), "UTF-8")?;
-        *self_rc.s4.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 46), 46, true), "UTF-8")?;
+        *self_rc.s1.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(64)), "UTF-8")?;
+        *self_rc.s2.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(43)), "UTF-8")?;
+        *self_rc.s3.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(43), false, Some(43)), "UTF-8")?;
+        *self_rc.s4.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(46), true, Some(46)), "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

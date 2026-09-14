@@ -90,6 +90,7 @@ impl KStruct for RepeatUntilBytes {
                 if ((to_i128(*(_tmpa.get(0_usize).ok_or(KError::CastError)?))) == (to_i128(170))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

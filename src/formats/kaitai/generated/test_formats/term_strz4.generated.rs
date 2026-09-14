@@ -103,6 +103,7 @@ impl KStruct for TermStrz4 {
         let _io_s3 = BytesReader::from(_raw_s3);
         let t = Self::read_into::<BytesReader, TermStrz4_S3Type>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -177,7 +178,8 @@ impl KStruct for TermStrz4_S1Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, false)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -217,7 +219,8 @@ impl KStruct for TermStrz4_S2Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, false, true)?, "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, false, false)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -257,7 +260,8 @@ impl KStruct for TermStrz4_S3Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, true, true, true)?, "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, true, true, false)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

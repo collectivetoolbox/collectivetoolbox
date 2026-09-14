@@ -85,6 +85,7 @@ impl KStruct for ProcessCoerceUsertype2 {
             let t = Self::read_into::<_, ProcessCoerceUsertype2_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -125,6 +126,7 @@ impl KStruct for ProcessCoerceUsertype2_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -182,6 +184,7 @@ impl KStruct for ProcessCoerceUsertype2_Record {
             let t = Self::read_into::<BytesReader, ProcessCoerceUsertype2_Foo>(&_io_buf_proc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.buf_proc.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

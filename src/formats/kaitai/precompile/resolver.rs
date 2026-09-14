@@ -863,6 +863,7 @@ fn resolve_class_spec(
             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
             _ => None,
         });
+        let eos_error = attr.eos_error.unwrap_or(true);
 
         resolved_seq.push(ResolvedAttr {
             id: attr_id,
@@ -882,6 +883,7 @@ fn resolve_class_spec(
             consume,
             include,
             pad_right,
+            eos_error,
         });
     }
 
@@ -1010,6 +1012,10 @@ fn resolve_attr_data_type(
     let mut raw_id = None;
     let mut io_id = None;
     let mut external_types = Vec::new();
+    let default_encoding = scopes
+        .iter()
+        .rev()
+        .find_map(|(_, f)| f.meta.as_ref().and_then(|m| m.encoding.clone()));
 
     // Parse repeat
     let repeat_mode = if let Some(rep) = &attr.repeat {
@@ -1059,7 +1065,7 @@ fn resolve_attr_data_type(
                 DataType::Str {
                     size: size_expr,
                     size_eos: attr.size_eos.unwrap_or(false),
-                    encoding: attr.encoding.clone(),
+                    encoding: attr.encoding.clone().or_else(|| default_encoding.clone()),
                     terminator: if t_name == "strz" {
                         attr.terminator.as_ref().and_then(|t| match t {
                             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
@@ -1077,6 +1083,7 @@ fn resolve_attr_data_type(
                         ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
                         _ => None,
                     }),
+                    eos_error: attr.eos_error.unwrap_or(true),
                 }
             } else {
                 let (dt, ext) = resolve_simple_type(
@@ -1133,6 +1140,7 @@ fn resolve_attr_data_type(
                             consume: false,
                             pad_right: None,
                             process: attr.process.clone(),
+                            eos_error: true,
                         },
                     );
                 }
@@ -1172,6 +1180,7 @@ fn resolve_attr_data_type(
                         ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
                         _ => None,
                     }),
+                    eos_error: attr.eos_error.unwrap_or(true),
                 }
             } else {
                 let size_expr = if let Some(s) = &attr.size {
@@ -1216,6 +1225,7 @@ fn resolve_attr_data_type(
                         _ => None,
                     }),
                     process: attr.process.clone(),
+                    eos_error: attr.eos_error.unwrap_or(true),
                 }
             }
         }
@@ -1304,7 +1314,21 @@ fn resolve_simple_type(
         } else if let Some(stripped) = bit_str.strip_suffix("be") {
             (stripped, BitEndianness::Big)
         } else {
-            (bit_str, BitEndianness::Big)
+            let default_bit_endian = scopes
+                .iter()
+                .rev()
+                .find_map(|(_, f)| {
+                    f.meta
+                        .as_ref()
+                        .and_then(|m| m.bit_endian.as_deref())
+                        .and_then(|be| match be {
+                            "le" => Some(BitEndianness::Little),
+                            "be" => Some(BitEndianness::Big),
+                            _ => None,
+                        })
+                })
+                .unwrap_or(BitEndianness::Big);
+            (bit_str, default_bit_endian)
         };
         if let Ok(count) = num_str.parse::<usize>() {
             let underlying = if count == 1 {
@@ -1345,6 +1369,7 @@ fn resolve_simple_type(
                 consume: false,
                 pad_right: None,
                 process: None,
+                eos_error: true,
             },
             None,
         ));
@@ -1359,6 +1384,7 @@ fn resolve_simple_type(
                 consume: true,
                 include: false,
                 pad_right: None,
+                eos_error: true,
             },
             None,
         ));
@@ -1372,6 +1398,7 @@ fn resolve_simple_type(
                 consume: true,
                 include: false,
                 pad_right: None,
+                eos_error: true,
             },
             None,
         ));
@@ -1519,6 +1546,46 @@ fn resolve_simple_type(
                 },
                 None,
             ));
+        }
+    }
+
+    // 6. Check if it's the root class itself or qualified from root
+    if let Some((root_name, root_ksy)) = scopes.first() {
+        if parts.len() == 1 && root_name.last().map(String::as_str) == Some(parts[0]) {
+            return Ok((
+                DataType::UserType {
+                    names: root_name.to_vec(),
+                    is_external: false,
+                    args: type_args,
+                },
+                None,
+            ));
+        }
+        if parts.len() > 1 && root_name.last().map(String::as_str) == Some(parts[0]) {
+            let mut curr_ksy = *root_ksy;
+            let mut found = true;
+            for part in &parts[1..] {
+                if let Some(child_ksy) = curr_ksy.types.get(*part) {
+                    curr_ksy = child_ksy;
+                } else {
+                    found = false;
+                    break;
+                }
+            }
+            if found {
+                let mut full_name = root_name.to_vec();
+                for part in &parts[1..] {
+                    full_name.push((*part).to_string());
+                }
+                return Ok((
+                    DataType::UserType {
+                        names: full_name,
+                        is_external: false,
+                        args: type_args,
+                    },
+                    None,
+                ));
+            }
         }
     }
 
@@ -1716,11 +1783,15 @@ fn resolve_instance(
                     } else {
                         None
                     };
+                    let default_encoding = scopes
+                        .iter()
+                        .rev()
+                        .find_map(|(_, f)| f.meta.as_ref().and_then(|m| m.encoding.clone()));
                     // Reason for fallback: default string reading settings per Kaitai spec (size_eos=false, consume=true, include=false)
                     DataType::Str {
                         size: size_expr,
                         size_eos: inst.size_eos.unwrap_or(false),
-                        encoding: inst.encoding.clone(),
+                        encoding: inst.encoding.clone().or_else(|| default_encoding.clone()),
                         terminator: if s == "strz" {
                             inst.terminator.as_ref().and_then(|t| match t {
                                 ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
@@ -1738,6 +1809,7 @@ fn resolve_instance(
                             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
                             _ => None,
                         }),
+                        eos_error: inst.eos_error.unwrap_or(true),
                     }
                 } else {
                     let (dt, _) = resolve_simple_type(
@@ -1780,6 +1852,7 @@ fn resolve_instance(
                             consume: false,
                             pad_right: None,
                             process: inst.process.clone(),
+                            eos_error: true,
                         },
                     );
                 }
@@ -1814,6 +1887,7 @@ fn resolve_instance(
             consume: false,
             pad_right: None,
             process: inst.process.clone(),
+            eos_error: inst.eos_error.unwrap_or(true),
         }
     } else if let Some(val_ex) = &value_expr {
         // Reason for fallback: uninferrable expression type defaults to integer calculation type

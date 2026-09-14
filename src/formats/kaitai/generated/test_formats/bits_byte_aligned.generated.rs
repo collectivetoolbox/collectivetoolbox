@@ -112,6 +112,7 @@ impl KStruct for BitsByteAligned {
         io.align_to_byte()?;
         *self_rc.bytes_term.borrow_mut() = _io.read_bytes_term(69, true, true, true)?;
         *self_rc.six.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -212,6 +213,7 @@ impl KStruct for BitsByteAligned_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.inner.borrow_mut() = _io.read_bits_int_be(19)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

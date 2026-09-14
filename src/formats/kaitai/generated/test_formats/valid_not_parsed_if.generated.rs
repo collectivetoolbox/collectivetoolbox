@@ -94,6 +94,7 @@ impl KStruct for ValidNotParsedIf {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -82,6 +82,7 @@ impl KStruct for ExprSizeofType1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -94,7 +95,7 @@ impl ExprSizeofType1 {
             return Ok(self.sizeof_block.borrow());
         }
         self.f_sizeof_block.set(true);
-        *self.sizeof_block.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_block.borrow_mut() = (11_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
     pub fn sizeof_subblock(
@@ -105,7 +106,7 @@ impl ExprSizeofType1 {
             return Ok(self.sizeof_subblock.borrow());
         }
         self.f_sizeof_subblock.set(true);
-        *self.sizeof_subblock.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_subblock.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_subblock.borrow())
     }
 }
@@ -146,6 +147,7 @@ impl KStruct for ExprSizeofType1_Block {
         *self_rc.c.borrow_mut() = _io.read_bytes(2_usize)?;
         let t = Self::read_into::<_, ExprSizeofType1_Block_Subblock>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.d.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -201,6 +203,7 @@ impl KStruct for ExprSizeofType1_Block_Subblock {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.a.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

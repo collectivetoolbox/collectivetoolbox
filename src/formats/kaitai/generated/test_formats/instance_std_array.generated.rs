@@ -87,6 +87,7 @@ impl KStruct for InstanceStdArray {
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.entry_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.qty_entries.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -108,6 +109,7 @@ impl InstanceStdArray {
             self.entries_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let entries_raw = self.entries_raw.borrow();
             let _io_entries_raw = BytesReader::from(entries_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            self.entries.borrow_mut().push(_io_entries_raw.read_bytes(usize::try_from(*self.entry_size())?)?);
         }
         _io.seek(_pos)?;
         Ok(self.entries.borrow())

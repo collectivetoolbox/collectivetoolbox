@@ -106,6 +106,7 @@ impl KStruct for BytesEosPadTerm {
         let _io_str_term_include = BytesReader::from(_raw_str_term_include);
         let t = Self::read_into::<BytesReader, BytesEosPadTerm_StrTermIncludeType>(&_io_str_term_include, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term_include.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -180,7 +181,8 @@ impl KStruct for BytesEosPadTerm_StrPadType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_strip_right(&_io.read_bytes_full()?, 64);
+        *self_rc.value.borrow_mut() = bytes_terminate_pad(&_io.read_bytes_full()?, None, false, Some(64));
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -220,7 +222,8 @@ impl KStruct for BytesEosPadTerm_StrTermAndPadType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_terminate(&bytes_strip_right(&_io.read_bytes_full()?, 43), 64, false);
+        *self_rc.value.borrow_mut() = bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), false, Some(43));
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -260,7 +263,8 @@ impl KStruct for BytesEosPadTerm_StrTermIncludeType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_terminate(&_io.read_bytes_full()?, 64, true);
+        *self_rc.value.borrow_mut() = bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), true, None);
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -300,7 +304,8 @@ impl KStruct for BytesEosPadTerm_StrTermType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.value.borrow_mut() = bytes_terminate(&_io.read_bytes_full()?, 64, false);
+        *self_rc.value.borrow_mut() = bytes_terminate_pad(&_io.read_bytes_full()?, Some(64), false, None);
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

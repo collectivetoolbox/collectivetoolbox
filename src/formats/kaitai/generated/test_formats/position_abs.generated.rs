@@ -82,6 +82,7 @@ impl KStruct for PositionAbs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.index_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -136,6 +137,7 @@ impl KStruct for PositionAbs_IndexObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.entry.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

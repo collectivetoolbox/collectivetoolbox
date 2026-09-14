@@ -81,6 +81,7 @@ impl KStruct for DefaultBitEndianMod {
         let _io = io;
         let t = Self::read_into::<_, DefaultBitEndianMod_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -123,13 +124,14 @@ impl KStruct for DefaultBitEndianMod_MainObj {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.one.borrow_mut() = _io.read_bits_int_be(9)?;
-        *self_rc.two.borrow_mut() = _io.read_bits_int_be(15)?;
+        *self_rc.one.borrow_mut() = _io.read_bits_int_le(9)?;
+        *self_rc.two.borrow_mut() = _io.read_bits_int_le(15)?;
         io.align_to_byte()?;
         let t = Self::read_into::<_, DefaultBitEndianMod_MainObj_Subnest>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.nest.borrow_mut() = t;
         let t = Self::read_into::<_, DefaultBitEndianMod_MainObj_SubnestBe>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.nest_be.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -184,7 +186,8 @@ impl KStruct for DefaultBitEndianMod_MainObj_Subnest {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.two.borrow_mut() = _io.read_bits_int_be(16)?;
+        *self_rc.two.borrow_mut() = _io.read_bits_int_le(16)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -225,6 +228,7 @@ impl KStruct for DefaultBitEndianMod_MainObj_SubnestBe {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.two.borrow_mut() = _io.read_bits_int_be(16)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

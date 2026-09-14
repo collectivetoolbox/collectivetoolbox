@@ -85,6 +85,7 @@ impl KStruct for IfValues {
             let t = Self::read_into::<_, IfValues_Code>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.codes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -127,6 +128,7 @@ impl KStruct for IfValues_Code {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.opcode.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

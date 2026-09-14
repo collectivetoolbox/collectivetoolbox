@@ -80,6 +80,7 @@ impl KStruct for PositionToEnd {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -131,6 +132,7 @@ impl KStruct for PositionToEnd_IndexObj {
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u4le()?;
         *self_rc.bar.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

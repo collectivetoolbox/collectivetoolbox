@@ -81,6 +81,7 @@ impl KStruct for NavParentSwitchCast {
         let _io = io;
         let t = Self::read_into::<_, NavParentSwitchCast_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -192,6 +193,7 @@ impl KStruct for NavParentSwitchCast_Foo {
                 *self_rc.buf.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -247,6 +249,7 @@ impl KStruct for NavParentSwitchCast_Foo_Common {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -294,6 +297,7 @@ impl KStruct for NavParentSwitchCast_Foo_One {
         let _io = io;
         let t = Self::read_into::<_, NavParentSwitchCast_Foo_Common>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.branch.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -335,6 +339,7 @@ impl KStruct for NavParentSwitchCast_Foo_Zero {
         let _io = io;
         let t = Self::read_into::<_, NavParentSwitchCast_Foo_Common>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.branch.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -464,8 +464,11 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                         other => val.push(char::from(other)),
                     }
                 } else {
-                    let b = *bytes.get(idx).context("Byte offset out of bounds")?;
-                    val.push(char::from(b));
+                    let rem = src.get(idx..).context("Byte offset out of bounds")?;
+                    let ch = rem.chars().next().context("Expected char")?;
+                    val.push(ch);
+                    idx = idx.saturating_add(ch.len_utf8());
+                    continue;
                 }
                 idx = idx.saturating_add(1);
             }

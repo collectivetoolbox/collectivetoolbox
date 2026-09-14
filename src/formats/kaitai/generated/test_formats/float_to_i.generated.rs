@@ -118,6 +118,7 @@ impl KStruct for FloatToI {
         if true {
             *self_rc.double_value_if.borrow_mut() = _io.read_f8be()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

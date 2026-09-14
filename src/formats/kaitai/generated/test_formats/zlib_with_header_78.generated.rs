@@ -80,6 +80,7 @@ impl KStruct for ZlibWithHeader78 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data.borrow_mut() = process_zlib(&_io.read_bytes_full()?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

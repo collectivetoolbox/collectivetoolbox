@@ -96,6 +96,7 @@ impl KStruct for RepeatNTermBytes {
         for _i in 0_usize..l_records3 {
             self_rc.records3.borrow_mut().push(_io.read_bytes_term(85, false, false, true)?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

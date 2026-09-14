@@ -117,6 +117,7 @@ impl KStruct for RepeatUntilComplex {
                 if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -173,6 +174,7 @@ impl KStruct for RepeatUntilComplex_TypeU1 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -224,6 +226,7 @@ impl KStruct for RepeatUntilComplex_TypeU2 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

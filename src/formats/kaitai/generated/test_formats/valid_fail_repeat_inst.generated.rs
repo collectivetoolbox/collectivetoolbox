@@ -84,6 +84,7 @@ impl KStruct for ValidFailRepeatInst {
         if self_rc.inst()?.len() == 0 {
             *self_rc.a.borrow_mut() = _io.read_bytes(0_usize)?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

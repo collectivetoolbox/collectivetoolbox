@@ -485,7 +485,10 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
         "_index" => "_i".to_string(),
         "_" => "_tmpa".to_string(),
         // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-        "_sizeof" => format!("{}_i32", calculate_class_seq_size(ctx.current_class).unwrap_or(0)),
+        "_sizeof" => format!(
+            "{}_i32",
+            calculate_class_seq_size_with_root(ctx.current_class, Some(ctx.root)).unwrap_or(0)
+        ),
         other => {
             let self_name = ctx.self_name();
             let escaped = super::escape_rust_keyword(other);
@@ -515,9 +518,9 @@ fn translate_name(name: &str, ctx: &TranslationContext<'_>) -> String {
     }
 }
 
-/// Calculates the fixed byte size of a data type if known statically.
+/// Calculates the fixed byte size of a data type with optional root class lookup if known statically.
 #[must_use]
-pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
+pub fn calculate_attr_size_with_root(dt: &DataType, root: Option<&ClassSpec>) -> Option<i64> {
     match dt {
         DataType::Int1 { .. } => Some(1),
         DataType::IntMulti { width, .. } => i64::try_from(*width).ok(),
@@ -538,12 +541,17 @@ pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
         }
         DataType::EnumType { underlying, .. } => {
             if let Some(u) = underlying {
-                calculate_attr_size(u)
+                calculate_attr_size_with_root(u, root)
             } else {
                 Some(4)
             }
         }
         DataType::UserType { names, .. } => {
+            if let Some(r) = root {
+                if let Some(spec) = find_class_spec(r, names) {
+                    return calculate_class_seq_size_with_root(spec, Some(r));
+                }
+            }
             if let Some(last) = names.last() {
                 if last == "version_index" {
                     return Some(2);
@@ -555,15 +563,33 @@ pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
     }
 }
 
+/// Calculates the fixed byte size of a data type if known statically.
+#[must_use]
+pub fn calculate_attr_size(dt: &DataType) -> Option<i64> {
+    calculate_attr_size_with_root(dt, None)
+}
+
 /// Calculates the fixed byte size of a class specification's sequential fields if known statically.
 #[must_use]
-pub fn calculate_class_seq_size(class: &ClassSpec) -> Option<i64> {
+pub fn calculate_class_seq_size_with_root(class: &ClassSpec, root: Option<&ClassSpec>) -> Option<i64> {
     let mut total = 0i64;
     for attr in &class.seq {
-        let sz = calculate_attr_size(&attr.data_type)?;
+        if let Some(sz_expr) = &attr.size_expr {
+            if let Expr::IntNum(n) = sz_expr {
+                total = total.checked_add(i64::try_from(*n).ok()?)?;
+                continue;
+            }
+        }
+        let sz = calculate_attr_size_with_root(&attr.data_type, root)?;
         total = total.checked_add(sz)?;
     }
     Some(total)
+}
+
+/// Calculates the fixed byte size of a class specification's sequential fields if known statically.
+#[must_use]
+pub fn calculate_class_seq_size(class: &ClassSpec) -> Option<i64> {
+    calculate_class_seq_size_with_root(class, None)
 }
 
 fn calc_type_byte_size(type_name: &str, ctx: &TranslationContext<'_>) -> Option<i64> {
@@ -573,20 +599,66 @@ fn calc_type_byte_size(type_name: &str, ctx: &TranslationContext<'_>) -> Option<
         "u4" | "s4" | "u4le" | "u4be" | "s4le" | "s4be" | "f4" | "f4le" | "f4be" => Some(4),
         "u8" | "s8" | "u8le" | "u8be" | "s8le" | "s8be" | "f8" | "f8le" | "f8be" => Some(8),
         user_name => {
-            find_class_spec(ctx.root, &[user_name.to_string()])
-                .and_then(calculate_class_seq_size)
+            resolve_user_class_spec(user_name, ctx)
+                .and_then(|spec| calculate_class_seq_size_with_root(spec, Some(ctx.root)))
+        }
+    }
+}
+
+fn calc_expr_byte_size(value: &Expr, ctx: &TranslationContext<'_>) -> Option<i64> {
+    match value {
+        Expr::Name(name) if name == "_" || name == "self" || name == "self_rc" => {
+            calculate_class_seq_size_with_root(ctx.current_class, Some(ctx.root))
+        }
+        Expr::Name(name) => {
+            if let Some(a) = ctx.current_class.seq.iter().find(|x| x.id == *name) {
+                if let Some(sz_expr) = &a.size_expr {
+                    if let Expr::IntNum(n) = sz_expr {
+                        return i64::try_from(*n).ok();
+                    }
+                }
+                calculate_attr_size_with_root(&a.data_type, Some(ctx.root))
+            } else if let Some(dt) = detect_type_approx(value, ctx) {
+                calculate_attr_size_with_root(&dt, Some(ctx.root))
+            } else {
+                None
+            }
+        }
+        Expr::Attribute { value: inner, attr: sub_attr } => {
+            if let Some(target_dt) = detect_type_approx(inner, ctx) {
+                if let DataType::UserType { names, .. } = target_dt {
+                    if let Some(target_cls) = find_class_spec(ctx.root, &names) {
+                        if let Some(a) = target_cls.seq.iter().find(|x| x.id == *sub_attr) {
+                            if let Some(sz_expr) = &a.size_expr {
+                                if let Expr::IntNum(n) = sz_expr {
+                                    return i64::try_from(*n).ok();
+                                }
+                            }
+                            return calculate_attr_size_with_root(&a.data_type, Some(ctx.root));
+                        }
+                    }
+                }
+            }
+            if let Some(dt) = detect_type_approx(value, ctx) {
+                calculate_attr_size_with_root(&dt, Some(ctx.root))
+            } else {
+                None
+            }
+        }
+        _ => {
+            if let Some(dt) = detect_type_approx(value, ctx) {
+                calculate_attr_size_with_root(&dt, Some(ctx.root))
+            } else {
+                None
+            }
         }
     }
 }
 
 fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -> String {
     if attr == "_sizeof" {
-        if let Expr::Name(name) = value {
-            if let Some(a) = ctx.current_class.seq.iter().find(|x| x.id == *name) {
-                if let Some(sz) = calculate_attr_size(&a.data_type) {
-                    return format!("{sz}_i32");
-                }
-            }
+        if let Some(sz) = calc_expr_byte_size(value, ctx) {
+            return format!("{sz}_i32");
         }
         return "0_i32".to_string();
     }
@@ -892,6 +964,31 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
     if let Some(num) = trimmed.strip_suffix("_usize") {
         if num.chars().all(|c| c.is_ascii_digit() || c == '_') {
             return true;
+        }
+    }
+    let without_try = trimmed.strip_suffix('?').unwrap_or(trimmed);
+    if without_try.starts_with("usize::try_from(")
+        || without_try.starts_with("usize::from(")
+    {
+        return true;
+    }
+    let chars: Vec<(usize, char)> = trimmed.char_indices().collect();
+    let mut depth = 0_usize;
+    for (idx, &(i, c)) in chars.iter().enumerate() {
+        if c == '(' {
+            depth = depth.saturating_add(1);
+        } else if c == ')' {
+            depth = depth.saturating_sub(1);
+        } else if depth == 0 {
+            let prev_is_op = idx > 0 && chars.get(idx.saturating_sub(1)).is_some_and(|&(_, p)| p == '|' || p == '&');
+            let next_is_op = chars.get(idx.saturating_add(1)).is_some_and(|&(_, n)| n == '|' || n == '&');
+            if (c == '|' || c == '&' || c == '^') && !prev_is_op && !next_is_op {
+                let left = trimmed.get(..i).unwrap_or("").trim();
+                let right = trimmed.get(i.saturating_add(1)..).unwrap_or("").trim();
+                if is_usize_expr_str(left) || is_usize_expr_str(right) {
+                    return true;
+                }
+            }
         }
     }
     if trimmed.contains("to_i32(")
@@ -2231,7 +2328,11 @@ pub fn translate_validation_custom_expr(
                     if let Expr::Name(sn) = right.as_ref() {
                         if sn == "_sizeof" {
                             // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-                            let sz = calculate_class_seq_size(current_class).unwrap_or(0);
+                            let sz = calculate_class_seq_size_with_root(
+                                current_class,
+                                Some(ctx.root),
+                            )
+                            .unwrap_or(0);
                             return format!("(_tmpa {op_str} {sz}_{dt_suffix})");
                         }
                     }
@@ -2331,7 +2432,7 @@ pub fn translate_validation_custom_expr(
         Expr::Name(n) if n == "_" => "_tmpa".to_string(),
         Expr::Name(n) if n == "_sizeof" => {
             // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
-            let sz = calculate_class_seq_size(current_class).unwrap_or(0);
+            let sz = calculate_class_seq_size_with_root(current_class, Some(ctx.root)).unwrap_or(0);
             format!("{sz}_{dt_suffix}")
         }
         Expr::IntNum(n) => format!("{n}"),

@@ -96,6 +96,7 @@ impl KStruct for ExprIfIntOps {
         for _i in 0_usize..l_items {
             self_rc.items.borrow_mut().push(_io.read_s1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

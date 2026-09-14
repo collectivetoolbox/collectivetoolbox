@@ -80,6 +80,19 @@ impl KStruct for ValidFailAnyofInt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
+        let expected_0: u8 = (5).try_into()?;
+        let expected_1: u8 = (6).try_into()?;
+        let expected_2: u8 = (7).try_into()?;
+        let expected_3: u8 = (8).try_into()?;
+        let expected_4: u8 = (10).try_into()?;
+        let expected_5: u8 = (11).try_into()?;
+        let expected_6: u8 = (12).try_into()?;
+        let expected_7: u8 = (47).try_into()?;
+        let _item = *self_rc.foo();
+        if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4 || _item == expected_5 || _item == expected_6 || _item == expected_7) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

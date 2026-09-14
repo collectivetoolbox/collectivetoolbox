@@ -97,6 +97,7 @@ impl KStruct for ExprSizeofValueSized {
         let t = Self::read_into::<BytesReader, ExprSizeofValueSized_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc.more.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -109,7 +110,7 @@ impl ExprSizeofValueSized {
             return Ok(self.self_sizeof.borrow());
         }
         self.f_self_sizeof.set(true);
-        *self.self_sizeof.borrow_mut() = (0_i32).try_into()?;
+        *self.self_sizeof.borrow_mut() = (14_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
     pub fn sizeof_block(
@@ -120,7 +121,7 @@ impl ExprSizeofValueSized {
             return Ok(self.sizeof_block.borrow());
         }
         self.f_sizeof_block.set(true);
-        *self.sizeof_block.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_block.borrow_mut() = (12_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
     pub fn sizeof_block_a(
@@ -131,7 +132,7 @@ impl ExprSizeofValueSized {
             return Ok(self.sizeof_block_a.borrow());
         }
         self.f_sizeof_block_a.set(true);
-        *self.sizeof_block_a.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
     pub fn sizeof_block_b(
@@ -142,7 +143,7 @@ impl ExprSizeofValueSized {
             return Ok(self.sizeof_block_b.borrow());
         }
         self.f_sizeof_block_b.set(true);
-        *self.sizeof_block_b.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
     pub fn sizeof_block_c(
@@ -153,7 +154,7 @@ impl ExprSizeofValueSized {
             return Ok(self.sizeof_block_c.borrow());
         }
         self.f_sizeof_block_c.set(true);
-        *self.sizeof_block_c.borrow_mut() = (0_i32).try_into()?;
+        *self.sizeof_block_c.borrow_mut() = (2_i32).try_into()?;
         Ok(self.sizeof_block_c.borrow())
     }
 }
@@ -206,6 +207,7 @@ impl KStruct for ExprSizeofValueSized_Block {
         *self_rc.a.borrow_mut() = _io.read_u1()?;
         *self_rc.b.borrow_mut() = _io.read_u4le()?;
         *self_rc.c.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

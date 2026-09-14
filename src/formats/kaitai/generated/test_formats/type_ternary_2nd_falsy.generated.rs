@@ -117,6 +117,7 @@ impl KStruct for TypeTernary2ndFalsy {
         for _i in 0_usize..l_int_array_empty {
             self_rc.int_array_empty.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -293,6 +294,7 @@ impl KStruct for TypeTernary2ndFalsy_Foo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.m.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -80,6 +80,7 @@ impl KStruct for FixedStruct {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -202,6 +203,7 @@ impl KStruct for FixedStruct_Header {
         *self_rc.sint16be.borrow_mut() = _io.read_s2be()?;
         *self_rc.sint32be.borrow_mut() = _io.read_s4be()?;
         *self_rc.sint64be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

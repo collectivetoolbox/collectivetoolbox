@@ -80,6 +80,10 @@ impl KStruct for ValidFailInEnum {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        if matches!(*self_rc.foo(), ValidFailInEnum_Animal::Unknown(_)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/seq/0".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

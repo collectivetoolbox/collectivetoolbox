@@ -99,6 +99,7 @@ impl KStruct for BcdUserTypeBe {
         let _io_leading_zero_ltr = BytesReader::from(_raw_leading_zero_ltr);
         let t = Self::read_into::<BytesReader, BcdUserTypeBe_LeadingZeroLtrObj>(&_io_leading_zero_ltr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.leading_zero_ltr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -190,6 +191,7 @@ impl KStruct for BcdUserTypeBe_LeadingZeroLtrObj {
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
         *self_rc.b3.borrow_mut() = _io.read_u1()?;
         *self_rc.b4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -381,6 +383,7 @@ impl KStruct for BcdUserTypeBe_LtrObj {
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
         *self_rc.b3.borrow_mut() = _io.read_u1()?;
         *self_rc.b4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -572,6 +575,7 @@ impl KStruct for BcdUserTypeBe_RtlObj {
         *self_rc.b2.borrow_mut() = _io.read_u1()?;
         *self_rc.b3.borrow_mut() = _io.read_u1()?;
         *self_rc.b4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

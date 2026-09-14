@@ -114,6 +114,7 @@ impl KStruct for StrEncodingsEscapingEnc {
         let _io_str4 = BytesReader::from(_raw_str4);
         let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str4Wrapper>(&_io_str4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str4.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -209,6 +210,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -258,6 +260,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -307,6 +310,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -356,6 +360,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

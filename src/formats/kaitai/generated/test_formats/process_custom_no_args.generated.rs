@@ -80,6 +80,7 @@ impl KStruct for ProcessCustomNoArgs {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.buf.borrow_mut() = crate::custom_fx_no_args::CustomFxNoArgs::new().decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

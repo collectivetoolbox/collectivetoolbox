@@ -82,6 +82,7 @@ impl KStruct for NestedTypeParam {
         let f = |t : &mut NestedTypeParam_Nested_MyType| Ok(t.set_params((5).try_into().map_err(|_| KError::CastError)?));
         let t = Self::read_into_with_init::<_, NestedTypeParam_Nested_MyType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.main_seq.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -120,6 +121,7 @@ impl KStruct for NestedTypeParam_Nested {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -156,6 +158,7 @@ impl KStruct for NestedTypeParam_Nested_MyType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.my_len())?)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

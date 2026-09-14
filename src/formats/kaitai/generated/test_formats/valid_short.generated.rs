@@ -103,7 +103,7 @@ impl KStruct for ValidShort {
         if !(*self_rc.sint8() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
-        *self_rc.magic_uint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "UTF-8")?;
+        *self_rc.magic_uint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "utf-8")?;
         if !(*self_rc.magic_uint() == "PACK-U-DEF") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/3".to_string() }));
         }
@@ -122,7 +122,7 @@ impl KStruct for ValidShort {
         if !(*self_rc.uint64() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/6".to_string() }));
         }
-        *self_rc.magic_sint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "UTF-8")?;
+        *self_rc.magic_sint.borrow_mut() = bytes_to_str(&_io.read_bytes(10_usize)?, "utf-8")?;
         if !(*self_rc.magic_sint() == "PACK-S-DEF") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/7".to_string() }));
         }
@@ -141,6 +141,7 @@ impl KStruct for ValidShort {
         if !(*self_rc.sint64() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/10".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

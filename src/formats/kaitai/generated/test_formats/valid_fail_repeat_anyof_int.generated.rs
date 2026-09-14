@@ -87,6 +87,15 @@ impl KStruct for ValidFailRepeatAnyofInt {
                 _i = _i.saturating_add(1);
             }
         }
+        let expected_0: u8 = (0).try_into()?;
+        let expected_1: u8 = (1).try_into()?;
+        let expected_2: u8 = (65).try_into()?;
+        for &_item in self_rc.foo().iter() {
+            if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
+                return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
+            }
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

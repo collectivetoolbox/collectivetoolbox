@@ -88,6 +88,7 @@ impl KStruct for FixedContents {
         if !(*self_rc.high_bit_8() == vec![0xffu8, 0xffu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/1".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

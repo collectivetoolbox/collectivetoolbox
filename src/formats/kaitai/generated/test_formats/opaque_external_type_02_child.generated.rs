@@ -87,6 +87,7 @@ impl KStruct for OpaqueExternalType02Child {
         *self_rc.s2.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, false, true)?, "UTF-8")?;
         let t = Self::read_into::<_, OpaqueExternalType02Child_OpaqueExternalType02ChildChild>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -150,6 +151,7 @@ impl KStruct for OpaqueExternalType02Child_OpaqueExternalType02ChildChild {
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.some_method()? {
             *self_rc.s3.borrow_mut() = bytes_to_str(&_io.read_bytes_term(64, true, true, true)?, "UTF-8")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -84,6 +84,7 @@ impl KStruct for TermBytes {
         *self_rc.s1.borrow_mut() = _io.read_bytes_term(124, false, true, true)?;
         *self_rc.s2.borrow_mut() = _io.read_bytes_term(124, false, false, true)?;
         *self_rc.s3.borrow_mut() = _io.read_bytes_term(64, true, true, true)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -102,6 +102,7 @@ impl KStruct for StrEncodingsEscapingToS {
         *self_rc.str3_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc.str4_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

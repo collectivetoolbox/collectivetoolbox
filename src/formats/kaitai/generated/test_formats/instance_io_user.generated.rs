@@ -94,6 +94,7 @@ impl KStruct for InstanceIoUser {
         let _io_strings = BytesReader::from(_raw_strings);
         let t = Self::read_into::<BytesReader, InstanceIoUser_StringsObj>(&_io_strings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.strings.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -153,6 +154,7 @@ impl KStruct for InstanceIoUser_Entry {
         let _io = io;
         *self_rc.name_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -220,6 +222,7 @@ impl KStruct for InstanceIoUser_StringsObj {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -82,10 +82,11 @@ impl KStruct for BytesPadTermZeroSize {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str_pad.borrow_mut() = bytes_strip_right(&_io.read_bytes(0_usize)?, 64);
-        *self_rc.str_term.borrow_mut() = bytes_terminate(&_io.read_bytes(0_usize)?, 64, false);
-        *self_rc.str_term_and_pad.borrow_mut() = bytes_terminate(&bytes_strip_right(&_io.read_bytes(0_usize)?, 43), 64, false);
-        *self_rc.str_term_include.borrow_mut() = bytes_terminate(&_io.read_bytes(0_usize)?, 64, true);
+        *self_rc.str_pad.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(0_usize)?, None, false, Some(64));
+        *self_rc.str_term.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), false, None);
+        *self_rc.str_term_and_pad.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), false, Some(43));
+        *self_rc.str_term_include.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(0_usize)?, Some(64), true, None);
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

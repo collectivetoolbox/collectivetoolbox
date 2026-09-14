@@ -86,30 +86,31 @@ impl KStruct for ProcessStructPadTerm {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let _raw_str_pad = bytes_strip_right(&_io.read_bytes(20_usize)?, 64);
+        let _raw_str_pad = bytes_terminate_pad(&_io.read_bytes(20_usize)?, None, false, Some(64));
         *self_rc.str_pad_raw.borrow_mut() = _raw_str_pad.clone();
         let _processed_str_pad = process_xor_one(&_raw_str_pad, 21_u8);
         let _io_str_pad = BytesReader::from(_processed_str_pad);
         let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_pad.borrow_mut() = t;
-        let _raw_str_term = bytes_terminate(&_io.read_bytes(20_usize)?, 64, false);
+        let _raw_str_term = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, None);
         *self_rc.str_term_raw.borrow_mut() = _raw_str_term.clone();
         let _processed_str_term = process_xor_one(&_raw_str_term, 21_u8);
         let _io_str_term = BytesReader::from(_processed_str_term);
         let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term.borrow_mut() = t;
-        let _raw_str_term_and_pad = bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 43), 64, false);
+        let _raw_str_term_and_pad = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(43));
         *self_rc.str_term_and_pad_raw.borrow_mut() = _raw_str_term_and_pad.clone();
         let _processed_str_term_and_pad = process_xor_one(&_raw_str_term_and_pad, 21_u8);
         let _io_str_term_and_pad = BytesReader::from(_processed_str_term_and_pad);
         let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term_and_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term_and_pad.borrow_mut() = t;
-        let _raw_str_term_include = bytes_terminate(&_io.read_bytes(20_usize)?, 64, true);
+        let _raw_str_term_include = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, None);
         *self_rc.str_term_include_raw.borrow_mut() = _raw_str_term_include.clone();
         let _processed_str_term_include = process_xor_one(&_raw_str_term_include, 21_u8);
         let _io_str_term_include = BytesReader::from(_processed_str_term_include);
         let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term_include, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term_include.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -185,6 +186,7 @@ impl KStruct for ProcessStructPadTerm_BytesWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

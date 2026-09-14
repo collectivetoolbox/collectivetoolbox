@@ -84,6 +84,7 @@ impl KStruct for RepeatNBytes {
         for _i in 0_usize..l_records {
             self_rc.records.borrow_mut().push(_io.read_bytes(5_usize)?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

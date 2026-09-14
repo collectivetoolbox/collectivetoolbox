@@ -429,7 +429,6 @@ fn emit_switch_enum(
 
     if enum_only_numeric {
         let mut seen_from_into = BTreeSet::new();
-        let mut seen_from_from = BTreeSet::new();
         for (v_name, inner_type) in &variants {
             if seen_from_into.insert(inner_type.clone()) {
                 w.puts(&format!("impl From<{inner_type}> for {enum_name} {{"));
@@ -443,30 +442,13 @@ fn emit_switch_enum(
                 w.puts("}");
             }
 
-            if seen_from_from.insert(inner_type.clone()) {
-                if variants.len() == 1 {
-                    w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-                    w.inc();
-                    w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
-                    w.inc();
-                    w.puts(&format!("let {enum_name}::{v_name}(v) = e;"));
-                    w.puts("*v");
-                    w.dec();
-                    w.puts("}");
-                    w.dec();
-                    w.puts("}");
-                }
-                w.puts(&format!("impl TryFrom<&{enum_name}> for {inner_type} {{"));
+            if variants.len() == 1 {
+                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
                 w.inc();
-                w.puts("type Error = KError;");
-                w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
+                w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
                 w.inc();
-                w.puts(&format!("if let {enum_name}::{v_name}(v) = e {{"));
-                w.inc();
-                w.puts("return Ok(*v);");
-                w.dec();
-                w.puts("}");
-                w.puts("Err(KError::CastError)");
+                w.puts(&format!("let {enum_name}::{v_name}(v) = e;"));
+                w.puts("*v");
                 w.dec();
                 w.puts("}");
                 w.dec();
@@ -484,8 +466,18 @@ fn emit_switch_enum(
         // Reason for fallback: empty cases default to integer type
         let resolved = combined.unwrap_or(DataType::CalcIntType);
         let target_ret = rust_field_type(&resolved, class, attr_id);
-        if target_ret != "usize" && seen_from_from.insert(target_ret.clone()) {
-            w.puts(&format!("impl TryFrom<&{enum_name}> for {target_ret} {{"));
+
+        let mut target_types = BTreeSet::new();
+        for (_, inner_type) in &variants {
+            target_types.insert(inner_type.clone());
+        }
+        target_types.insert(target_ret);
+        target_types.insert("u64".to_string());
+        target_types.insert("i64".to_string());
+        target_types.remove("usize");
+
+        for target in &target_types {
+            w.puts(&format!("impl TryFrom<&{enum_name}> for {target} {{"));
             w.inc();
             w.puts("type Error = KError;");
             w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
@@ -493,7 +485,7 @@ fn emit_switch_enum(
             w.puts("match e {");
             w.inc();
             for (v_name, _) in &variants {
-                w.puts(&format!("{enum_name}::{v_name}(v) => Ok({target_ret}::try_from(*v)?),"));
+                w.puts(&format!("{enum_name}::{v_name}(v) => Ok({target}::try_from(*v)?),"));
             }
             w.dec();
             w.puts("}");
@@ -502,6 +494,7 @@ fn emit_switch_enum(
             w.dec();
             w.puts("}");
         }
+
         w.puts(&format!("impl TryFrom<&{enum_name}> for usize {{"));
         w.inc();
         w.puts("type Error = KError;");
@@ -650,6 +643,7 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
         prev_was_bits = cur_is_bits;
     }
 
+    w.puts("*self_rc._io.borrow_mut() = io.clone();");
     w.puts("Ok(())");
     w.dec();
     w.puts("}");
@@ -843,19 +837,24 @@ fn emit_attr_read(
                         format!("_io.read_bytes({s})?")
                     } else if let Some(term) = attr.terminator {
                         format!(
-                            "_io.read_bytes_term({term}, {}, {}, true)?",
-                            attr.include, attr.consume
+                            "_io.read_bytes_term({term}, {}, {}, {})?",
+                            attr.include, attr.consume, attr.eos_error
                         )
                     } else {
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if let Some(pad) = attr.pad_right {
-                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
-                        }
-                        if let Some(term) = attr.terminator {
+                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                            let term_str = match attr.terminator {
+                                Some(t) => format!("Some({t})"),
+                                None => "None".to_string(),
+                            };
+                            let pad_str = match attr.pad_right {
+                                Some(p) => format!("Some({p})"),
+                                None => "None".to_string(),
+                            };
                             read_call = format!(
-                                "bytes_terminate(&{read_call}, {term}, {})",
+                                "bytes_terminate_pad(&{read_call}, {term_str}, {}, {pad_str})",
                                 attr.include
                             );
                         }
@@ -896,19 +895,24 @@ fn emit_attr_read(
                         format!("_io.read_bytes({s})?")
                     } else if let Some(term) = attr.terminator {
                         format!(
-                            "_io.read_bytes_term({term}, {}, {}, true)?",
-                            attr.include, attr.consume
+                            "_io.read_bytes_term({term}, {}, {}, {})?",
+                            attr.include, attr.consume, attr.eos_error
                         )
                     } else {
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if let Some(pad) = attr.pad_right {
-                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
-                        }
-                        if let Some(term) = attr.terminator {
+                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                            let term_str = match attr.terminator {
+                                Some(t) => format!("Some({t})"),
+                                None => "None".to_string(),
+                            };
+                            let pad_str = match attr.pad_right {
+                                Some(p) => format!("Some({p})"),
+                                None => "None".to_string(),
+                            };
                             read_call = format!(
-                                "bytes_terminate(&{read_call}, {term}, {})",
+                                "bytes_terminate_pad(&{read_call}, {term_str}, {}, {pad_str})",
                                 attr.include
                             );
                         }
@@ -952,19 +956,24 @@ fn emit_attr_read(
                         format!("_io.read_bytes({s})?")
                     } else if let Some(term) = attr.terminator {
                         format!(
-                            "_io.read_bytes_term({term}, {}, {}, true)?",
-                            attr.include, attr.consume
+                            "_io.read_bytes_term({term}, {}, {}, {})?",
+                            attr.include, attr.consume, attr.eos_error
                         )
                     } else {
                         "_io.read_bytes_full()?".to_string()
                     };
                     if attr.size_expr.is_some() || attr.size_eos {
-                        if let Some(pad) = attr.pad_right {
-                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
-                        }
-                        if let Some(term) = attr.terminator {
+                        if attr.terminator.is_some() || attr.pad_right.is_some() {
+                            let term_str = match attr.terminator {
+                                Some(t) => format!("Some({t})"),
+                                None => "None".to_string(),
+                            };
+                            let pad_str = match attr.pad_right {
+                                Some(p) => format!("Some({p})"),
+                                None => "None".to_string(),
+                            };
                             read_call = format!(
-                                "bytes_terminate(&{read_call}, {term}, {})",
+                                "bytes_terminate_pad(&{read_call}, {term_str}, {}, {pad_str})",
                                 attr.include
                             );
                         }
@@ -1111,66 +1120,154 @@ fn emit_validation_check(
             let is_sizeof = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
             let target_dt = if is_repeated { elem_dt } else { data_type };
             let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
-            let ty_cast = validation_primitive_type(&resolved_target_dt);
             let min_str = if is_sizeof {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
                 translate_expr(&min_expr, ctx)
             };
-            let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+            if matches!(
+                resolved_target_dt,
+                DataType::Str { .. } | DataType::CalcStrType
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_str() >= {min_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_str() >= {min_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else if matches!(
+                resolved_target_dt,
+                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
             } else {
-                false
-            };
-            let deref = if is_numeric_switch { "" } else { "*" };
-            if is_repeated {
-                w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x >= min_val) {{"));
-                w.inc();
-                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
-                w.dec();
-                w.puts("}");
-            } else {
-                w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
-                w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
-                w.inc();
-                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
-                w.dec();
-                w.puts("}");
+                let ty_cast = validation_primitive_type(&resolved_target_dt);
+                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+                } else {
+                    false
+                };
+                let deref = if is_numeric_switch { "" } else { "*" };
+                if is_repeated {
+                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x >= min_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                    w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
             }
         }
         ValidationRule::Max(max_expr) => {
             let is_sizeof = matches!(max_expr, Expr::Name(n) if n == "_sizeof");
             let target_dt = if is_repeated { elem_dt } else { data_type };
             let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
-            let ty_cast = validation_primitive_type(&resolved_target_dt);
             let max_str = if is_sizeof {
                 // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
                 super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
             } else {
                 translate_expr(&max_expr, ctx)
             };
-            let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
-                !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+            if matches!(
+                resolved_target_dt,
+                DataType::Str { .. } | DataType::CalcStrType
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_str() <= {max_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_str() <= {max_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else if matches!(
+                resolved_target_dt,
+                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
             } else {
-                false
-            };
-            let deref = if is_numeric_switch { "" } else { "*" };
-            if is_repeated {
-                w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
-                w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x <= max_val) {{"));
-                w.inc();
-                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
-                w.dec();
-                w.puts("}");
-            } else {
-                w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
-                w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
-                w.inc();
-                w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
-                w.dec();
-                w.puts("}");
+                let ty_cast = validation_primitive_type(&resolved_target_dt);
+                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+                } else {
+                    false
+                };
+                let deref = if is_numeric_switch { "" } else { "*" };
+                if is_repeated {
+                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                    w.puts(&format!("if !{access_expr}.iter().all(|_x| *_x <= max_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                    w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
             }
         }
         ValidationRule::Expr(expr) => {
@@ -1201,7 +1298,217 @@ fn emit_validation_check(
                 w.puts("}");
             }
         }
-        _ => {}
+        ValidationRule::Range(min_expr, max_expr) => {
+            let is_sizeof_min = matches!(min_expr, Expr::Name(n) if n == "_sizeof");
+            let is_sizeof_max = matches!(max_expr, Expr::Name(n) if n == "_sizeof");
+            let target_dt = if is_repeated { elem_dt } else { data_type };
+            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let min_str = if is_sizeof_min {
+                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+            } else {
+                translate_expr(min_expr, ctx)
+            };
+            let max_str = if is_sizeof_max {
+                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+            } else {
+                translate_expr(max_expr, ctx)
+            };
+            if matches!(
+                resolved_target_dt,
+                DataType::Str { .. } | DataType::CalcStrType
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_str() >= {min_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !(_x.as_str() <= {max_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_str() >= {min_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !((*({access_expr})).as_str() <= {max_str}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else if matches!(
+                resolved_target_dt,
+                DataType::Bytes { .. } | DataType::CalcBytesType | DataType::ArrayType { .. }
+            ) {
+                if is_repeated {
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(_x.as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !(_x.as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if !((*({access_expr})).as_slice() >= ({min_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !((*({access_expr})).as_slice() <= ({max_str}).as_slice()) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else {
+                let ty_cast = validation_primitive_type(&resolved_target_dt);
+                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+                } else {
+                    false
+                };
+                let deref = if is_numeric_switch { "" } else { "*" };
+                if is_repeated {
+                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                    w.puts(&format!("for _x in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !(*_x >= min_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !(*_x <= max_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("let min_val: {ty_cast} = ({min_str}).try_into()?;"));
+                    w.puts(&format!("let max_val: {ty_cast} = ({max_str}).try_into()?;"));
+                    w.puts(&format!("if !({deref}{access_expr} >= min_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::LessThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.puts(&format!("if !({deref}{access_expr} <= max_val) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::GreaterThan, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            }
+        }
+        ValidationRule::AnyOf(exprs) => {
+            let target_dt = if is_repeated { elem_dt } else { data_type };
+            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            let is_bytes_or_str = matches!(
+                resolved_target_dt,
+                DataType::Bytes { .. }
+                    | DataType::CalcBytesType
+                    | DataType::Str { .. }
+                    | DataType::CalcStrType
+            );
+            if is_bytes_or_str {
+                let trans_exprs: Vec<String> = exprs.iter().map(|e| translate_expr(e, ctx)).collect();
+                let check = trans_exprs.iter().map(|s| format!("_item == {s}")).collect::<Vec<_>>().join(" || ");
+                if is_repeated {
+                    w.puts(&format!("for _item in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !({check}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("let _item = &*{access_expr};"));
+                    w.puts(&format!("if !({check}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            } else {
+                let ty_cast = validation_primitive_type(&resolved_target_dt);
+                let is_numeric_switch = if let DataType::SwitchType { cases, .. } = target_dt {
+                    !cases.is_empty() && cases.values().all(super::translator::is_numeric_type)
+                } else {
+                    false
+                };
+                let deref = if is_numeric_switch { "" } else { "*" };
+                let mut expected_vars = Vec::new();
+                for (idx, e) in exprs.iter().enumerate() {
+                    let trans = translate_expr(e, ctx);
+                    let var_name = format!("expected_{idx}");
+                    w.puts(&format!("let {var_name}: {ty_cast} = ({trans}).try_into()?;"));
+                    expected_vars.push(var_name);
+                }
+                let check = expected_vars.iter().map(|v| format!("_item == {v}")).collect::<Vec<_>>().join(" || ");
+                if is_repeated {
+                    w.puts(&format!("for &_item in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if !({check}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("let _item = {deref}{access_expr};"));
+                    w.puts(&format!("if !({check}) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            }
+        }
+        ValidationRule::InEnum => {
+            let target_dt = if is_repeated { elem_dt } else { data_type };
+            let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
+            if let DataType::EnumType { owner, name, .. } = &resolved_target_dt {
+                let mut parts = owner.clone();
+                parts.push(name.clone());
+                let enum_type_name = types_to_class_name(&parts);
+                if is_repeated {
+                    w.puts(&format!("for _item in {access_expr}.iter() {{"));
+                    w.inc();
+                    w.puts(&format!("if matches!(_item, {enum_type_name}::Unknown(_)) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotInEnum, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                    w.dec();
+                    w.puts("}");
+                } else {
+                    w.puts(&format!("if matches!(*{access_expr}, {enum_type_name}::Unknown(_)) {{"));
+                    w.inc();
+                    w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotInEnum, src_path: \"{src_path}\".to_string() }}));"));
+                    w.dec();
+                    w.puts("}");
+                }
+            }
+        }
     }
 }
 
@@ -1304,19 +1611,26 @@ fn emit_single_read(
                 format!("_io.read_bytes({s})?")
             } else if let Some(term) = attr.terminator {
                 format!(
-                    "_io.read_bytes_term({term}, {}, {}, true)?",
-                    attr.include, attr.consume
+                    "_io.read_bytes_term({term}, {}, {}, {})?",
+                    attr.include, attr.consume, attr.eos_error
                 )
             } else {
                 "_io.read_bytes_full()?".to_string()
             };
             if attr.size_expr.is_some() || attr.size_eos {
-                if let Some(pad) = attr.pad_right {
-                    read_call = format!("bytes_strip_right(&{read_call}, {pad})");
-                }
-                if let Some(term) = attr.terminator {
-                    read_call =
-                        format!("bytes_terminate(&{read_call}, {term}, {})", attr.include);
+                if attr.terminator.is_some() || attr.pad_right.is_some() {
+                    let term_str = match attr.terminator {
+                        Some(t) => format!("Some({t})"),
+                        None => "None".to_string(),
+                    };
+                    let pad_str = match attr.pad_right {
+                        Some(p) => format!("Some({p})"),
+                        None => "None".to_string(),
+                    };
+                    read_call = format!(
+                        "bytes_terminate_pad(&{read_call}, {term_str}, {}, {pad_str})",
+                        attr.include
+                    );
                 }
             }
             w.puts(&format!("let _raw_{id} = {read_call};"));
@@ -1708,23 +2022,39 @@ fn read_expr_for_type(
             };
             format!("{io}.read_bits_int_{endian_str}({count})?")
         }
-        DataType::Bytes { size, size_eos, terminator, include, consume, pad_right, process } => {
+        DataType::Bytes {
+            size,
+            size_eos,
+            terminator,
+            include,
+            consume,
+            eos_error,
+            pad_right,
+            process,
+        } => {
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
                 let s = expr_to_usize(size_expr, ctx);
                 format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
-                format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?")
+                format!("{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?")
             } else {
                 format!("{io}.read_bytes_full()?")
             };
             if size.is_some() || *size_eos {
-                if let Some(pad) = pad_right {
-                    raw_bytes = format!("bytes_strip_right(&{raw_bytes}, {pad})");
-                }
-                if let Some(term) = terminator {
-                    raw_bytes = format!("bytes_terminate(&{raw_bytes}, {term}, {include})");
+                if terminator.is_some() || pad_right.is_some() {
+                    let term_str = match terminator {
+                        Some(t) => format!("Some({t})"),
+                        None => "None".to_string(),
+                    };
+                    let pad_str = match pad_right {
+                        Some(p) => format!("Some({p})"),
+                        None => "None".to_string(),
+                    };
+                    raw_bytes = format!(
+                        "bytes_terminate_pad(&{raw_bytes}, {term_str}, {include}, {pad_str})"
+                    );
                 }
             }
             if let Some(proc) = process {
@@ -1739,25 +2069,46 @@ fn read_expr_for_type(
             terminator,
             consume,
             include,
+            eos_error,
             pad_right,
             ..
         } => {
+            let is_utf16 = encoding.as_deref().map_or(false, |e| {
+                e.to_ascii_uppercase().starts_with("UTF-16")
+            });
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
                 let s = expr_to_usize(size_expr, ctx);
                 format!("{io}.read_bytes({s})?")
             } else if let Some(term) = terminator {
-                format!("{io}.read_bytes_term({term}, {include}, {consume}, true)?")
+                if is_utf16 && *term == 0 {
+                    format!("{io}.read_bytes_term_multi(&[0, 0], {include}, {consume}, {eos_error})?")
+                } else {
+                    format!("{io}.read_bytes_term({term}, {include}, {consume}, {eos_error})?")
+                }
             } else {
                 format!("{io}.read_bytes_full()?")
             };
             if size.is_some() || *size_eos {
-                if let Some(pad) = pad_right {
-                    raw_bytes = format!("bytes_strip_right(&{raw_bytes}, {pad})");
-                }
-                if let Some(term) = terminator {
-                    raw_bytes = format!("bytes_terminate(&{raw_bytes}, {term}, {include})");
+                if terminator.is_some() || pad_right.is_some() {
+                    let pad_str = match pad_right {
+                        Some(p) => format!("Some({p})"),
+                        None => "None".to_string(),
+                    };
+                    if is_utf16 && terminator == &Some(0) {
+                        raw_bytes = format!(
+                            "bytes_terminate_pad_multi(&{raw_bytes}, Some(&[0, 0][..]), {include}, {pad_str})"
+                        );
+                    } else {
+                        let term_str = match terminator {
+                            Some(t) => format!("Some({t})"),
+                            None => "None".to_string(),
+                        };
+                        raw_bytes = format!(
+                            "bytes_terminate_pad(&{raw_bytes}, {term_str}, {include}, {pad_str})"
+                        );
+                    }
                 }
             }
             if let Some(enc) = encoding {
@@ -2187,6 +2538,9 @@ fn emit_parse_instance_body(
                                 w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&_io_{inst_id}_raw, {target_args})?.into();"));
                             }
                             w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push(t);"));
+                        } else {
+                            let elem_val = read_expr_for_type(element, current, ctx, &format!("_io_{inst_id}_raw"));
+                            w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push({elem_val});"));
                         }
                         w.dec();
                         w.puts("}");

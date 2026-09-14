@@ -84,6 +84,7 @@ impl KStruct for ImportedAndRel {
         *self_rc.one.borrow_mut() = _io.read_u1()?;
         let t = Self::read_into::<_, ImportedRoot>(&*_io, None, None)?.into();
         *self_rc.two.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

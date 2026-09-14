@@ -108,6 +108,7 @@ impl KStruct for RepeatNTermStruct {
             let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records3.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -173,6 +174,7 @@ impl KStruct for RepeatNTermStruct_BytesWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

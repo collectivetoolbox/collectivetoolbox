@@ -81,6 +81,7 @@ impl KStruct for NavParentFalse2 {
         let _io = io;
         let t = Self::read_into::<_, NavParentFalse2_Child>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.parentless.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -121,6 +122,7 @@ impl KStruct for NavParentFalse2_Child {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

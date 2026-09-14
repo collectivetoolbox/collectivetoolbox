@@ -114,6 +114,7 @@ impl KStruct for RepeatUntilTermBytes {
                 if *_tmpa == *self_rc.records1().last().ok_or(KError::EmptyIterator)? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

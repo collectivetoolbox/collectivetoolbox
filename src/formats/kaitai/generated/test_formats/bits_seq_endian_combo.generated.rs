@@ -94,6 +94,7 @@ impl KStruct for BitsSeqEndianCombo {
         *self_rc.le6.borrow_mut() = _io.read_bits_int_le(6)?;
         *self_rc.le7.borrow_mut() = _io.read_bits_int_le(5)?;
         *self_rc.be8.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

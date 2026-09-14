@@ -116,6 +116,7 @@ impl KStruct for NavParentSwitch {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -169,6 +170,7 @@ impl KStruct for NavParentSwitch_Element1 {
         *self_rc.foo.borrow_mut() = _io.read_u1()?;
         let t = Self::read_into::<_, NavParentSwitch_Subelement1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.subelement.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -216,6 +218,7 @@ impl KStruct for NavParentSwitch_Subelement1 {
         if ((to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.foo())) == (to_i128(66))) {
             *self_rc.bar.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

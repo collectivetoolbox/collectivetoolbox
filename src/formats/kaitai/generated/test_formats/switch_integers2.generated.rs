@@ -81,27 +81,9 @@ impl From<u8> for SwitchIntegers2_Len {
         Self::U1(v)
     }
 }
-impl TryFrom<&SwitchIntegers2_Len> for u8 {
-    type Error = KError;
-    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
-        if let SwitchIntegers2_Len::U1(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
-    }
-}
 impl From<u16> for SwitchIntegers2_Len {
     fn from(v: u16) -> Self {
         Self::U2(v)
-    }
-}
-impl TryFrom<&SwitchIntegers2_Len> for u16 {
-    type Error = KError;
-    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
-        if let SwitchIntegers2_Len::U2(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
     }
 }
 impl From<u32> for SwitchIntegers2_Len {
@@ -109,27 +91,64 @@ impl From<u32> for SwitchIntegers2_Len {
         Self::U4(v)
     }
 }
-impl TryFrom<&SwitchIntegers2_Len> for u32 {
-    type Error = KError;
-    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
-        if let SwitchIntegers2_Len::U4(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
-    }
-}
 impl From<u64> for SwitchIntegers2_Len {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
+impl TryFrom<&SwitchIntegers2_Len> for i64 {
+    type Error = KError;
+    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
+        match e {
+            SwitchIntegers2_Len::U1(v) => Ok(i64::try_from(*v)?),
+            SwitchIntegers2_Len::U2(v) => Ok(i64::try_from(*v)?),
+            SwitchIntegers2_Len::U4(v) => Ok(i64::try_from(*v)?),
+            SwitchIntegers2_Len::U8(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&SwitchIntegers2_Len> for u16 {
+    type Error = KError;
+    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
+        match e {
+            SwitchIntegers2_Len::U1(v) => Ok(u16::try_from(*v)?),
+            SwitchIntegers2_Len::U2(v) => Ok(u16::try_from(*v)?),
+            SwitchIntegers2_Len::U4(v) => Ok(u16::try_from(*v)?),
+            SwitchIntegers2_Len::U8(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&SwitchIntegers2_Len> for u32 {
+    type Error = KError;
+    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
+        match e {
+            SwitchIntegers2_Len::U1(v) => Ok(u32::try_from(*v)?),
+            SwitchIntegers2_Len::U2(v) => Ok(u32::try_from(*v)?),
+            SwitchIntegers2_Len::U4(v) => Ok(u32::try_from(*v)?),
+            SwitchIntegers2_Len::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&SwitchIntegers2_Len> for u64 {
     type Error = KError;
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
-        if let SwitchIntegers2_Len::U8(v) = e {
-            return Ok(*v);
+        match e {
+            SwitchIntegers2_Len::U1(v) => Ok(u64::try_from(*v)?),
+            SwitchIntegers2_Len::U2(v) => Ok(u64::try_from(*v)?),
+            SwitchIntegers2_Len::U4(v) => Ok(u64::try_from(*v)?),
+            SwitchIntegers2_Len::U8(v) => Ok(u64::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&SwitchIntegers2_Len> for u8 {
+    type Error = KError;
+    fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
+        match e {
+            SwitchIntegers2_Len::U1(v) => Ok(u8::try_from(*v)?),
+            SwitchIntegers2_Len::U2(v) => Ok(u8::try_from(*v)?),
+            SwitchIntegers2_Len::U4(v) => Ok(u8::try_from(*v)?),
+            SwitchIntegers2_Len::U8(v) => Ok(u8::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&SwitchIntegers2_Len> for usize {
@@ -179,6 +198,7 @@ impl KStruct for SwitchIntegers2 {
         if ((to_i128(self_rc.len())) > (to_i128(3))) {
             *self_rc.padding.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

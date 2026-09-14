@@ -81,6 +81,7 @@ impl KStruct for UserType {
         let _io = io;
         let t = Self::read_into::<_, UserType_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.one.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -123,6 +124,7 @@ impl KStruct for UserType_Header {
         let _io = io;
         *self_rc.width.borrow_mut() = _io.read_u4le()?;
         *self_rc.height.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

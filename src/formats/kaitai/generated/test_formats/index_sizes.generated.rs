@@ -90,8 +90,9 @@ impl KStruct for IndexSizes {
         *self_rc.bufs.borrow_mut() = Vec::new();
         let l_bufs = usize::try_from(*self_rc.qty())?;
         for _i in 0_usize..l_bufs {
-            self_rc.bufs.borrow_mut().push(bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc.sizes().get(_i).ok_or(KError::CastError)?))?)?, "UTF-8")?);
+            self_rc.bufs.borrow_mut().push(bytes_to_str(&_io.read_bytes(usize::try_from(*(self_rc.sizes().get(_i).ok_or(KError::CastError)?))?)?, "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

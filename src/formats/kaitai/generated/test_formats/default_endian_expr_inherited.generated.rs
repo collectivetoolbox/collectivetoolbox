@@ -88,6 +88,7 @@ impl KStruct for DefaultEndianExprInherited {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -131,6 +132,7 @@ impl KStruct for DefaultEndianExprInherited_Doc {
         *self_rc.indicator.borrow_mut() = _io.read_bytes(2_usize)?;
         let t = Self::read_into::<_, DefaultEndianExprInherited_Doc_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -191,6 +193,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj {
         let f = |t : &mut DefaultEndianExprInherited_Doc_MainObj_SubObj| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, DefaultEndianExprInherited_Doc_MainObj_SubObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.insides.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -241,6 +244,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj {
         let f = |t : &mut DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.more.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -296,6 +300,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
         let _io = io;
         *self_rc.some_int1.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.some_int2.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

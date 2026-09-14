@@ -86,6 +86,7 @@ impl KStruct for PositionInSeq {
         for _i in 0_usize..l_numbers {
             self_rc.numbers.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -140,6 +141,7 @@ impl KStruct for PositionInSeq_HeaderObj {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.qty_numbers.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

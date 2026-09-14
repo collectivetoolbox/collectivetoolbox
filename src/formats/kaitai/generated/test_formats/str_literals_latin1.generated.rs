@@ -84,6 +84,7 @@ impl KStruct for StrLiteralsLatin1 {
         let _io = io;
         *self_rc.len_parsed.borrow_mut() = _io.read_u2le()?;
         *self_rc.parsed.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_parsed()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

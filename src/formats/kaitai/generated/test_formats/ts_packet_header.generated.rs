@@ -101,6 +101,7 @@ impl KStruct for TsPacketHeader {
         *self_rc.continuity_counter.borrow_mut() = _io.read_bits_int_be(4)?;
         io.align_to_byte()?;
         *self_rc.ts_packet_remain.borrow_mut() = _io.read_bytes(184_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

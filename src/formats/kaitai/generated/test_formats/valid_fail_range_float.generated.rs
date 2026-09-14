@@ -80,6 +80,15 @@ impl KStruct for ValidFailRangeFloat {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_f4le()?;
+        let min_val: f32 = (0.25).try_into()?;
+        let max_val: f32 = (0.375).try_into()?;
+        if !(*self_rc.foo() >= min_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/0".to_string() }));
+        }
+        if !(*self_rc.foo() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/0".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

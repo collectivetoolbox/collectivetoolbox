@@ -95,6 +95,7 @@ impl KStruct for ExprIoEofBits {
         if !(_io.is_eof()) {
             *self_rc.qux.borrow_mut() = _io.read_bits_int_be(16)?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

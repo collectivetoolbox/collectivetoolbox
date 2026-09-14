@@ -79,27 +79,45 @@ impl From<u16> for NonStandard_Bar {
         Self::U2(v)
     }
 }
-impl TryFrom<&NonStandard_Bar> for u16 {
-    type Error = KError;
-    fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
-        if let NonStandard_Bar::U2(v) = e {
-            return Ok(*v);
-        }
-        Err(KError::CastError)
-    }
-}
 impl From<u32> for NonStandard_Bar {
     fn from(v: u32) -> Self {
         Self::U4(v)
     }
 }
+impl TryFrom<&NonStandard_Bar> for i64 {
+    type Error = KError;
+    fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
+        match e {
+            NonStandard_Bar::U2(v) => Ok(i64::try_from(*v)?),
+            NonStandard_Bar::U4(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&NonStandard_Bar> for u16 {
+    type Error = KError;
+    fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
+        match e {
+            NonStandard_Bar::U2(v) => Ok(u16::try_from(*v)?),
+            NonStandard_Bar::U4(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
 impl TryFrom<&NonStandard_Bar> for u32 {
     type Error = KError;
     fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
-        if let NonStandard_Bar::U4(v) = e {
-            return Ok(*v);
+        match e {
+            NonStandard_Bar::U2(v) => Ok(u32::try_from(*v)?),
+            NonStandard_Bar::U4(v) => Ok(u32::try_from(*v)?),
         }
-        Err(KError::CastError)
+    }
+}
+impl TryFrom<&NonStandard_Bar> for u64 {
+    type Error = KError;
+    fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
+        match e {
+            NonStandard_Bar::U2(v) => Ok(u64::try_from(*v)?),
+            NonStandard_Bar::U4(v) => Ok(u64::try_from(*v)?),
+        }
     }
 }
 impl TryFrom<&NonStandard_Bar> for usize {
@@ -137,6 +155,7 @@ impl KStruct for NonStandard {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

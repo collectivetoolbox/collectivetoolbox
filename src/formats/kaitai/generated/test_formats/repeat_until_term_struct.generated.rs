@@ -126,6 +126,7 @@ impl KStruct for RepeatUntilTermStruct {
                 if *_tmpa.value() == *self_rc.records1().last().ok_or(KError::EmptyIterator)?.value() { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -191,6 +192,7 @@ impl KStruct for RepeatUntilTermStruct_BytesWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

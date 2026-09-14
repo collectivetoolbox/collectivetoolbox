@@ -82,6 +82,7 @@ impl KStruct for EofExceptionU4 {
         let _io = io;
         *self_rc.prebuf.borrow_mut() = _io.read_bytes(9_usize)?;
         *self_rc.fail_int.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

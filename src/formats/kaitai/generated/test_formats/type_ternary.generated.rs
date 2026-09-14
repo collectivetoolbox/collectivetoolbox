@@ -101,6 +101,7 @@ impl KStruct for TypeTernary {
         let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
         let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_with_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dif_with_hack.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -188,6 +189,7 @@ impl KStruct for TypeTernary_Dummy {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -86,6 +86,7 @@ impl KStruct for ParamsDef {
         if *self_rc.has_trailer() {
             *self_rc.trailer.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

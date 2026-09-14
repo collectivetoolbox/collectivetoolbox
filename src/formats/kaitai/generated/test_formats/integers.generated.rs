@@ -153,6 +153,7 @@ impl KStruct for Integers {
         *self_rc.sint16be.borrow_mut() = _io.read_s2be()?;
         *self_rc.sint32be.borrow_mut() = _io.read_s4be()?;
         *self_rc.sint64be.borrow_mut() = _io.read_s8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

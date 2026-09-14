@@ -90,6 +90,7 @@ impl KStruct for ValidFailRepeatContents {
         if !self_rc.foo().iter().all(|_x| *_x == vec![0x12u8, 0x34u8, 0x56u8, 0x78u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

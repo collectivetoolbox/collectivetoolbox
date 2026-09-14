@@ -110,6 +110,7 @@ impl KStruct for ExprIfIntEq {
         if true {
             *self_rc.seq_if.borrow_mut() = _io.read_s2le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -92,6 +92,7 @@ impl KStruct for RepeatNStrzDouble {
         for _i in 0_usize..l_lines2 {
             self_rc.lines2.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

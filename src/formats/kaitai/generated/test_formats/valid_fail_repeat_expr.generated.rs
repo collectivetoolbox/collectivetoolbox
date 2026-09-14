@@ -93,6 +93,7 @@ impl KStruct for ValidFailRepeatExpr {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/0".to_string() }));
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

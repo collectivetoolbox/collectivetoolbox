@@ -107,9 +107,10 @@ impl KStruct for CombineStr {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.str_term.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "UTF-8")?;
-        *self_rc.str_limit.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
-        *self_rc.str_eos.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc.str_term.borrow_mut() = bytes_to_str(&_io.read_bytes_term(124, false, true, true)?, "ASCII")?;
+        *self_rc.str_limit.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc.str_eos.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

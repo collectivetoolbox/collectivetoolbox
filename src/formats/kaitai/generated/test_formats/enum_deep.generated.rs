@@ -82,6 +82,7 @@ impl KStruct for EnumDeep {
         let _io = io;
         *self_rc.pet_1.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.pet_2.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -125,6 +126,7 @@ impl KStruct for EnumDeep_Container1 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -193,6 +195,7 @@ impl KStruct for EnumDeep_Container1_Container2 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

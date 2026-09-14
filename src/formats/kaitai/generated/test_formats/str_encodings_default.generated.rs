@@ -85,6 +85,7 @@ impl KStruct for StrEncodingsDefault {
         *self_rc.str1.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_1()))?, "UTF-8")?;
         let t = Self::read_into::<_, StrEncodingsDefault_Subtype>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rest.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -145,6 +146,7 @@ impl KStruct for StrEncodingsDefault_Subtype {
         *self_rc.str3.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_3()))?, "SJIS")?;
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc.str4.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_4()))?, "IBM437")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

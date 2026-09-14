@@ -88,6 +88,7 @@ impl KStruct for DefaultEndianExprIsLe {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -131,6 +132,7 @@ impl KStruct for DefaultEndianExprIsLe_Doc {
         *self_rc.indicator.borrow_mut() = _io.read_bytes(2_usize)?;
         let t = Self::read_into::<_, DefaultEndianExprIsLe_Doc_MainObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.main.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -193,6 +195,7 @@ impl KStruct for DefaultEndianExprIsLe_Doc_MainObj {
         *self_rc.some_int.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.some_int_be.borrow_mut() = _io.read_u2be()?;
         *self_rc.some_int_le.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

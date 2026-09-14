@@ -102,6 +102,7 @@ impl KStruct for Expr3 {
         let _io = io;
         *self_rc.one.borrow_mut() = _io.read_u1()?;
         *self_rc.two.borrow_mut() = bytes_to_str(&_io.read_bytes(3_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

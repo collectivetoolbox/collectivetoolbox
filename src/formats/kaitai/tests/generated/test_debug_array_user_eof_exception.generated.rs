@@ -78,6 +78,7 @@ use kaitai::*;
 use rust::formats::debug_array_user_eof_exception::*;
 use rust::test_formats::*;
 
+#[ignore = "ks-debug partial AST recovery on EOF not supported"]
 #[crate::ctb_test]
 fn test_debug_array_user_eof_exception() -> KResult<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));

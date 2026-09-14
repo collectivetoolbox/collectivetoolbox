@@ -83,10 +83,11 @@ impl KStruct for RepeatEosBytesPadTerm {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.records.borrow_mut().push(bytes_terminate(&bytes_strip_right(&_io.read_bytes(5_usize)?, 170), 85, true));
+                self_rc.records.borrow_mut().push(bytes_terminate_pad(&_io.read_bytes(5_usize)?, Some(85), true, Some(170)));
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

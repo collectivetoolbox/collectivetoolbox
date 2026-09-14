@@ -651,6 +651,45 @@ pub trait KStream {
             buf.push(c);
         }
     }
+
+    fn read_bytes_term_multi(
+        &self,
+        term: &[u8],
+        include: bool,
+        consume: bool,
+        eos_error: bool,
+    ) -> KResult<Vec<u8>> {
+        self.align_to_byte()?;
+        let unit_len = term.len();
+        if unit_len <= 1 {
+            let term_byte = term.first().copied().unwrap_or(0);
+            return self.read_bytes_term(term_byte, include, consume, eos_error);
+        }
+        let mut buf = vec![];
+        loop {
+            let unit = match self.read_bytes(unit_len) {
+                Ok(u) => u,
+                Err(KError::Eof { .. }) => {
+                    if eos_error {
+                        return Err(KError::NoTerminatorFound);
+                    }
+                    return Ok(buf);
+                }
+                Err(e) => return Err(e),
+            };
+            if unit.as_slice() == term {
+                if include {
+                    buf.extend_from_slice(&unit);
+                }
+                if !consume {
+                    let mut state = self.get_state_mut();
+                    state.pos = state.pos.saturating_sub(unit_len);
+                }
+                return Ok(buf);
+            }
+            buf.extend_from_slice(&unit);
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone)]
@@ -827,6 +866,96 @@ pub fn bytes_terminate(bytes: &[u8], term: u8, include_term: bool) -> Vec<u8> {
     }
 }
 
+/// Return a byte array that contains all bytes up until the multi-byte
+/// termination sequence. Can optionally include the termination sequence as well.
+pub fn bytes_terminate_multi(bytes: &[u8], term: &[u8], include_term: bool) -> Vec<u8> {
+    let unit_len = term.len();
+    if unit_len <= 1 {
+        let term_byte = term.first().copied().unwrap_or(0);
+        return bytes_terminate(bytes, term_byte, include_term);
+    }
+    let mut i = 0_usize;
+    while i.saturating_add(unit_len) <= bytes.len() {
+        if let Some(chunk) = bytes.get(i..i.saturating_add(unit_len)) {
+            if chunk == term {
+                let end = if include_term {
+                    i.saturating_add(unit_len)
+                } else {
+                    i
+                };
+                return bytes.get(..end).unwrap_or(bytes).to_vec();
+            }
+        }
+        i = i.saturating_add(unit_len);
+    }
+    bytes.to_vec()
+}
+
+/// Return a byte array terminating at `term` if present (taking precedence),
+/// or stripping `pad_right` if terminator is not found (or not specified).
+pub fn bytes_terminate_pad(
+    bytes: &[u8],
+    term: Option<u8>,
+    include_term: bool,
+    pad: Option<u8>,
+) -> Vec<u8> {
+    if let Some(t) = term {
+        if let Some(term_index) = bytes.iter().position(|&c| c == t) {
+            let end = if include_term {
+                term_index.saturating_add(1)
+            } else {
+                term_index
+            };
+            #[expect(
+                clippy::expect_used,
+                reason = "end is bounded by position in bytes plus at most 1"
+            )]
+            return bytes.get(..end).expect("valid range").to_vec();
+        }
+    }
+    if let Some(p) = pad {
+        bytes_strip_right(bytes, p)
+    } else {
+        bytes.to_vec()
+    }
+}
+
+/// Return a byte array terminating at multi-byte `term` if present (taking precedence),
+/// or stripping `pad_right` if terminator is not found (or not specified).
+pub fn bytes_terminate_pad_multi(
+    bytes: &[u8],
+    term: Option<&[u8]>,
+    include_term: bool,
+    pad: Option<u8>,
+) -> Vec<u8> {
+    if let Some(t) = term {
+        let unit_len = t.len();
+        if unit_len <= 1 {
+            let t_byte = t.first().copied().unwrap_or(0);
+            return bytes_terminate_pad(bytes, Some(t_byte), include_term, pad);
+        }
+        let mut i = 0_usize;
+        while i.saturating_add(unit_len) <= bytes.len() {
+            if let Some(chunk) = bytes.get(i..i.saturating_add(unit_len)) {
+                if chunk == t {
+                    let end = if include_term {
+                        i.saturating_add(unit_len)
+                    } else {
+                        i
+                    };
+                    return bytes.get(..end).unwrap_or(bytes).to_vec();
+                }
+            }
+            i = i.saturating_add(unit_len);
+        }
+    }
+    if let Some(p) = pad {
+        bytes_strip_right(bytes, p)
+    } else {
+        bytes.to_vec()
+    }
+}
+
 pub fn bytes_to_str(bytes: &[u8], label: &str) -> KResult<String> {
     if label.eq_ignore_ascii_case("cp437") || label.eq_ignore_ascii_case("ibm437") {
         return ctb_formats_encoding::decode(
@@ -957,10 +1086,10 @@ pub fn to_shift_amt<T: TryInto<u32>>(val: T) -> u32 {
     val.try_into().unwrap_or(0)
 }
 
-/// Converts a floating-point number to an integer for Kaitai expressions.
+/// Converts a floating-point number to an integer for Kaitai expressions (truncates toward zero).
 pub fn float_to_int<F: Into<f64>>(f: F) -> KResult<i64> {
     let val: f64 = f.into();
-    utilities::math::approx_float::f64_to_i64_approx(val)
+    utilities::math::exact_float::f64_to_i64(val.trunc())
         .map_err(|_| KError::CastError)
 }
 

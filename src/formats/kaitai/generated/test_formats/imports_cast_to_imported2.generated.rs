@@ -87,6 +87,7 @@ impl KStruct for ImportsCastToImported2 {
         let f = |t : &mut CastToImported2| Ok(t.set_params(self_rc.hw().clone()));
         let t = Self::read_into_with_init::<_, CastToImported2>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

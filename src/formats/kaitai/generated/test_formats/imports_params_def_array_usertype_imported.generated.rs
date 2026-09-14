@@ -91,6 +91,7 @@ impl KStruct for ImportsParamsDefArrayUsertypeImported {
         let f = |t : &mut ParamsDefArrayUsertypeImported| Ok(t.set_params(self_rc.hws().clone()));
         let t = Self::read_into_with_init::<_, ParamsDefArrayUsertypeImported>(&*_io, None, None, &f)?.into();
         *self_rc.two.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

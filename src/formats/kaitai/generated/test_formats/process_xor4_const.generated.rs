@@ -82,6 +82,7 @@ impl KStruct for ProcessXor4Const {
         let _io = io;
         *self_rc.key.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.buf.borrow_mut() = process_xor_many(&_io.read_bytes_full()?, &[236u8, 187u8, 163u8, 20u8]);
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -86,7 +86,7 @@ impl KStruct for ParamsPassArrayStr {
         *self_rc.str_array.borrow_mut() = Vec::new();
         let l_str_array = 3_usize;
         for _i in 0_usize..l_str_array {
-            self_rc.str_array.borrow_mut().push(bytes_to_str(&_io.read_bytes(2_usize)?, "UTF-8")?);
+            self_rc.str_array.borrow_mut().push(bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?);
         }
         let f = |t : &mut ParamsPassArrayStr_WantsStrs| Ok(t.set_params(self_rc.str_array().clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
@@ -94,6 +94,7 @@ impl KStruct for ParamsPassArrayStr {
         let f = |t : &mut ParamsPassArrayStr_WantsStrs| Ok(t.set_params(*self_rc.str_array_calc()?.clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayStr_WantsStrs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_str_array_calc.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -154,6 +155,7 @@ impl KStruct for ParamsPassArrayStr_WantsStrs {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

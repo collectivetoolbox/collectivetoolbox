@@ -96,6 +96,7 @@ impl KStruct for ValidOptionalId {
         if !(((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1)))))) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

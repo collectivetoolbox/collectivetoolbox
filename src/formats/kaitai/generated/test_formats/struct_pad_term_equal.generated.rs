@@ -86,26 +86,27 @@ impl KStruct for StructPadTermEqual {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let _raw_s1 = bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 64), 64, false);
+        let _raw_s1 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), false, Some(64));
         *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
         let _io_s1 = BytesReader::from(_raw_s1);
         let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
-        let _raw_s2 = bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 43), 64, true);
+        let _raw_s2 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(64), true, Some(43));
         *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
         let _io_s2 = BytesReader::from(_raw_s2);
         let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
-        let _raw_s3 = bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 43), 43, false);
+        let _raw_s3 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(43), false, Some(43));
         *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
         let _io_s3 = BytesReader::from(_raw_s3);
         let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
-        let _raw_s4 = bytes_terminate(&bytes_strip_right(&_io.read_bytes(20_usize)?, 46), 46, true);
+        let _raw_s4 = bytes_terminate_pad(&_io.read_bytes(20_usize)?, Some(46), true, Some(46));
         *self_rc.s4_raw.borrow_mut() = _raw_s4.clone();
         let _io_s4 = BytesReader::from(_raw_s4);
         let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s4.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -181,6 +182,7 @@ impl KStruct for StructPadTermEqual_BytesWrapper {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

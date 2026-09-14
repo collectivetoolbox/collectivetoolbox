@@ -82,6 +82,7 @@ impl KStruct for TermU1Val {
         let _io = io;
         *self_rc.foo.borrow_mut() = _io.read_bytes_term(227, false, false, true)?;
         *self_rc.bar.borrow_mut() = bytes_to_str(&_io.read_bytes_term(171, true, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

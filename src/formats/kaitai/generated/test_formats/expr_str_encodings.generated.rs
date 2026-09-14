@@ -108,6 +108,7 @@ impl KStruct for ExprStrEncodings {
         *self_rc.str3.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_3()))?, "SJIS")?;
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
         *self_rc.str4.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_of_4()))?, "IBM437")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -131,7 +132,7 @@ impl ExprStrEncodings {
             return Ok(self.str2_eq.borrow());
         }
         self.f_str2_eq.set(true);
-        *self.str2_eq.borrow_mut() = ((self.str2().as_str() == "ã\u{81}\u{93}ã\u{82}\u{93}ã\u{81}«ã\u{81}¡ã\u{81}¯")).try_into()?;
+        *self.str2_eq.borrow_mut() = ((self.str2().as_str() == "こんにちは")).try_into()?;
         Ok(self.str2_eq.borrow())
     }
     pub fn str3_eq(
@@ -142,7 +143,7 @@ impl ExprStrEncodings {
             return Ok(self.str3_eq.borrow());
         }
         self.f_str3_eq.set(true);
-        *self.str3_eq.borrow_mut() = ((self.str3().as_str() == "ã\u{81}\u{93}ã\u{82}\u{93}ã\u{81}«ã\u{81}¡ã\u{81}¯")).try_into()?;
+        *self.str3_eq.borrow_mut() = ((self.str3().as_str() == "こんにちは")).try_into()?;
         Ok(self.str3_eq.borrow())
     }
     pub fn str3_eq_str2(
@@ -164,7 +165,7 @@ impl ExprStrEncodings {
             return Ok(self.str4_eq.borrow());
         }
         self.f_str4_eq.set(true);
-        *self.str4_eq.borrow_mut() = ((self.str4().as_str() == "â\u{96}\u{91}â\u{96}\u{92}â\u{96}\u{93}")).try_into()?;
+        *self.str4_eq.borrow_mut() = ((self.str4().as_str() == "░▒▓")).try_into()?;
         Ok(self.str4_eq.borrow())
     }
     pub fn str4_gt_str_calc(
@@ -175,7 +176,7 @@ impl ExprStrEncodings {
             return Ok(self.str4_gt_str_calc.borrow());
         }
         self.f_str4_gt_str_calc.set(true);
-        *self.str4_gt_str_calc.borrow_mut() = ((self.str4().as_str() > "â\u{94}¤")).try_into()?;
+        *self.str4_gt_str_calc.borrow_mut() = ((self.str4().as_str() > "┤")).try_into()?;
         Ok(self.str4_gt_str_calc.borrow())
     }
     pub fn str4_gt_str_from_bytes(
