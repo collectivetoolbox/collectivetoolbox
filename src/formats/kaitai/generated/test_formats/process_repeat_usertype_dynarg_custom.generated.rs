@@ -85,7 +85,7 @@ impl KStruct for ProcessRepeatUsertypeDynargCustom {
         let l_blocks = 2_usize;
         for _i in 0_usize..l_blocks {
             let _raw_blocks = _io.read_bytes(5_usize)?;
-            let _processed_blocks = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from((_io.pos()).saturating_add((13_usize).saturating_mul(_i))).unwrap_or(0) & 0xff).unwrap_or(0), (_io.pos()).checked_rem(2_usize).ok_or(KError::CastError)? == 0, if ((to_i128(_i)) == (to_i128(1))) { &[32u8, 48u8] } else { &[64u8] }).decode(&_raw_blocks).map_err(|e| KError::BytesDecodingError { msg: e })?;
+            let _processed_blocks = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from((_io.pos()).saturating_add((13_usize).saturating_mul(_i)))? & 0xff)?, (_io.pos()).checked_rem(2_usize).ok_or(KError::CastError)? == 0, if ((to_i128(_i)) == (to_i128(1))) { &[32u8, 48u8] } else { &[64u8] }).decode(&_raw_blocks).map_err(|e| KError::BytesDecodingError { msg: e })?;
             let _io_blocks = BytesReader::from(_processed_blocks);
             let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargCustom_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);

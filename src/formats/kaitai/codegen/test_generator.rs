@@ -318,12 +318,10 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
             if let Some(without_bytes) = trimmed.strip_suffix(".as<bytes>") {
                 trimmed = without_bytes.trim();
             }
-            if trimmed.ends_with(".as<f4>") {
-                let num = trimmed.strip_suffix(".as<f4>").unwrap_or(trimmed);
+            if let Some(num) = trimmed.strip_suffix(".as<f4>") {
                 return format!("{num}_f32");
             }
-            if trimmed.ends_with(".as<f8>") {
-                let num = trimmed.strip_suffix(".as<f8>").unwrap_or(trimmed);
+            if let Some(num) = trimmed.strip_suffix(".as<f8>") {
                 return format!("{num}_f64");
             }
 
@@ -409,17 +407,21 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 format!("{sum}")
             } else if s.contains("::") {
                 let parts: Vec<&str> = s.split("::").collect();
-                let variant = to_upper_camel_case(parts.last().copied().unwrap_or(""));
-                let mut type_parts: Vec<&str> = parts[..parts.len().saturating_sub(1)].to_vec();
-                if type_parts.len() == 1 {
-                    type_parts.insert(0, current_format);
+                if let Some((last, prefix)) = parts.split_last() {
+                    let variant = to_upper_camel_case(last);
+                    let mut type_parts: Vec<&str> = prefix.to_vec();
+                    if type_parts.len() == 1 {
+                        type_parts.insert(0, current_format);
+                    }
+                    let type_name = type_parts
+                        .iter()
+                        .map(|p| to_upper_camel_case(p))
+                        .collect::<Vec<_>>()
+                        .join("_");
+                    format!("{type_name}::{variant}")
+                } else {
+                    s.to_string()
                 }
-                let type_name = type_parts
-                    .iter()
-                    .map(|p| to_upper_camel_case(p))
-                    .collect::<Vec<_>>()
-                    .join("_");
-                format!("{type_name}::{variant}")
             } else if (trimmed.starts_with('"') && trimmed.ends_with('"'))
                 || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
             {
@@ -620,6 +622,7 @@ pub fn synthesize_test_from_kst(
                 let actual_expr = format_actual_expr(&actual_str, ksy.as_ref());
                 let expected_expr = format_expected_expr(expected_val, mod_name);
                 if expected_expr == "None" {
+                    // Reason for fallback: expressions without dereference prefix remain unchanged
                     let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
                     out.push_str(&format!("    assert!({actual}.is_none());\n"));
                 } else {

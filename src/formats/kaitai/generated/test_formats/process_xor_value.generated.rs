@@ -81,7 +81,7 @@ impl KStruct for ProcessXorValue {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.key.borrow_mut() = _io.read_u1()?;
-        *self_rc.buf.borrow_mut() = process_xor_one(&_io.read_bytes_full()?, u8::try_from(i64::try_from(*self_rc.key()).unwrap_or(0) & 0xff).unwrap_or(0));
+        *self_rc.buf.borrow_mut() = process_xor_one(&_io.read_bytes_full()?, u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?);
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

@@ -85,7 +85,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor {
         let l_blocks = 2_usize;
         for _i in 0_usize..l_blocks {
             let _raw_blocks = _io.read_bytes(5_usize)?;
-            let _processed_blocks = process_xor_one(&_raw_blocks, u8::try_from(i64::try_from(((155_usize) ^ (((usize::try_from((u64::try_from(_i)?).wrapping_shl(4_u32))?) | (_io.pos()))))).unwrap_or(0) & 0xff).unwrap_or(0));
+            let _processed_blocks = process_xor_one(&_raw_blocks, u8::try_from(i64::try_from(((155_usize) ^ (((usize::try_from((u64::try_from(_i)?).wrapping_shl(4_u32))?) | (_io.pos())))))? & 0xff)?);
             let _io_blocks = BytesReader::from(_processed_blocks);
             let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargXor_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);

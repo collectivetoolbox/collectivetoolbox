@@ -1304,12 +1304,14 @@ fn emit_validation_check(
             let target_dt = if is_repeated { elem_dt } else { data_type };
             let resolved_target_dt = super::translator::resolve_switch_type(target_dt);
             let min_str = if is_sizeof_min {
-                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+                // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
+                super::translator::calculate_class_seq_size_with_root(current, Some(ctx.root)).unwrap_or(0).to_string()
             } else {
                 translate_expr(min_expr, ctx)
             };
             let max_str = if is_sizeof_max {
-                super::translator::calculate_class_seq_size(current).unwrap_or(0).to_string()
+                // Reason for fallback: dynamically sized or non-constant class sequence defaults to 0 for _sizeof
+                super::translator::calculate_class_seq_size_with_root(current, Some(ctx.root)).unwrap_or(0).to_string()
             } else {
                 translate_expr(max_expr, ctx)
             };
@@ -1844,7 +1846,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                             return format!("process_xor_many(&{raw_bytes_var}, &{trans_arg})");
                         }
                         return format!(
-                            "process_xor_one(&{raw_bytes_var}, u8::try_from(i64::try_from({trans_arg}).unwrap_or(0) & 0xff).unwrap_or(0))"
+                            "process_xor_one(&{raw_bytes_var}, u8::try_from(i64::try_from({trans_arg})? & 0xff)?)"
                         );
                     }
                 }
@@ -1852,7 +1854,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                     if let Some(first_arg) = args.first() {
                         let trans_arg = translate_expr(first_arg, ctx);
                         return format!(
-                            "process_rotate_left(&{raw_bytes_var}, i64::try_from({trans_arg}).unwrap_or(0))"
+                            "process_rotate_left(&{raw_bytes_var}, i64::try_from({trans_arg})?)"
                         );
                     }
                 }
@@ -1860,7 +1862,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                     if let Some(first_arg) = args.first() {
                         let trans_arg = translate_expr(first_arg, ctx);
                         return format!(
-                            "process_rotate_right(&{raw_bytes_var}, i64::try_from({trans_arg}).unwrap_or(0))"
+                            "process_rotate_right(&{raw_bytes_var}, i64::try_from({trans_arg})?)"
                         );
                     }
                 }
@@ -1879,7 +1881,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                                             format!("{n}u8")
                                         } else {
                                             let s = translate_expr(item, ctx);
-                                            format!("u8::try_from({s} & 0xff).unwrap_or(0)")
+                                            format!("u8::try_from({s} & 0xff)?")
                                         }
                                     })
                                     .collect();
@@ -1900,7 +1902,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                                                     format!("{n}u8")
                                                 } else {
                                                     let s = translate_expr(item, ctx);
-                                                    format!("u8::try_from({s} & 0xff).unwrap_or(0)")
+                                                    format!("u8::try_from({s} & 0xff)?")
                                                 }
                                             })
                                             .collect();
@@ -1914,9 +1916,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                                 format!("if {cond_str} {{ {t_str} }} else {{ {f_str} }}")
                             } else if idx == 0 {
                                 let s = translate_expr(arg, ctx);
-                                format!(
-                                    "u8::try_from(i64::try_from({s}).unwrap_or(0) & 0xff).unwrap_or(0)"
-                                )
+                                format!("u8::try_from(i64::try_from({s})? & 0xff)?")
                             } else {
                                 translate_expr(arg, ctx)
                             }
@@ -1947,7 +1947,7 @@ fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationConte
                         .iter()
                         .map(|arg| {
                             let s = translate_expr(arg, ctx);
-                            format!("u8::try_from(i64::try_from({s}).unwrap_or(0) & 0xff).unwrap_or(0)")
+                            format!("u8::try_from(i64::try_from({s})? & 0xff)?")
                         })
                         .collect();
                     let args_str = arg_strs.join(", ");
@@ -2073,7 +2073,7 @@ fn read_expr_for_type(
             pad_right,
             ..
         } => {
-            let is_utf16 = encoding.as_deref().map_or(false, |e| {
+            let is_utf16 = encoding.as_deref().is_some_and(|e| {
                 e.to_ascii_uppercase().starts_with("UTF-16")
             });
             let mut raw_bytes = if *size_eos {

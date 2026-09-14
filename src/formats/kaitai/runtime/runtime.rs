@@ -661,9 +661,12 @@ pub trait KStream {
     ) -> KResult<Vec<u8>> {
         self.align_to_byte()?;
         let unit_len = term.len();
-        if unit_len <= 1 {
-            let term_byte = term.first().copied().unwrap_or(0);
-            return self.read_bytes_term(term_byte, include, consume, eos_error);
+        if let Some(&term_byte) = term.first() {
+            if unit_len == 1 {
+                return self.read_bytes_term(term_byte, include, consume, eos_error);
+            }
+        } else {
+            return self.read_bytes_full();
         }
         let mut buf = vec![];
         loop {
@@ -870,9 +873,12 @@ pub fn bytes_terminate(bytes: &[u8], term: u8, include_term: bool) -> Vec<u8> {
 /// termination sequence. Can optionally include the termination sequence as well.
 pub fn bytes_terminate_multi(bytes: &[u8], term: &[u8], include_term: bool) -> Vec<u8> {
     let unit_len = term.len();
-    if unit_len <= 1 {
-        let term_byte = term.first().copied().unwrap_or(0);
-        return bytes_terminate(bytes, term_byte, include_term);
+    if let Some(&term_byte) = term.first() {
+        if unit_len == 1 {
+            return bytes_terminate(bytes, term_byte, include_term);
+        }
+    } else {
+        return bytes.to_vec();
     }
     let mut i = 0_usize;
     while i.saturating_add(unit_len) <= bytes.len() {
@@ -883,7 +889,10 @@ pub fn bytes_terminate_multi(bytes: &[u8], term: &[u8], include_term: bool) -> V
                 } else {
                     i
                 };
-                return bytes.get(..end).unwrap_or(bytes).to_vec();
+                if let Some(sub) = bytes.get(..end) {
+                    return sub.to_vec();
+                }
+                return bytes.to_vec();
             }
         }
         i = i.saturating_add(unit_len);
@@ -900,20 +909,8 @@ pub fn bytes_terminate_pad(
     pad: Option<u8>,
 ) -> Vec<u8> {
     if let Some(t) = term {
-        if let Some(term_index) = bytes.iter().position(|&c| c == t) {
-            let end = if include_term {
-                term_index.saturating_add(1)
-            } else {
-                term_index
-            };
-            #[expect(
-                clippy::expect_used,
-                reason = "end is bounded by position in bytes plus at most 1"
-            )]
-            return bytes.get(..end).expect("valid range").to_vec();
-        }
-    }
-    if let Some(p) = pad {
+        bytes_terminate(bytes, t, include_term)
+    } else if let Some(p) = pad {
         bytes_strip_right(bytes, p)
     } else {
         bytes.to_vec()
@@ -930,9 +927,12 @@ pub fn bytes_terminate_pad_multi(
 ) -> Vec<u8> {
     if let Some(t) = term {
         let unit_len = t.len();
-        if unit_len <= 1 {
-            let t_byte = t.first().copied().unwrap_or(0);
-            return bytes_terminate_pad(bytes, Some(t_byte), include_term, pad);
+        if let Some(&t_byte) = t.first() {
+            if unit_len == 1 {
+                return bytes_terminate_pad(bytes, Some(t_byte), include_term, pad);
+            }
+        } else {
+            return bytes.to_vec();
         }
         let mut i = 0_usize;
         while i.saturating_add(unit_len) <= bytes.len() {
@@ -943,7 +943,10 @@ pub fn bytes_terminate_pad_multi(
                     } else {
                         i
                     };
-                    return bytes.get(..end).unwrap_or(bytes).to_vec();
+                    if let Some(sub) = bytes.get(..end) {
+                        return sub.to_vec();
+                    }
+                    return bytes.to_vec();
                 }
             }
             i = i.saturating_add(unit_len);
@@ -1125,6 +1128,7 @@ impl ToF32 for f32 {
 
 impl ToF32 for f64 {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::f64_to_f32_approx(self).unwrap_or(0.0)
     }
 }
@@ -1161,21 +1165,25 @@ impl ToF64 for i32 {
 }
 impl ToF64 for u64 {
     fn to_f64(self) -> f64 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::u64_to_f64_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF64 for usize {
     fn to_f64(self) -> f64 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::usize_to_f64_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF64 for i64 {
     fn to_f64(self) -> f64 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::i64_to_f64_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF64 for isize {
     fn to_f64(self) -> f64 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::isize_to_f64_approx(self).unwrap_or(0.0)
     }
 }
@@ -1202,31 +1210,37 @@ impl ToF32 for i16 {
 }
 impl ToF32 for u32 {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::u32_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF32 for u64 {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::u64_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF32 for usize {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::usize_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF32 for i32 {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::i32_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF32 for i64 {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::i64_to_f32_approx(self).unwrap_or(0.0)
     }
 }
 impl ToF32 for isize {
     fn to_f32(self) -> f32 {
+        // Reason for fallback: out-of-range numeric value in float conversion defaults to 0.0
         utilities::math::approx_float::isize_to_f32_approx(self).unwrap_or(0.0)
     }
 }

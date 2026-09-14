@@ -82,10 +82,10 @@ impl KStruct for ProcessCustom {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf1.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(7).unwrap_or(0) & 0xff).unwrap_or(0), true, &[32u8, 48u8, 64u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
-        *self_rc.buf2.borrow_mut() = crate::custom_fx::Nested::Deeply::CustomFx::new(u8::try_from(i64::try_from(7).unwrap_or(0) & 0xff).unwrap_or(0)).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf1.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(7)? & 0xff)?, true, &[32u8, 48u8, 64u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf2.borrow_mut() = crate::custom_fx::Nested::Deeply::CustomFx::new(u8::try_from(i64::try_from(7)? & 0xff)?).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
         *self_rc.key.borrow_mut() = _io.read_u1()?;
-        *self_rc.buf3.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(*self_rc.key()).unwrap_or(0) & 0xff).unwrap_or(0), false, &[0u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
+        *self_rc.buf3.borrow_mut() = crate::my_custom_fx::MyCustomFx::new(u8::try_from(i64::try_from(*self_rc.key())? & 0xff)?, false, &[0u8]).decode(&_io.read_bytes(5_usize)?).map_err(|e| KError::BytesDecodingError { msg: e })?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

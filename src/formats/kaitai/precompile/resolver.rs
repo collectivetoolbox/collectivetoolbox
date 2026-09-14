@@ -856,13 +856,15 @@ fn resolve_class_spec(
             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
             _ => None,
         });
-        // Reason for fallback: default byte stream settings per Kaitai spec (consume=true, include=false)
+        // Reason for fallback: default byte stream settings per Kaitai spec (consume=true)
         let consume = attr.consume.unwrap_or(true);
+        // Reason for fallback: default byte stream settings per Kaitai spec (include=false)
         let include = attr.include.unwrap_or(false);
         let pad_right = attr.pad_right.as_ref().and_then(|p| match p {
             ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
             _ => None,
         });
+        // Reason for fallback: default byte stream settings per Kaitai spec (eos_error=true)
         let eos_error = attr.eos_error.unwrap_or(true);
 
         resolved_seq.push(ResolvedAttr {
@@ -1327,6 +1329,7 @@ fn resolve_simple_type(
                             _ => None,
                         })
                 })
+                // Reason for fallback: unspecified bit endianness defaults to big endian per Kaitai spec
                 .unwrap_or(BitEndianness::Big);
             (bit_str, default_bit_endian)
         };
@@ -1675,7 +1678,8 @@ fn resolve_instance(
                 count
             }
         };
-        Some(Expr::IntNum(i128::try_from(len).unwrap_or(0)))
+        let int_len = i128::try_from(len).context("contents length exceeds i128")?;
+        Some(Expr::IntNum(int_len))
     } else {
         None
     };

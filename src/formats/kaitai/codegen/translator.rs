@@ -966,6 +966,7 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
             return true;
         }
     }
+    // Reason for fallback: expression without trailing question mark remains unchanged
     let without_try = trimmed.strip_suffix('?').unwrap_or(trimmed);
     if without_try.starts_with("usize::try_from(")
         || without_try.starts_with("usize::from(")
@@ -983,7 +984,9 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
             let prev_is_op = idx > 0 && chars.get(idx.saturating_sub(1)).is_some_and(|&(_, p)| p == '|' || p == '&');
             let next_is_op = chars.get(idx.saturating_add(1)).is_some_and(|&(_, n)| n == '|' || n == '&');
             if (c == '|' || c == '&' || c == '^') && !prev_is_op && !next_is_op {
+                // Reason for fallback: slice indexing at split point defaults to empty string on out-of-bounds
                 let left = trimmed.get(..i).unwrap_or("").trim();
+                // Reason for fallback: slice indexing at split point defaults to empty string on out-of-bounds
                 let right = trimmed.get(i.saturating_add(1)..).unwrap_or("").trim();
                 if is_usize_expr_str(left) || is_usize_expr_str(right) {
                     return true;
