@@ -114,7 +114,7 @@ impl KStruct for ExprStrEncodings {
     }
 }
 impl ExprStrEncodings {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -126,7 +126,7 @@ impl ExprStrEncodings {
         *self.str1_eq.borrow_mut() = ((self.str1().as_str() == "Some ASCII")).try_into()?;
         Ok(self.str1_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str2_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -138,7 +138,7 @@ impl ExprStrEncodings {
         *self.str2_eq.borrow_mut() = ((self.str2().as_str() == "こんにちは")).try_into()?;
         Ok(self.str2_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str3_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -150,7 +150,7 @@ impl ExprStrEncodings {
         *self.str3_eq.borrow_mut() = ((self.str3().as_str() == "こんにちは")).try_into()?;
         Ok(self.str3_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str3_eq_str2(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -162,7 +162,7 @@ impl ExprStrEncodings {
         *self.str3_eq_str2.borrow_mut() = ((self.str3().as_str() == self.str2().as_str())).try_into()?;
         Ok(self.str3_eq_str2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str4_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -174,7 +174,7 @@ impl ExprStrEncodings {
         *self.str4_eq.borrow_mut() = ((self.str4().as_str() == "░▒▓")).try_into()?;
         Ok(self.str4_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str4_gt_str_calc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -186,7 +186,7 @@ impl ExprStrEncodings {
         *self.str4_gt_str_calc.borrow_mut() = ((self.str4().as_str() > "┤")).try_into()?;
         Ok(self.str4_gt_str_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str4_gt_str_from_bytes(
         &self
     ) -> KResult<Ref<'_, bool>> {

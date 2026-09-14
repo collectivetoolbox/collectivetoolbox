@@ -98,7 +98,7 @@ impl ParamsDefUsertypeImported {
     }
 }
 impl ParamsDefUsertypeImported {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hw_one(
         &self
     ) -> KResult<Ref<'_, i32>> {

@@ -98,7 +98,7 @@ impl Docstrings {
     /**
      * And yet another one for value instance "three"
      */
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn three(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -114,7 +114,7 @@ impl Docstrings {
     /**
      * Another description for parse instance "two"
      */
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two(
         &self
     ) -> KResult<Ref<'_, u8>> {

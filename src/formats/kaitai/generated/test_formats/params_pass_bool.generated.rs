@@ -117,7 +117,7 @@ impl KStruct for ParamsPassBool {
     }
 }
 impl ParamsPassBool {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_false(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -129,7 +129,7 @@ impl ParamsPassBool {
         *self.v_false.borrow_mut() = (false).try_into()?;
         Ok(self.v_false.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_true(
         &self
     ) -> KResult<Ref<'_, bool>> {

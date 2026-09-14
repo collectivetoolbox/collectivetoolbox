@@ -102,7 +102,7 @@ impl KStruct for ExprIfIntOps {
     }
 }
 impl ExprIfIntOps {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bytes_sub_key(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -114,7 +114,7 @@ impl ExprIfIntOps {
         *self.bytes_sub_key.borrow_mut() = (*(self.bytes().get(usize::try_from(*self.key())?).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.bytes_sub_key.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn items_sub_key(
         &self
     ) -> KResult<Ref<'_, i8>> {

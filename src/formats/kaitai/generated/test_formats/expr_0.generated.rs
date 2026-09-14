@@ -90,7 +90,7 @@ impl KStruct for Expr0 {
     }
 }
 impl Expr0 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn must_be_abc123(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -102,7 +102,7 @@ impl Expr0 {
         *self.must_be_abc123.borrow_mut() = format!("{}{}", "abc", "123").to_string();
         Ok(self.must_be_abc123.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn must_be_f7(
         &self
     ) -> KResult<Ref<'_, i32>> {

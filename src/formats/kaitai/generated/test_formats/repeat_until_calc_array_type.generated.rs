@@ -104,7 +104,7 @@ impl KStruct for RepeatUntilCalcArrayType {
     }
 }
 impl RepeatUntilCalcArrayType {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_rec(
         &self
     ) -> KResult<Ref<'_, OptRc<RepeatUntilCalcArrayType_Record>>> {
@@ -115,7 +115,7 @@ impl RepeatUntilCalcArrayType {
         *self.first_rec.borrow_mut() = self.recs_accessor()?.first().ok_or(KError::EmptyIterator)?.clone();
         Ok(self.first_rec.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn recs_accessor(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<RepeatUntilCalcArrayType_Record>>>> {

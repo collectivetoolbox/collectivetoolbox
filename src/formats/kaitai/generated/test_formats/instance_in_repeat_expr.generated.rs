@@ -93,7 +93,7 @@ impl KStruct for InstanceInRepeatExpr {
     }
 }
 impl InstanceInRepeatExpr {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_chunks(
         &self
     ) -> KResult<Ref<'_, u32>> {

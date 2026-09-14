@@ -86,7 +86,7 @@ impl KStruct for ExprSizeofType0 {
     }
 }
 impl ExprSizeofType0 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {

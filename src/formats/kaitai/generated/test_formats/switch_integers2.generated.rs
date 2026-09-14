@@ -209,7 +209,7 @@ impl KStruct for SwitchIntegers2 {
     }
 }
 impl SwitchIntegers2 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_mod_str(
         &self
     ) -> KResult<Ref<'_, String>> {

@@ -57,22 +57,21 @@ pub enum CharacterDescriptionInputFormat {
     /// Dc ASCII List format (.dcal, space/newline-separated global IDs)
     #[value(
         name = "dcal",
-        alias = "dc-al",
-        alias = "dc_al",
-        alias = "dc-ascii-list"
     )]
     Dcal,
     /// Short Dc Integer List format (.dcil, space/newline-separated short Dc IDs)
     #[value(
         name = "dcil",
-        alias = "dc-il",
-        alias = "dc_il",
-        alias = "dc-integer-list"
     )]
     Dcil,
     /// DcText document format (with @<id>@ tokens)
-    #[value(name = "dctext", alias = "dc-text", alias = "dc_text")]
+    #[value(name = "dctext")]
     DcText,
+    /// DcText short document format (.dcts, with short Dcs by default)
+    #[value(
+        name = "dcts",
+    )]
+    Dcts,
 }
 
 /// Execution arguments for the `character_description` CLI tool.
@@ -84,7 +83,7 @@ pub struct CharacterDescriptionArgs {
     /// Input text containing characters/IDs to describe. If not provided, reads from stdin or file.
     pub input: Option<String>,
 
-    /// Input format: utf8 (default), dcal (Dc ASCII list), dcil (short Dc integer list), or dctext
+    /// Input format: utf8 (default), dcal, dcil, dctext, or dcts
     #[arg(long = "from", value_enum, default_value_t = CharacterDescriptionInputFormat::Utf8)]
     pub from: CharacterDescriptionInputFormat,
 
@@ -213,6 +212,11 @@ where
             }
             CharacterDescriptionInputFormat::DcText => {
                 let conv = dctext_to_dclist(&input_bytes)?;
+                describe_dclist(&conv.result, options)
+            }
+            CharacterDescriptionInputFormat::Dcts => {
+                let conv =
+                    crate::converters::dcts::dcts_to_dclist(&input_bytes)?;
                 describe_dclist(&conv.result, options)
             }
         }
@@ -455,5 +459,22 @@ mod tests {
         let res_fmt_i = crate::cli_identifiers::execute_cli_short_fmt(&args_short_fmt_i)
             .expect("Run short-fmt -i");
         assert!(res_fmt_i.starts_with("2228304\nString\n\nCategory: semantic"));
+    }
+
+    #[crate::ctb_test]
+    fn test_character_description_from_dcts() {
+        let args = CharacterDescriptionArgs {
+            input: Some("a @123@ @f80@".to_string()),
+            from: CharacterDescriptionInputFormat::Dcts,
+            ..Default::default()
+        };
+        let out =
+            execute_cli_character_description(args, |p| Ok(std::fs::read(p)?))
+                .expect("Run character_description with dcts")
+                .unwrap_or_default();
+        let desc = String::from_utf8(out).expect("UTF-8 stdout");
+        assert!(desc.contains("U+0061 : LATIN SMALL LETTER A"));
+        assert!(desc.contains("1114235"));
+        assert!(desc.contains("2228304"));
     }
 }

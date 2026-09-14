@@ -27,10 +27,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 pub mod dcal;
+pub mod dcts;
 pub mod dctext;
 pub mod utf8;
 
 pub use dcal::{dcal_to_dclist, dclist_to_dcal};
+pub use dcts::{
+    dcarray_to_dcts, dclist_to_dcts, dcstring_to_dcts, dcts_to_dcarray,
+    dcts_to_dclist, dcts_to_dcstring, dcts_to_dcutf, dcutf_to_dcts,
+};
 pub use dctext::{
     DcList, dcarray_to_dclist, dcarray_to_dctext, dclist_to_dcarray,
     dclist_to_dctext, dclist_to_dcutf, dcstring_to_dctext, dctext_to_dcarray,

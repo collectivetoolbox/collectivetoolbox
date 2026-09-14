@@ -103,7 +103,7 @@ impl DocstringsDocref {
     /**
      * \sa Doc ref for instance, a plain one
      */
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn foo(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -121,7 +121,7 @@ impl DocstringsDocref {
      *   long document ref that
      *   spans multiple lines.
      */
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn parse_inst(
         &self
     ) -> KResult<Ref<'_, u8>> {

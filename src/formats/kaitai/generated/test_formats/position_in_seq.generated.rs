@@ -92,7 +92,7 @@ impl KStruct for PositionInSeq {
     }
 }
 impl PositionInSeq {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn header(
         &self
     ) -> KResult<Ref<'_, OptRc<PositionInSeq_HeaderObj>>> {

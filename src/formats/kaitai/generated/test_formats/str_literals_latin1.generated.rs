@@ -90,7 +90,7 @@ impl KStruct for StrLiteralsLatin1 {
     }
 }
 impl StrLiteralsLatin1 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn parsed_eq_literal(
         &self
     ) -> KResult<Ref<'_, bool>> {

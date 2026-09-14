@@ -136,7 +136,7 @@ impl KStruct for NavParentVsValueInst_ChildObj {
     }
 }
 impl NavParentVsValueInst_ChildObj {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn do_something(
         &self
     ) -> KResult<Ref<'_, bool>> {

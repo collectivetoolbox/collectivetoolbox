@@ -90,7 +90,7 @@ impl KStruct for ValidFailRepeatInst {
     }
 }
 impl ValidFailRepeatInst {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn inst(
         &self
     ) -> KResult<Ref<'_, Vec<u32>>> {

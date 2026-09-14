@@ -92,7 +92,7 @@ impl KStruct for EnumOfValueInst {
     }
 }
 impl EnumOfValueInst {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_3(
         &self
     ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
@@ -104,7 +104,7 @@ impl EnumOfValueInst {
         *self.pet_3.borrow_mut() = i64::from(if *self.pet_1() == EnumOfValueInst_Animal::Cat { 4_i32 } else { 12_i32 }).try_into()?;
         Ok(self.pet_3.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_4(
         &self
     ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {

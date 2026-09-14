@@ -104,7 +104,7 @@ impl KStruct for Expr2 {
     }
 }
 impl Expr2 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_avg(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -116,7 +116,7 @@ impl Expr2 {
         *self.str1_avg.borrow_mut() = (*self.str1().rest().avg()?).try_into()?;
         Ok(self.str1_avg.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_byte1(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -128,7 +128,7 @@ impl Expr2 {
         *self.str1_byte1.borrow_mut() = (*self.str1().rest().byte1()).try_into()?;
         Ok(self.str1_byte1.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_char5(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -140,7 +140,7 @@ impl Expr2 {
         *self.str1_char5.borrow_mut() = self.str1().char5()?.to_string();
         Ok(self.str1_char5.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -152,7 +152,7 @@ impl Expr2 {
         *self.str1_len.borrow_mut() = (self.str1().str().len()).try_into()?;
         Ok(self.str1_len.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_len_mod(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -164,7 +164,7 @@ impl Expr2 {
         *self.str1_len_mod.borrow_mut() = (*self.str1().len_mod()?).try_into()?;
         Ok(self.str1_len_mod.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str1_tuple5(
         &self
     ) -> KResult<Ref<'_, OptRc<Expr2_Tuple>>> {
@@ -175,7 +175,7 @@ impl Expr2 {
         *self.str1_tuple5.borrow_mut() = self.str1().tuple5()?.clone();
         Ok(self.str1_tuple5.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str2_tuple5(
         &self
     ) -> KResult<Ref<'_, OptRc<Expr2_Tuple>>> {
@@ -248,7 +248,7 @@ impl KStruct for Expr2_ModStr {
     }
 }
 impl Expr2_ModStr {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn char5(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -263,7 +263,7 @@ impl Expr2_ModStr {
         _io.seek(_pos)?;
         Ok(self.char5.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_mod(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -275,7 +275,7 @@ impl Expr2_ModStr {
         *self.len_mod.borrow_mut() = ((i32::from(*self.len_orig())).saturating_sub(3_i32)).try_into()?;
         Ok(self.len_mod.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tuple5(
         &self
     ) -> KResult<Ref<'_, OptRc<Expr2_Tuple>>> {
@@ -353,7 +353,7 @@ impl KStruct for Expr2_Tuple {
     }
 }
 impl Expr2_Tuple {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn avg(
         &self
     ) -> KResult<Ref<'_, i32>> {

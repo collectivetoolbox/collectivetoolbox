@@ -88,7 +88,7 @@ impl KStruct for PositionAbs {
     }
 }
 impl PositionAbs {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<PositionAbs_IndexObj>>> {

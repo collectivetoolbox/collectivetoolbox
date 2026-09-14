@@ -93,7 +93,7 @@ impl KStruct for OpaqueExternalType02Child {
     }
 }
 impl OpaqueExternalType02Child {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn some_method(
         &self
     ) -> KResult<Ref<'_, bool>> {

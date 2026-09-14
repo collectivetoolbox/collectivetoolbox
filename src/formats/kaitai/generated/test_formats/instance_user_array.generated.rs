@@ -93,7 +93,7 @@ impl KStruct for InstanceUserArray {
     }
 }
 impl InstanceUserArray {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn user_entries(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<InstanceUserArray_Entry>>>> {

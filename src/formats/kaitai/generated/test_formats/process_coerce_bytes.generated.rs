@@ -143,7 +143,7 @@ impl KStruct for ProcessCoerceBytes_Record {
     }
 }
 impl ProcessCoerceBytes_Record {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn buf(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

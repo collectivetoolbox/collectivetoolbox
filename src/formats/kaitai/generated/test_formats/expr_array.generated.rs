@@ -132,7 +132,7 @@ impl KStruct for ExprArray {
     }
 }
 impl ExprArray {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn afloat_first(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -144,7 +144,7 @@ impl ExprArray {
         *self.afloat_first.borrow_mut() = (*self.afloat().first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.afloat_first.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn afloat_last(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -156,7 +156,7 @@ impl ExprArray {
         *self.afloat_last.borrow_mut() = (*self.afloat().last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.afloat_last.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn afloat_max(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -168,7 +168,7 @@ impl ExprArray {
         *self.afloat_max.borrow_mut() = (*self.afloat().iter().reduce(|a, b| if (a.max(*b)) == *b { b } else { a }).ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.afloat_max.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn afloat_min(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -180,7 +180,7 @@ impl ExprArray {
         *self.afloat_min.borrow_mut() = (*self.afloat().iter().reduce(|a, b| if (a.min(*b)) == *b { b } else { a }).ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.afloat_min.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn afloat_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -192,7 +192,7 @@ impl ExprArray {
         *self.afloat_size.borrow_mut() = (self.afloat().len()).try_into()?;
         Ok(self.afloat_size.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aint_first(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -204,7 +204,7 @@ impl ExprArray {
         *self.aint_first.borrow_mut() = (*self.aint().first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.aint_first.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aint_last(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -216,7 +216,7 @@ impl ExprArray {
         *self.aint_last.borrow_mut() = (*self.aint().last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.aint_last.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aint_max(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -228,7 +228,7 @@ impl ExprArray {
         *self.aint_max.borrow_mut() = (*self.aint().iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.aint_max.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aint_min(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -240,7 +240,7 @@ impl ExprArray {
         *self.aint_min.borrow_mut() = (*self.aint().iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.aint_min.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aint_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -252,7 +252,7 @@ impl ExprArray {
         *self.aint_size.borrow_mut() = (self.aint().len()).try_into()?;
         Ok(self.aint_size.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn astr_first(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -264,7 +264,7 @@ impl ExprArray {
         *self.astr_first.borrow_mut() = self.astr().first().ok_or(KError::EmptyIterator)?.to_string();
         Ok(self.astr_first.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn astr_last(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -276,7 +276,7 @@ impl ExprArray {
         *self.astr_last.borrow_mut() = self.astr().last().ok_or(KError::EmptyIterator)?.to_string();
         Ok(self.astr_last.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn astr_max(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -288,7 +288,7 @@ impl ExprArray {
         *self.astr_max.borrow_mut() = (*self.astr().iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.astr_max.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn astr_min(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -300,7 +300,7 @@ impl ExprArray {
         *self.astr_min.borrow_mut() = (*self.astr().iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.astr_min.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn astr_size(
         &self
     ) -> KResult<Ref<'_, i32>> {

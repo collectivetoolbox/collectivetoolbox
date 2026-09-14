@@ -90,7 +90,7 @@ impl KStruct for CombineEnum {
     }
 }
 impl CombineEnum {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn enum_u4_u2(
         &self
     ) -> KResult<Ref<'_, CombineEnum_Animal>> {

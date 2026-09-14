@@ -108,7 +108,7 @@ impl KStruct for TypeTernaryOpaque {
     }
 }
 impl TypeTernaryOpaque {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn dif(
         &self
     ) -> KResult<Ref<'_, OptRc<HelloWorld>>> {
@@ -119,7 +119,7 @@ impl TypeTernaryOpaque {
         *self.dif.borrow_mut() = if !(*self.is_hack()?) { self.dif_wo_hack().clone() } else { self.dif_with_hack().clone() }.clone();
         Ok(self.dif.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_hack(
         &self
     ) -> KResult<Ref<'_, bool>> {

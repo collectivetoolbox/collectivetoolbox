@@ -90,7 +90,7 @@ impl KStruct for ExprBytesNonLiteral {
     }
 }
 impl ExprBytesNonLiteral {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_bytes(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

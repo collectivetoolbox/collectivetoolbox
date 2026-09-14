@@ -97,7 +97,7 @@ impl KStruct for ParamsPassArrayStruct {
     }
 }
 impl ParamsPassArrayStruct {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_two(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Struct>>>> {

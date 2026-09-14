@@ -177,7 +177,7 @@ impl KStruct for NavParent2_Tag {
     }
 }
 impl NavParent2_Tag {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_content(
         &self
     ) -> KResult<Ref<'_, Option<NavParent2_Tag_TagContent>>> {

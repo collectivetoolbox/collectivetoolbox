@@ -192,7 +192,7 @@ impl KStruct for ProcessCoerceUsertype2_Record {
     }
 }
 impl ProcessCoerceUsertype2_Record {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn buf(
         &self
     ) -> KResult<Ref<'_, OptRc<ProcessCoerceUsertype2_Foo>>> {

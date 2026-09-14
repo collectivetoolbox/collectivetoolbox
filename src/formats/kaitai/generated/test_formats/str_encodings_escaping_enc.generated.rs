@@ -217,7 +217,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str1Wrapper {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -269,7 +269,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str2Wrapper {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -321,7 +321,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str3Wrapper {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -373,7 +373,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str4Wrapper {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {

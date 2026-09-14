@@ -88,7 +88,7 @@ impl KStruct for JsSignedRightShift {
     }
 }
 impl JsSignedRightShift {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn should_be_40000000(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -100,7 +100,7 @@ impl JsSignedRightShift {
         *self.should_be_40000000.borrow_mut() = ((2147483648_u32).wrapping_shr(1_u32)).try_into()?;
         Ok(self.should_be_40000000.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn should_be_a00000(
         &self
     ) -> KResult<Ref<'_, i32>> {

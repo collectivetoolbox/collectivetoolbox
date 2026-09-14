@@ -92,7 +92,7 @@ impl KStruct for EnumDeepLiterals {
     }
 }
 impl EnumDeepLiterals {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_pet_1_ok(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -104,7 +104,7 @@ impl EnumDeepLiterals {
         *self.is_pet_1_ok.borrow_mut() = (*self.pet_1() == EnumDeepLiterals_Container1_Animal::Cat).try_into()?;
         Ok(self.is_pet_1_ok.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_pet_2_ok(
         &self
     ) -> KResult<Ref<'_, bool>> {

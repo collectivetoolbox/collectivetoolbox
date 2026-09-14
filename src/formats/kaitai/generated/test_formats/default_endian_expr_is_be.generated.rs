@@ -212,7 +212,7 @@ impl DefaultEndianExprIsBe_Doc_MainObj {
     }
 }
 impl DefaultEndianExprIsBe_Doc_MainObj {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn inst_int(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -227,7 +227,7 @@ impl DefaultEndianExprIsBe_Doc_MainObj {
         _io.seek(_pos)?;
         Ok(self.inst_int.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn inst_sub(
         &self
     ) -> KResult<Ref<'_, OptRc<DefaultEndianExprIsBe_Doc_MainObj_SubMainObj>>> {

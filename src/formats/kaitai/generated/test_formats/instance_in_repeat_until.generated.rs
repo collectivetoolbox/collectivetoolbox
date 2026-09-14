@@ -99,7 +99,7 @@ impl KStruct for InstanceInRepeatUntil {
     }
 }
 impl InstanceInRepeatUntil {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn until_val(
         &self
     ) -> KResult<Ref<'_, i16>> {

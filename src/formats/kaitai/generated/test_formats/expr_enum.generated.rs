@@ -92,7 +92,7 @@ impl KStruct for ExprEnum {
     }
 }
 impl ExprEnum {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn const_dog(
         &self
     ) -> KResult<Ref<'_, ExprEnum_Animal>> {
@@ -104,7 +104,7 @@ impl ExprEnum {
         *self.const_dog.borrow_mut() = i64::from(4).try_into()?;
         Ok(self.const_dog.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn derived_boom(
         &self
     ) -> KResult<Ref<'_, ExprEnum_Animal>> {
@@ -116,7 +116,7 @@ impl ExprEnum {
         *self.derived_boom.borrow_mut() = i64::from(*self.one()).try_into()?;
         Ok(self.derived_boom.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn derived_dog(
         &self
     ) -> KResult<Ref<'_, ExprEnum_Animal>> {

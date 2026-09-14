@@ -96,7 +96,7 @@ impl KStruct for ExprIntDiv {
     }
 }
 impl ExprIntDiv {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn div_neg_const(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -108,7 +108,7 @@ impl ExprIntDiv {
         *self.div_neg_const.borrow_mut() = (div_floor(i64::from((0_i32).saturating_sub(to_i32(9837))), 13_i64)?).try_into()?;
         Ok(self.div_neg_const.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn div_neg_seq(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -120,7 +120,7 @@ impl ExprIntDiv {
         *self.div_neg_seq.borrow_mut() = (div_floor(i64::from(*self.int_s()), 13_i64)?).try_into()?;
         Ok(self.div_neg_seq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn div_pos_const(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -132,7 +132,7 @@ impl ExprIntDiv {
         *self.div_pos_const.borrow_mut() = (div_floor(9837_i64, 13_i64)?).try_into()?;
         Ok(self.div_pos_const.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn div_pos_seq(
         &self
     ) -> KResult<Ref<'_, i32>> {

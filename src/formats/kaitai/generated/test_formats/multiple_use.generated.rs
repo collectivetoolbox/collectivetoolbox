@@ -222,7 +222,7 @@ impl KStruct for MultipleUse_Type2 {
     }
 }
 impl MultipleUse_Type2 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn second_use(
         &self
     ) -> KResult<Ref<'_, OptRc<MultipleUse_Multi>>> {

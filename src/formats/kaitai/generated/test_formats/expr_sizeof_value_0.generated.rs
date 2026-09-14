@@ -99,7 +99,7 @@ impl KStruct for ExprSizeofValue0 {
     }
 }
 impl ExprSizeofValue0 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn self_sizeof(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -111,7 +111,7 @@ impl ExprSizeofValue0 {
         *self.self_sizeof.borrow_mut() = (9_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -123,7 +123,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block.borrow_mut() = (7_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block_a(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -135,7 +135,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block_b(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -147,7 +147,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block_c(
         &self
     ) -> KResult<Ref<'_, i32>> {

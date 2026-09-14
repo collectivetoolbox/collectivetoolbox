@@ -90,7 +90,7 @@ impl KStruct for NavParent3 {
     }
 }
 impl NavParent3 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tags(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<NavParent3_Tag>>>> {
@@ -187,7 +187,7 @@ impl KStruct for NavParent3_Tag {
     }
 }
 impl NavParent3_Tag {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_content(
         &self
     ) -> KResult<Ref<'_, Option<NavParent3_Tag_TagContent>>> {

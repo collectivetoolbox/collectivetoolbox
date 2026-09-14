@@ -162,7 +162,7 @@ impl KStruct for ExprBits {
     }
 }
 impl ExprBits {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn enum_inst(
         &self
     ) -> KResult<Ref<'_, ExprBits_Items>> {
@@ -174,7 +174,7 @@ impl ExprBits {
         *self.enum_inst.borrow_mut() = i64::try_from(*self.a())?.try_into()?;
         Ok(self.enum_inst.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn inst_pos(
         &self
     ) -> KResult<Ref<'_, i8>> {

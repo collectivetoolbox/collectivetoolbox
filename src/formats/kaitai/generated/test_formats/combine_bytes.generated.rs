@@ -104,7 +104,7 @@ impl KStruct for CombineBytes {
     }
 }
 impl CombineBytes {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bytes_calc(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -116,7 +116,7 @@ impl CombineBytes {
         *self.bytes_calc.borrow_mut() = vec![82_i32, 110_i32, 68_i32];
         Ok(self.bytes_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn eos_or_calc(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -128,7 +128,7 @@ impl CombineBytes {
         *self.eos_or_calc.borrow_mut() = if true { self.bytes_eos().to_vec() } else { self.bytes_calc()?.to_vec() }.to_vec();
         Ok(self.eos_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn limit_or_calc(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -140,7 +140,7 @@ impl CombineBytes {
         *self.limit_or_calc.borrow_mut() = if false { self.bytes_limit().to_vec() } else { self.bytes_calc()?.to_vec() }.to_vec();
         Ok(self.limit_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn limit_or_eos(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -152,7 +152,7 @@ impl CombineBytes {
         *self.limit_or_eos.borrow_mut() = if true { self.bytes_limit().to_vec() } else { self.bytes_eos().to_vec() }.to_vec();
         Ok(self.limit_or_eos.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn term_or_calc(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -164,7 +164,7 @@ impl CombineBytes {
         *self.term_or_calc.borrow_mut() = if true { self.bytes_term().to_vec() } else { self.bytes_calc()?.to_vec() }.to_vec();
         Ok(self.term_or_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn term_or_eos(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -176,7 +176,7 @@ impl CombineBytes {
         *self.term_or_eos.borrow_mut() = if false { self.bytes_term().to_vec() } else { self.bytes_eos().to_vec() }.to_vec();
         Ok(self.term_or_eos.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn term_or_limit(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

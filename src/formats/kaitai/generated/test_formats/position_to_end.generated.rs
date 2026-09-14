@@ -86,7 +86,7 @@ impl KStruct for PositionToEnd {
     }
 }
 impl PositionToEnd {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<PositionToEnd_IndexObj>>> {

@@ -102,7 +102,7 @@ impl KStruct for CastNested {
     }
 }
 impl CastNested {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_0_str(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -114,7 +114,7 @@ impl CastNested {
         *self.opcodes_0_str.borrow_mut() = (OptRc::<CastNested_Opcode_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?).try_into()?;
         Ok(self.opcodes_0_str.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_0_str_value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -126,7 +126,7 @@ impl CastNested {
         *self.opcodes_0_str_value.borrow_mut() = (*OptRc::<CastNested_Opcode_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.value()).try_into()?;
         Ok(self.opcodes_0_str_value.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_1_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -138,7 +138,7 @@ impl CastNested {
         *self.opcodes_1_int.borrow_mut() = (OptRc::<CastNested_Opcode_Intval>::try_from(&*(self.opcodes().get(1_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?).try_into()?;
         Ok(self.opcodes_1_int.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcodes_1_int_value(
         &self
     ) -> KResult<Ref<'_, i32>> {

@@ -296,7 +296,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Defval {
     }
 }
 impl SwitchManualEnumInvalidElse_Opcode_Defval {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {

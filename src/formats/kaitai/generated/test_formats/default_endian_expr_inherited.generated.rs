@@ -315,7 +315,7 @@ impl DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
     }
 }
 impl DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn some_inst(
         &self
     ) -> KResult<Ref<'_, u32>> {

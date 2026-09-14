@@ -110,7 +110,7 @@ impl KStruct for ExprBytesCmp {
     }
 }
 impl ExprBytesCmp {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ack(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -122,7 +122,7 @@ impl ExprBytesCmp {
         *self.ack.borrow_mut() = vec![65_i32, 67_i32, 75_i32];
         Ok(self.ack.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ack2(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -134,7 +134,7 @@ impl ExprBytesCmp {
         *self.ack2.borrow_mut() = vec![65_i32, 67_i32, 75_i32, 50_i32];
         Ok(self.ack2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hi_val(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -146,7 +146,7 @@ impl ExprBytesCmp {
         *self.hi_val.borrow_mut() = vec![144_i32, 67_i32];
         Ok(self.hi_val.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -158,7 +158,7 @@ impl ExprBytesCmp {
         *self.is_eq.borrow_mut() = (*self.two() == *self.ack()?).try_into()?;
         Ok(self.is_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_ge(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -170,7 +170,7 @@ impl ExprBytesCmp {
         *self.is_ge.borrow_mut() = (*self.two() >= *self.ack2()?).try_into()?;
         Ok(self.is_ge.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_gt(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -182,7 +182,7 @@ impl ExprBytesCmp {
         *self.is_gt.borrow_mut() = (*self.two() > *self.ack2()?).try_into()?;
         Ok(self.is_gt.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_gt2(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -194,7 +194,7 @@ impl ExprBytesCmp {
         *self.is_gt2.borrow_mut() = (*self.hi_val()? > *self.two()).try_into()?;
         Ok(self.is_gt2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_le(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -206,7 +206,7 @@ impl ExprBytesCmp {
         *self.is_le.borrow_mut() = (*self.two() <= *self.ack2()?).try_into()?;
         Ok(self.is_le.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_lt(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -218,7 +218,7 @@ impl ExprBytesCmp {
         *self.is_lt.borrow_mut() = (*self.two() < *self.ack2()?).try_into()?;
         Ok(self.is_lt.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_lt2(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -230,7 +230,7 @@ impl ExprBytesCmp {
         *self.is_lt2.borrow_mut() = (*self.one() < *self.two()).try_into()?;
         Ok(self.is_lt2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_ne(
         &self
     ) -> KResult<Ref<'_, bool>> {

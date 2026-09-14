@@ -93,7 +93,7 @@ impl KStruct for EnumToIClassBorder1 {
     }
 }
 impl EnumToIClassBorder1 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn checker(
         &self
     ) -> KResult<Ref<'_, OptRc<EnumToIClassBorder2>>> {
@@ -109,7 +109,7 @@ impl EnumToIClassBorder1 {
         _io.seek(_pos)?;
         Ok(self.checker.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn some_dog(
         &self
     ) -> KResult<Ref<'_, EnumToIClassBorder1_Animal>> {

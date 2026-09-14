@@ -2233,7 +2233,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
             };
 
             let escaped_inst_id = escape_rust_keyword(inst_id);
-            w.puts("#[allow(clippy::approx_constant, reason = \"Kaitai format specification float literal\")]");
+            w.puts("#[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = \"Generic instance calculation conversion\")]");
             w.puts(&format!("pub fn {escaped_inst_id}("));
             w.inc();
             w.puts("&self");

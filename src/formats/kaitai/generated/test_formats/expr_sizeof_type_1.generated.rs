@@ -88,7 +88,7 @@ impl KStruct for ExprSizeofType1 {
     }
 }
 impl ExprSizeofType1 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -100,7 +100,7 @@ impl ExprSizeofType1 {
         *self.sizeof_block.borrow_mut() = (11_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sizeof_subblock(
         &self
     ) -> KResult<Ref<'_, i32>> {

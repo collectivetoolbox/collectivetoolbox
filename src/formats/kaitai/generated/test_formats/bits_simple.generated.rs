@@ -113,7 +113,7 @@ impl KStruct for BitsSimple {
     }
 }
 impl BitsSimple {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn test_if_b1(
         &self
     ) -> KResult<Ref<'_, i32>> {

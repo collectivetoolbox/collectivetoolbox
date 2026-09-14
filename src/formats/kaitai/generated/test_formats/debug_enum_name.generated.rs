@@ -209,7 +209,7 @@ impl KStruct for DebugEnumName_TestSubtype {
     }
 }
 impl DebugEnumName_TestSubtype {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn instance_field(
         &self
     ) -> KResult<Ref<'_, DebugEnumName_TestSubtype_InnerEnum2>> {

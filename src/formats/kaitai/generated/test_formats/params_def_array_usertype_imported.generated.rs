@@ -100,7 +100,7 @@ impl ParamsDefArrayUsertypeImported {
     }
 }
 impl ParamsDefArrayUsertypeImported {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hw0_one(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -112,7 +112,7 @@ impl ParamsDefArrayUsertypeImported {
         *self.hw0_one.borrow_mut() = (*self.hws_param().get(0_usize).ok_or(KError::CastError)?.one()).try_into()?;
         Ok(self.hw0_one.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn hw1_one(
         &self
     ) -> KResult<Ref<'_, i32>> {

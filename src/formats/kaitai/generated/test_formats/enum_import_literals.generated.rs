@@ -92,7 +92,7 @@ impl KStruct for EnumImportLiterals {
     }
 }
 impl EnumImportLiterals {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_1_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -104,7 +104,7 @@ impl EnumImportLiterals {
         *self.pet_1_eq.borrow_mut() = (if true { EnumImportLiterals_Animal::Chicken } else { EnumImportLiterals_Animal::Dog } == EnumImportLiterals_Animal::Chicken).try_into()?;
         Ok(self.pet_1_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_1_to_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -116,7 +116,7 @@ impl EnumImportLiterals {
         *self.pet_1_to_i.borrow_mut() = (EnumImportLiterals_Animal::Cat.parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.pet_1_to_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pet_2(
         &self
     ) -> KResult<Ref<'_, i32>> {

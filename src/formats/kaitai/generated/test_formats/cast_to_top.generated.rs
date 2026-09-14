@@ -90,7 +90,7 @@ impl KStruct for CastToTop {
     }
 }
 impl CastToTop {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn header(
         &self
     ) -> KResult<Ref<'_, OptRc<CastToTop>>> {
@@ -105,7 +105,7 @@ impl CastToTop {
         _io.seek(_pos)?;
         Ok(self.header.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn header_casted(
         &self
     ) -> KResult<Ref<'_, OptRc<CastToTop>>> {

@@ -124,7 +124,7 @@ impl KStruct for FloatToI {
     }
 }
 impl FloatToI {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_float1(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -136,7 +136,7 @@ impl FloatToI {
         *self.calc_float1.borrow_mut() = (1.234).try_into()?;
         Ok(self.calc_float1.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_float2(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -148,7 +148,7 @@ impl FloatToI {
         *self.calc_float2.borrow_mut() = (1.5).try_into()?;
         Ok(self.calc_float2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_float3(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -160,7 +160,7 @@ impl FloatToI {
         *self.calc_float3.borrow_mut() = (1.9).try_into()?;
         Ok(self.calc_float3.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_float4(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -172,7 +172,7 @@ impl FloatToI {
         *self.calc_float4.borrow_mut() = (-2.7).try_into()?;
         Ok(self.calc_float4.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_if(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -184,7 +184,7 @@ impl FloatToI {
         *self.calc_if.borrow_mut() = (13.9).try_into()?;
         Ok(self.calc_if.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn calc_if_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -196,7 +196,7 @@ impl FloatToI {
         *self.calc_if_i.borrow_mut() = (float_to_int(*self.calc_if()?)?).try_into()?;
         Ok(self.calc_if_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn double_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -208,7 +208,7 @@ impl FloatToI {
         *self.double_i.borrow_mut() = (float_to_int(*self.double_value())?).try_into()?;
         Ok(self.double_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn double_if_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -220,7 +220,7 @@ impl FloatToI {
         *self.double_if_i.borrow_mut() = (float_to_int(*self.double_value_if())?).try_into()?;
         Ok(self.double_if_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn float1_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -232,7 +232,7 @@ impl FloatToI {
         *self.float1_i.borrow_mut() = (float_to_int(*self.calc_float1()?)?).try_into()?;
         Ok(self.float1_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn float2_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -244,7 +244,7 @@ impl FloatToI {
         *self.float2_i.borrow_mut() = (float_to_int(*self.calc_float2()?)?).try_into()?;
         Ok(self.float2_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn float3_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -256,7 +256,7 @@ impl FloatToI {
         *self.float3_i.borrow_mut() = (float_to_int(*self.calc_float3()?)?).try_into()?;
         Ok(self.float3_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn float4_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -268,7 +268,7 @@ impl FloatToI {
         *self.float4_i.borrow_mut() = (float_to_int(*self.calc_float4()?)?).try_into()?;
         Ok(self.float4_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn single_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -280,7 +280,7 @@ impl FloatToI {
         *self.single_i.borrow_mut() = (float_to_int(*self.single_value())?).try_into()?;
         Ok(self.single_i.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn single_if_i(
         &self
     ) -> KResult<Ref<'_, i32>> {

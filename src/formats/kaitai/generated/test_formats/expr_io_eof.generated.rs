@@ -161,7 +161,7 @@ impl KStruct for ExprIoEof_OneOrTwo {
     }
 }
 impl ExprIoEof_OneOrTwo {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn reflect_eof(
         &self
     ) -> KResult<Ref<'_, bool>> {

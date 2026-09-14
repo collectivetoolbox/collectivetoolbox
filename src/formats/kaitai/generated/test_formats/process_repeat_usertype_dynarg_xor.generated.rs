@@ -196,7 +196,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     }
 }
 impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blocks_0_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -212,7 +212,7 @@ impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_0_b.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blocks_1_b(
         &self
     ) -> KResult<Ref<'_, u8>> {

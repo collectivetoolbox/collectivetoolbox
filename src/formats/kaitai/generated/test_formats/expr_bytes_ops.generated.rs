@@ -112,7 +112,7 @@ impl KStruct for ExprBytesOps {
     }
 }
 impl ExprBytesOps {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_first(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -124,7 +124,7 @@ impl ExprBytesOps {
         *self.one_first.borrow_mut() = (*self.one().first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_first.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_last(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -136,7 +136,7 @@ impl ExprBytesOps {
         *self.one_last.borrow_mut() = (*self.one().last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_last.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_max(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -148,7 +148,7 @@ impl ExprBytesOps {
         *self.one_max.borrow_mut() = (*self.one().iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_max.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_mid(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -160,7 +160,7 @@ impl ExprBytesOps {
         *self.one_mid.borrow_mut() = (*(self.one().get(1_usize).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.one_mid.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_min(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -172,7 +172,7 @@ impl ExprBytesOps {
         *self.one_min.borrow_mut() = (*self.one().iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.one_min.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn one_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -184,7 +184,7 @@ impl ExprBytesOps {
         *self.one_size.borrow_mut() = (self.one().len()).try_into()?;
         Ok(self.one_size.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -196,7 +196,7 @@ impl ExprBytesOps {
         *self.two.borrow_mut() = vec![65_i32, 255_i32, 75_i32];
         Ok(self.two.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_first(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -208,7 +208,7 @@ impl ExprBytesOps {
         *self.two_first.borrow_mut() = (*self.two()?.first().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_first.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_last(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -220,7 +220,7 @@ impl ExprBytesOps {
         *self.two_last.borrow_mut() = (*self.two()?.last().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_last.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_max(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -232,7 +232,7 @@ impl ExprBytesOps {
         *self.two_max.borrow_mut() = (*self.two()?.iter().max().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_max.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_mid(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -244,7 +244,7 @@ impl ExprBytesOps {
         *self.two_mid.borrow_mut() = (*(self.two()?.get(1_usize).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.two_mid.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_min(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -256,7 +256,7 @@ impl ExprBytesOps {
         *self.two_min.borrow_mut() = (*self.two()?.iter().min().ok_or(KError::EmptyIterator)?).try_into()?;
         Ok(self.two_min.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn two_size(
         &self
     ) -> KResult<Ref<'_, i32>> {

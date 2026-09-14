@@ -165,7 +165,7 @@ impl KStruct for NonStandard {
     }
 }
 impl NonStandard {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pi(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -180,7 +180,7 @@ impl NonStandard {
         _io.seek(_pos)?;
         Ok(self.pi.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn vi(
         &self
     ) -> KResult<Ref<'_, u8>> {

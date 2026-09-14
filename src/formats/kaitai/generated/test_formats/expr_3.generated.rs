@@ -108,7 +108,7 @@ impl KStruct for Expr3 {
     }
 }
 impl Expr3 {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn four(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -120,7 +120,7 @@ impl Expr3 {
         *self.four.borrow_mut() = format!("{}{}", format!("{}{}", "_", self.two()), "_").to_string();
         Ok(self.four.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_eq(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -132,7 +132,7 @@ impl Expr3 {
         *self.is_str_eq.borrow_mut() = ((self.two().as_str() == "ACK")).try_into()?;
         Ok(self.is_str_eq.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_ge(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -144,7 +144,7 @@ impl Expr3 {
         *self.is_str_ge.borrow_mut() = ((self.two().as_str() >= "ACK2")).try_into()?;
         Ok(self.is_str_ge.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_gt(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -156,7 +156,7 @@ impl Expr3 {
         *self.is_str_gt.borrow_mut() = ((self.two().as_str() > "ACK2")).try_into()?;
         Ok(self.is_str_gt.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_le(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -168,7 +168,7 @@ impl Expr3 {
         *self.is_str_le.borrow_mut() = ((self.two().as_str() <= "ACK2")).try_into()?;
         Ok(self.is_str_le.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_lt(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -180,7 +180,7 @@ impl Expr3 {
         *self.is_str_lt.borrow_mut() = ((self.two().as_str() < "ACK2")).try_into()?;
         Ok(self.is_str_lt.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_lt2(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -192,7 +192,7 @@ impl Expr3 {
         *self.is_str_lt2.borrow_mut() = ((self.three()?.as_str() < self.two().as_str())).try_into()?;
         Ok(self.is_str_lt2.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_ne(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -204,7 +204,7 @@ impl Expr3 {
         *self.is_str_ne.borrow_mut() = ((self.two().as_str() != "ACK")).try_into()?;
         Ok(self.is_str_ne.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn test_not(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -216,7 +216,7 @@ impl Expr3 {
         *self.test_not.borrow_mut() = (!(false)).try_into()?;
         Ok(self.test_not.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn three(
         &self
     ) -> KResult<Ref<'_, String>> {

@@ -90,7 +90,7 @@ impl KStruct for CombineBool {
     }
 }
 impl CombineBool {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bool_calc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -102,7 +102,7 @@ impl CombineBool {
         *self.bool_calc.borrow_mut() = (false).try_into()?;
         Ok(self.bool_calc.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bool_calc_bit(
         &self
     ) -> KResult<Ref<'_, bool>> {

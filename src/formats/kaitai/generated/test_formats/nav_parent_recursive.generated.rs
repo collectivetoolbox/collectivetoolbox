@@ -93,7 +93,7 @@ impl KStruct for NavParentRecursive {
     }
 }
 impl NavParentRecursive {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn parent_value(
         &self
     ) -> KResult<Ref<'_, u8>> {

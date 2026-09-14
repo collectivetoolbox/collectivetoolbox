@@ -100,7 +100,7 @@ impl KStruct for FloatingPoints {
     }
 }
 impl FloatingPoints {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn double_value_plus_float(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -112,7 +112,7 @@ impl FloatingPoints {
         *self.double_value_plus_float.borrow_mut() = (((*self.double_value()) + (0.05))).try_into()?;
         Ok(self.double_value_plus_float.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn single_value_plus_float(
         &self
     ) -> KResult<Ref<'_, f32>> {
@@ -124,7 +124,7 @@ impl FloatingPoints {
         *self.single_value_plus_float.borrow_mut() = (((*self.single_value()) + (to_f32(0.5)))).try_into()?;
         Ok(self.single_value_plus_float.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn single_value_plus_int(
         &self
     ) -> KResult<Ref<'_, f32>> {

@@ -123,7 +123,7 @@ impl KStruct for TypeTernary2ndFalsy {
     }
 }
 impl TypeTernary2ndFalsy {
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn null_ut(
         &self
     ) -> KResult<Ref<'_, OptRc<TypeTernary2ndFalsy_Foo>>> {
@@ -136,7 +136,7 @@ impl TypeTernary2ndFalsy {
         }
         Ok(self.null_ut.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn t(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -148,7 +148,7 @@ impl TypeTernary2ndFalsy {
         *self.t.borrow_mut() = (true).try_into()?;
         Ok(self.t.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_false(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -160,7 +160,7 @@ impl TypeTernary2ndFalsy {
         *self.v_false.borrow_mut() = (if *self.t()? { false } else { true }).try_into()?;
         Ok(self.v_false.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_float_neg_zero(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -172,7 +172,7 @@ impl TypeTernary2ndFalsy {
         *self.v_float_neg_zero.borrow_mut() = (if *self.t()? { -(0.0) } else { -(2.72) }).try_into()?;
         Ok(self.v_float_neg_zero.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_float_zero(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -184,7 +184,7 @@ impl TypeTernary2ndFalsy {
         *self.v_float_zero.borrow_mut() = (if *self.t()? { 0.0 } else { 3.14 }).try_into()?;
         Ok(self.v_float_zero.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_int_array_empty(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -196,7 +196,7 @@ impl TypeTernary2ndFalsy {
         *self.v_int_array_empty.borrow_mut() = if *self.t()? { self.int_array_empty().clone() } else { self.int_array().clone() }.to_vec();
         Ok(self.v_int_array_empty.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_int_neg_zero(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -208,7 +208,7 @@ impl TypeTernary2ndFalsy {
         *self.v_int_neg_zero.borrow_mut() = (if *self.t()? { (0_i32).saturating_sub(to_i32(0)) } else { (0_i32).saturating_sub(to_i32(20)) }).try_into()?;
         Ok(self.v_int_neg_zero.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_int_zero(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -220,7 +220,7 @@ impl TypeTernary2ndFalsy {
         *self.v_int_zero.borrow_mut() = (if *self.t()? { 0_i32 } else { 10_i32 }).try_into()?;
         Ok(self.v_int_zero.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_null_ut(
         &self
     ) -> KResult<Ref<'_, OptRc<TypeTernary2ndFalsy_Foo>>> {
@@ -231,7 +231,7 @@ impl TypeTernary2ndFalsy {
         *self.v_null_ut.borrow_mut() = if *self.t()? { self.null_ut()?.clone() } else { self.ut().clone() }.clone();
         Ok(self.v_null_ut.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_str_empty(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -243,7 +243,7 @@ impl TypeTernary2ndFalsy {
         *self.v_str_empty.borrow_mut() = if *self.t()? { "".to_string() } else { "kaitai".to_string() }.to_string();
         Ok(self.v_str_empty.borrow())
     }
-    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn v_str_w_zero(
         &self
     ) -> KResult<Ref<'_, String>> {

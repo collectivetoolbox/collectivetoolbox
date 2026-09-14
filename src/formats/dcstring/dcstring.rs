@@ -38,7 +38,7 @@ pub mod dcstring_impl;
 pub mod error;
 
 pub use converters::dctext::DcList;
-pub use converters::{dcal, dctext, utf8};
+pub use converters::{dcal, dcts, dctext, utf8};
 pub use dc_char::DcChar;
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dcstring_impl::DcString;
