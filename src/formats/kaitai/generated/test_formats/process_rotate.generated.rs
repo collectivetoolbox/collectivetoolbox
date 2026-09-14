@@ -82,10 +82,10 @@ impl KStruct for ProcessRotate {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf1.borrow_mut() = _io.read_bytes(5_usize)?;
-        *self_rc.buf2.borrow_mut() = _io.read_bytes(5_usize)?;
+        *self_rc.buf1.borrow_mut() = process_rotate_left(&_io.read_bytes(5_usize)?, i64::try_from(3).unwrap_or(0));
+        *self_rc.buf2.borrow_mut() = process_rotate_right(&_io.read_bytes(5_usize)?, i64::try_from(3).unwrap_or(0));
         *self_rc.key.borrow_mut() = _io.read_u1()?;
-        *self_rc.buf3.borrow_mut() = _io.read_bytes(5_usize)?;
+        *self_rc.buf3.borrow_mut() = process_rotate_left(&_io.read_bytes(5_usize)?, i64::try_from(*self_rc.key()).unwrap_or(0));
         Ok(())
     }
 }

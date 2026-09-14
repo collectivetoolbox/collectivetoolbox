@@ -83,7 +83,10 @@ impl KStruct for ProcessRepeatUsertype {
         *self_rc.blocks.borrow_mut() = Vec::new();
         let l_blocks = 2_usize;
         for _i in 0_usize..l_blocks {
-            let t = Self::read_into::<_, ProcessRepeatUsertype_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_blocks = _io.read_bytes(5_usize)?;
+            let _processed_blocks = process_xor_one(&_raw_blocks, 158_u8);
+            let _io_blocks = BytesReader::from(_processed_blocks);
+            let t = Self::read_into::<BytesReader, ProcessRepeatUsertype_Block>(&_io_blocks, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
         Ok(())

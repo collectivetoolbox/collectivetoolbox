@@ -852,6 +852,17 @@ fn resolve_class_spec(
         // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
         let size_eos = attr.size_eos.unwrap_or(false);
         let process = attr.process.clone();
+        let terminator = attr.terminator.as_ref().and_then(|t| match t {
+            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+            _ => None,
+        });
+        // Reason for fallback: default byte stream settings per Kaitai spec (consume=true, include=false)
+        let consume = attr.consume.unwrap_or(true);
+        let include = attr.include.unwrap_or(false);
+        let pad_right = attr.pad_right.as_ref().and_then(|p| match p {
+            ValueOrExpr::Int(i) => u8::try_from(*i).ok(),
+            _ => None,
+        });
 
         resolved_seq.push(ResolvedAttr {
             id: attr_id,
@@ -867,6 +878,10 @@ fn resolve_class_spec(
             size_expr,
             size_eos,
             process,
+            terminator,
+            consume,
+            include,
+            pad_right,
         });
     }
 
@@ -1075,7 +1090,7 @@ fn resolve_attr_data_type(
                     external_types.push(ext_t);
                 }
                 if matches!(dt, DataType::UserType { .. })
-                    && (attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some())
+                    && (attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some() || attr.terminator.is_some())
                 {
                     raw_id = Some(format!("{attr_id}_raw"));
                     io_id = Some(format!("_t_{attr_id}_raw_io"));

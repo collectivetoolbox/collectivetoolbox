@@ -201,6 +201,7 @@ pub struct TermStruct4_S1Type {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<OptRc<TermStruct4_BytesWrapper>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for TermStruct4_S1Type {
     type Root = TermStruct4;
@@ -217,7 +218,10 @@ impl KStruct for TermStruct4_S1Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, TermStruct4_BytesWrapper>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_value = _io.read_bytes_term(124, false, true, true)?;
+        *self_rc.value_raw.borrow_mut() = _raw_value.clone();
+        let _io_value = BytesReader::from(_raw_value);
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         Ok(())
     }
@@ -234,6 +238,11 @@ impl TermStruct4_S1Type {
         self._io.borrow()
     }
 }
+impl TermStruct4_S1Type {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct TermStruct4_S2Type {
@@ -242,6 +251,7 @@ pub struct TermStruct4_S2Type {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<OptRc<TermStruct4_BytesWrapper>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for TermStruct4_S2Type {
     type Root = TermStruct4;
@@ -258,7 +268,10 @@ impl KStruct for TermStruct4_S2Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, TermStruct4_BytesWrapper>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_value = _io.read_bytes_term(124, false, false, true)?;
+        *self_rc.value_raw.borrow_mut() = _raw_value.clone();
+        let _io_value = BytesReader::from(_raw_value);
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         Ok(())
     }
@@ -275,6 +288,11 @@ impl TermStruct4_S2Type {
         self._io.borrow()
     }
 }
+impl TermStruct4_S2Type {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct TermStruct4_S3Type {
@@ -283,6 +301,7 @@ pub struct TermStruct4_S3Type {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<OptRc<TermStruct4_BytesWrapper>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for TermStruct4_S3Type {
     type Root = TermStruct4;
@@ -299,7 +318,10 @@ impl KStruct for TermStruct4_S3Type {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, TermStruct4_BytesWrapper>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_value = _io.read_bytes_term(64, true, true, true)?;
+        *self_rc.value_raw.borrow_mut() = _raw_value.clone();
+        let _io_value = BytesReader::from(_raw_value);
+        let t = Self::read_into::<BytesReader, TermStruct4_BytesWrapper>(&_io_value, Some(self_rc._root.clone()), None)?.into();
         *self_rc.value.borrow_mut() = t;
         Ok(())
     }
@@ -314,5 +336,10 @@ impl TermStruct4_S3Type {
 impl TermStruct4_S3Type {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl TermStruct4_S3Type {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
     }
 }

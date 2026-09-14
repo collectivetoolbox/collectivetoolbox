@@ -116,6 +116,22 @@ pub struct ResolvedAttr {
     /// Processing algorithm name (e.g. `zlib`).
     #[serde(default)]
     pub process: Option<String>,
+    /// Terminator byte if bounded by sentinel.
+    #[serde(default)]
+    pub terminator: Option<u8>,
+    /// Whether terminator byte should be consumed from stream.
+    #[serde(default = "default_true")]
+    pub consume: bool,
+    /// Whether terminator byte should be retained in buffer.
+    #[serde(default)]
+    pub include: bool,
+    /// Pad byte to strip from right side of buffer.
+    #[serde(default)]
+    pub pad_right: Option<u8>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Resolved calculated or parsed instance.

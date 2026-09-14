@@ -133,7 +133,7 @@ impl KStruct for ProcessCoerceBytes_Record {
             *self_rc.buf_unproc.borrow_mut() = _io.read_bytes(4_usize)?;
         }
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
-            *self_rc.buf_proc.borrow_mut() = _io.read_bytes(4_usize)?;
+            *self_rc.buf_proc.borrow_mut() = process_xor_one(&_io.read_bytes(4_usize)?, 170_u8);
         }
         Ok(())
     }

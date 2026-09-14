@@ -65,6 +65,9 @@ pub struct RepeatNTermStruct {
     records2: RefCell<Vec<OptRc<RepeatNTermStruct_BytesWrapper>>>,
     records3: RefCell<Vec<OptRc<RepeatNTermStruct_BytesWrapper>>>,
     _io: RefCell<BytesReader>,
+    records1_raw: RefCell<Vec<u8>>,
+    records2_raw: RefCell<Vec<u8>>,
+    records3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for RepeatNTermStruct {
     type Root = RepeatNTermStruct;
@@ -84,19 +87,25 @@ impl KStruct for RepeatNTermStruct {
         *self_rc.records1.borrow_mut() = Vec::new();
         let l_records1 = 2_usize;
         for _i in 0_usize..l_records1 {
-            let t = Self::read_into::<_, RepeatNTermStruct_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_records1 = _io.read_bytes_term(170, false, true, true)?;
+            let _io_records1 = BytesReader::from(_raw_records1);
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records1.borrow_mut().push(t);
         }
         *self_rc.records2.borrow_mut() = Vec::new();
         let l_records2 = 2_usize;
         for _i in 0_usize..l_records2 {
-            let t = Self::read_into::<_, RepeatNTermStruct_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_records2 = _io.read_bytes_term(170, true, true, true)?;
+            let _io_records2 = BytesReader::from(_raw_records2);
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records2.borrow_mut().push(t);
         }
         *self_rc.records3.borrow_mut() = Vec::new();
         let l_records3 = 2_usize;
         for _i in 0_usize..l_records3 {
-            let t = Self::read_into::<_, RepeatNTermStruct_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_records3 = _io.read_bytes_term(85, false, false, true)?;
+            let _io_records3 = BytesReader::from(_raw_records3);
+            let t = Self::read_into::<BytesReader, RepeatNTermStruct_BytesWrapper>(&_io_records3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records3.borrow_mut().push(t);
         }
         Ok(())
@@ -122,6 +131,21 @@ impl RepeatNTermStruct {
 impl RepeatNTermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl RepeatNTermStruct {
+    pub fn records1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records1_raw.borrow()
+    }
+}
+impl RepeatNTermStruct {
+    pub fn records2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records2_raw.borrow()
+    }
+}
+impl RepeatNTermStruct {
+    pub fn records3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records3_raw.borrow()
     }
 }
 

@@ -90,7 +90,7 @@ impl KStruct for ExprIfIntOps {
             *self_rc.key.borrow_mut() = _io.read_u8le()?;
         }
         *self_rc.skip.borrow_mut() = _io.read_bytes(8_usize)?;
-        *self_rc.bytes.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc.bytes.borrow_mut() = process_xor_one(&_io.read_bytes(8_usize)?, u8::try_from(i64::try_from(*self_rc.key()).unwrap_or(0) & 0xff).unwrap_or(0));
         *self_rc.items.borrow_mut() = Vec::new();
         let l_items = 4_usize;
         for _i in 0_usize..l_items {

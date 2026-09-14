@@ -63,6 +63,7 @@ pub struct RepeatEosTermStruct {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<OptRc<RepeatEosTermStruct_BytesWrapper>>>,
     _io: RefCell<BytesReader>,
+    records_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for RepeatEosTermStruct {
     type Root = RepeatEosTermStruct;
@@ -83,7 +84,9 @@ impl KStruct for RepeatEosTermStruct {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, RepeatEosTermStruct_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let _raw_records = _io.read_bytes_term(178, true, true, true)?;
+                let _io_records = BytesReader::from(_raw_records);
+                let t = Self::read_into::<BytesReader, RepeatEosTermStruct_BytesWrapper>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
@@ -101,6 +104,11 @@ impl RepeatEosTermStruct {
 impl RepeatEosTermStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl RepeatEosTermStruct {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
     }
 }
 

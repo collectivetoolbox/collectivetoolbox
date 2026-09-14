@@ -82,7 +82,7 @@ impl KStruct for ProcessRepeatBytes {
         *self_rc.bufs.borrow_mut() = Vec::new();
         let l_bufs = 2_usize;
         for _i in 0_usize..l_bufs {
-            self_rc.bufs.borrow_mut().push(_io.read_bytes(5_usize)?);
+            self_rc.bufs.borrow_mut().push(process_xor_one(&_io.read_bytes(5_usize)?, 158_u8));
         }
         Ok(())
     }

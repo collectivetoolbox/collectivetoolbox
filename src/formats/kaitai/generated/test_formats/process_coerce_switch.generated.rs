@@ -173,12 +173,13 @@ impl KStruct for ProcessCoerceSwitch {
                 0 => {
                     *self_rc.buf_proc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                     let buf_proc_raw = self_rc.buf_proc_raw.borrow();
-                    let _t_buf_proc_raw_io = BytesReader::from(buf_proc_raw.clone());
+                    let _t_buf_proc_raw_proc = process_xor_one(&buf_proc_raw, 170_u8);
+                    let _t_buf_proc_raw_io = BytesReader::from(_t_buf_proc_raw_proc);
                     let t = Self::read_into::<BytesReader, ProcessCoerceSwitch_Foo>(&_t_buf_proc_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.buf_proc.borrow_mut() = Some(t);
                 }
                 _ => {
-                    *self_rc.buf_proc.borrow_mut() = Some(_io.read_bytes_full()?.into());
+                    *self_rc.buf_proc.borrow_mut() = Some(process_xor_one(&_io.read_bytes_full()?, 170_u8).into());
                 }
             }
         }

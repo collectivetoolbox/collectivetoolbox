@@ -86,13 +86,19 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate {
         *self_rc.blocks_rol.borrow_mut() = Vec::new();
         let l_blocks_rol = 2_usize;
         for _i in 0_usize..l_blocks_rol {
-            let t = Self::read_into::<_, ProcessRepeatUsertypeDynargRotate_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_blocks_rol = _io.read_bytes(3_usize)?;
+            let _processed_blocks_rol = process_rotate_left(&_raw_blocks_rol, i64::try_from((_io.pos()).saturating_sub((4_usize).saturating_mul(_i))).unwrap_or(0));
+            let _io_blocks_rol = BytesReader::from(_processed_blocks_rol);
+            let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargRotate_Block>(&_io_blocks_rol, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks_rol.borrow_mut().push(t);
         }
         *self_rc.blocks_ror.borrow_mut() = Vec::new();
         let l_blocks_ror = 3_usize;
         for _i in 0_usize..l_blocks_ror {
-            let t = Self::read_into::<_, ProcessRepeatUsertypeDynargRotate_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_blocks_ror = _io.read_bytes(3_usize)?;
+            let _processed_blocks_ror = process_rotate_right(&_raw_blocks_ror, i64::try_from(((_io.pos()).saturating_sub(6_usize)).saturating_sub((4_usize).saturating_mul(_i))).unwrap_or(0));
+            let _io_blocks_ror = BytesReader::from(_processed_blocks_ror);
+            let t = Self::read_into::<BytesReader, ProcessRepeatUsertypeDynargRotate_Block>(&_io_blocks_ror, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks_ror.borrow_mut().push(t);
         }
         let t = Self::read_into::<_, ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

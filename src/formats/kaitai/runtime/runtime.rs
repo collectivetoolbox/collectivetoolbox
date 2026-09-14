@@ -874,10 +874,22 @@ pub fn process_xor_many(bytes: &[u8], key: &[u8]) -> Vec<u8> {
     res
 }
 
-pub fn process_rotate_left(bytes: &[u8], amount: u8) -> Vec<u8> {
+pub fn process_rotate_left(bytes: &[u8], amount: i64) -> Vec<u8> {
     let mut res = bytes.to_vec();
+    // Reason for fallback: rem_euclid(8) is always in 0..8, so try_from into u32 is infallible
+    let shift = u32::try_from(amount.rem_euclid(8)).unwrap_or(0);
     for i in &mut res {
-        *i = i.rotate_left(amount.into());
+        *i = i.rotate_left(shift);
+    }
+    res
+}
+
+pub fn process_rotate_right(bytes: &[u8], amount: i64) -> Vec<u8> {
+    let mut res = bytes.to_vec();
+    // Reason for fallback: rem_euclid(8) is always in 0..8, so try_from into u32 is infallible
+    let shift = u32::try_from(amount.rem_euclid(8)).unwrap_or(0);
+    for i in &mut res {
+        *i = i.rotate_right(shift);
     }
     res
 }

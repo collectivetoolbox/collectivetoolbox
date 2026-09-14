@@ -84,7 +84,9 @@ impl KStruct for RepeatUntilSized {
         {
             let mut _i = 0_usize;
             loop {
-                let t = Self::read_into::<_, RepeatUntilSized_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let _raw_records = _io.read_bytes(5_usize)?;
+                let _io_records = BytesReader::from(_raw_records);
+                let t = Self::read_into::<BytesReader, RepeatUntilSized_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 let _t_records = self_rc.records.borrow();
                 let Some(_tmpa) = _t_records.last() else { break; };

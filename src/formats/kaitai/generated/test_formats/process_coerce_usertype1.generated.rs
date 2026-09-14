@@ -181,7 +181,8 @@ impl KStruct for ProcessCoerceUsertype1_Record {
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
             let _raw_buf_proc = _io.read_bytes(4_usize)?;
             *self_rc.buf_proc_raw.borrow_mut() = _raw_buf_proc.clone();
-            let _io_buf_proc = BytesReader::from(_raw_buf_proc);
+            let _processed_buf_proc = process_xor_one(&_raw_buf_proc, 170_u8);
+            let _io_buf_proc = BytesReader::from(_processed_buf_proc);
             let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(&_io_buf_proc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.buf_proc.borrow_mut() = t;
         }

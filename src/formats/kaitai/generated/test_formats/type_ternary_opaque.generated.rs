@@ -97,7 +97,8 @@ impl KStruct for TypeTernaryOpaque {
         if *self_rc.is_hack()? {
             let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
             *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
-            let _io_dif_with_hack = BytesReader::from(_raw_dif_with_hack);
+            let _processed_dif_with_hack = process_xor_one(&_raw_dif_with_hack, 3_u8);
+            let _io_dif_with_hack = BytesReader::from(_processed_dif_with_hack);
             let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_with_hack, None, None)?.into();
             *self_rc.dif_with_hack.borrow_mut() = t;
         }

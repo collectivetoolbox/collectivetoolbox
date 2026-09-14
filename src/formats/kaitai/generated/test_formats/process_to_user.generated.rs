@@ -82,7 +82,8 @@ impl KStruct for ProcessToUser {
         let _io = io;
         let _raw_buf1 = _io.read_bytes(5_usize)?;
         *self_rc.buf1_raw.borrow_mut() = _raw_buf1.clone();
-        let _io_buf1 = BytesReader::from(_raw_buf1);
+        let _processed_buf1 = process_rotate_left(&_raw_buf1, i64::try_from(3).unwrap_or(0));
+        let _io_buf1 = BytesReader::from(_processed_buf1);
         let t = Self::read_into::<BytesReader, ProcessToUser_JustStr>(&_io_buf1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf1.borrow_mut() = t;
         Ok(())

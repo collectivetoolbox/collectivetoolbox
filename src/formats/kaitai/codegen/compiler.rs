@@ -830,7 +830,49 @@ fn emit_attr_read(
                 w.puts(&format!("let l_{id} = {count_str};"));
                 w.puts(&format!("for _i in 0_usize..l_{id} {{"));
                 w.inc();
-                emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
+                let io_var = if (attr.size_expr.is_some()
+                    || attr.size_eos
+                    || attr.process.is_some()
+                    || attr.terminator.is_some())
+                    && matches!(element.as_ref(), DataType::UserType { .. })
+                {
+                    let mut read_call = if attr.size_eos {
+                        "_io.read_bytes_full()?".to_string()
+                    } else if let Some(size_expr) = &attr.size_expr {
+                        let s = expr_to_usize(size_expr, ctx);
+                        format!("_io.read_bytes({s})?")
+                    } else if let Some(term) = attr.terminator {
+                        format!(
+                            "_io.read_bytes_term({term}, {}, {}, true)?",
+                            attr.include, attr.consume
+                        )
+                    } else {
+                        "_io.read_bytes_full()?".to_string()
+                    };
+                    if attr.size_expr.is_some() || attr.size_eos {
+                        if let Some(pad) = attr.pad_right {
+                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
+                        }
+                        if let Some(term) = attr.terminator {
+                            read_call = format!(
+                                "bytes_terminate(&{read_call}, {term}, {})",
+                                attr.include
+                            );
+                        }
+                    }
+                    w.puts(&format!("let _raw_{id} = {read_call};"));
+                    if let Some(proc) = &attr.process {
+                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        w.puts(&format!("let _processed_{id} = {processed};"));
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                    } else {
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                    }
+                    format!("_io_{id}")
+                } else {
+                    "_io".to_string()
+                };
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
                 w.dec();
                 w.puts("}");
             }
@@ -841,7 +883,49 @@ fn emit_attr_read(
                 w.puts("let mut _i = 0_usize;");
                 w.puts("while !_io.is_eof() {");
                 w.inc();
-                emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
+                let io_var = if (attr.size_expr.is_some()
+                    || attr.size_eos
+                    || attr.process.is_some()
+                    || attr.terminator.is_some())
+                    && matches!(element.as_ref(), DataType::UserType { .. })
+                {
+                    let mut read_call = if attr.size_eos {
+                        "_io.read_bytes_full()?".to_string()
+                    } else if let Some(size_expr) = &attr.size_expr {
+                        let s = expr_to_usize(size_expr, ctx);
+                        format!("_io.read_bytes({s})?")
+                    } else if let Some(term) = attr.terminator {
+                        format!(
+                            "_io.read_bytes_term({term}, {}, {}, true)?",
+                            attr.include, attr.consume
+                        )
+                    } else {
+                        "_io.read_bytes_full()?".to_string()
+                    };
+                    if attr.size_expr.is_some() || attr.size_eos {
+                        if let Some(pad) = attr.pad_right {
+                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
+                        }
+                        if let Some(term) = attr.terminator {
+                            read_call = format!(
+                                "bytes_terminate(&{read_call}, {term}, {})",
+                                attr.include
+                            );
+                        }
+                    }
+                    w.puts(&format!("let _raw_{id} = {read_call};"));
+                    if let Some(proc) = &attr.process {
+                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        w.puts(&format!("let _processed_{id} = {processed};"));
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                    } else {
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                    }
+                    format!("_io_{id}")
+                } else {
+                    "_io".to_string()
+                };
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
                 w.puts("_i = _i.saturating_add(1);");
                 w.dec();
                 w.puts("}");
@@ -855,7 +939,49 @@ fn emit_attr_read(
                 w.puts("let mut _i = 0_usize;");
                 w.puts("loop {");
                 w.inc();
-                emit_read_array_element(w, element, current, ctx, id, self_name, "_io");
+                let io_var = if (attr.size_expr.is_some()
+                    || attr.size_eos
+                    || attr.process.is_some()
+                    || attr.terminator.is_some())
+                    && matches!(element.as_ref(), DataType::UserType { .. })
+                {
+                    let mut read_call = if attr.size_eos {
+                        "_io.read_bytes_full()?".to_string()
+                    } else if let Some(size_expr) = &attr.size_expr {
+                        let s = expr_to_usize(size_expr, ctx);
+                        format!("_io.read_bytes({s})?")
+                    } else if let Some(term) = attr.terminator {
+                        format!(
+                            "_io.read_bytes_term({term}, {}, {}, true)?",
+                            attr.include, attr.consume
+                        )
+                    } else {
+                        "_io.read_bytes_full()?".to_string()
+                    };
+                    if attr.size_expr.is_some() || attr.size_eos {
+                        if let Some(pad) = attr.pad_right {
+                            read_call = format!("bytes_strip_right(&{read_call}, {pad})");
+                        }
+                        if let Some(term) = attr.terminator {
+                            read_call = format!(
+                                "bytes_terminate(&{read_call}, {term}, {})",
+                                attr.include
+                            );
+                        }
+                    }
+                    w.puts(&format!("let _raw_{id} = {read_call};"));
+                    if let Some(proc) = &attr.process {
+                        let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                        w.puts(&format!("let _processed_{id} = {processed};"));
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                    } else {
+                        w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                    }
+                    format!("_io_{id}")
+                } else {
+                    "_io".to_string()
+                };
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
                 w.puts(&format!("let _t_{id} = {self_name}.{id}.borrow();"));
                 w.puts(&format!("let Some(_tmpa) = _t_{id}.last() else {{ break; }};"));
                 if super::translator::needs_deref(element) {
@@ -1166,26 +1292,41 @@ fn emit_single_read(
         let type_name = types_to_class_name(names);
         let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
         let trans_args = translate_args(args, ctx, true);
-        let io_ref = if attr.size_expr.is_some() || attr.size_eos || attr.process.is_some() {
-            let read_call = if attr.size_eos {
+        let io_ref = if attr.size_expr.is_some()
+            || attr.size_eos
+            || attr.process.is_some()
+            || attr.terminator.is_some()
+        {
+            let mut read_call = if attr.size_eos {
                 "_io.read_bytes_full()?".to_string()
             } else if let Some(size_expr) = &attr.size_expr {
                 let s = expr_to_usize(size_expr, ctx);
                 format!("_io.read_bytes({s})?")
+            } else if let Some(term) = attr.terminator {
+                format!(
+                    "_io.read_bytes_term({term}, {}, {}, true)?",
+                    attr.include, attr.consume
+                )
             } else {
                 "_io.read_bytes_full()?".to_string()
             };
+            if attr.size_expr.is_some() || attr.size_eos {
+                if let Some(pad) = attr.pad_right {
+                    read_call = format!("bytes_strip_right(&{read_call}, {pad})");
+                }
+                if let Some(term) = attr.terminator {
+                    read_call =
+                        format!("bytes_terminate(&{read_call}, {term}, {})", attr.include);
+                }
+            }
             w.puts(&format!("let _raw_{id} = {read_call};"));
             if has_substream(attr) || attr.raw_id.is_some() {
                 w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = _raw_{id}.clone();"));
             }
             if let Some(proc) = &attr.process {
-                if proc == "zlib" {
-                    w.puts(&format!("let _processed_{id} = process_zlib(&_raw_{id})?;"));
-                    w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
-                } else {
-                    w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
-                }
+                let processed = translate_process(proc, &format!("_raw_{id}"), ctx);
+                w.puts(&format!("let _processed_{id} = {processed};"));
+                w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
             } else {
                 w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
             }
@@ -1293,8 +1434,9 @@ fn emit_switch_read(
             };
             w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = {read_call};"));
             w.puts(&format!("let {id}_raw = {self_name}.{id}_raw.borrow();"));
-            if attr.process.as_deref() == Some("zlib") {
-                w.puts(&format!("let _t_{id}_raw_proc = process_zlib(&{id}_raw)?;"));
+            if let Some(proc) = &attr.process {
+                let processed = translate_process(proc, &format!("{id}_raw"), ctx);
+                w.puts(&format!("let _t_{id}_raw_proc = {processed};"));
                 w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw_proc);"));
             } else {
                 w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
@@ -1347,6 +1489,171 @@ fn emit_switch_read(
 
     w.dec();
     w.puts("}");
+}
+
+fn translate_process(proc_str: &str, raw_bytes_var: &str, ctx: &TranslationContext<'_>) -> String {
+    let proc_trimmed = proc_str.trim();
+    if proc_trimmed == "zlib" {
+        return format!("process_zlib(&{raw_bytes_var})?");
+    }
+
+    if let Ok(expr) = crate::expr::parser::parse_expr(proc_trimmed) {
+        match expr {
+            Expr::Call { func, args } => match func.as_ref() {
+                Expr::Name(name) if name == "xor" => {
+                    if let Some(first_arg) = args.first() {
+                        if let Expr::List(items) = first_arg {
+                            let byte_strs: Vec<String> = items
+                                .iter()
+                                .map(|item| {
+                                    if let Expr::IntNum(n) = item {
+                                        format!("{n}u8")
+                                    } else {
+                                        let s = translate_expr(item, ctx);
+                                        format!("u8::try_from({s} & 0xff).unwrap_or(0)")
+                                    }
+                                })
+                                .collect();
+                            let list_str = byte_strs.join(", ");
+                            return format!("process_xor_many(&{raw_bytes_var}, &[{list_str}])");
+                        }
+                        if let Expr::IntNum(n) = first_arg {
+                            return format!("process_xor_one(&{raw_bytes_var}, {n}_u8)");
+                        }
+                        let approx_ty = super::translator::detect_type_approx(first_arg, ctx);
+                        let is_bytes = matches!(
+                            approx_ty,
+                            Some(DataType::Bytes { .. } | DataType::CalcBytesType)
+                        );
+                        let trans_arg = translate_expr(first_arg, ctx);
+                        if is_bytes {
+                            return format!("process_xor_many(&{raw_bytes_var}, &{trans_arg})");
+                        }
+                        return format!(
+                            "process_xor_one(&{raw_bytes_var}, u8::try_from(i64::try_from({trans_arg}).unwrap_or(0) & 0xff).unwrap_or(0))"
+                        );
+                    }
+                }
+                Expr::Name(name) if name == "rol" => {
+                    if let Some(first_arg) = args.first() {
+                        let trans_arg = translate_expr(first_arg, ctx);
+                        return format!(
+                            "process_rotate_left(&{raw_bytes_var}, i64::try_from({trans_arg}).unwrap_or(0))"
+                        );
+                    }
+                }
+                Expr::Name(name) if name == "ror" => {
+                    if let Some(first_arg) = args.first() {
+                        let trans_arg = translate_expr(first_arg, ctx);
+                        return format!(
+                            "process_rotate_right(&{raw_bytes_var}, i64::try_from({trans_arg}).unwrap_or(0))"
+                        );
+                    }
+                }
+                Expr::Name(name) => {
+                    let cls = to_upper_camel_case(name);
+                    let mod_name = name.to_string();
+                    let arg_strs: Vec<String> = args
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, arg)| {
+                            if let Expr::List(items) = arg {
+                                let byte_strs: Vec<String> = items
+                                    .iter()
+                                    .map(|item| {
+                                        if let Expr::IntNum(n) = item {
+                                            format!("{n}u8")
+                                        } else {
+                                            let s = translate_expr(item, ctx);
+                                            format!("u8::try_from({s} & 0xff).unwrap_or(0)")
+                                        }
+                                    })
+                                    .collect();
+                                format!("&[{}]", byte_strs.join(", "))
+                            } else if let Expr::IfExp {
+                                condition,
+                                if_true,
+                                if_false,
+                            } = arg
+                            {
+                                let cond_str = translate_expr(condition, ctx);
+                                let fmt_branch = |b: &Expr| {
+                                    if let Expr::List(items) = b {
+                                        let byte_strs: Vec<String> = items
+                                            .iter()
+                                            .map(|item| {
+                                                if let Expr::IntNum(n) = item {
+                                                    format!("{n}u8")
+                                                } else {
+                                                    let s = translate_expr(item, ctx);
+                                                    format!("u8::try_from({s} & 0xff).unwrap_or(0)")
+                                                }
+                                            })
+                                            .collect();
+                                        format!("&[{}]", byte_strs.join(", "))
+                                    } else {
+                                        translate_expr(b, ctx)
+                                    }
+                                };
+                                let t_str = fmt_branch(if_true);
+                                let f_str = fmt_branch(if_false);
+                                format!("if {cond_str} {{ {t_str} }} else {{ {f_str} }}")
+                            } else if idx == 0 {
+                                let s = translate_expr(arg, ctx);
+                                format!(
+                                    "u8::try_from(i64::try_from({s}).unwrap_or(0) & 0xff).unwrap_or(0)"
+                                )
+                            } else {
+                                translate_expr(arg, ctx)
+                            }
+                        })
+                        .collect();
+                    let args_str = arg_strs.join(", ");
+                    return format!(
+                        "crate::{mod_name}::{cls}::new({args_str}).decode(&{raw_bytes_var}).map_err(|e| KError::BytesDecodingError {{ msg: e }})?"
+                    );
+                }
+                Expr::Attribute { .. } => {
+                    let mut parts = Vec::new();
+                    let mut cur: &Expr = func.as_ref();
+                    while let Expr::Attribute { value, attr } = cur {
+                        parts.push(attr.as_str());
+                        cur = value.as_ref();
+                    }
+                    if let Expr::Name(root_name) = cur {
+                        parts.push(root_name.as_str());
+                    }
+                    parts.reverse();
+                    let mod_path = parts
+                        .iter()
+                        .map(|p| to_upper_camel_case(p))
+                        .collect::<Vec<_>>()
+                        .join("::");
+                    let arg_strs: Vec<String> = args
+                        .iter()
+                        .map(|arg| {
+                            let s = translate_expr(arg, ctx);
+                            format!("u8::try_from(i64::try_from({s}).unwrap_or(0) & 0xff).unwrap_or(0)")
+                        })
+                        .collect();
+                    let args_str = arg_strs.join(", ");
+                    return format!(
+                        "crate::custom_fx::{mod_path}::new({args_str}).decode(&{raw_bytes_var}).map_err(|e| KError::BytesDecodingError {{ msg: e }})?"
+                    );
+                }
+                _ => {}
+            },
+            Expr::Name(name) => {
+                let cls = to_upper_camel_case(&name);
+                return format!(
+                    "crate::{name}::{cls}::new().decode(&{raw_bytes_var}).map_err(|e| KError::BytesDecodingError {{ msg: e }})?"
+                );
+            }
+            _ => {}
+        }
+    }
+
+    raw_bytes_var.to_string()
 }
 
 fn read_expr_for_type(
@@ -1421,9 +1728,7 @@ fn read_expr_for_type(
                 }
             }
             if let Some(proc) = process {
-                if proc == "zlib" {
-                    raw_bytes = format!("process_zlib(&{raw_bytes})?");
-                }
+                raw_bytes = translate_process(proc, &raw_bytes, ctx);
             }
             raw_bytes
         }

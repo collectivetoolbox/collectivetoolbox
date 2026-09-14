@@ -81,7 +81,7 @@ impl KStruct for ProcessXor4Value {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.key.borrow_mut() = _io.read_bytes(4_usize)?;
-        *self_rc.buf.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc.buf.borrow_mut() = process_xor_many(&_io.read_bytes_full()?, &self_rc.key());
         Ok(())
     }
 }
