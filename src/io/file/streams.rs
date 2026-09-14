@@ -151,7 +151,7 @@ impl StreamName {
 pub enum StreamKind {
     /// Standard extended attribute (`user.*`).
     ExtendedAttribute,
-    /// Apple macOS resource fork (`com.apple.ResourceFork` or `..namedfork/rsrc`).
+    /// Apple macOS resource fork (`com.apple.ResourceFork` or `..namedfork/rsrc` nowadays; historically not given a specific name).
     MacOsResourceFork,
     /// NTFS alternate data stream (`:stream`).
     NtfsAlternateDataStream,

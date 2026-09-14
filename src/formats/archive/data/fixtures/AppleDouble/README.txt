@@ -1,0 +1,1 @@
+Note that I cheated a bit by constructing these fixtures artificially. They probably aren't quite realistic; in particular the Netatalk .Parent parent directory metadata is not actually directory metadata. It would be nice to replace them with real fixtures in the future.
