@@ -1,4 +1,4 @@
-doc-valid-idents = ["StageL", "StageR", "UserLand", "AppleScript", "CRLite", "SQLite", "WebPKI", "DcText", "DcArray", "DcId", "DcList", "DcUtf", "DcUTF", "DcIds", "SeaBIOS", "MathML", "AlphaSmart", ".."]
+doc-valid-idents = ["StageL", "StageR", "UserLand", "AppleScript", "AppleSingle", "AppleDouble", "ProDOS", "QuickDraw", "FInfo", "FXInfo", "SITx", "CRLite", "SQLite", "WebPKI", "DcText", "DcArray", "DcId", "DcList", "DcUtf", "DcUTF", "DcIds", "DcString", "SeaBIOS", "MathML", "AlphaSmart", ".."]
 allowed-wildcard-imports = [ "utilities" ]
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true

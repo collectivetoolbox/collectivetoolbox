@@ -2715,8 +2715,11 @@ name = "ctb-formats-archive"
 version = "0.0.0"
 dependencies = [
  "ctb-formats-utilities",
+ "ctb-io-file",
  "ctb-utilities",
  "include_dir",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

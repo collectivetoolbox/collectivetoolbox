@@ -32,6 +32,12 @@
 
 - Windows runner in GitHub actions to run test suite?
 
+- Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
+Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_int.generated.rs: unexpected end of input, expected an expression
+Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
+Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size_eos.generated.rs: cannot parse string into token stream
+Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size.generated.rs: cannot parse string into token stream
+
 - AppleDouble/AppleSingle support for file materialization
 
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
