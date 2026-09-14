@@ -21,6 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Provides 32-bit and 64-bit FNV-1a hashing suitable for build-time caching,
 //! hash tables, and checksum verification with zero external dependencies.
+//! Documentation: RFC9923 - https://www.rfc-editor.org/rfc/rfc9923.txt
 
 /// Initial offset basis for 64-bit FNV-1a.
 pub const FNV1A_64_INIT: u64 = 0xcbf2_9ce4_8422_2325;

@@ -764,6 +764,7 @@ pub fn regenerate_tests_from_kst(
 
     fs::create_dir_all(out_dir)?;
 
+    // Reason for fallback: when running outside cargo workspace hierarchy, fallback to compile-time manifest dir
     let manifest_dir = kst_dir
         .ancestors()
         .find(|p| p.join("Cargo.toml").is_file() && p.ends_with("kaitai"))
@@ -776,6 +777,7 @@ pub fn regenerate_tests_from_kst(
     if !force && cache_file.exists() {
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
             let mut lines = cache_str.lines();
+            // Reason for fallback: empty cache file yields empty string for header line check
             let first_line = lines.next().unwrap_or_default();
             if first_line == header_prefix {
                 for line in lines {
@@ -844,6 +846,7 @@ pub fn regenerate_tests_from_kst(
             let ksy_path = dir.join(format!("{stem}.ksy"));
             if ksy_path.exists() {
                 if let Ok(meta) = fs::metadata(&ksy_path) {
+                    // Reason for fallback: files modified before UNIX epoch default to zero timestamp
                     let k_mtime = meta
                         .modified()
                         .ok()
@@ -931,6 +934,7 @@ pub fn regenerate_tests(
     if !force && cache_file.exists() {
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
             let mut lines = cache_str.lines();
+            // Reason for fallback: empty cache file yields empty string for header line check
             let first_line = lines.next().unwrap_or_default();
             if first_line == header_prefix {
                 for line in lines {

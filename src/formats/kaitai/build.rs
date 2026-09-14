@@ -154,6 +154,7 @@ fn main() -> Result<()> {
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if let Ok(cache_str) = fs::read_to_string(&cache_file) {
         let mut lines = cache_str.lines();
+        // Reason for fallback: empty cache file yields empty string for header line check
         let first_line = lines.next().unwrap_or_default();
         if first_line == header_prefix {
             for line in lines {
@@ -397,6 +398,7 @@ fn compile_test_suite(
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if let Ok(cache_str) = fs::read_to_string(&cache_file) {
         let mut lines = cache_str.lines();
+        // Reason for fallback: empty cache file yields empty string for header line check
         let first_line = lines.next().unwrap_or_default();
         if first_line == header_prefix {
             for line in lines {
