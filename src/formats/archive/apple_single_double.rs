@@ -117,8 +117,8 @@ pub enum EntryType {
     AfpShortName,
     /// AFP file information (ID 14).
     AfpFileInfo,
-    /// AFP directory ID (ID 15). FIXME confirm if this is really something AFP-specific.
-    AfpDirectoryId,
+    /// Directory ID (ID 15). FIXME confirm if this is something AFP-specific.
+    DirectoryId,
     /// Unknown or vendor-specific entry ID.
     Unknown(u32),
 }
@@ -141,7 +141,7 @@ impl EntryType {
             12 => Self::MsdosFileInfo,
             13 => Self::AfpShortName,
             14 => Self::AfpFileInfo,
-            15 => Self::AfpDirectoryId,
+            15 => Self::DirectoryId,
             other => Self::Unknown(other),
         }
     }
@@ -163,7 +163,7 @@ impl EntryType {
             Self::MsdosFileInfo => "MS-DOS File Info",
             Self::AfpShortName => "AFP Short Name",
             Self::AfpFileInfo => "AFP File Info",
-            Self::AfpDirectoryId => "AFP Directory ID",
+            Self::DirectoryId => "Directory ID",
             Self::Unknown(_) => "Unknown Entry",
         }
     }
