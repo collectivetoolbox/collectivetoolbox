@@ -57,14 +57,18 @@ pub type DcList = Vec<u128>;
 /// `@@` tokens represent codepoint `64` (`@`).
 ///
 /// # Errors
+/// Parses a DcText document (`&[u8]`) directly into a `DcString`.
+///
+/// Plain text characters become their corresponding Unicode codepoint IDs (`0..=0x10FFFF`).
+/// Tokens in `@<dcid>@` format are parsed into `u128` values.
+/// `@L<number>@` tokens expand to `1114408` followed by the Dc number representation of `<number>`.
+/// `@@` tokens represent codepoint `64` (`@`).
+///
+/// # Errors
 /// Returns an error if the document contains invalid UTF-8 or malformed syntax.
-#[expect(
-    clippy::expect_used,
-    reason = "start and end byte offsets are returned by rest.find('@'), guaranteeing valid char boundaries within rest"
-)]
-pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
+pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
     let mut log = FormatLog::default();
-    let mut list = Vec::new();
+    let mut dc_string = DcString::with_capacity(document.len());
     let mut i = 0usize;
 
     while i < document.len() {
@@ -99,8 +103,10 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                     match integer_to_dc_number_global(&int_val)
                                     {
                                         Ok(dc_num_gids) => {
-                                            list.push(1_114_408u128);
-                                            list.extend(dc_num_gids);
+                                            dc_string.push(DcChar(1_114_408u128));
+                                            for gid in dc_num_gids {
+                                                dc_string.push(DcChar(gid));
+                                            }
                                             i = i
                                                 .saturating_add(2)
                                                 .saturating_add(end_rel);
@@ -118,7 +124,7 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                     ));
                                 }
                             } else if let Ok(dcid) = dcid_str.parse::<u128>() {
-                                list.push(dcid);
+                                dc_string.push(DcChar(dcid));
                                 i = i.saturating_add(2).saturating_add(end_rel);
                                 continue;
                             }
@@ -129,15 +135,28 @@ pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
         }
 
         if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
-            list.push(codepoint);
+            if let Some(raw_bytes) = slice.get(..size) {
+                dc_string.inner.extend_from_slice(raw_bytes);
+            } else {
+                dc_string.push(DcChar(codepoint));
+            }
             i = i.saturating_add(size);
         } else {
-            list.push(u128::from(first_byte));
+            dc_string.push(DcChar(u128::from(first_byte)));
             i = i.saturating_add(1);
         }
     }
 
-    Ok(ConversionOutput::new(list, log))
+    Ok(ConversionOutput::new(dc_string, log))
+}
+
+/// Parses a DcText document (`&[u8]`) into a `DcList` (`Vec<u128>`).
+///
+/// # Errors
+/// Returns an error if the document contains invalid UTF-8 or malformed syntax.
+pub fn dctext_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
+    let out = dctext_to_dcstring(document)?;
+    Ok(ConversionOutput::new(out.result.to_dclist(), out.log))
 }
 
 /// Serializes a `DcList` (`&[u128]`) to DcText format bytes (`Vec<u8>`).
@@ -212,15 +231,23 @@ pub fn dcutf_to_dclist(document: &[u8]) -> DcList {
 
 /// Parses a DcText document (`&[u8]`) directly into a `DcString`.
 ///
-/// # Errors
-/// Returns an error if the document contains invalid UTF-8 or malformed syntax.
-pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
-    let out = dctext_to_dclist(document)?;
-    let mut dc_string = DcString::with_capacity(document.len());
-    for &dc in &out.result {
+/// Converts an EITE DcArray (short Dcs, `&[u32]`) to a `DcString`.
+pub fn dcarray_to_dcstring(
+    dc_array: &[u32],
+) -> Result<ConversionOutput<DcString>> {
+    let conv = dcarray_to_dclist(dc_array)?;
+    let mut dc_string = DcString::with_capacity(conv.result.len());
+    for &dc in &conv.result {
         dc_string.push(DcChar(dc));
     }
-    Ok(ConversionOutput::new(dc_string, out.log))
+    Ok(ConversionOutput::new(dc_string, conv.log))
+}
+
+/// Converts a `DcStr` to an EITE DcArray (short Dcs, `Vec<u32>`).
+pub fn dcstring_to_dcarray(
+    s: &DcStr,
+) -> Result<ConversionOutput<Vec<u32>>> {
+    dclist_to_dcarray(&s.to_dclist())
 }
 
 /// Serializes a `DcStr` to DcText format bytes (`Vec<u8>`).
@@ -232,11 +259,11 @@ pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
 
 /// Converts DcText format bytes to DcUtf format bytes.
 pub fn dctext_to_dcutf(document: Vec<u8>) -> Vec<u8> {
-    // Reason for fallback: invalid DcText cannot be converted to DcUtf and defaults to empty byte sequence per function contract
-    dctext_to_dcstring(&document).map_or_else(
-        |_| Vec::new(),
-        |out| out.result.into_bytes(),
-    )
+    if let Ok(out) = dctext_to_dcstring(&document) {
+        out.result.into_bytes()
+    } else {
+        Vec::new()
+    }
 }
 
 /// Converts DcUtf format bytes to DcText format bytes.

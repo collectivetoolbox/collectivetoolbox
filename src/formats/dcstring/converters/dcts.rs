@@ -51,9 +51,9 @@ use crate::dc_number::{integer_to_dc_number_global, read_dc_number_global};
 use crate::dc_str::DcStr;
 use crate::DcString;
 
-/// Parses a Dcts document (`&[u8]`) into a `DcList` (`Vec<u128>`).
+/// Parses a Dcts document (`&[u8]`) directly into a `DcString`.
 ///
-/// Plain text characters become their corresponding Unicode codepoint IDs (`0..=0x10FFFF`).
+/// Plain text characters become their corresponding Unicode codepoints (`0..=0x10FFFF`).
 /// Tokens enclosed in `@...@` are parsed according to their prefix:
 /// - `@@`: codepoint 64 (`@`)
 /// - `@<number>@`: short Dc ID (e.g. `@123@` -> `SHORT_DC_REGION_START + 123`)
@@ -63,10 +63,10 @@ use crate::DcString;
 /// - `@f<number>@`: Format ID (e.g. `@f123@` -> `FORMAT_REGION_START + 123`)
 ///
 /// # Errors
-/// Returns an error if the document cannot be parsed into a `DcList`.
-pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
+/// Returns an error if the document cannot be parsed into a `DcString`.
+pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
     let mut log = FormatLog::default();
-    let mut list = Vec::new();
+    let mut dc_string = DcString::with_capacity(document.len());
     let mut i = 0usize;
 
     while i < document.len() {
@@ -84,7 +84,7 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                         if let Ok(token_str) = std::str::from_utf8(token_bytes) {
                             if token_str.is_empty() {
                                 // @@ token represents @ (codepoint 64)
-                                list.push(64u128);
+                                dc_string.push(DcChar(64u128));
                                 i = i.saturating_add(2);
                                 continue;
                             }
@@ -96,8 +96,10 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                 {
                                     match integer_to_dc_number_global(&int_val) {
                                         Ok(dc_num_gids) => {
-                                            list.push(1_114_408u128);
-                                            list.extend(dc_num_gids);
+                                            dc_string.push(DcChar(1_114_408u128));
+                                            for gid in dc_num_gids {
+                                                dc_string.push(DcChar(gid));
+                                            }
                                             i = i
                                                 .saturating_add(2)
                                                 .saturating_add(end_rel);
@@ -118,7 +120,7 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                             // 2) Long Dc: @l<number>@
                             else if let Some(num_str) = token_str.strip_prefix('l') {
                                 if let Ok(dcid) = num_str.parse::<u128>() {
-                                    list.push(dcid);
+                                    dc_string.push(DcChar(dcid));
                                     i = i
                                         .saturating_add(2)
                                         .saturating_add(end_rel);
@@ -129,16 +131,11 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                     ));
                                 }
                             }
-                            // 3) Unicode codepoint hex: @u123a@ or @U123A@
-                            else if let Some(hex_raw) = token_str
-                                .strip_prefix('u')
-                                .or_else(|| token_str.strip_prefix('U'))
-                            {
-                                let hex_str =
-                                    hex_raw.strip_prefix('+').unwrap_or(hex_raw);
+                            // 3) Unicode codepoint hex: @u123a@
+                            else if let Some(hex_str) = token_str.strip_prefix('u') {
                                 if let Ok(cp) = u32::from_str_radix(hex_str, 16) {
                                     if u128::from(cp) <= UNICODE_REGION_END {
-                                        list.push(u128::from(cp));
+                                        dc_string.push(DcChar(u128::from(cp)));
                                         i = i
                                             .saturating_add(2)
                                             .saturating_add(end_rel);
@@ -153,15 +150,12 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                     ));
                                 }
                             }
-                            // 4) Format: @f123@ or @F123@
-                            else if let Some(fmt_str) = token_str
-                                .strip_prefix('f')
-                                .or_else(|| token_str.strip_prefix('F'))
-                            {
+                            // 4) Format: @f123@
+                            else if let Some(fmt_str) = token_str.strip_prefix('f') {
                                 if let Ok(fmt_id) = fmt_str.parse::<u64>() {
                                     let gid = format_to_gid(fmt_id);
                                     if gid <= FORMAT_REGION_END {
-                                        list.push(gid);
+                                        dc_string.push(DcChar(gid));
                                         i = i
                                             .saturating_add(2)
                                             .saturating_add(end_rel);
@@ -184,7 +178,7 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
                                         "Short Dc ID @{token_str}@ exceeds short Dc region bounds ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})"
                                     ));
                                 }
-                                list.push(gid);
+                                dc_string.push(DcChar(gid));
                                 i = i
                                     .saturating_add(2)
                                     .saturating_add(end_rel);
@@ -201,15 +195,28 @@ pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
         }
 
         if let Some((codepoint, size)) = decode_utf_8e_128(slice) {
-            list.push(codepoint);
+            if let Some(raw_bytes) = slice.get(..size) {
+                dc_string.inner.extend_from_slice(raw_bytes);
+            } else {
+                dc_string.push(DcChar(codepoint));
+            }
             i = i.saturating_add(size);
         } else {
-            list.push(u128::from(first_byte));
+            dc_string.push(DcChar(u128::from(first_byte)));
             i = i.saturating_add(1);
         }
     }
 
-    Ok(ConversionOutput::new(list, log))
+    Ok(ConversionOutput::new(dc_string, log))
+}
+
+/// Parses a Dcts document (`&[u8]`) into a `DcList` (`Vec<u128>`).
+///
+/// # Errors
+/// Returns an error if the document cannot be parsed into a `DcList`.
+pub fn dcts_to_dclist(document: &[u8]) -> Result<ConversionOutput<DcList>> {
+    let out = dcts_to_dcstring(document)?;
+    Ok(ConversionOutput::new(out.result.to_dclist(), out.log))
 }
 
 /// Serializes a `DcList` (`&[u128]`) to Dcts format bytes (`Vec<u8>`).
@@ -255,19 +262,6 @@ pub fn dclist_to_dcts(dclist: &[u128]) -> Vec<u8> {
     }
 
     output.into_bytes()
-}
-
-/// Parses a Dcts document (`&[u8]`) directly into a `DcString`.
-///
-/// # Errors
-/// Returns an error if the document cannot be parsed into a `DcString`.
-pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
-    let out = dcts_to_dclist(document)?;
-    let mut dc_string = DcString::with_capacity(document.len());
-    for &dc in &out.result {
-        dc_string.push(DcChar(dc));
-    }
-    Ok(ConversionOutput::new(dc_string, out.log))
 }
 
 /// Serializes a `DcStr` to Dcts format bytes (`Vec<u8>`).
@@ -317,8 +311,8 @@ pub fn dcarray_to_dcts(
 pub fn dcts_to_dcarray(
     document: &[u8],
 ) -> Result<ConversionOutput<Vec<u32>>> {
-    let conv = dcts_to_dclist(document)?;
-    let array_conv = dclist_to_dcarray(&conv.result)?;
+    let conv = dcts_to_dcstring(document)?;
+    let array_conv = dclist_to_dcarray(&conv.result.to_dclist())?;
     let mut total_log = conv.log;
     total_log.merge(&array_conv.log);
     Ok(ConversionOutput::new(array_conv.result, total_log))
@@ -348,32 +342,33 @@ mod tests {
         // @u123a@ = U+123A (4666)
         // @f123@ = format 123 (2228224 + 123 = 2228347)
         let input = b"a @123@ @@ @l123@ @L42@ @u123a@ @f123@";
-        let conv = dcts_to_dclist(input).expect("parse dcts");
+        let conv = dcts_to_dcstring(input).expect("parse dcts");
         assert!(!conv.log.has_warnings());
+        let list = conv.result.to_dclist();
 
         // Verify the decoded IDs
-        assert_eq!(conv.result.first().copied(), Some(97)); // 'a'
-        assert_eq!(conv.result.get(1).copied(), Some(32)); // ' '
-        assert_eq!(conv.result.get(2).copied(), Some(1_114_235)); // short Dc 123
-        assert_eq!(conv.result.get(3).copied(), Some(32)); // ' '
-        assert_eq!(conv.result.get(4).copied(), Some(64)); // '@@'
-        assert_eq!(conv.result.get(5).copied(), Some(32)); // ' '
-        assert_eq!(conv.result.get(6).copied(), Some(123)); // long Dc 123
-        assert_eq!(conv.result.get(7).copied(), Some(32)); // ' '
-        assert_eq!(conv.result.get(8).copied(), Some(1_114_408)); // local node prefix
+        assert_eq!(list.first().copied(), Some(97)); // 'a'
+        assert_eq!(list.get(1).copied(), Some(32)); // ' '
+        assert_eq!(list.get(2).copied(), Some(1_114_235)); // short Dc 123
+        assert_eq!(list.get(3).copied(), Some(32)); // ' '
+        assert_eq!(list.get(4).copied(), Some(64)); // '@@'
+        assert_eq!(list.get(5).copied(), Some(32)); // ' '
+        assert_eq!(list.get(6).copied(), Some(123)); // long Dc 123
+        assert_eq!(list.get(7).copied(), Some(32)); // ' '
+        assert_eq!(list.get(8).copied(), Some(1_114_408)); // local node prefix
         // local node Dc number follows...
-        assert_eq!(conv.result.get(conv.result.len().saturating_sub(3)).copied(), Some(4666)); // U+123A
-        assert_eq!(conv.result.get(conv.result.len().saturating_sub(2)).copied(), Some(32)); // ' '
-        assert_eq!(conv.result.last().copied(), Some(2_228_347)); // format 123
+        assert_eq!(list.get(list.len().saturating_sub(3)).copied(), Some(4666)); // U+123A
+        assert_eq!(list.get(list.len().saturating_sub(2)).copied(), Some(32)); // ' '
+        assert_eq!(list.last().copied(), Some(2_228_347)); // format 123
     }
 
     #[crate::ctb_test]
     fn test_dcts_serialization_roundtrip() {
         let input = "a @123@ @@ @l100000000000@ @L42@ \u{123a} @f123@";
-        let conv = dcts_to_dclist(input.as_bytes()).expect("parse dcts");
+        let conv = dcts_to_dcstring(input.as_bytes()).expect("parse dcts");
         assert!(!conv.log.has_warnings());
 
-        let serialized = dclist_to_dcts(&conv.result);
+        let serialized = dcstring_to_dcts(&conv.result);
         let s = String::from_utf8(serialized).expect("valid utf-8");
         assert_eq!(s, input);
     }
@@ -381,15 +376,15 @@ mod tests {
     #[crate::ctb_test]
     fn test_dcts_u_token_serializes_to_char_or_surrogate() {
         // @u61@ parses to 97 ('a'), which serializes as literal 'a'
-        let conv = dcts_to_dclist(b"@u61@").expect("parse");
-        assert_eq!(conv.result, vec![97]);
-        let out = dclist_to_dcts(&conv.result);
+        let conv = dcts_to_dcstring(b"@u61@").expect("parse");
+        assert_eq!(conv.result.to_dclist(), vec![97]);
+        let out = dcstring_to_dcts(&conv.result);
         assert_eq!(String::from_utf8(out).unwrap(), "a");
 
         // Surrogate codepoints cannot be represented as char, so serialize as @u...
-        let conv_surr = dcts_to_dclist(b"@ud800@").expect("parse surrogate");
-        assert_eq!(conv_surr.result, vec![0xd800]);
-        let out_surr = dclist_to_dcts(&conv_surr.result);
+        let conv_surr = dcts_to_dcstring(b"@ud800@").expect("parse surrogate");
+        assert_eq!(conv_surr.result.to_dclist(), vec![0xd800]);
+        let out_surr = dcstring_to_dcts(&conv_surr.result);
         assert_eq!(String::from_utf8(out_surr).unwrap(), "@ud800@");
     }
 
@@ -425,19 +420,26 @@ mod tests {
     #[crate::ctb_test]
     fn test_dcts_warnings_on_invalid_tokens() {
         // Invalid hex in @u...
-        let conv = dcts_to_dclist(b"@uzzz@").expect("parse");
+        let conv = dcts_to_dcstring(b"@uzzz@").expect("parse");
         assert!(conv.log.has_warnings());
 
         // Unicode codepoint > 0x10FFFF
-        let conv2 = dcts_to_dclist(b"@u110000@").expect("parse");
+        let conv2 = dcts_to_dcstring(b"@u110000@").expect("parse");
         assert!(conv2.log.has_warnings());
 
         // Invalid format number
-        let conv3 = dcts_to_dclist(b"@fxyz@").expect("parse");
+        let conv3 = dcts_to_dcstring(b"@fxyz@").expect("parse");
         assert!(conv3.log.has_warnings());
 
         // Invalid long Dc
-        let conv4 = dcts_to_dclist(b"@lxyz@").expect("parse");
+        let conv4 = dcts_to_dcstring(b"@lxyz@").expect("parse");
         assert!(conv4.log.has_warnings());
+
+        // Uppercase @U... and @F... are not defined in specification
+        let conv5 = dcts_to_dcstring(b"@U123@").expect("parse");
+        assert!(conv5.log.has_warnings());
+
+        let conv6 = dcts_to_dcstring(b"@F123@").expect("parse");
+        assert!(conv6.log.has_warnings());
     }
 }
