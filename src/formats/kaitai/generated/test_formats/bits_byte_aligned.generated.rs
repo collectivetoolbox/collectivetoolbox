@@ -74,6 +74,7 @@ pub struct BitsByteAligned {
     bytes_term: RefCell<Vec<u8>>,
     six: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    byte_3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BitsByteAligned {
     type Root = BitsByteAligned;
@@ -99,7 +100,10 @@ impl KStruct for BitsByteAligned {
         *self_rc.byte_2.borrow_mut() = _io.read_bytes(1_usize)?;
         *self_rc.four.borrow_mut() = _io.read_bits_int_be(14)?;
         io.align_to_byte()?;
-        let t = Self::read_into::<_, BitsByteAligned_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_byte_3 = _io.read_bytes(3_usize)?;
+        *self_rc.byte_3_raw.borrow_mut() = _raw_byte_3.clone();
+        let _io_byte_3 = BytesReader::from(_raw_byte_3);
+        let t = Self::read_into::<BytesReader, BitsByteAligned_Foo>(&_io_byte_3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.byte_3.borrow_mut() = t;
         *self_rc.full_byte.borrow_mut() = _io.read_bits_int_be(8)?;
         io.align_to_byte()?;
@@ -176,6 +180,11 @@ impl BitsByteAligned {
 impl BitsByteAligned {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BitsByteAligned {
+    pub fn byte_3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.byte_3_raw.borrow()
     }
 }
 

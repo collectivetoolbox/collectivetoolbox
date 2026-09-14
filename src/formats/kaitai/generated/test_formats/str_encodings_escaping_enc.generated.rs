@@ -70,6 +70,10 @@ pub struct StrEncodingsEscapingEnc {
     len_of_4: RefCell<u16>,
     str4: RefCell<OptRc<StrEncodingsEscapingEnc_Str4Wrapper>>,
     _io: RefCell<BytesReader>,
+    str1_raw: RefCell<Vec<u8>>,
+    str2_raw: RefCell<Vec<u8>>,
+    str3_raw: RefCell<Vec<u8>>,
+    str4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrEncodingsEscapingEnc {
     type Root = StrEncodingsEscapingEnc;
@@ -87,16 +91,28 @@ impl KStruct for StrEncodingsEscapingEnc {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_of_1.borrow_mut() = _io.read_u2le()?;
-        let t = Self::read_into::<_, StrEncodingsEscapingEnc_Str1Wrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str1 = _io.read_bytes(usize::from(*self_rc.len_of_1()))?;
+        *self_rc.str1_raw.borrow_mut() = _raw_str1.clone();
+        let _io_str1 = BytesReader::from(_raw_str1);
+        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str1Wrapper>(&_io_str1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str1.borrow_mut() = t;
         *self_rc.len_of_2.borrow_mut() = _io.read_u2le()?;
-        let t = Self::read_into::<_, StrEncodingsEscapingEnc_Str2Wrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str2 = _io.read_bytes(usize::from(*self_rc.len_of_2()))?;
+        *self_rc.str2_raw.borrow_mut() = _raw_str2.clone();
+        let _io_str2 = BytesReader::from(_raw_str2);
+        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str2Wrapper>(&_io_str2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str2.borrow_mut() = t;
         *self_rc.len_of_3.borrow_mut() = _io.read_u2le()?;
-        let t = Self::read_into::<_, StrEncodingsEscapingEnc_Str3Wrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str3 = _io.read_bytes(usize::from(*self_rc.len_of_3()))?;
+        *self_rc.str3_raw.borrow_mut() = _raw_str3.clone();
+        let _io_str3 = BytesReader::from(_raw_str3);
+        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str3Wrapper>(&_io_str3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str3.borrow_mut() = t;
         *self_rc.len_of_4.borrow_mut() = _io.read_u2le()?;
-        let t = Self::read_into::<_, StrEncodingsEscapingEnc_Str4Wrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str4 = _io.read_bytes(usize::from(*self_rc.len_of_4()))?;
+        *self_rc.str4_raw.borrow_mut() = _raw_str4.clone();
+        let _io_str4 = BytesReader::from(_raw_str4);
+        let t = Self::read_into::<BytesReader, StrEncodingsEscapingEnc_Str4Wrapper>(&_io_str4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str4.borrow_mut() = t;
         Ok(())
     }
@@ -146,6 +162,26 @@ impl StrEncodingsEscapingEnc {
 impl StrEncodingsEscapingEnc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrEncodingsEscapingEnc {
+    pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str1_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingEnc {
+    pub fn str2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str2_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingEnc {
+    pub fn str3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str3_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingEnc {
+    pub fn str4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str4_raw.borrow()
     }
 }
 

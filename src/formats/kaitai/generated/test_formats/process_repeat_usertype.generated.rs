@@ -63,6 +63,7 @@ pub struct ProcessRepeatUsertype {
     pub(crate) _self_shared: SharedType<Self>,
     blocks: RefCell<Vec<OptRc<ProcessRepeatUsertype_Block>>>,
     _io: RefCell<BytesReader>,
+    blocks_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessRepeatUsertype {
     type Root = ProcessRepeatUsertype;
@@ -98,6 +99,11 @@ impl ProcessRepeatUsertype {
 impl ProcessRepeatUsertype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessRepeatUsertype {
+    pub fn blocks_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.blocks_raw.borrow()
     }
 }
 

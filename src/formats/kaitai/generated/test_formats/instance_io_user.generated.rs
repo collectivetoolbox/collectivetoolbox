@@ -65,6 +65,7 @@ pub struct InstanceIoUser {
     entries: RefCell<Vec<OptRc<InstanceIoUser_Entry>>>,
     strings: RefCell<OptRc<InstanceIoUser_StringsObj>>,
     _io: RefCell<BytesReader>,
+    strings_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for InstanceIoUser {
     type Root = InstanceIoUser;
@@ -88,7 +89,10 @@ impl KStruct for InstanceIoUser {
             let t = Self::read_into::<_, InstanceIoUser_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
-        let t = Self::read_into::<_, InstanceIoUser_StringsObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_strings = _io.read_bytes_full()?;
+        *self_rc.strings_raw.borrow_mut() = _raw_strings.clone();
+        let _io_strings = BytesReader::from(_raw_strings);
+        let t = Self::read_into::<BytesReader, InstanceIoUser_StringsObj>(&_io_strings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.strings.borrow_mut() = t;
         Ok(())
     }
@@ -113,6 +117,11 @@ impl InstanceIoUser {
 impl InstanceIoUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl InstanceIoUser {
+    pub fn strings_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.strings_raw.borrow()
     }
 }
 

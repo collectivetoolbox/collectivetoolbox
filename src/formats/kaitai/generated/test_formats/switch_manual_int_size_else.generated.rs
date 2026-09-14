@@ -182,21 +182,21 @@ impl KStruct for SwitchManualIntSizeElse_Chunk {
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         match *self_rc.code() {
             17 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, SwitchManualIntSizeElse_Chunk_ChunkMeta>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             34 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, SwitchManualIntSizeElse_Chunk_ChunkDir>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.size())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, SwitchManualIntSizeElse_Chunk_Dummy>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

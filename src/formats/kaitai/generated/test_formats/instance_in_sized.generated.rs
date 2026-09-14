@@ -63,6 +63,7 @@ pub struct InstanceInSized {
     pub(crate) _self_shared: SharedType<Self>,
     cont: RefCell<OptRc<InstanceInSized_Wrapper>>,
     _io: RefCell<BytesReader>,
+    cont_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for InstanceInSized {
     type Root = InstanceInSized;
@@ -79,7 +80,10 @@ impl KStruct for InstanceInSized {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, InstanceInSized_Wrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_cont = _io.read_bytes(16_usize)?;
+        *self_rc.cont_raw.borrow_mut() = _raw_cont.clone();
+        let _io_cont = BytesReader::from(_raw_cont);
+        let t = Self::read_into::<BytesReader, InstanceInSized_Wrapper>(&_io_cont, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.cont.borrow_mut() = t;
         Ok(())
     }
@@ -94,6 +98,11 @@ impl InstanceInSized {
 impl InstanceInSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl InstanceInSized {
+    pub fn cont_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.cont_raw.borrow()
     }
 }
 
@@ -291,6 +300,7 @@ pub struct InstanceInSized_Wrapper {
     seq_sized: RefCell<OptRc<InstanceInSized_Qux>>,
     seq_in_stream: RefCell<OptRc<InstanceInSized_Bar>>,
     _io: RefCell<BytesReader>,
+    seq_sized_raw: RefCell<Vec<u8>>,
     inst_sized_raw: RefCell<Vec<u8>>,
     f_inst_in_stream: Cell<bool>,
     inst_in_stream: RefCell<OptRc<InstanceInSized_Baz>>,
@@ -312,7 +322,10 @@ impl KStruct for InstanceInSized_Wrapper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, InstanceInSized_Qux>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_seq_sized = _io.read_bytes(4_usize)?;
+        *self_rc.seq_sized_raw.borrow_mut() = _raw_seq_sized.clone();
+        let _io_seq_sized = BytesReader::from(_raw_seq_sized);
+        let t = Self::read_into::<BytesReader, InstanceInSized_Qux>(&_io_seq_sized, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_sized.borrow_mut() = t;
         let t = Self::read_into::<_, InstanceInSized_Bar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.seq_in_stream.borrow_mut() = t;
@@ -365,6 +378,11 @@ impl InstanceInSized_Wrapper {
 impl InstanceInSized_Wrapper {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl InstanceInSized_Wrapper {
+    pub fn seq_sized_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.seq_sized_raw.borrow()
     }
 }
 impl InstanceInSized_Wrapper {

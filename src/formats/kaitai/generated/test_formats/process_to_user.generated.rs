@@ -63,6 +63,7 @@ pub struct ProcessToUser {
     pub(crate) _self_shared: SharedType<Self>,
     buf1: RefCell<OptRc<ProcessToUser_JustStr>>,
     _io: RefCell<BytesReader>,
+    buf1_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessToUser {
     type Root = ProcessToUser;
@@ -79,7 +80,10 @@ impl KStruct for ProcessToUser {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ProcessToUser_JustStr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_buf1 = _io.read_bytes(5_usize)?;
+        *self_rc.buf1_raw.borrow_mut() = _raw_buf1.clone();
+        let _io_buf1 = BytesReader::from(_raw_buf1);
+        let t = Self::read_into::<BytesReader, ProcessToUser_JustStr>(&_io_buf1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf1.borrow_mut() = t;
         Ok(())
     }
@@ -94,6 +98,11 @@ impl ProcessToUser {
 impl ProcessToUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessToUser {
+    pub fn buf1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf1_raw.borrow()
     }
 }
 

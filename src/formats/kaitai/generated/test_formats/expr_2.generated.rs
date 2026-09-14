@@ -203,6 +203,7 @@ pub struct Expr2_ModStr {
     str: RefCell<String>,
     rest: RefCell<OptRc<Expr2_Tuple>>,
     _io: RefCell<BytesReader>,
+    rest_raw: RefCell<Vec<u8>>,
     f_char5: Cell<bool>,
     char5: RefCell<String>,
     f_len_mod: Cell<bool>,
@@ -227,7 +228,10 @@ impl KStruct for Expr2_ModStr {
         let _io = io;
         *self_rc.len_orig.borrow_mut() = _io.read_u2le()?;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_mod()?)?)?, "UTF-8")?;
-        let t = Self::read_into::<_, Expr2_Tuple>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_rest = _io.read_bytes(3_usize)?;
+        *self_rc.rest_raw.borrow_mut() = _raw_rest.clone();
+        let _io_rest = BytesReader::from(_raw_rest);
+        let t = Self::read_into::<BytesReader, Expr2_Tuple>(&_io_rest, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rest.borrow_mut() = t;
         Ok(())
     }
@@ -291,6 +295,11 @@ impl Expr2_ModStr {
 impl Expr2_ModStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Expr2_ModStr {
+    pub fn rest_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.rest_raw.borrow()
     }
 }
 

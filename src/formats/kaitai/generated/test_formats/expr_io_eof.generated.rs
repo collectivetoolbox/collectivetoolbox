@@ -64,6 +64,8 @@ pub struct ExprIoEof {
     substream1: RefCell<OptRc<ExprIoEof_OneOrTwo>>,
     substream2: RefCell<OptRc<ExprIoEof_OneOrTwo>>,
     _io: RefCell<BytesReader>,
+    substream1_raw: RefCell<Vec<u8>>,
+    substream2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprIoEof {
     type Root = ExprIoEof;
@@ -80,9 +82,15 @@ impl KStruct for ExprIoEof {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ExprIoEof_OneOrTwo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_substream1 = _io.read_bytes(4_usize)?;
+        *self_rc.substream1_raw.borrow_mut() = _raw_substream1.clone();
+        let _io_substream1 = BytesReader::from(_raw_substream1);
+        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream1.borrow_mut() = t;
-        let t = Self::read_into::<_, ExprIoEof_OneOrTwo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_substream2 = _io.read_bytes(8_usize)?;
+        *self_rc.substream2_raw.borrow_mut() = _raw_substream2.clone();
+        let _io_substream2 = BytesReader::from(_raw_substream2);
+        let t = Self::read_into::<BytesReader, ExprIoEof_OneOrTwo>(&_io_substream2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.substream2.borrow_mut() = t;
         Ok(())
     }
@@ -102,6 +110,16 @@ impl ExprIoEof {
 impl ExprIoEof {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprIoEof {
+    pub fn substream1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.substream1_raw.borrow()
+    }
+}
+impl ExprIoEof {
+    pub fn substream2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.substream2_raw.borrow()
     }
 }
 

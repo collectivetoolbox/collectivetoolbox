@@ -65,6 +65,9 @@ pub struct BcdUserTypeLe {
     rtl: RefCell<OptRc<BcdUserTypeLe_RtlObj>>,
     leading_zero_ltr: RefCell<OptRc<BcdUserTypeLe_LeadingZeroLtrObj>>,
     _io: RefCell<BytesReader>,
+    ltr_raw: RefCell<Vec<u8>>,
+    rtl_raw: RefCell<Vec<u8>>,
+    leading_zero_ltr_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BcdUserTypeLe {
     type Root = BcdUserTypeLe;
@@ -81,11 +84,20 @@ impl KStruct for BcdUserTypeLe {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, BcdUserTypeLe_LtrObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_ltr = _io.read_bytes(4_usize)?;
+        *self_rc.ltr_raw.borrow_mut() = _raw_ltr.clone();
+        let _io_ltr = BytesReader::from(_raw_ltr);
+        let t = Self::read_into::<BytesReader, BcdUserTypeLe_LtrObj>(&_io_ltr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.ltr.borrow_mut() = t;
-        let t = Self::read_into::<_, BcdUserTypeLe_RtlObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_rtl = _io.read_bytes(4_usize)?;
+        *self_rc.rtl_raw.borrow_mut() = _raw_rtl.clone();
+        let _io_rtl = BytesReader::from(_raw_rtl);
+        let t = Self::read_into::<BytesReader, BcdUserTypeLe_RtlObj>(&_io_rtl, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.rtl.borrow_mut() = t;
-        let t = Self::read_into::<_, BcdUserTypeLe_LeadingZeroLtrObj>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_leading_zero_ltr = _io.read_bytes(4_usize)?;
+        *self_rc.leading_zero_ltr_raw.borrow_mut() = _raw_leading_zero_ltr.clone();
+        let _io_leading_zero_ltr = BytesReader::from(_raw_leading_zero_ltr);
+        let t = Self::read_into::<BytesReader, BcdUserTypeLe_LeadingZeroLtrObj>(&_io_leading_zero_ltr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.leading_zero_ltr.borrow_mut() = t;
         Ok(())
     }
@@ -110,6 +122,21 @@ impl BcdUserTypeLe {
 impl BcdUserTypeLe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BcdUserTypeLe {
+    pub fn ltr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ltr_raw.borrow()
+    }
+}
+impl BcdUserTypeLe {
+    pub fn rtl_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.rtl_raw.borrow()
+    }
+}
+impl BcdUserTypeLe {
+    pub fn leading_zero_ltr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.leading_zero_ltr_raw.borrow()
     }
 }
 

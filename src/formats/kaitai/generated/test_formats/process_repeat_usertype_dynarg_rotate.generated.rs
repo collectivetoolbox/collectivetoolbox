@@ -65,6 +65,8 @@ pub struct ProcessRepeatUsertypeDynargRotate {
     blocks_ror: RefCell<Vec<OptRc<ProcessRepeatUsertypeDynargRotate_Block>>>,
     blocks_b: RefCell<OptRc<ProcessRepeatUsertypeDynargRotate_BlocksBWrapper>>,
     _io: RefCell<BytesReader>,
+    blocks_rol_raw: RefCell<Vec<u8>>,
+    blocks_ror_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessRepeatUsertypeDynargRotate {
     type Root = ProcessRepeatUsertypeDynargRotate;
@@ -118,6 +120,16 @@ impl ProcessRepeatUsertypeDynargRotate {
 impl ProcessRepeatUsertypeDynargRotate {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessRepeatUsertypeDynargRotate {
+    pub fn blocks_rol_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.blocks_rol_raw.borrow()
+    }
+}
+impl ProcessRepeatUsertypeDynargRotate {
+    pub fn blocks_ror_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.blocks_ror_raw.borrow()
     }
 }
 

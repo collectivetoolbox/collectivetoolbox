@@ -64,6 +64,8 @@ pub struct TypeTernary {
     dif_wo_hack: RefCell<OptRc<TypeTernary_Dummy>>,
     dif_with_hack: RefCell<OptRc<TypeTernary_Dummy>>,
     _io: RefCell<BytesReader>,
+    dif_wo_hack_raw: RefCell<Vec<u8>>,
+    dif_with_hack_raw: RefCell<Vec<u8>>,
     f_dif: Cell<bool>,
     dif: RefCell<OptRc<TypeTernary_Dummy>>,
     f_dif_value: Cell<bool>,
@@ -87,10 +89,16 @@ impl KStruct for TypeTernary {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if !(*self_rc.is_hack()?) {
-            let t = Self::read_into::<_, TypeTernary_Dummy>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
+            *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
+            let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
+            let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_wo_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
         }
-        let t = Self::read_into::<_, TypeTernary_Dummy>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
+        *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
+        let _io_dif_with_hack = BytesReader::from(_raw_dif_with_hack);
+        let t = Self::read_into::<BytesReader, TypeTernary_Dummy>(&_io_dif_with_hack, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dif_with_hack.borrow_mut() = t;
         Ok(())
     }
@@ -142,6 +150,16 @@ impl TypeTernary {
 impl TypeTernary {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl TypeTernary {
+    pub fn dif_wo_hack_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dif_wo_hack_raw.borrow()
+    }
+}
+impl TypeTernary {
+    pub fn dif_with_hack_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dif_with_hack_raw.borrow()
     }
 }
 

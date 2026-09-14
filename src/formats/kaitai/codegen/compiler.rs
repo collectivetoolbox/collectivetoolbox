@@ -1166,17 +1166,46 @@ fn emit_single_read(
         let type_name = types_to_class_name(names);
         let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
         let trans_args = translate_args(args, ctx, true);
+        let io_ref = if attr.size_expr.is_some() || attr.size_eos || attr.process.is_some() {
+            let read_call = if attr.size_eos {
+                "_io.read_bytes_full()?".to_string()
+            } else if let Some(size_expr) = &attr.size_expr {
+                let s = expr_to_usize(size_expr, ctx);
+                format!("_io.read_bytes({s})?")
+            } else {
+                "_io.read_bytes_full()?".to_string()
+            };
+            w.puts(&format!("let _raw_{id} = {read_call};"));
+            if has_substream(attr) || attr.raw_id.is_some() {
+                w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = _raw_{id}.clone();"));
+            }
+            if let Some(proc) = &attr.process {
+                if proc == "zlib" {
+                    w.puts(&format!("let _processed_{id} = process_zlib(&_raw_{id})?;"));
+                    w.puts(&format!("let _io_{id} = BytesReader::from(_processed_{id});"));
+                } else {
+                    w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+                }
+            } else {
+                w.puts(&format!("let _io_{id} = BytesReader::from(_raw_{id});"));
+            }
+            format!("&_io_{id}")
+        } else {
+            "&*_io".to_string()
+        };
+        let stream_type = if io_ref == "&*_io" { "_" } else { "BytesReader" };
+
         if trans_args.is_empty() {
             if current.has_dynamic_endian() {
                 w.puts(&format!(
                     "let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow()));"
                 ));
                 w.puts(&format!(
-                    "let t = Self::read_into_with_init::<_, {type_name}>(&*_io, {target_args}, &f)?.into();"
+                    "let t = Self::read_into_with_init::<{stream_type}, {type_name}>({io_ref}, {target_args}, &f)?.into();"
                 ));
             } else {
                 w.puts(&format!(
-                    "let t = Self::read_into::<_, {type_name}>(&*_io, {target_args})?.into();"
+                    "let t = Self::read_into::<{stream_type}, {type_name}>({io_ref}, {target_args})?.into();"
                 ));
             }
         } else {
@@ -1184,7 +1213,7 @@ fn emit_single_read(
                 "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
             ));
             w.puts(&format!(
-                "let t = Self::read_into_with_init::<_, {type_name}>(&*_io, {target_args}, &f)?.into();"
+                "let t = Self::read_into_with_init::<{stream_type}, {type_name}>({io_ref}, {target_args}, &f)?.into();"
             ));
         }
         let escaped_id = escape_rust_keyword(id);
@@ -1256,9 +1285,20 @@ fn emit_switch_read(
         w.inc();
 
         if let DataType::UserType { names, is_external, args } = case_type {
-            w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = _io.read_bytes_full()?.into();"));
+            let read_call = if let Some(size_expr) = &attr.size_expr {
+                let s = expr_to_usize(size_expr, ctx);
+                format!("_io.read_bytes({s})?.into()")
+            } else {
+                "_io.read_bytes_full()?.into()".to_string()
+            };
+            w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = {read_call};"));
             w.puts(&format!("let {id}_raw = {self_name}.{id}_raw.borrow();"));
-            w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
+            if attr.process.as_deref() == Some("zlib") {
+                w.puts(&format!("let _t_{id}_raw_proc = process_zlib(&{id}_raw)?;"));
+                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw_proc);"));
+            } else {
+                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
+            }
 
             let type_name = types_to_class_name(names);
             let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
@@ -1361,7 +1401,7 @@ fn read_expr_for_type(
             };
             format!("{io}.read_bits_int_{endian_str}({count})?")
         }
-        DataType::Bytes { size, size_eos, terminator, include, consume, pad_right, .. } => {
+        DataType::Bytes { size, size_eos, terminator, include, consume, pad_right, process } => {
             let mut raw_bytes = if *size_eos {
                 format!("{io}.read_bytes_full()?")
             } else if let Some(size_expr) = size {
@@ -1378,6 +1418,11 @@ fn read_expr_for_type(
                 }
                 if let Some(term) = terminator {
                     raw_bytes = format!("bytes_terminate(&{raw_bytes}, {term}, {include})");
+                }
+            }
+            if let Some(proc) = process {
+                if proc == "zlib" {
+                    raw_bytes = format!("process_zlib(&{raw_bytes})?");
                 }
             }
             raw_bytes

@@ -67,6 +67,8 @@ pub struct BufferedStruct {
     block2: RefCell<OptRc<BufferedStruct_Block>>,
     finisher: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    block1_raw: RefCell<Vec<u8>>,
+    block2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BufferedStruct {
     type Root = BufferedStruct;
@@ -84,10 +86,16 @@ impl KStruct for BufferedStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len1.borrow_mut() = _io.read_u4le()?;
-        let t = Self::read_into::<_, BufferedStruct_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_block1 = _io.read_bytes(usize::try_from(*self_rc.len1())?)?;
+        *self_rc.block1_raw.borrow_mut() = _raw_block1.clone();
+        let _io_block1 = BytesReader::from(_raw_block1);
+        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc.len2.borrow_mut() = _io.read_u4le()?;
-        let t = Self::read_into::<_, BufferedStruct_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_block2 = _io.read_bytes(usize::try_from(*self_rc.len2())?)?;
+        *self_rc.block2_raw.borrow_mut() = _raw_block2.clone();
+        let _io_block2 = BytesReader::from(_raw_block2);
+        let t = Self::read_into::<BytesReader, BufferedStruct_Block>(&_io_block2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block2.borrow_mut() = t;
         *self_rc.finisher.borrow_mut() = _io.read_u4le()?;
         Ok(())
@@ -123,6 +131,16 @@ impl BufferedStruct {
 impl BufferedStruct {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BufferedStruct {
+    pub fn block1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.block1_raw.borrow()
+    }
+}
+impl BufferedStruct {
+    pub fn block2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.block2_raw.borrow()
     }
 }
 

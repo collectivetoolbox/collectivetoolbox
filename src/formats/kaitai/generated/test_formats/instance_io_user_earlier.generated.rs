@@ -68,6 +68,8 @@ pub struct InstanceIoUserEarlier {
     into_a: RefCell<OptRc<InstanceIoUserEarlier_Foo>>,
     last_accessor: RefCell<OptRc<InstanceIoUserEarlier_Baz>>,
     _io: RefCell<BytesReader>,
+    sized_a_raw: RefCell<Vec<u8>>,
+    sized_b_raw: RefCell<Vec<u8>>,
     f_a_mid: Cell<bool>,
     a_mid: RefCell<u16>,
     f_b_mid: Cell<bool>,
@@ -88,9 +90,15 @@ impl KStruct for InstanceIoUserEarlier {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Slot>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_sized_a = _io.read_bytes(6_usize)?;
+        *self_rc.sized_a_raw.borrow_mut() = _raw_sized_a.clone();
+        let _io_sized_a = BytesReader::from(_raw_sized_a);
+        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_a, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_a.borrow_mut() = t;
-        let t = Self::read_into::<_, InstanceIoUserEarlier_Slot>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_sized_b = _io.read_bytes(6_usize)?;
+        *self_rc.sized_b_raw.borrow_mut() = _raw_sized_b.clone();
+        let _io_sized_b = BytesReader::from(_raw_sized_b);
+        let t = Self::read_into::<BytesReader, InstanceIoUserEarlier_Slot>(&_io_sized_b, Some(self_rc._root.clone()), None)?.into();
         *self_rc.sized_b.borrow_mut() = t;
         let t = Self::read_into::<_, InstanceIoUserEarlier_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.into_b.borrow_mut() = t;
@@ -168,6 +176,16 @@ impl InstanceIoUserEarlier {
 impl InstanceIoUserEarlier {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl InstanceIoUserEarlier {
+    pub fn sized_a_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.sized_a_raw.borrow()
+    }
+}
+impl InstanceIoUserEarlier {
+    pub fn sized_b_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.sized_b_raw.borrow()
     }
 }
 

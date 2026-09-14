@@ -63,6 +63,7 @@ pub struct EosExceptionSized {
     pub(crate) _self_shared: SharedType<Self>,
     envelope: RefCell<OptRc<EosExceptionSized_Data>>,
     _io: RefCell<BytesReader>,
+    envelope_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EosExceptionSized {
     type Root = EosExceptionSized;
@@ -79,7 +80,10 @@ impl KStruct for EosExceptionSized {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, EosExceptionSized_Data>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_envelope = _io.read_bytes(6_usize)?;
+        *self_rc.envelope_raw.borrow_mut() = _raw_envelope.clone();
+        let _io_envelope = BytesReader::from(_raw_envelope);
+        let t = Self::read_into::<BytesReader, EosExceptionSized_Data>(&_io_envelope, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.envelope.borrow_mut() = t;
         Ok(())
     }
@@ -96,6 +100,11 @@ impl EosExceptionSized {
         self._io.borrow()
     }
 }
+impl EosExceptionSized {
+    pub fn envelope_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.envelope_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct EosExceptionSized_Data {
@@ -104,6 +113,7 @@ pub struct EosExceptionSized_Data {
     pub(crate) _self_shared: SharedType<Self>,
     buf: RefCell<OptRc<EosExceptionSized_Foo>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EosExceptionSized_Data {
     type Root = EosExceptionSized;
@@ -120,7 +130,10 @@ impl KStruct for EosExceptionSized_Data {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, EosExceptionSized_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_buf = _io.read_bytes(7_usize)?;
+        *self_rc.buf_raw.borrow_mut() = _raw_buf.clone();
+        let _io_buf = BytesReader::from(_raw_buf);
+        let t = Self::read_into::<BytesReader, EosExceptionSized_Foo>(&_io_buf, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf.borrow_mut() = t;
         Ok(())
     }
@@ -135,6 +148,11 @@ impl EosExceptionSized_Data {
 impl EosExceptionSized_Data {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EosExceptionSized_Data {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }
 

@@ -157,7 +157,7 @@ impl KStruct for ProcessCoerceSwitch {
         if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
             match *self_rc.buf_type() {
                 0 => {
-                    *self_rc.buf_unproc_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.buf_unproc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                     let buf_unproc_raw = self_rc.buf_unproc_raw.borrow();
                     let _t_buf_unproc_raw_io = BytesReader::from(buf_unproc_raw.clone());
                     let t = Self::read_into::<BytesReader, ProcessCoerceSwitch_Foo>(&_t_buf_unproc_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -171,7 +171,7 @@ impl KStruct for ProcessCoerceSwitch {
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
             match *self_rc.buf_type() {
                 0 => {
-                    *self_rc.buf_proc_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.buf_proc_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                     let buf_proc_raw = self_rc.buf_proc_raw.borrow();
                     let _t_buf_proc_raw_io = BytesReader::from(buf_proc_raw.clone());
                     let t = Self::read_into::<BytesReader, ProcessCoerceSwitch_Foo>(&_t_buf_proc_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

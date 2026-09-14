@@ -150,6 +150,7 @@ pub struct ProcessCoerceUsertype2_Record {
     buf_unproc: RefCell<OptRc<ProcessCoerceUsertype2_Foo>>,
     buf_proc: RefCell<OptRc<ProcessCoerceUsertype2_Foo>>,
     _io: RefCell<BytesReader>,
+    buf_proc_raw: RefCell<Vec<u8>>,
     f_buf: Cell<bool>,
     buf: RefCell<OptRc<ProcessCoerceUsertype2_Foo>>,
 }
@@ -174,7 +175,10 @@ impl KStruct for ProcessCoerceUsertype2_Record {
             *self_rc.buf_unproc.borrow_mut() = t;
         }
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
-            let t = Self::read_into::<_, ProcessCoerceUsertype2_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_buf_proc = _io.read_bytes(4_usize)?;
+            *self_rc.buf_proc_raw.borrow_mut() = _raw_buf_proc.clone();
+            let _io_buf_proc = BytesReader::from(_raw_buf_proc);
+            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype2_Foo>(&_io_buf_proc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.buf_proc.borrow_mut() = t;
         }
         Ok(())
@@ -210,5 +214,10 @@ impl ProcessCoerceUsertype2_Record {
 impl ProcessCoerceUsertype2_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCoerceUsertype2_Record {
+    pub fn buf_proc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_proc_raw.borrow()
     }
 }

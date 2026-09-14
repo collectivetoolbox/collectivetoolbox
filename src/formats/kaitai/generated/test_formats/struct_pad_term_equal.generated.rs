@@ -66,6 +66,10 @@ pub struct StructPadTermEqual {
     s3: RefCell<OptRc<StructPadTermEqual_BytesWrapper>>,
     s4: RefCell<OptRc<StructPadTermEqual_BytesWrapper>>,
     _io: RefCell<BytesReader>,
+    s1_raw: RefCell<Vec<u8>>,
+    s2_raw: RefCell<Vec<u8>>,
+    s3_raw: RefCell<Vec<u8>>,
+    s4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StructPadTermEqual {
     type Root = StructPadTermEqual;
@@ -82,13 +86,25 @@ impl KStruct for StructPadTermEqual {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, StructPadTermEqual_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_s1 = _io.read_bytes(20_usize)?;
+        *self_rc.s1_raw.borrow_mut() = _raw_s1.clone();
+        let _io_s1 = BytesReader::from(_raw_s1);
+        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s1.borrow_mut() = t;
-        let t = Self::read_into::<_, StructPadTermEqual_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_s2 = _io.read_bytes(20_usize)?;
+        *self_rc.s2_raw.borrow_mut() = _raw_s2.clone();
+        let _io_s2 = BytesReader::from(_raw_s2);
+        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s2.borrow_mut() = t;
-        let t = Self::read_into::<_, StructPadTermEqual_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_s3 = _io.read_bytes(20_usize)?;
+        *self_rc.s3_raw.borrow_mut() = _raw_s3.clone();
+        let _io_s3 = BytesReader::from(_raw_s3);
+        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s3, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s3.borrow_mut() = t;
-        let t = Self::read_into::<_, StructPadTermEqual_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_s4 = _io.read_bytes(20_usize)?;
+        *self_rc.s4_raw.borrow_mut() = _raw_s4.clone();
+        let _io_s4 = BytesReader::from(_raw_s4);
+        let t = Self::read_into::<BytesReader, StructPadTermEqual_BytesWrapper>(&_io_s4, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.s4.borrow_mut() = t;
         Ok(())
     }
@@ -118,6 +134,26 @@ impl StructPadTermEqual {
 impl StructPadTermEqual {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StructPadTermEqual {
+    pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s1_raw.borrow()
+    }
+}
+impl StructPadTermEqual {
+    pub fn s2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s2_raw.borrow()
+    }
+}
+impl StructPadTermEqual {
+    pub fn s3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s3_raw.borrow()
+    }
+}
+impl StructPadTermEqual {
+    pub fn s4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s4_raw.borrow()
     }
 }
 

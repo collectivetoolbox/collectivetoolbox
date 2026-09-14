@@ -113,6 +113,7 @@ pub struct SwitchManualIntSizeEos_Chunk {
     size: RefCell<u32>,
     body: RefCell<OptRc<SwitchManualIntSizeEos_ChunkBody>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for SwitchManualIntSizeEos_Chunk {
     type Root = SwitchManualIntSizeEos;
@@ -131,7 +132,10 @@ impl KStruct for SwitchManualIntSizeEos_Chunk {
         let _io = io;
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
-        let t = Self::read_into::<_, SwitchManualIntSizeEos_ChunkBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_body = _io.read_bytes(usize::try_from(*self_rc.size())?)?;
+        *self_rc.body_raw.borrow_mut() = _raw_body.clone();
+        let _io_body = BytesReader::from(_raw_body);
+        let t = Self::read_into::<BytesReader, SwitchManualIntSizeEos_ChunkBody>(&_io_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.body.borrow_mut() = t;
         Ok(())
     }
@@ -156,6 +160,11 @@ impl SwitchManualIntSizeEos_Chunk {
 impl SwitchManualIntSizeEos_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl SwitchManualIntSizeEos_Chunk {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }
 

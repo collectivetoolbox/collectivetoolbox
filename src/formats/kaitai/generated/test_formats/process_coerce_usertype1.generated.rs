@@ -150,6 +150,8 @@ pub struct ProcessCoerceUsertype1_Record {
     buf_unproc: RefCell<OptRc<ProcessCoerceUsertype1_Foo>>,
     buf_proc: RefCell<OptRc<ProcessCoerceUsertype1_Foo>>,
     _io: RefCell<BytesReader>,
+    buf_unproc_raw: RefCell<Vec<u8>>,
+    buf_proc_raw: RefCell<Vec<u8>>,
     f_buf: Cell<bool>,
     buf: RefCell<OptRc<ProcessCoerceUsertype1_Foo>>,
 }
@@ -170,11 +172,17 @@ impl KStruct for ProcessCoerceUsertype1_Record {
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         if ((to_i128(*self_rc.flag())) == (to_i128(0))) {
-            let t = Self::read_into::<_, ProcessCoerceUsertype1_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_buf_unproc = _io.read_bytes(4_usize)?;
+            *self_rc.buf_unproc_raw.borrow_mut() = _raw_buf_unproc.clone();
+            let _io_buf_unproc = BytesReader::from(_raw_buf_unproc);
+            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(&_io_buf_unproc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.buf_unproc.borrow_mut() = t;
         }
         if ((to_i128(*self_rc.flag())) != (to_i128(0))) {
-            let t = Self::read_into::<_, ProcessCoerceUsertype1_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_buf_proc = _io.read_bytes(4_usize)?;
+            *self_rc.buf_proc_raw.borrow_mut() = _raw_buf_proc.clone();
+            let _io_buf_proc = BytesReader::from(_raw_buf_proc);
+            let t = Self::read_into::<BytesReader, ProcessCoerceUsertype1_Foo>(&_io_buf_proc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.buf_proc.borrow_mut() = t;
         }
         Ok(())
@@ -210,5 +218,15 @@ impl ProcessCoerceUsertype1_Record {
 impl ProcessCoerceUsertype1_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCoerceUsertype1_Record {
+    pub fn buf_unproc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_unproc_raw.borrow()
+    }
+}
+impl ProcessCoerceUsertype1_Record {
+    pub fn buf_proc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_proc_raw.borrow()
     }
 }

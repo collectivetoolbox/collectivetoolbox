@@ -65,6 +65,8 @@ pub struct TypeTernaryOpaque {
     dif_wo_hack: RefCell<OptRc<HelloWorld>>,
     dif_with_hack: RefCell<OptRc<HelloWorld>>,
     _io: RefCell<BytesReader>,
+    dif_wo_hack_raw: RefCell<Vec<u8>>,
+    dif_with_hack_raw: RefCell<Vec<u8>>,
     f_dif: Cell<bool>,
     dif: RefCell<OptRc<HelloWorld>>,
     f_is_hack: Cell<bool>,
@@ -86,11 +88,17 @@ impl KStruct for TypeTernaryOpaque {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         if !(*self_rc.is_hack()?) {
-            let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
+            let _raw_dif_wo_hack = _io.read_bytes(1_usize)?;
+            *self_rc.dif_wo_hack_raw.borrow_mut() = _raw_dif_wo_hack.clone();
+            let _io_dif_wo_hack = BytesReader::from(_raw_dif_wo_hack);
+            let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_wo_hack, None, None)?.into();
             *self_rc.dif_wo_hack.borrow_mut() = t;
         }
         if *self_rc.is_hack()? {
-            let t = Self::read_into::<_, HelloWorld>(&*_io, None, None)?.into();
+            let _raw_dif_with_hack = _io.read_bytes(1_usize)?;
+            *self_rc.dif_with_hack_raw.borrow_mut() = _raw_dif_with_hack.clone();
+            let _io_dif_with_hack = BytesReader::from(_raw_dif_with_hack);
+            let t = Self::read_into::<BytesReader, HelloWorld>(&_io_dif_with_hack, None, None)?.into();
             *self_rc.dif_with_hack.borrow_mut() = t;
         }
         Ok(())
@@ -132,5 +140,15 @@ impl TypeTernaryOpaque {
 impl TypeTernaryOpaque {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl TypeTernaryOpaque {
+    pub fn dif_wo_hack_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dif_wo_hack_raw.borrow()
+    }
+}
+impl TypeTernaryOpaque {
+    pub fn dif_with_hack_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dif_with_hack_raw.borrow()
     }
 }

@@ -64,6 +64,7 @@ pub struct ExprSizeofValueSized {
     block1: RefCell<OptRc<ExprSizeofValueSized_Block>>,
     more: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    block1_raw: RefCell<Vec<u8>>,
     f_self_sizeof: Cell<bool>,
     self_sizeof: RefCell<i32>,
     f_sizeof_block: Cell<bool>,
@@ -90,7 +91,10 @@ impl KStruct for ExprSizeofValueSized {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ExprSizeofValueSized_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_block1 = _io.read_bytes(12_usize)?;
+        *self_rc.block1_raw.borrow_mut() = _raw_block1.clone();
+        let _io_block1 = BytesReader::from(_raw_block1);
+        let t = Self::read_into::<BytesReader, ExprSizeofValueSized_Block>(&_io_block1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.block1.borrow_mut() = t;
         *self_rc.more.borrow_mut() = _io.read_u2le()?;
         Ok(())
@@ -166,6 +170,11 @@ impl ExprSizeofValueSized {
 impl ExprSizeofValueSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprSizeofValueSized {
+    pub fn block1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.block1_raw.borrow()
     }
 }
 

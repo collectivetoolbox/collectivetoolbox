@@ -66,6 +66,10 @@ pub struct ProcessStructPadTerm {
     str_term_and_pad: RefCell<OptRc<ProcessStructPadTerm_BytesWrapper>>,
     str_term_include: RefCell<OptRc<ProcessStructPadTerm_BytesWrapper>>,
     _io: RefCell<BytesReader>,
+    str_pad_raw: RefCell<Vec<u8>>,
+    str_term_raw: RefCell<Vec<u8>>,
+    str_term_and_pad_raw: RefCell<Vec<u8>>,
+    str_term_include_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessStructPadTerm {
     type Root = ProcessStructPadTerm;
@@ -82,13 +86,25 @@ impl KStruct for ProcessStructPadTerm {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, ProcessStructPadTerm_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str_pad = _io.read_bytes(20_usize)?;
+        *self_rc.str_pad_raw.borrow_mut() = _raw_str_pad.clone();
+        let _io_str_pad = BytesReader::from(_raw_str_pad);
+        let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_pad.borrow_mut() = t;
-        let t = Self::read_into::<_, ProcessStructPadTerm_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str_term = _io.read_bytes(20_usize)?;
+        *self_rc.str_term_raw.borrow_mut() = _raw_str_term.clone();
+        let _io_str_term = BytesReader::from(_raw_str_term);
+        let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term.borrow_mut() = t;
-        let t = Self::read_into::<_, ProcessStructPadTerm_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str_term_and_pad = _io.read_bytes(20_usize)?;
+        *self_rc.str_term_and_pad_raw.borrow_mut() = _raw_str_term_and_pad.clone();
+        let _io_str_term_and_pad = BytesReader::from(_raw_str_term_and_pad);
+        let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term_and_pad, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term_and_pad.borrow_mut() = t;
-        let t = Self::read_into::<_, ProcessStructPadTerm_BytesWrapper>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_str_term_include = _io.read_bytes(20_usize)?;
+        *self_rc.str_term_include_raw.borrow_mut() = _raw_str_term_include.clone();
+        let _io_str_term_include = BytesReader::from(_raw_str_term_include);
+        let t = Self::read_into::<BytesReader, ProcessStructPadTerm_BytesWrapper>(&_io_str_term_include, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.str_term_include.borrow_mut() = t;
         Ok(())
     }
@@ -118,6 +134,26 @@ impl ProcessStructPadTerm {
 impl ProcessStructPadTerm {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessStructPadTerm {
+    pub fn str_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_pad_raw.borrow()
+    }
+}
+impl ProcessStructPadTerm {
+    pub fn str_term_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_raw.borrow()
+    }
+}
+impl ProcessStructPadTerm {
+    pub fn str_term_and_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_and_pad_raw.borrow()
+    }
+}
+impl ProcessStructPadTerm {
+    pub fn str_term_include_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_include_raw.borrow()
     }
 }
 

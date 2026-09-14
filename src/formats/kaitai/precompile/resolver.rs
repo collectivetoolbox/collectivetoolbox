@@ -839,6 +839,20 @@ fn resolve_class_spec(
 
         let valid = resolve_validation(&attr_id, attr, &src_path)?;
 
+        let size_expr = if let Some(s) = &attr.size {
+            Some(match s {
+                ValueOrExpr::Expr(e) => parse_expr(e)?,
+                ValueOrExpr::Int(i) => Expr::IntNum(*i),
+                ValueOrExpr::Float(f) => Expr::FloatNum(*f),
+                ValueOrExpr::Bool(b) => Expr::Bool(*b),
+            })
+        } else {
+            None
+        };
+        // Reason for fallback: unspecified size_eos defaults to false per Kaitai spec
+        let size_eos = attr.size_eos.unwrap_or(false);
+        let process = attr.process.clone();
+
         resolved_seq.push(ResolvedAttr {
             id: attr_id,
             orig_id,
@@ -850,6 +864,9 @@ fn resolve_class_spec(
             io_id,
             valid,
             parent_expr: attr.parent.clone(),
+            size_expr,
+            size_eos,
+            process,
         });
     }
 
@@ -1056,6 +1073,12 @@ fn resolve_attr_data_type(
                 )?;
                 if let Some(ext_t) = ext {
                     external_types.push(ext_t);
+                }
+                if matches!(dt, DataType::UserType { .. })
+                    && (attr.size.is_some() || attr.size_eos == Some(true) || attr.process.is_some())
+                {
+                    raw_id = Some(format!("{attr_id}_raw"));
+                    io_id = Some(format!("_t_{attr_id}_raw_io"));
                 }
                 dt
             }

@@ -107,6 +107,15 @@ pub struct ResolvedAttr {
     pub valid: Option<ResolvedValidation>,
     /// Enforced parent expression or false.
     pub parent_expr: Option<crate::spec::ValueOrExpr>,
+    /// Explicit byte length expression if bounded.
+    #[serde(default)]
+    pub size_expr: Option<Expr>,
+    /// Read until End Of Stream.
+    #[serde(default)]
+    pub size_eos: bool,
+    /// Processing algorithm name (e.g. `zlib`).
+    #[serde(default)]
+    pub process: Option<String>,
 }
 
 /// Resolved calculated or parsed instance.

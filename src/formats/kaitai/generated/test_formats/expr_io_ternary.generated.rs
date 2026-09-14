@@ -66,6 +66,8 @@ pub struct ExprIoTernary {
     obj1: RefCell<OptRc<ExprIoTernary_One>>,
     obj2: RefCell<OptRc<ExprIoTernary_Two>>,
     _io: RefCell<BytesReader>,
+    obj1_raw: RefCell<Vec<u8>>,
+    obj2_raw: RefCell<Vec<u8>>,
     f_one_or_two_io: Cell<bool>,
     one_or_two_io: RefCell<i32>,
     f_one_or_two_io_size1: Cell<bool>,
@@ -93,9 +95,15 @@ impl KStruct for ExprIoTernary {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
-        let t = Self::read_into::<_, ExprIoTernary_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_obj1 = _io.read_bytes(4_usize)?;
+        *self_rc.obj1_raw.borrow_mut() = _raw_obj1.clone();
+        let _io_obj1 = BytesReader::from(_raw_obj1);
+        let t = Self::read_into::<BytesReader, ExprIoTernary_One>(&_io_obj1, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.obj1.borrow_mut() = t;
-        let t = Self::read_into::<_, ExprIoTernary_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_obj2 = _io.read_bytes(8_usize)?;
+        *self_rc.obj2_raw.borrow_mut() = _raw_obj2.clone();
+        let _io_obj2 = BytesReader::from(_raw_obj2);
+        let t = Self::read_into::<BytesReader, ExprIoTernary_Two>(&_io_obj2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.obj2.borrow_mut() = t;
         Ok(())
     }
@@ -174,6 +182,16 @@ impl ExprIoTernary {
 impl ExprIoTernary {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprIoTernary {
+    pub fn obj1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.obj1_raw.borrow()
+    }
+}
+impl ExprIoTernary {
+    pub fn obj2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.obj2_raw.borrow()
     }
 }
 

@@ -66,6 +66,8 @@ pub struct StrEncodingsUtf16 {
     len_le: RefCell<u32>,
     le_bom_removed: RefCell<OptRc<StrEncodingsUtf16_StrLeBomRemoved>>,
     _io: RefCell<BytesReader>,
+    be_bom_removed_raw: RefCell<Vec<u8>>,
+    le_bom_removed_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrEncodingsUtf16 {
     type Root = StrEncodingsUtf16;
@@ -83,10 +85,16 @@ impl KStruct for StrEncodingsUtf16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_be.borrow_mut() = _io.read_u4le()?;
-        let t = Self::read_into::<_, StrEncodingsUtf16_StrBeBomRemoved>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_be_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_be())?)?;
+        *self_rc.be_bom_removed_raw.borrow_mut() = _raw_be_bom_removed.clone();
+        let _io_be_bom_removed = BytesReader::from(_raw_be_bom_removed);
+        let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrBeBomRemoved>(&_io_be_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.be_bom_removed.borrow_mut() = t;
         *self_rc.len_le.borrow_mut() = _io.read_u4le()?;
-        let t = Self::read_into::<_, StrEncodingsUtf16_StrLeBomRemoved>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_le_bom_removed = _io.read_bytes(usize::try_from(*self_rc.len_le())?)?;
+        *self_rc.le_bom_removed_raw.borrow_mut() = _raw_le_bom_removed.clone();
+        let _io_le_bom_removed = BytesReader::from(_raw_le_bom_removed);
+        let t = Self::read_into::<BytesReader, StrEncodingsUtf16_StrLeBomRemoved>(&_io_le_bom_removed, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.le_bom_removed.borrow_mut() = t;
         Ok(())
     }
@@ -116,6 +124,16 @@ impl StrEncodingsUtf16 {
 impl StrEncodingsUtf16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrEncodingsUtf16 {
+    pub fn be_bom_removed_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.be_bom_removed_raw.borrow()
+    }
+}
+impl StrEncodingsUtf16 {
+    pub fn le_bom_removed_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.le_bom_removed_raw.borrow()
     }
 }
 

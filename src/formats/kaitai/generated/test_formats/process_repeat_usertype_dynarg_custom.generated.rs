@@ -64,6 +64,7 @@ pub struct ProcessRepeatUsertypeDynargCustom {
     blocks: RefCell<Vec<OptRc<ProcessRepeatUsertypeDynargCustom_Block>>>,
     blocks_b: RefCell<OptRc<ProcessRepeatUsertypeDynargCustom_BlocksBWrapper>>,
     _io: RefCell<BytesReader>,
+    blocks_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessRepeatUsertypeDynargCustom {
     type Root = ProcessRepeatUsertypeDynargCustom;
@@ -106,6 +107,11 @@ impl ProcessRepeatUsertypeDynargCustom {
 impl ProcessRepeatUsertypeDynargCustom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessRepeatUsertypeDynargCustom {
+    pub fn blocks_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.blocks_raw.borrow()
     }
 }
 

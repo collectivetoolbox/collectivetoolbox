@@ -175,14 +175,14 @@ impl KStruct for NavParentSwitchCast_Foo {
         *self_rc.flag.borrow_mut() = _io.read_u1()?;
         match *self_rc.buf_type() {
             0 => {
-                *self_rc.buf_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.buf_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                 let buf_raw = self_rc.buf_raw.borrow();
                 let _t_buf_raw_io = BytesReader::from(buf_raw.clone());
                 let t = Self::read_into::<BytesReader, NavParentSwitchCast_Foo_Zero>(&_t_buf_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.buf.borrow_mut() = Some(t);
             }
             1 => {
-                *self_rc.buf_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.buf_raw.borrow_mut() = _io.read_bytes(4_usize)?.into();
                 let buf_raw = self_rc.buf_raw.borrow();
                 let _t_buf_raw_io = BytesReader::from(buf_raw.clone());
                 let t = Self::read_into::<BytesReader, NavParentSwitchCast_Foo_One>(&_t_buf_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

@@ -65,6 +65,7 @@ pub struct ZlibSurrounded {
     zlib: RefCell<OptRc<ZlibSurrounded_Inflated>>,
     post: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    zlib_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ZlibSurrounded {
     type Root = ZlibSurrounded;
@@ -82,7 +83,11 @@ impl KStruct for ZlibSurrounded {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.pre.borrow_mut() = _io.read_bytes(4_usize)?;
-        let t = Self::read_into::<_, ZlibSurrounded_Inflated>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_zlib = _io.read_bytes(12_usize)?;
+        *self_rc.zlib_raw.borrow_mut() = _raw_zlib.clone();
+        let _processed_zlib = process_zlib(&_raw_zlib)?;
+        let _io_zlib = BytesReader::from(_processed_zlib);
+        let t = Self::read_into::<BytesReader, ZlibSurrounded_Inflated>(&_io_zlib, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.zlib.borrow_mut() = t;
         *self_rc.post.borrow_mut() = _io.read_bytes(4_usize)?;
         Ok(())
@@ -108,6 +113,11 @@ impl ZlibSurrounded {
 impl ZlibSurrounded {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ZlibSurrounded {
+    pub fn zlib_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.zlib_raw.borrow()
     }
 }
 

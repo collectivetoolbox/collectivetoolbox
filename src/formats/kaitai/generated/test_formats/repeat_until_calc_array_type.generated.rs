@@ -63,6 +63,7 @@ pub struct RepeatUntilCalcArrayType {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<OptRc<RepeatUntilCalcArrayType_Record>>>,
     _io: RefCell<BytesReader>,
+    records_raw: RefCell<Vec<u8>>,
     f_first_rec: Cell<bool>,
     first_rec: RefCell<OptRc<RepeatUntilCalcArrayType_Record>>,
     f_recs_accessor: Cell<bool>,
@@ -129,6 +130,11 @@ impl RepeatUntilCalcArrayType {
 impl RepeatUntilCalcArrayType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl RepeatUntilCalcArrayType {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
     }
 }
 

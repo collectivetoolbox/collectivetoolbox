@@ -882,10 +882,11 @@ pub fn process_rotate_left(bytes: &[u8], amount: u8) -> Vec<u8> {
     res
 }
 
-pub fn process_zlib(bytes: &[u8]) -> Result<Vec<u8>, String> {
+pub fn process_zlib(bytes: &[u8]) -> KResult<Vec<u8>> {
     let mut dec = ZlibDecoder::new(bytes);
     let mut dec_bytes = Vec::new();
-    dec.read_to_end(&mut dec_bytes).map_err(|e| e.to_string())?;
+    dec.read_to_end(&mut dec_bytes)
+        .map_err(|e| KError::BytesDecodingError { msg: e.to_string() })?;
     Ok(dec_bytes)
 }
 

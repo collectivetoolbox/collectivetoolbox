@@ -63,6 +63,7 @@ pub struct EofExceptionSized {
     pub(crate) _self_shared: SharedType<Self>,
     buf: RefCell<OptRc<EofExceptionSized_Foo>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EofExceptionSized {
     type Root = EofExceptionSized;
@@ -79,7 +80,10 @@ impl KStruct for EofExceptionSized {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, EofExceptionSized_Foo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_buf = _io.read_bytes(13_usize)?;
+        *self_rc.buf_raw.borrow_mut() = _raw_buf.clone();
+        let _io_buf = BytesReader::from(_raw_buf);
+        let t = Self::read_into::<BytesReader, EofExceptionSized_Foo>(&_io_buf, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.buf.borrow_mut() = t;
         Ok(())
     }
@@ -94,6 +98,11 @@ impl EofExceptionSized {
 impl EofExceptionSized {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EofExceptionSized {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }
 
