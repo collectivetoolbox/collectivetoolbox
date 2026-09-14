@@ -29,11 +29,15 @@ pub struct SomeIpSd {
     len_options: RefCell<u32>,
     options: RefCell<OptRc<SomeIpSdOptions>>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
+    entries_raw: RefCell<Vec<u8>>,
+    options_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for SomeIpSd {
     type Root = SomeIpSd;
     type Parent = SomeIpSd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -49,11 +53,18 @@ impl KStruct for SomeIpSd {
         *self_rc.flags.borrow_mut() = t;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.len_entries.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, SomeIpSdEntries>(&*_io, None, None)?.into();
+        let _raw_entries = _io.read_bytes(usize::try_from(*self_rc.len_entries())?)?;
+        *self_rc.entries_raw.borrow_mut() = _raw_entries.clone();
+        let _io_entries = BytesReader::from(_raw_entries);
+        let t = Self::read_into::<BytesReader, SomeIpSdEntries>(&_io_entries, None, None)?.into();
         *self_rc.entries.borrow_mut() = t;
         *self_rc.len_options.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, SomeIpSdOptions>(&*_io, None, None)?.into();
+        let _raw_options = _io.read_bytes(usize::try_from(*self_rc.len_options())?)?;
+        *self_rc.options_raw.borrow_mut() = _raw_options.clone();
+        let _io_options = BytesReader::from(_raw_options);
+        let t = Self::read_into::<BytesReader, SomeIpSdOptions>(&_io_options, None, None)?.into();
         *self_rc.options.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -98,6 +109,21 @@ impl SomeIpSd {
         self._io.borrow()
     }
 }
+impl SomeIpSd {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+impl SomeIpSd {
+    pub fn entries_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.entries_raw.borrow()
+    }
+}
+impl SomeIpSd {
+    pub fn options_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.options_raw.borrow()
+    }
+}
 
 /**
  * \sa AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf - Figure 4.3
@@ -118,6 +144,7 @@ impl KStruct for SomeIpSd_SdFlags {
     type Root = SomeIpSd;
     type Parent = SomeIpSd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,6 +160,7 @@ impl KStruct for SomeIpSd_SdFlags {
         *self_rc.unicast.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.initial_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(5)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

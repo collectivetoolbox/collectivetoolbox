@@ -22,6 +22,7 @@ impl KStruct for AixUtmp {
     type Root = AixUtmp;
     type Parent = AixUtmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -42,6 +43,7 @@ impl KStruct for AixUtmp {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -57,7 +59,7 @@ impl AixUtmp {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AixUtmp_EntryType {
     Empty,
     RunLvl,
@@ -127,6 +129,7 @@ impl KStruct for AixUtmp_ExitStatus {
     type Root = AixUtmp;
     type Parent = AixUtmp_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,6 +143,7 @@ impl KStruct for AixUtmp_ExitStatus {
         let _io = io;
         *self_rc.termination_code.borrow_mut() = _io.read_s2be()?;
         *self_rc.exit_code.borrow_mut() = _io.read_s2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -186,11 +190,18 @@ pub struct AixUtmp_Record {
     reserved_a: RefCell<Vec<u8>>,
     reserved_v: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    user_raw: RefCell<Vec<u8>>,
+    inittab_id_raw: RefCell<Vec<u8>>,
+    device_raw: RefCell<Vec<u8>>,
+    hostname_raw: RefCell<Vec<u8>>,
+    reserved_a_raw: RefCell<Vec<u8>>,
+    reserved_v_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AixUtmp_Record {
     type Root = AixUtmp;
     type Parent = AixUtmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -214,6 +225,7 @@ impl KStruct for AixUtmp_Record {
         *self_rc.dbl_word_pad.borrow_mut() = _io.read_s4be()?;
         *self_rc.reserved_a.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.reserved_v.borrow_mut() = _io.read_bytes(24_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -309,5 +321,35 @@ impl AixUtmp_Record {
 impl AixUtmp_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn user_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.user_raw.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn inittab_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.inittab_id_raw.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn device_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.device_raw.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn hostname_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.hostname_raw.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn reserved_a_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_a_raw.borrow()
+    }
+}
+impl AixUtmp_Record {
+    pub fn reserved_v_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_v_raw.borrow()
     }
 }

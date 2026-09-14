@@ -31,11 +31,13 @@ pub struct AmlogicEmmcPartitions {
     checksum: RefCell<u32>,
     partitions: RefCell<Vec<OptRc<AmlogicEmmcPartitions_Partition>>>,
     _io: RefCell<BytesReader>,
+    version_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AmlogicEmmcPartitions {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,8 +53,16 @@ impl KStruct for AmlogicEmmcPartitions {
         if !(*self_rc.magic() == vec![0x4du8, 0x50u8, 0x54u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/0".to_string() }));
         }
-        *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(12_usize)?, 0, false), "UTF-8")?;
+        *self_rc.version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(12_usize)?, Some(0), false, None), "UTF-8")?;
         *self_rc.num_partitions.borrow_mut() = _io.read_s4le()?;
+        let min_val: i32 = (1).try_into()?;
+        let max_val: i32 = (32).try_into()?;
+        if !(*self_rc.num_partitions() >= min_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/seq/2".to_string() }));
+        }
+        if !(*self_rc.num_partitions() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/2".to_string() }));
+        }
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
         *self_rc.partitions.borrow_mut() = Vec::new();
         let l_partitions = usize::try_from(*self_rc.num_partitions())?;
@@ -60,6 +70,7 @@ impl KStruct for AmlogicEmmcPartitions {
             let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.partitions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -105,6 +116,11 @@ impl AmlogicEmmcPartitions {
         self._io.borrow()
     }
 }
+impl AmlogicEmmcPartitions {
+    pub fn version_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.version_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AmlogicEmmcPartitions_Partition {
@@ -117,11 +133,15 @@ pub struct AmlogicEmmcPartitions_Partition {
     flags: RefCell<OptRc<AmlogicEmmcPartitions_Partition_PartFlags>>,
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
+    flags_raw: RefCell<Vec<u8>>,
+    padding_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AmlogicEmmcPartitions_Partition {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,12 +153,16 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "UTF-8")?;
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
         *self_rc.offset.borrow_mut() = _io.read_u8le()?;
-        let t = Self::read_into::<_, AmlogicEmmcPartitions_Partition_PartFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_flags = _io.read_bytes(4_usize)?;
+        *self_rc.flags_raw.borrow_mut() = _raw_flags.clone();
+        let _io_flags = BytesReader::from(_raw_flags);
+        let t = Self::read_into::<BytesReader, AmlogicEmmcPartitions_Partition_PartFlags>(&_io_flags, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -178,6 +202,21 @@ impl AmlogicEmmcPartitions_Partition {
         self._io.borrow()
     }
 }
+impl AmlogicEmmcPartitions_Partition {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl AmlogicEmmcPartitions_Partition {
+    pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.flags_raw.borrow()
+    }
+}
+impl AmlogicEmmcPartitions_Partition {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AmlogicEmmcPartitions_Partition_PartFlags {
@@ -193,6 +232,7 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions_Partition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -204,9 +244,10 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.is_code.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.is_cache.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.is_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc.is_code.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.is_cache.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.is_data.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

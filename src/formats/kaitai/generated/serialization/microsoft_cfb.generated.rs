@@ -24,6 +24,7 @@ impl KStruct for MicrosoftCfb {
     type Root = MicrosoftCfb;
     type Parent = MicrosoftCfb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,10 +38,12 @@ impl KStruct for MicrosoftCfb {
         let _io = io;
         let t = Self::read_into::<_, MicrosoftCfb_CfbHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftCfb {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn dir(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftCfb_DirEntry>>> {
@@ -55,6 +58,7 @@ impl MicrosoftCfb {
         _io.seek(_pos)?;
         Ok(self.dir.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fat(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftCfb_FatEntries>>> {
@@ -72,6 +76,7 @@ impl MicrosoftCfb {
         _io.seek(_pos)?;
         Ok(self.fat.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sector_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -124,11 +129,13 @@ pub struct MicrosoftCfb_CfbHeader {
     size_difat: RefCell<i32>,
     difat: RefCell<Vec<i32>>,
     _io: RefCell<BytesReader>,
+    reserved1_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MicrosoftCfb_CfbHeader {
     type Root = MicrosoftCfb;
     type Parent = MicrosoftCfb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -171,6 +178,7 @@ impl KStruct for MicrosoftCfb_CfbHeader {
         for _i in 0_usize..l_difat {
             self_rc.difat.borrow_mut().push(_io.read_s4le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -319,6 +327,11 @@ impl MicrosoftCfb_CfbHeader {
         self._io.borrow()
     }
 }
+impl MicrosoftCfb_CfbHeader {
+    pub fn reserved1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved1_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MicrosoftCfb_DirEntry {
@@ -339,6 +352,8 @@ pub struct MicrosoftCfb_DirEntry {
     ofs: RefCell<i32>,
     size: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
+    clsid_raw: RefCell<Vec<u8>>,
     f_child: Cell<bool>,
     child: RefCell<OptRc<MicrosoftCfb_DirEntry>>,
     f_left_sibling: Cell<bool>,
@@ -352,6 +367,7 @@ impl KStruct for MicrosoftCfb_DirEntry {
     type Root = MicrosoftCfb;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -376,10 +392,12 @@ impl KStruct for MicrosoftCfb_DirEntry {
         *self_rc.time_mod.borrow_mut() = _io.read_u8le()?;
         *self_rc.ofs.borrow_mut() = _io.read_s4le()?;
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftCfb_DirEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn child(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftCfb_DirEntry>>> {
@@ -387,7 +405,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_child.get() {
             return Ok(self.child.borrow());
         }
-        if ((to_i128(*self.child_id())) != (to_i128((0_i32).saturating_sub(1)))) {
+        if ((to_i128(*self.child_id())) != (to_i128((0_i32).saturating_sub(to_i32(1))))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.child_id()).saturating_mul(128_i32)))?)?;
@@ -397,6 +415,7 @@ impl MicrosoftCfb_DirEntry {
         }
         Ok(self.child.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn left_sibling(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftCfb_DirEntry>>> {
@@ -404,7 +423,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_left_sibling.get() {
             return Ok(self.left_sibling.borrow());
         }
-        if ((to_i128(*self.left_sibling_id())) != (to_i128((0_i32).saturating_sub(1)))) {
+        if ((to_i128(*self.left_sibling_id())) != (to_i128((0_i32).saturating_sub(to_i32(1))))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.left_sibling_id()).saturating_mul(128_i32)))?)?;
@@ -414,6 +433,7 @@ impl MicrosoftCfb_DirEntry {
         }
         Ok(self.left_sibling.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mini_stream(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -431,6 +451,7 @@ impl MicrosoftCfb_DirEntry {
         }
         Ok(self.mini_stream.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn right_sibling(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftCfb_DirEntry>>> {
@@ -438,7 +459,7 @@ impl MicrosoftCfb_DirEntry {
         if self.f_right_sibling.get() {
             return Ok(self.right_sibling.borrow());
         }
-        if ((to_i128(*self.right_sibling_id())) != (to_i128((0_i32).saturating_sub(1)))) {
+        if ((to_i128(*self.right_sibling_id())) != (to_i128((0_i32).saturating_sub(to_i32(1))))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((((*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().ofs_dir()).saturating_add(1_i32)).saturating_mul(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)).saturating_add((*self.right_sibling_id()).saturating_mul(128_i32)))?)?;
@@ -539,7 +560,17 @@ impl MicrosoftCfb_DirEntry {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl MicrosoftCfb_DirEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl MicrosoftCfb_DirEntry {
+    pub fn clsid_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.clsid_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftCfb_DirEntry_ObjType {
     Unknown,
     Storage,
@@ -577,7 +608,7 @@ impl Default for MicrosoftCfb_DirEntry_ObjType {
     fn default() -> Self { MicrosoftCfb_DirEntry_ObjType::UnknownVariant(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftCfb_DirEntry_RbColor {
     Red,
     Black,
@@ -622,6 +653,7 @@ impl KStruct for MicrosoftCfb_FatEntries {
     type Root = MicrosoftCfb;
     type Parent = MicrosoftCfb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -641,6 +673,7 @@ impl KStruct for MicrosoftCfb_FatEntries {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

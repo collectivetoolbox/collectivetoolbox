@@ -36,7 +36,6 @@ pub struct PhpSerializedValue {
     r#type: RefCell<PhpSerializedValue_ValueType>,
     contents: RefCell<Option<PhpSerializedValue_Contents>>,
     _io: RefCell<BytesReader>,
-    contents_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum PhpSerializedValue_Contents {
@@ -50,13 +49,13 @@ pub enum PhpSerializedValue_Contents {
     PhpSerializedValue_Php3ObjectContents(OptRc<PhpSerializedValue_Php3ObjectContents>),
     PhpSerializedValue_StringContents(OptRc<PhpSerializedValue_StringContents>),
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ArrayContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ArrayContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_ArrayContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_ArrayContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_ArrayContents>> for PhpSerializedValue_Contents {
@@ -64,13 +63,13 @@ impl From<OptRc<PhpSerializedValue_ArrayContents>> for PhpSerializedValue_Conten
         Self::PhpSerializedValue_ArrayContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_BoolContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_BoolContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_BoolContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_BoolContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_BoolContents>> for PhpSerializedValue_Contents {
@@ -78,13 +77,13 @@ impl From<OptRc<PhpSerializedValue_BoolContents>> for PhpSerializedValue_Content
         Self::PhpSerializedValue_BoolContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_CustomSerializedObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_CustomSerializedObjectContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_CustomSerializedObjectContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_CustomSerializedObjectContents>> for PhpSerializedValue_Contents {
@@ -92,13 +91,13 @@ impl From<OptRc<PhpSerializedValue_CustomSerializedObjectContents>> for PhpSeria
         Self::PhpSerializedValue_CustomSerializedObjectContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_FloatContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_FloatContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_FloatContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_FloatContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_FloatContents>> for PhpSerializedValue_Contents {
@@ -106,13 +105,13 @@ impl From<OptRc<PhpSerializedValue_FloatContents>> for PhpSerializedValue_Conten
         Self::PhpSerializedValue_FloatContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_IntContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_IntContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_IntContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_IntContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_IntContents>> for PhpSerializedValue_Contents {
@@ -120,13 +119,13 @@ impl From<OptRc<PhpSerializedValue_IntContents>> for PhpSerializedValue_Contents
         Self::PhpSerializedValue_IntContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_NullContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_NullContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_NullContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_NullContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_NullContents>> for PhpSerializedValue_Contents {
@@ -134,13 +133,13 @@ impl From<OptRc<PhpSerializedValue_NullContents>> for PhpSerializedValue_Content
         Self::PhpSerializedValue_NullContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ObjectContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_ObjectContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_ObjectContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_ObjectContents>> for PhpSerializedValue_Contents {
@@ -148,13 +147,13 @@ impl From<OptRc<PhpSerializedValue_ObjectContents>> for PhpSerializedValue_Conte
         Self::PhpSerializedValue_ObjectContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_Php3ObjectContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_Php3ObjectContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_Php3ObjectContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_Php3ObjectContents>> for PhpSerializedValue_Contents {
@@ -162,13 +161,13 @@ impl From<OptRc<PhpSerializedValue_Php3ObjectContents>> for PhpSerializedValue_C
         Self::PhpSerializedValue_Php3ObjectContents(v)
     }
 }
-impl From<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_StringContents> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PhpSerializedValue_Contents) -> Self {
+impl TryFrom<&PhpSerializedValue_Contents> for OptRc<PhpSerializedValue_StringContents> {
+    type Error = KError;
+    fn try_from(v: &PhpSerializedValue_Contents) -> Result<Self, Self::Error> {
         if let PhpSerializedValue_Contents::PhpSerializedValue_StringContents(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PhpSerializedValue_Contents::PhpSerializedValue_StringContents, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PhpSerializedValue_StringContents>> for PhpSerializedValue_Contents {
@@ -180,6 +179,7 @@ impl KStruct for PhpSerializedValue {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,91 +194,56 @@ impl KStruct for PhpSerializedValue {
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.r#type() {
             PhpSerializedValue_ValueType::Array => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_ArrayContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_ArrayContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Bool => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_BoolContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_BoolContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::CustomSerializedObject => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_CustomSerializedObjectContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_CustomSerializedObjectContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Float => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_FloatContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_FloatContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Int => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_IntContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_IntContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Null => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_NullContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_NullContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Object => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_ObjectContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_ObjectContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::ObjectReference => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_IntContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_IntContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Php3Object => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_Php3ObjectContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_Php3ObjectContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::Php6String => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_StringContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_StringContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::String => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_StringContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_StringContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             PhpSerializedValue_ValueType::VariableReference => {
-                *self_rc.contents_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let contents_raw = self_rc.contents_raw.borrow();
-                let _t_contents_raw_io = BytesReader::from(contents_raw.clone());
-                let t = Self::read_into::<BytesReader, PhpSerializedValue_IntContents>(&_t_contents_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PhpSerializedValue_IntContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.contents.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -307,12 +272,7 @@ impl PhpSerializedValue {
         self._io.borrow()
     }
 }
-impl PhpSerializedValue {
-    pub fn contents_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.contents_raw.borrow()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PhpSerializedValue_BoolValue {
     False,
     True,
@@ -344,7 +304,7 @@ impl Default for PhpSerializedValue_BoolValue {
     fn default() -> Self { PhpSerializedValue_BoolValue::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PhpSerializedValue_ValueType {
 
     /**
@@ -486,6 +446,7 @@ impl KStruct for PhpSerializedValue_ArrayContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -503,6 +464,7 @@ impl KStruct for PhpSerializedValue_ArrayContents {
         }
         let t = Self::read_into::<_, PhpSerializedValue_CountPrefixedMapping>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.elements.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -549,6 +511,7 @@ impl KStruct for PhpSerializedValue_BoolContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -569,6 +532,7 @@ impl KStruct for PhpSerializedValue_BoolContents {
         if !(*self_rc.semicolon() == vec![0x3bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/bool_contents/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -577,6 +541,7 @@ impl PhpSerializedValue_BoolContents {
     /**
      * The value of the `bool`, parsed as a boolean.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -635,6 +600,7 @@ impl KStruct for PhpSerializedValue_CountPrefixedMapping {
     type Root = PhpSerializedValue;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -646,7 +612,7 @@ impl KStruct for PhpSerializedValue_CountPrefixedMapping {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.num_entries_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "UTF-8")?;
+        *self_rc.num_entries_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "ASCII")?;
         *self_rc.opening_brace.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.opening_brace() == vec![0x7bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/count_prefixed_mapping/seq/1".to_string() }));
@@ -661,6 +627,7 @@ impl KStruct for PhpSerializedValue_CountPrefixedMapping {
         if !(*self_rc.closing_brace() == vec![0x7du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/count_prefixed_mapping/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -669,6 +636,7 @@ impl PhpSerializedValue_CountPrefixedMapping {
     /**
      * The number of key-value pairs in the mapping, parsed as an integer.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_entries(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -733,6 +701,7 @@ pub struct PhpSerializedValue_CustomSerializedObjectContents {
     data: RefCell<Vec<u8>>,
     closing_quote: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
     f_len_data: Cell<bool>,
     len_data: RefCell<i32>,
 }
@@ -740,6 +709,7 @@ impl KStruct for PhpSerializedValue_CustomSerializedObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -761,7 +731,7 @@ impl KStruct for PhpSerializedValue_CustomSerializedObjectContents {
         if !(*self_rc.colon2() == vec![0x3au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/custom_serialized_object_contents/seq/2".to_string() }));
         }
-        *self_rc.len_data_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "UTF-8")?;
+        *self_rc.len_data_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "ASCII")?;
         *self_rc.opening_brace.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.opening_brace() == vec![0x7bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/custom_serialized_object_contents/seq/4".to_string() }));
@@ -771,6 +741,7 @@ impl KStruct for PhpSerializedValue_CustomSerializedObjectContents {
         if !(*self_rc.closing_quote() == vec![0x7du8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/custom_serialized_object_contents/seq/6".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -780,6 +751,7 @@ impl PhpSerializedValue_CustomSerializedObjectContents {
      * The length of the serialized data in bytes, parsed as an integer.
      * The braces are not counted in this length number.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_data(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -850,6 +822,11 @@ impl PhpSerializedValue_CustomSerializedObjectContents {
         self._io.borrow()
     }
 }
+impl PhpSerializedValue_CustomSerializedObjectContents {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
 
 /**
  * The contents of a floating-point value.
@@ -868,6 +845,7 @@ impl KStruct for PhpSerializedValue_FloatContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -883,7 +861,8 @@ impl KStruct for PhpSerializedValue_FloatContents {
         if !(*self_rc.colon() == vec![0x3au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/float_contents/seq/0".to_string() }));
         }
-        *self_rc.value_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(59, false, true, true)?, "UTF-8")?;
+        *self_rc.value_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(59, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -937,6 +916,7 @@ impl KStruct for PhpSerializedValue_IntContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -952,7 +932,8 @@ impl KStruct for PhpSerializedValue_IntContents {
         if !(*self_rc.colon() == vec![0x3au8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/int_contents/seq/0".to_string() }));
         }
-        *self_rc.value_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(59, false, true, true)?, "UTF-8")?;
+        *self_rc.value_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(59, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -961,6 +942,7 @@ impl PhpSerializedValue_IntContents {
     /**
      * The value of the `int`, parsed as an integer.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1012,6 +994,7 @@ pub struct PhpSerializedValue_LengthPrefixedQuotedString {
     data: RefCell<Vec<u8>>,
     closing_quote: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
     f_len_data: Cell<bool>,
     len_data: RefCell<i32>,
 }
@@ -1019,6 +1002,7 @@ impl KStruct for PhpSerializedValue_LengthPrefixedQuotedString {
     type Root = PhpSerializedValue;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1030,7 +1014,7 @@ impl KStruct for PhpSerializedValue_LengthPrefixedQuotedString {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.len_data_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "UTF-8")?;
+        *self_rc.len_data_dec.borrow_mut() = bytes_to_str(&_io.read_bytes_term(58, false, true, true)?, "ASCII")?;
         *self_rc.opening_quote.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.opening_quote() == vec![0x22u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/length_prefixed_quoted_string/seq/1".to_string() }));
@@ -1040,6 +1024,7 @@ impl KStruct for PhpSerializedValue_LengthPrefixedQuotedString {
         if !(*self_rc.closing_quote() == vec![0x22u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/length_prefixed_quoted_string/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1049,6 +1034,7 @@ impl PhpSerializedValue_LengthPrefixedQuotedString {
      * The length of the string's contents in bytes, parsed as an integer.
      * The quotes are not counted in this size number.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_data(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1095,6 +1081,11 @@ impl PhpSerializedValue_LengthPrefixedQuotedString {
         self._io.borrow()
     }
 }
+impl PhpSerializedValue_LengthPrefixedQuotedString {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
 
 /**
  * A mapping entry consisting of a key and a value.
@@ -1113,6 +1104,7 @@ impl KStruct for PhpSerializedValue_MappingEntry {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue_CountPrefixedMapping;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1124,10 +1116,11 @@ impl KStruct for PhpSerializedValue_MappingEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.key.borrow_mut() = t;
-        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1174,6 +1167,7 @@ impl KStruct for PhpSerializedValue_NullContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1189,6 +1183,7 @@ impl KStruct for PhpSerializedValue_NullContents {
         if !(*self_rc.semicolon() == vec![0x3bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/null_contents/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1225,6 +1220,7 @@ impl KStruct for PhpSerializedValue_ObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1248,6 +1244,7 @@ impl KStruct for PhpSerializedValue_ObjectContents {
         }
         let t = Self::read_into::<_, PhpSerializedValue_CountPrefixedMapping>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.properties.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1306,6 +1303,7 @@ impl KStruct for PhpSerializedValue_Php3ObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1323,6 +1321,7 @@ impl KStruct for PhpSerializedValue_Php3ObjectContents {
         }
         let t = Self::read_into::<_, PhpSerializedValue_CountPrefixedMapping>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.properties.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1372,6 +1371,7 @@ impl KStruct for PhpSerializedValue_StringContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1393,6 +1393,7 @@ impl KStruct for PhpSerializedValue_StringContents {
         if !(*self_rc.semicolon() == vec![0x3bu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/string_contents/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1401,6 +1402,7 @@ impl PhpSerializedValue_StringContents {
     /**
      * The value of the string, as a byte array.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

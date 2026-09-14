@@ -27,6 +27,7 @@ impl KStruct for Ico {
     type Root = Ico;
     type Parent = Ico;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -49,6 +50,7 @@ impl KStruct for Ico {
             let t = Self::read_into::<_, Ico_IconDirEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -104,6 +106,7 @@ impl KStruct for Ico_IconDirEntry {
     type Root = Ico;
     type Parent = Ico;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -126,6 +129,7 @@ impl KStruct for Ico_IconDirEntry {
         *self_rc.bpp.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_img.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_img.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -136,6 +140,7 @@ impl Ico_IconDirEntry {
      * embedded PNG file (true) or a DIB bitmap (false) and call a
      * relevant parser, if needed to parse image data further.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -154,6 +159,7 @@ impl Ico_IconDirEntry {
     /**
      * True if this image is in PNG format.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_png(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -170,6 +176,7 @@ impl Ico_IconDirEntry {
      * Pre-reads first 8 bytes of the image to determine if it's an
      * embedded PNG file.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn png_header(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

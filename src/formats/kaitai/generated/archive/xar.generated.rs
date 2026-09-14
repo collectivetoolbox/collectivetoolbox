@@ -24,6 +24,8 @@ pub struct Xar {
     header: RefCell<OptRc<Xar_FileHeader>>,
     toc: RefCell<OptRc<Xar_TocType>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
+    toc_raw: RefCell<Vec<u8>>,
     f_checksum_algorithm_other: Cell<bool>,
     checksum_algorithm_other: RefCell<i32>,
 }
@@ -31,6 +33,7 @@ impl KStruct for Xar {
     type Root = Xar;
     type Parent = Xar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -44,10 +47,18 @@ impl KStruct for Xar {
         let _io = io;
         let t = Self::read_into::<_, Xar_FileHeaderPrefix>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_prefix.borrow_mut() = t;
-        let t = Self::read_into::<_, Xar_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(usize::try_from((i32::from(*self_rc.header_prefix().len_header())).saturating_sub(6_i32))?)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, Xar_FileHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
-        let t = Self::read_into::<_, Xar_TocType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_toc = _io.read_bytes(usize::try_from(*self_rc.header().len_toc_compressed())?)?;
+        *self_rc.toc_raw.borrow_mut() = _raw_toc.clone();
+        let _processed_toc = process_zlib(&_raw_toc)?;
+        let _io_toc = BytesReader::from(_processed_toc);
+        let t = Self::read_into::<BytesReader, Xar_TocType>(&_io_toc, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.toc.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -56,6 +67,7 @@ impl Xar {
     /**
      * \sa <https://github.com/mackyle/xar/blob/66d451d/xar/include/xar.h.in#L85> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn checksum_algorithm_other(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -96,7 +108,17 @@ impl Xar {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Xar {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+impl Xar {
+    pub fn toc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.toc_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Xar_ChecksumAlgorithmsApple {
     None,
     Sha1,
@@ -160,6 +182,7 @@ impl KStruct for Xar_FileHeader {
     type Root = Xar;
     type Parent = Xar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -180,12 +203,14 @@ impl KStruct for Xar_FileHeader {
         *self_rc.toc_length_uncompressed.borrow_mut() = _io.read_u8be()?;
         *self_rc.checksum_algorithm_int.borrow_mut() = _io.read_u4be()?;
         if *self_rc.has_checksum_alg_name()? {
-            *self_rc.checksum_alg_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes_full()?, 0, false), "UTF-8")?;
-            let _tmpa = &*self_rc.checksum_alg_name();
+            *self_rc.checksum_alg_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "UTF-8")?;
+            let _borrowed = self_rc.checksum_alg_name();
+            let _tmpa = &*_borrowed;
             if !( ((_tmpa != "") && (_tmpa != "none")) ) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/file_header/seq/4".to_string() }));
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -213,6 +238,7 @@ impl Xar_FileHeader {
      * So it's reasonable to assume that this can only have one of the values
      * that OpenSSL recognizes.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn checksum_algorithm_name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -224,6 +250,7 @@ impl Xar_FileHeader {
         *self.checksum_algorithm_name.borrow_mut() = if *self.has_checksum_alg_name()? { self.checksum_alg_name().to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::None)))) { "none".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha1)))) { "sha1".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Md5)))) { "md5".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha256)))) { "sha256".to_string() } else { if ((to_i128(*self.checksum_algorithm_int())) == (to_i128(i64::from(&Xar_ChecksumAlgorithmsApple::Sha512)))) { "sha512".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string() }.to_string();
         Ok(self.checksum_algorithm_name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_checksum_alg_name(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -232,9 +259,10 @@ impl Xar_FileHeader {
             return Ok(self.has_checksum_alg_name.borrow());
         }
         self.f_has_checksum_alg_name.set(true);
-        *self.has_checksum_alg_name.borrow_mut() = ( ((((to_i128(*self.checksum_algorithm_int())) == (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.checksum_algorithm_other()?)))) && (*self.len_header()? >= 32) && ((i32::from(*self.len_header()?)).checked_rem(4_i32).ok_or(KError::CastError)? == 0)) ).try_into()?;
+        *self.has_checksum_alg_name.borrow_mut() = ( ((((to_i128(*self.checksum_algorithm_int())) == (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.checksum_algorithm_other()?)))) && (((to_i128(*self.len_header()?)) >= (to_i128(32)))) && ((i32::from(*self.len_header()?)).checked_rem(4_i32).ok_or(KError::CastError)? == 0)) ).try_into()?;
         Ok(self.has_checksum_alg_name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_header(
         &self
     ) -> KResult<Ref<'_, u16>> {
@@ -299,6 +327,7 @@ impl KStruct for Xar_FileHeaderPrefix {
     type Root = Xar;
     type Parent = Xar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -315,6 +344,7 @@ impl KStruct for Xar_FileHeaderPrefix {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/file_header_prefix/seq/0".to_string() }));
         }
         *self_rc.len_header.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -352,6 +382,7 @@ impl KStruct for Xar_TocType {
     type Root = Xar;
     type Parent = Xar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -364,6 +395,7 @@ impl KStruct for Xar_TocType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.xml_string.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

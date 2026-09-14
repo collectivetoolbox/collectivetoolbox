@@ -24,6 +24,7 @@ impl KStruct for Code6502 {
     type Root = Code6502;
     type Parent = Code6502;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -44,6 +45,7 @@ impl KStruct for Code6502 {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -59,7 +61,7 @@ impl Code6502 {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Code6502_Opcode {
     BrkImpl,
     OraXInd,
@@ -559,27 +561,9 @@ impl From<u16> for Code6502_Operation_Args {
         Self::U2(v)
     }
 }
-impl From<&Code6502_Operation_Args> for u16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Code6502_Operation_Args) -> Self {
-        if let Code6502_Operation_Args::U2(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Code6502_Operation_Args::U2 to u16, enum value {:?}", e)
-    }
-}
 impl From<u8> for Code6502_Operation_Args {
     fn from(v: u8) -> Self {
         Self::U1(v)
-    }
-}
-impl From<&Code6502_Operation_Args> for u8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Code6502_Operation_Args) -> Self {
-        if let Code6502_Operation_Args::U1(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Code6502_Operation_Args::U1 to u8, enum value {:?}", e)
     }
 }
 impl From<i8> for Code6502_Operation_Args {
@@ -587,22 +571,68 @@ impl From<i8> for Code6502_Operation_Args {
         Self::S1(v)
     }
 }
-impl From<&Code6502_Operation_Args> for i8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Code6502_Operation_Args) -> Self {
-        if let Code6502_Operation_Args::S1(v) = e {
-            return *v;
+impl TryFrom<&Code6502_Operation_Args> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
+        match e {
+            Code6502_Operation_Args::U2(v) => Ok(i64::try_from(*v)?),
+            Code6502_Operation_Args::U1(v) => Ok(i64::try_from(*v)?),
+            Code6502_Operation_Args::S1(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Code6502_Operation_Args::S1 to i8, enum value {:?}", e)
     }
 }
-impl From<&Code6502_Operation_Args> for usize {
-    fn from(e: &Code6502_Operation_Args) -> Self {
+impl TryFrom<&Code6502_Operation_Args> for i8 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
         match e {
-            Code6502_Operation_Args::U2(v) => usize::from(*v),
-            Code6502_Operation_Args::U1(v) => usize::from(*v),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Code6502_Operation_Args::S1(v) => usize::try_from(*v).unwrap_or(0),
+            Code6502_Operation_Args::U2(v) => Ok(i8::try_from(*v)?),
+            Code6502_Operation_Args::U1(v) => Ok(i8::try_from(*v)?),
+            Code6502_Operation_Args::S1(v) => Ok(i8::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Code6502_Operation_Args> for u16 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
+        match e {
+            Code6502_Operation_Args::U2(v) => Ok(u16::try_from(*v)?),
+            Code6502_Operation_Args::U1(v) => Ok(u16::try_from(*v)?),
+            Code6502_Operation_Args::S1(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Code6502_Operation_Args> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
+        match e {
+            Code6502_Operation_Args::U2(v) => Ok(u64::try_from(*v)?),
+            Code6502_Operation_Args::U1(v) => Ok(u64::try_from(*v)?),
+            Code6502_Operation_Args::S1(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Code6502_Operation_Args> for u8 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
+        match e {
+            Code6502_Operation_Args::U2(v) => Ok(u8::try_from(*v)?),
+            Code6502_Operation_Args::U1(v) => Ok(u8::try_from(*v)?),
+            Code6502_Operation_Args::S1(v) => Ok(u8::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Code6502_Operation_Args> for usize {
+    type Error = KError;
+    fn try_from(e: &Code6502_Operation_Args) -> Result<Self, Self::Error> {
+        match e {
+            Code6502_Operation_Args::U2(v) => Ok(usize::from(*v)),
+            Code6502_Operation_Args::U1(v) => Ok(usize::from(*v)),
+            Code6502_Operation_Args::S1(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -611,6 +641,7 @@ impl KStruct for Code6502_Operation {
     type Root = Code6502;
     type Parent = Code6502;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -992,6 +1023,7 @@ impl KStruct for Code6502_Operation {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1005,7 +1037,7 @@ impl Code6502_Operation {
 impl Code6502_Operation {
     pub fn args(&self) -> u16 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.args.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.args.borrow().as_ref().and_then(|v| u16::try_from(v).ok()).unwrap_or(0)
     }
     pub fn args_enum(&self) -> Ref<'_, Option<Code6502_Operation_Args>> {
         self.args.borrow()

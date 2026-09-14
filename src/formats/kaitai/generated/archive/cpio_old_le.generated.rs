@@ -17,6 +17,7 @@ impl KStruct for CpioOldLe {
     type Root = CpioOldLe;
     type Parent = CpioOldLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,6 +38,7 @@ impl KStruct for CpioOldLe {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -66,11 +68,14 @@ pub struct CpioOldLe_File {
     file_data_padding: RefCell<Vec<u8>>,
     end_of_file_padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    path_name_raw: RefCell<Vec<u8>>,
+    file_data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for CpioOldLe_File {
     type Root = CpioOldLe;
     type Parent = CpioOldLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -105,6 +110,7 @@ impl KStruct for CpioOldLe_File {
         if  ((*self_rc.path_name() == vec![0x54u8, 0x52u8, 0x41u8, 0x49u8, 0x4cu8, 0x45u8, 0x52u8, 0x21u8, 0x21u8, 0x21u8]) && (*self_rc.header().file_size().value()? == 0))  {
             *self_rc.end_of_file_padding.borrow_mut() = _io.read_bytes_full()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -150,6 +156,16 @@ impl CpioOldLe_File {
         self._io.borrow()
     }
 }
+impl CpioOldLe_File {
+    pub fn path_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.path_name_raw.borrow()
+    }
+}
+impl CpioOldLe_File {
+    pub fn file_data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_data_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct CpioOldLe_FileHeader {
@@ -173,6 +189,7 @@ impl KStruct for CpioOldLe_FileHeader {
     type Root = CpioOldLe;
     type Parent = CpioOldLe_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -200,6 +217,7 @@ impl KStruct for CpioOldLe_FileHeader {
         *self_rc.path_name_size.borrow_mut() = _io.read_u2le()?;
         let t = Self::read_into::<_, CpioOldLe_FourByteUnsignedInteger>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_size.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -281,6 +299,7 @@ impl KStruct for CpioOldLe_FourByteUnsignedInteger {
     type Root = CpioOldLe;
     type Parent = CpioOldLe_FileHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -294,10 +313,12 @@ impl KStruct for CpioOldLe_FourByteUnsignedInteger {
         let _io = io;
         *self_rc.most_significant_bits.borrow_mut() = _io.read_u2le()?;
         *self_rc.least_significant_bits.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl CpioOldLe_FourByteUnsignedInteger {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {

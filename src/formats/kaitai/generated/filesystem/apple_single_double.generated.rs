@@ -39,11 +39,13 @@ pub struct AppleSingleDouble {
     num_entries: RefCell<u16>,
     entries: RefCell<Vec<OptRc<AppleSingleDouble_Entry>>>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AppleSingleDouble {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -65,6 +67,7 @@ impl KStruct for AppleSingleDouble {
             let t = Self::read_into::<_, AppleSingleDouble_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -104,7 +107,12 @@ impl AppleSingleDouble {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl AppleSingleDouble {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AppleSingleDouble_FileType {
     AppleSingle,
     AppleDouble,
@@ -155,13 +163,13 @@ pub enum AppleSingleDouble_Entry_Body {
     AppleSingleDouble_FinderInfo(OptRc<AppleSingleDouble_FinderInfo>),
     Bytes(Vec<u8>),
 }
-impl From<&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AppleSingleDouble_Entry_Body) -> Self {
+impl TryFrom<&AppleSingleDouble_Entry_Body> for OptRc<AppleSingleDouble_FinderInfo> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
         if let AppleSingleDouble_Entry_Body::AppleSingleDouble_FinderInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AppleSingleDouble_Entry_Body::AppleSingleDouble_FinderInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AppleSingleDouble_FinderInfo>> for AppleSingleDouble_Entry_Body {
@@ -169,13 +177,13 @@ impl From<OptRc<AppleSingleDouble_FinderInfo>> for AppleSingleDouble_Entry_Body 
         Self::AppleSingleDouble_FinderInfo(v)
     }
 }
-impl From<&AppleSingleDouble_Entry_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AppleSingleDouble_Entry_Body) -> Self {
+impl TryFrom<&AppleSingleDouble_Entry_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &AppleSingleDouble_Entry_Body) -> Result<Self, Self::Error> {
         if let AppleSingleDouble_Entry_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AppleSingleDouble_Entry_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for AppleSingleDouble_Entry_Body {
@@ -187,6 +195,7 @@ impl KStruct for AppleSingleDouble_Entry {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -201,10 +210,12 @@ impl KStruct for AppleSingleDouble_Entry {
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?;
         *self_rc.len_body.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AppleSingleDouble_Entry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Option<AppleSingleDouble_Entry_Body>>> {
@@ -256,7 +267,7 @@ impl AppleSingleDouble_Entry {
         self.body_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AppleSingleDouble_Entry_Types {
     DataFork,
     ResourceFork,
@@ -349,11 +360,14 @@ pub struct AppleSingleDouble_FinderInfo {
     location: RefCell<OptRc<AppleSingleDouble_Point>>,
     folder_id: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    file_type_raw: RefCell<Vec<u8>>,
+    file_creator_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AppleSingleDouble_FinderInfo {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_Entry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -371,6 +385,7 @@ impl KStruct for AppleSingleDouble_FinderInfo {
         let t = Self::read_into::<_, AppleSingleDouble_Point>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.location.borrow_mut() = t;
         *self_rc.folder_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -414,6 +429,16 @@ impl AppleSingleDouble_FinderInfo {
         self._io.borrow()
     }
 }
+impl AppleSingleDouble_FinderInfo {
+    pub fn file_type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_type_raw.borrow()
+    }
+}
+impl AppleSingleDouble_FinderInfo {
+    pub fn file_creator_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_creator_raw.borrow()
+    }
+}
 
 /**
  * Specifies 2D coordinate in QuickDraw grid.
@@ -432,6 +457,7 @@ impl KStruct for AppleSingleDouble_Point {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_FinderInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -445,6 +471,7 @@ impl KStruct for AppleSingleDouble_Point {
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_u2be()?;
         *self_rc.y.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

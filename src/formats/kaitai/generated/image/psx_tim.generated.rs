@@ -30,6 +30,7 @@ impl KStruct for PsxTim {
     type Root = PsxTim;
     type Parent = PsxTim;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -52,10 +53,12 @@ impl KStruct for PsxTim {
         }
         let t = Self::read_into::<_, PsxTim_Bitmap>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.img.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl PsxTim {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bpp(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -67,6 +70,7 @@ impl PsxTim {
         *self.bpp.borrow_mut() = (((*self.flags()) & (3_u32))).try_into()?;
         Ok(self.bpp.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_clut(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -75,7 +79,7 @@ impl PsxTim {
             return Ok(self.has_clut.borrow());
         }
         self.f_has_clut.set(true);
-        *self.has_clut.borrow_mut() = (((*self.flags()) & (8_u32)) != 0).try_into()?;
+        *self.has_clut.borrow_mut() = (((to_i128(((*self.flags()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_clut.borrow())
     }
 }
@@ -112,7 +116,7 @@ impl PsxTim {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PsxTim_BppType {
     Bpp4,
     Bpp8,
@@ -163,11 +167,13 @@ pub struct PsxTim_Bitmap {
     height: RefCell<u16>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PsxTim_Bitmap {
     type Root = PsxTim;
     type Parent = PsxTim;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -185,6 +191,7 @@ impl KStruct for PsxTim_Bitmap {
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len()).saturating_sub(12_u32))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -223,5 +230,10 @@ impl PsxTim_Bitmap {
 impl PsxTim_Bitmap {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl PsxTim_Bitmap {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

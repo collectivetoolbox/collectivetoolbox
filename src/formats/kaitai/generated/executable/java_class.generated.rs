@@ -40,6 +40,7 @@ impl KStruct for JavaClass {
     type Root = JavaClass;
     type Parent = JavaClass;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -65,7 +66,7 @@ impl KStruct for JavaClass {
         *self_rc.constant_pool.borrow_mut() = Vec::new();
         let l_constant_pool = usize::try_from((i32::from(*self_rc.constant_pool_count())).saturating_sub(1_i32))?;
         for _i in 0_usize..l_constant_pool {
-            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if _i != 0 { *self_rc.constant_pool().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
+            let f = |t : &mut JavaClass_ConstantPoolEntry| Ok(t.set_params(if ((to_i128(_i)) != (to_i128(0))) { *self_rc.constant_pool().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.is_two_entries()? } else { false }));
             let t = Self::read_into_with_init::<_, JavaClass_ConstantPoolEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.constant_pool.borrow_mut().push(t);
         }
@@ -99,6 +100,7 @@ impl KStruct for JavaClass {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -215,13 +217,13 @@ pub enum JavaClass_AttributeInfo_Info {
     JavaClass_AttributeInfo_AttrBodySourceFile(OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>),
     Bytes(Vec<u8>),
 }
-impl From<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_AttributeInfo_Info) -> Self {
+impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyCode> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
         if let JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyCode(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyCode, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyCode>> for JavaClass_AttributeInfo_Info {
@@ -229,13 +231,13 @@ impl From<OptRc<JavaClass_AttributeInfo_AttrBodyCode>> for JavaClass_AttributeIn
         Self::JavaClass_AttributeInfo_AttrBodyCode(v)
     }
 }
-impl From<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_AttributeInfo_Info) -> Self {
+impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyExceptions> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
         if let JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyExceptions(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyExceptions, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>> for JavaClass_AttributeInfo_Info {
@@ -243,13 +245,13 @@ impl From<OptRc<JavaClass_AttributeInfo_AttrBodyExceptions>> for JavaClass_Attri
         Self::JavaClass_AttributeInfo_AttrBodyExceptions(v)
     }
 }
-impl From<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_AttributeInfo_Info) -> Self {
+impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
         if let JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyLineNumberTable(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodyLineNumberTable, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>> for JavaClass_AttributeInfo_Info {
@@ -257,13 +259,13 @@ impl From<OptRc<JavaClass_AttributeInfo_AttrBodyLineNumberTable>> for JavaClass_
         Self::JavaClass_AttributeInfo_AttrBodyLineNumberTable(v)
     }
 }
-impl From<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_AttributeInfo_Info) -> Self {
+impl TryFrom<&JavaClass_AttributeInfo_Info> for OptRc<JavaClass_AttributeInfo_AttrBodySourceFile> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
         if let JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodySourceFile(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_AttributeInfo_Info::JavaClass_AttributeInfo_AttrBodySourceFile, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>> for JavaClass_AttributeInfo_Info {
@@ -271,13 +273,13 @@ impl From<OptRc<JavaClass_AttributeInfo_AttrBodySourceFile>> for JavaClass_Attri
         Self::JavaClass_AttributeInfo_AttrBodySourceFile(v)
     }
 }
-impl From<&JavaClass_AttributeInfo_Info> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_AttributeInfo_Info) -> Self {
+impl TryFrom<&JavaClass_AttributeInfo_Info> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_AttributeInfo_Info) -> Result<Self, Self::Error> {
         if let JavaClass_AttributeInfo_Info::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_AttributeInfo_Info::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for JavaClass_AttributeInfo_Info {
@@ -289,6 +291,7 @@ impl KStruct for JavaClass_AttributeInfo {
     type Root = JavaClass;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -304,28 +307,28 @@ impl KStruct for JavaClass_AttributeInfo {
         *self_rc.attribute_length.borrow_mut() = _io.read_u4be()?;
         match self_rc.name_as_str()?.as_str() {
             "Code" => {
-                *self_rc.info_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.info_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into();
                 let info_raw = self_rc.info_raw.borrow();
                 let _t_info_raw_io = BytesReader::from(info_raw.clone());
                 let t = Self::read_into::<BytesReader, JavaClass_AttributeInfo_AttrBodyCode>(&_t_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.info.borrow_mut() = Some(t);
             }
             "Exceptions" => {
-                *self_rc.info_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.info_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into();
                 let info_raw = self_rc.info_raw.borrow();
                 let _t_info_raw_io = BytesReader::from(info_raw.clone());
                 let t = Self::read_into::<BytesReader, JavaClass_AttributeInfo_AttrBodyExceptions>(&_t_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.info.borrow_mut() = Some(t);
             }
             "LineNumberTable" => {
-                *self_rc.info_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.info_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into();
                 let info_raw = self_rc.info_raw.borrow();
                 let _t_info_raw_io = BytesReader::from(info_raw.clone());
                 let t = Self::read_into::<BytesReader, JavaClass_AttributeInfo_AttrBodyLineNumberTable>(&_t_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.info.borrow_mut() = Some(t);
             }
             "SourceFile" => {
-                *self_rc.info_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.info_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.attribute_length())?)?.into();
                 let info_raw = self_rc.info_raw.borrow();
                 let _t_info_raw_io = BytesReader::from(info_raw.clone());
                 let t = Self::read_into::<BytesReader, JavaClass_AttributeInfo_AttrBodySourceFile>(&_t_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -335,10 +338,12 @@ impl KStruct for JavaClass_AttributeInfo {
                 *self_rc.info.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_AttributeInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -347,7 +352,7 @@ impl JavaClass_AttributeInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -395,11 +400,13 @@ pub struct JavaClass_AttributeInfo_AttrBodyCode {
     attributes_count: RefCell<u16>,
     attributes: RefCell<Vec<OptRc<JavaClass_AttributeInfo>>>,
     _io: RefCell<BytesReader>,
+    code_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -429,6 +436,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -479,6 +487,11 @@ impl JavaClass_AttributeInfo_AttrBodyCode {
         self._io.borrow()
     }
 }
+impl JavaClass_AttributeInfo_AttrBodyCode {
+    pub fn code_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.code_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://docs.oracle.com/javase/specs/jvms/se8/html/jvms-4.html#jvms-4.7.3> Source
@@ -501,6 +514,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyCode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -516,10 +530,12 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
         *self_rc.end_pc.borrow_mut() = _io.read_u2be()?;
         *self_rc.handler_pc.borrow_mut() = _io.read_u2be()?;
         *self_rc.catch_type.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn catch_exception(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_ConstantPoolEntry>>> {
@@ -527,7 +543,7 @@ impl JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
         if self.f_catch_exception.get() {
             return Ok(self.catch_exception.borrow());
         }
-        if *self.catch_type() != 0 {
+        if ((to_i128(*self.catch_type())) != (to_i128(0))) {
             *self.catch_exception.borrow_mut() = self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.catch_type())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.clone();
         }
         Ok(self.catch_exception.borrow())
@@ -596,6 +612,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -614,6 +631,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.exceptions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -651,6 +669,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry 
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyExceptions;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -663,10 +682,12 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry 
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_ClassCpInfo>>> {
@@ -674,9 +695,10 @@ impl JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry {
         if self.f_as_info.get() {
             return Ok(self.as_info.borrow());
         }
-        *self.as_info.borrow_mut() = Into::<OptRc<JavaClass_ClassCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -717,6 +739,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -735,6 +758,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
             let t = Self::read_into::<_, JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.line_number_table.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -769,6 +793,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTable
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyLineNumberTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -782,6 +807,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTable
         let _io = io;
         *self_rc.start_pc.borrow_mut() = _io.read_u2be()?;
         *self_rc.line_number.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -821,6 +847,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodySourceFile {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -833,10 +860,12 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodySourceFile {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sourcefile_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_AttributeInfo_AttrBodySourceFile {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sourcefile_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -845,7 +874,7 @@ impl JavaClass_AttributeInfo_AttrBodySourceFile {
             return Ok(self.sourcefile_as_str.borrow());
         }
         self.f_sourcefile_as_str.set(true);
-        *self.sourcefile_as_str.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.sourcefile_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).value().to_string();
+        *self.sourcefile_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.sourcefile_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
         Ok(self.sourcefile_as_str.borrow())
     }
 }
@@ -880,6 +909,7 @@ impl KStruct for JavaClass_ClassCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -892,10 +922,12 @@ impl KStruct for JavaClass_ClassCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_ClassCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_Utf8CpInfo>>> {
@@ -903,9 +935,10 @@ impl JavaClass_ClassCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -942,7 +975,6 @@ pub struct JavaClass_ConstantPoolEntry {
     tag: RefCell<JavaClass_ConstantPoolEntry_TagEnum>,
     cp_info: RefCell<Option<JavaClass_ConstantPoolEntry_CpInfo>>,
     _io: RefCell<BytesReader>,
-    cp_info_raw: RefCell<Vec<u8>>,
     f_is_two_entries: Cell<bool>,
     is_two_entries: RefCell<bool>,
 }
@@ -965,13 +997,13 @@ pub enum JavaClass_ConstantPoolEntry_CpInfo {
     JavaClass_StringCpInfo(OptRc<JavaClass_StringCpInfo>),
     JavaClass_Utf8CpInfo(OptRc<JavaClass_Utf8CpInfo>),
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ClassCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ClassCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_ClassCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_ClassCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_ClassCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -979,13 +1011,13 @@ impl From<OptRc<JavaClass_ClassCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
         Self::JavaClass_ClassCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DoubleCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DoubleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_DoubleCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_DoubleCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_DoubleCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -993,13 +1025,13 @@ impl From<OptRc<JavaClass_DoubleCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo 
         Self::JavaClass_DoubleCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DynamicCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_DynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_DynamicCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_DynamicCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_DynamicCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1007,13 +1039,13 @@ impl From<OptRc<JavaClass_DynamicCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo
         Self::JavaClass_DynamicCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FieldRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_FieldRefCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_FieldRefCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_FieldRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1021,13 +1053,13 @@ impl From<OptRc<JavaClass_FieldRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInf
         Self::JavaClass_FieldRefCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FloatCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_FloatCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_FloatCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_FloatCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_FloatCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1035,13 +1067,13 @@ impl From<OptRc<JavaClass_FloatCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
         Self::JavaClass_FloatCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_IntegerCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_IntegerCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_IntegerCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_IntegerCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_IntegerCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1049,13 +1081,13 @@ impl From<OptRc<JavaClass_IntegerCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo
         Self::JavaClass_IntegerCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InterfaceMethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_InterfaceMethodRefCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_InterfaceMethodRefCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_InterfaceMethodRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1063,13 +1095,13 @@ impl From<OptRc<JavaClass_InterfaceMethodRefCpInfo>> for JavaClass_ConstantPoolE
         Self::JavaClass_InterfaceMethodRefCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_InvokeDynamicCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_InvokeDynamicCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_InvokeDynamicCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_InvokeDynamicCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1077,13 +1109,13 @@ impl From<OptRc<JavaClass_InvokeDynamicCpInfo>> for JavaClass_ConstantPoolEntry_
         Self::JavaClass_InvokeDynamicCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_LongCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_LongCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_LongCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_LongCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_LongCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1091,13 +1123,13 @@ impl From<OptRc<JavaClass_LongCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
         Self::JavaClass_LongCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodHandleCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodHandleCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodHandleCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_MethodHandleCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1105,13 +1137,13 @@ impl From<OptRc<JavaClass_MethodHandleCpInfo>> for JavaClass_ConstantPoolEntry_C
         Self::JavaClass_MethodHandleCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodRefCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodRefCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodRefCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_MethodRefCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1119,13 +1151,13 @@ impl From<OptRc<JavaClass_MethodRefCpInfo>> for JavaClass_ConstantPoolEntry_CpIn
         Self::JavaClass_MethodRefCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_MethodTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodTypeCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_MethodTypeCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_MethodTypeCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1133,13 +1165,13 @@ impl From<OptRc<JavaClass_MethodTypeCpInfo>> for JavaClass_ConstantPoolEntry_CpI
         Self::JavaClass_MethodTypeCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_ModulePackageCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_ModulePackageCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_ModulePackageCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_ModulePackageCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1147,13 +1179,13 @@ impl From<OptRc<JavaClass_ModulePackageCpInfo>> for JavaClass_ConstantPoolEntry_
         Self::JavaClass_ModulePackageCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_NameAndTypeCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_NameAndTypeCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_NameAndTypeCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_NameAndTypeCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1161,13 +1193,13 @@ impl From<OptRc<JavaClass_NameAndTypeCpInfo>> for JavaClass_ConstantPoolEntry_Cp
         Self::JavaClass_NameAndTypeCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_StringCpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_StringCpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_StringCpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_StringCpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_StringCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1175,13 +1207,13 @@ impl From<OptRc<JavaClass_StringCpInfo>> for JavaClass_ConstantPoolEntry_CpInfo 
         Self::JavaClass_StringCpInfo(v)
     }
 }
-impl From<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Self {
+impl TryFrom<&JavaClass_ConstantPoolEntry_CpInfo> for OptRc<JavaClass_Utf8CpInfo> {
+    type Error = KError;
+    fn try_from(v: &JavaClass_ConstantPoolEntry_CpInfo) -> Result<Self, Self::Error> {
         if let JavaClass_ConstantPoolEntry_CpInfo::JavaClass_Utf8CpInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected JavaClass_ConstantPoolEntry_CpInfo::JavaClass_Utf8CpInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<JavaClass_Utf8CpInfo>> for JavaClass_ConstantPoolEntry_CpInfo {
@@ -1193,6 +1225,7 @@ impl KStruct for JavaClass_ConstantPoolEntry {
     type Root = JavaClass;
     type Parent = JavaClass;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1210,127 +1243,77 @@ impl KStruct for JavaClass_ConstantPoolEntry {
         if !(*self_rc.is_prev_two_entries()) {
             match *self_rc.tag() {
                 JavaClass_ConstantPoolEntry_TagEnum::ClassType => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_ClassCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_ClassCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Double => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_DoubleCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_DoubleCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Dynamic => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_DynamicCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_DynamicCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::FieldRef => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_FieldRefCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_FieldRefCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Float => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_FloatCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_FloatCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Integer => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_IntegerCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_IntegerCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::InterfaceMethodRef => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_InterfaceMethodRefCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_InterfaceMethodRefCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::InvokeDynamic => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_InvokeDynamicCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_InvokeDynamicCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Long => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_LongCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_LongCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::MethodHandle => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_MethodHandleCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_MethodHandleCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::MethodRef => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_MethodRefCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_MethodRefCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::MethodType => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_MethodTypeCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_MethodTypeCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Module => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_ModulePackageCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_ModulePackageCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::NameAndType => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_NameAndTypeCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_NameAndTypeCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Package => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_ModulePackageCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_ModulePackageCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::String => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_StringCpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_StringCpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 JavaClass_ConstantPoolEntry_TagEnum::Utf8 => {
-                    *self_rc.cp_info_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let cp_info_raw = self_rc.cp_info_raw.borrow();
-                    let _t_cp_info_raw_io = BytesReader::from(cp_info_raw.clone());
-                    let t = Self::read_into::<BytesReader, JavaClass_Utf8CpInfo>(&_t_cp_info_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, JavaClass_Utf8CpInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.cp_info.borrow_mut() = Some(t);
                 }
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1345,6 +1328,7 @@ impl JavaClass_ConstantPoolEntry {
     }
 }
 impl JavaClass_ConstantPoolEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_two_entries(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1372,12 +1356,7 @@ impl JavaClass_ConstantPoolEntry {
         self._io.borrow()
     }
 }
-impl JavaClass_ConstantPoolEntry {
-    pub fn cp_info_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.cp_info_raw.borrow()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum JavaClass_ConstantPoolEntry_TagEnum {
     Utf8,
     Integer,
@@ -1471,6 +1450,7 @@ impl KStruct for JavaClass_DoubleCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1483,6 +1463,7 @@ impl KStruct for JavaClass_DoubleCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_f8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1517,6 +1498,7 @@ impl KStruct for JavaClass_DynamicCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1533,6 +1515,7 @@ impl KStruct for JavaClass_DynamicCpInfo {
         *self_rc.unnamed0.borrow_mut() = t;
         *self_rc.bootstrap_method_attr_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1581,6 +1564,7 @@ impl KStruct for JavaClass_FieldInfo {
     type Root = JavaClass;
     type Parent = JavaClass;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1602,10 +1586,12 @@ impl KStruct for JavaClass_FieldInfo {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_FieldInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -1614,7 +1600,7 @@ impl JavaClass_FieldInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -1670,6 +1656,7 @@ impl KStruct for JavaClass_FieldRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1683,10 +1670,12 @@ impl KStruct for JavaClass_FieldRefCpInfo {
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_FieldRefCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn class_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_ClassCpInfo>>> {
@@ -1694,9 +1683,10 @@ impl JavaClass_FieldRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = Into::<OptRc<JavaClass_ClassCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.class_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_and_type_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_NameAndTypeCpInfo>>> {
@@ -1704,7 +1694,7 @@ impl JavaClass_FieldRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = Into::<OptRc<JavaClass_NameAndTypeCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -1740,6 +1730,7 @@ impl KStruct for JavaClass_FloatCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1752,6 +1743,7 @@ impl KStruct for JavaClass_FloatCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_f4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1784,6 +1776,7 @@ impl KStruct for JavaClass_IntegerCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1796,6 +1789,7 @@ impl KStruct for JavaClass_IntegerCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1833,6 +1827,7 @@ impl KStruct for JavaClass_InterfaceMethodRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1846,10 +1841,12 @@ impl KStruct for JavaClass_InterfaceMethodRefCpInfo {
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_InterfaceMethodRefCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn class_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_ClassCpInfo>>> {
@@ -1857,9 +1854,10 @@ impl JavaClass_InterfaceMethodRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = Into::<OptRc<JavaClass_ClassCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.class_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_and_type_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_NameAndTypeCpInfo>>> {
@@ -1867,7 +1865,7 @@ impl JavaClass_InterfaceMethodRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = Into::<OptRc<JavaClass_NameAndTypeCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -1905,6 +1903,7 @@ impl KStruct for JavaClass_InvokeDynamicCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1921,6 +1920,7 @@ impl KStruct for JavaClass_InvokeDynamicCpInfo {
         *self_rc.unnamed0.borrow_mut() = t;
         *self_rc.bootstrap_method_attr_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1963,6 +1963,7 @@ impl KStruct for JavaClass_LongCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1975,6 +1976,7 @@ impl KStruct for JavaClass_LongCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2009,6 +2011,7 @@ impl KStruct for JavaClass_MethodHandleCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2025,6 +2028,7 @@ impl KStruct for JavaClass_MethodHandleCpInfo {
         *self_rc.unnamed0.borrow_mut() = t;
         *self_rc.reference_kind.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.reference_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2050,7 +2054,7 @@ impl JavaClass_MethodHandleCpInfo {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum JavaClass_MethodHandleCpInfo_ReferenceKindEnum {
     GetField,
     GetStatic,
@@ -2126,6 +2130,7 @@ impl KStruct for JavaClass_MethodInfo {
     type Root = JavaClass;
     type Parent = JavaClass;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2147,10 +2152,12 @@ impl KStruct for JavaClass_MethodInfo {
             let t = Self::read_into::<_, JavaClass_AttributeInfo>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.attributes.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_MethodInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -2159,7 +2166,7 @@ impl JavaClass_MethodInfo {
             return Ok(self.name_as_str.borrow());
         }
         self.f_name_as_str.set(true);
-        *self.name_as_str.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).value().to_string();
+        *self.name_as_str.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.value().to_string();
         Ok(self.name_as_str.borrow())
     }
 }
@@ -2215,6 +2222,7 @@ impl KStruct for JavaClass_MethodRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2228,10 +2236,12 @@ impl KStruct for JavaClass_MethodRefCpInfo {
         let _io = io;
         *self_rc.class_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.name_and_type_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_MethodRefCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn class_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_ClassCpInfo>>> {
@@ -2239,9 +2249,10 @@ impl JavaClass_MethodRefCpInfo {
         if self.f_class_as_info.get() {
             return Ok(self.class_as_info.borrow());
         }
-        *self.class_as_info.borrow_mut() = Into::<OptRc<JavaClass_ClassCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.class_as_info.borrow_mut() = OptRc::<JavaClass_ClassCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.class_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.class_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_and_type_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_NameAndTypeCpInfo>>> {
@@ -2249,7 +2260,7 @@ impl JavaClass_MethodRefCpInfo {
         if self.f_name_and_type_as_info.get() {
             return Ok(self.name_and_type_as_info.borrow());
         }
-        *self.name_and_type_as_info.borrow_mut() = Into::<OptRc<JavaClass_NameAndTypeCpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_and_type_as_info.borrow_mut() = OptRc::<JavaClass_NameAndTypeCpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_and_type_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_and_type_as_info.borrow())
     }
 }
@@ -2286,6 +2297,7 @@ impl KStruct for JavaClass_MethodTypeCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2301,6 +2313,7 @@ impl KStruct for JavaClass_MethodTypeCpInfo {
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2346,6 +2359,7 @@ impl KStruct for JavaClass_ModulePackageCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2361,10 +2375,12 @@ impl KStruct for JavaClass_ModulePackageCpInfo {
         let t = Self::read_into_with_init::<_, JavaClass_VersionGuard>(&*_io, Some(self_rc._root.clone()), None, &f)?.into();
         *self_rc.unnamed0.borrow_mut() = t;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_ModulePackageCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_Utf8CpInfo>>> {
@@ -2372,9 +2388,10 @@ impl JavaClass_ModulePackageCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -2428,6 +2445,7 @@ impl KStruct for JavaClass_NameAndTypeCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2441,10 +2459,12 @@ impl KStruct for JavaClass_NameAndTypeCpInfo {
         let _io = io;
         *self_rc.name_index.borrow_mut() = _io.read_u2be()?;
         *self_rc.descriptor_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl JavaClass_NameAndTypeCpInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn descriptor_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_Utf8CpInfo>>> {
@@ -2452,9 +2472,10 @@ impl JavaClass_NameAndTypeCpInfo {
         if self.f_descriptor_as_info.get() {
             return Ok(self.descriptor_as_info.borrow());
         }
-        *self.descriptor_as_info.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.descriptor_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.descriptor_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.descriptor_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.descriptor_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn descriptor_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -2466,6 +2487,7 @@ impl JavaClass_NameAndTypeCpInfo {
         *self.descriptor_as_str.borrow_mut() = self.descriptor_as_info()?.value().to_string();
         Ok(self.descriptor_as_str.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_info(
         &self
     ) -> KResult<Ref<'_, OptRc<JavaClass_Utf8CpInfo>>> {
@@ -2473,9 +2495,10 @@ impl JavaClass_NameAndTypeCpInfo {
         if self.f_name_as_info.get() {
             return Ok(self.name_as_info.borrow());
         }
-        *self.name_as_info.borrow_mut() = Into::<OptRc<JavaClass_Utf8CpInfo>>::into(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?).clone();
+        *self.name_as_info.borrow_mut() = OptRc::<JavaClass_Utf8CpInfo>::try_from(&*(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.constant_pool().get(usize::try_from((i32::from(*self.name_index())).saturating_sub(1_i32))?).ok_or(KError::CastError)?.cp_info()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.name_as_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -2520,6 +2543,7 @@ impl KStruct for JavaClass_StringCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2532,6 +2556,7 @@ impl KStruct for JavaClass_StringCpInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.string_index.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2560,11 +2585,13 @@ pub struct JavaClass_Utf8CpInfo {
     str_len: RefCell<u16>,
     value: RefCell<String>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for JavaClass_Utf8CpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2578,6 +2605,7 @@ impl KStruct for JavaClass_Utf8CpInfo {
         let _io = io;
         *self_rc.str_len.borrow_mut() = _io.read_u2be()?;
         *self_rc.value.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.str_len()))?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2596,6 +2624,11 @@ impl JavaClass_Utf8CpInfo {
 impl JavaClass_Utf8CpInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl JavaClass_Utf8CpInfo {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
     }
 }
 
@@ -2618,11 +2651,13 @@ pub struct JavaClass_VersionGuard {
     major: RefCell<u16>,
     unnamed0: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    unnamed0_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for JavaClass_VersionGuard {
     type Root = JavaClass;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2635,10 +2670,12 @@ impl KStruct for JavaClass_VersionGuard {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.unnamed0.borrow_mut() = _io.read_bytes(0_usize)?;
-        let _tmpa = &*self_rc.unnamed0();
+        let _borrowed = self_rc.unnamed0();
+        let _tmpa = &*_borrowed;
         if !((*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version_major() >= *self_rc.major())) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/version_guard/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2662,5 +2699,10 @@ impl JavaClass_VersionGuard {
 impl JavaClass_VersionGuard {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl JavaClass_VersionGuard {
+    pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0_raw.borrow()
     }
 }

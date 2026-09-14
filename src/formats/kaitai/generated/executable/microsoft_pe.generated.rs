@@ -23,6 +23,7 @@ impl KStruct for MicrosoftPe {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -36,10 +37,12 @@ impl KStruct for MicrosoftPe {
         let _io = io;
         let t = Self::read_into::<_, MicrosoftPe_MzPlaceholder>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mz.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pe(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftPe_PeHeader>>> {
@@ -65,7 +68,7 @@ impl MicrosoftPe {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_PeFormat {
     RomImage,
     Pe32,
@@ -122,6 +125,7 @@ impl KStruct for MicrosoftPe_Annoyingstring {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CoffSymbol;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,10 +137,12 @@ impl KStruct for MicrosoftPe_Annoyingstring {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe_Annoyingstring {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -145,9 +151,10 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        *self.name.borrow_mut() = if *self.name_zeroes()? == 0 { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
+        *self.name.borrow_mut() = if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) { self.name_from_offset()?.to_string() } else { self.name_from_short()?.to_string() }.to_string();
         Ok(self.name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_from_offset(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -156,15 +163,16 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_offset.borrow());
         }
         self.f_name_from_offset.set(true);
-        if *self.name_zeroes()? == 0 {
+        if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from(if *self.name_zeroes()? == 0 { (u32::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?)?).saturating_add(*self.name_offset()?) } else { 0_u32 })?)?;
-            *self.name_from_offset.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ascii")?;
+            io.seek(usize::try_from(if ((to_i128(*self.name_zeroes()?)) == (to_i128(0))) { (u32::try_from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.symbol_name_table_offset()?)?).saturating_add(*self.name_offset()?) } else { 0_u32 })?)?;
+            *self.name_from_offset.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, false)?, "ascii")?;
             io.seek(_pos)?;
         }
         Ok(self.name_from_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_from_short(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -173,14 +181,15 @@ impl MicrosoftPe_Annoyingstring {
             return Ok(self.name_from_short.borrow());
         }
         self.f_name_from_short.set(true);
-        if *self.name_zeroes()? != 0 {
+        if ((to_i128(*self.name_zeroes()?)) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(0_usize)?;
-            *self.name_from_short.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ascii")?;
+            *self.name_from_short.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, false)?, "ascii")?;
             _io.seek(_pos)?;
         }
         Ok(self.name_from_short.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_offset(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -195,6 +204,7 @@ impl MicrosoftPe_Annoyingstring {
         _io.seek(_pos)?;
         Ok(self.name_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name_zeroes(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -230,11 +240,13 @@ pub struct MicrosoftPe_CertificateEntry {
     certificate_type: RefCell<MicrosoftPe_CertificateEntry_CertificateTypeEnum>,
     certificate_bytes: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    certificate_bytes_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MicrosoftPe_CertificateEntry {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CertificateTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -250,6 +262,7 @@ impl KStruct for MicrosoftPe_CertificateEntry {
         *self_rc.revision.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.certificate_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.certificate_bytes.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.length()).saturating_sub(8_u32))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -296,7 +309,12 @@ impl MicrosoftPe_CertificateEntry {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl MicrosoftPe_CertificateEntry {
+    pub fn certificate_bytes_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.certificate_bytes_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_CertificateEntry_CertificateRevision {
 
     /**
@@ -337,7 +355,7 @@ impl Default for MicrosoftPe_CertificateEntry_CertificateRevision {
     fn default() -> Self { MicrosoftPe_CertificateEntry_CertificateRevision::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_CertificateEntry_CertificateTypeEnum {
 
     /**
@@ -406,6 +424,7 @@ impl KStruct for MicrosoftPe_CertificateTable {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -426,6 +445,7 @@ impl KStruct for MicrosoftPe_CertificateTable {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -472,6 +492,7 @@ impl KStruct for MicrosoftPe_CoffHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -490,10 +511,12 @@ impl KStruct for MicrosoftPe_CoffHeader {
         *self_rc.number_of_symbols.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_optional_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.characteristics.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe_CoffHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn symbol_name_table_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -505,6 +528,7 @@ impl MicrosoftPe_CoffHeader {
         *self.symbol_name_table_offset.borrow_mut() = ((*self.pointer_to_symbol_table()).saturating_add(u32::try_from(*self.symbol_table_size()?)?)).try_into()?;
         Ok(self.symbol_name_table_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn symbol_name_table_size(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -519,6 +543,7 @@ impl MicrosoftPe_CoffHeader {
         _io.seek(_pos)?;
         Ok(self.symbol_name_table_size.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn symbol_table(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<MicrosoftPe_CoffSymbol>>>> {
@@ -538,6 +563,7 @@ impl MicrosoftPe_CoffHeader {
         _io.seek(_pos)?;
         Ok(self.symbol_table.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn symbol_table_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -590,7 +616,7 @@ impl MicrosoftPe_CoffHeader {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_CoffHeader_MachineType {
 
     /**
@@ -834,6 +860,7 @@ pub struct MicrosoftPe_CoffSymbol {
     storage_class: RefCell<u8>,
     number_of_aux_symbols: RefCell<u8>,
     _io: RefCell<BytesReader>,
+    name_annoying_raw: RefCell<Vec<u8>>,
     f_data: Cell<bool>,
     data: RefCell<Vec<u8>>,
     f_section: Cell<bool>,
@@ -843,6 +870,7 @@ impl KStruct for MicrosoftPe_CoffSymbol {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CoffHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -854,17 +882,22 @@ impl KStruct for MicrosoftPe_CoffSymbol {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, MicrosoftPe_Annoyingstring>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_name_annoying = _io.read_bytes(8_usize)?;
+        *self_rc.name_annoying_raw.borrow_mut() = _raw_name_annoying.clone();
+        let _io_name_annoying = BytesReader::from(_raw_name_annoying);
+        let t = Self::read_into::<BytesReader, MicrosoftPe_Annoyingstring>(&_io_name_annoying, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name_annoying.borrow_mut() = t;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
         *self_rc.section_number.borrow_mut() = _io.read_u2le()?;
         *self_rc.r#type.borrow_mut() = _io.read_u2le()?;
         *self_rc.storage_class.borrow_mut() = _io.read_u1()?;
         *self_rc.number_of_aux_symbols.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe_CoffSymbol {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn data(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -879,6 +912,7 @@ impl MicrosoftPe_CoffSymbol {
         _io.seek(_pos)?;
         Ok(self.data.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn section(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftPe_Section>>> {
@@ -925,6 +959,11 @@ impl MicrosoftPe_CoffSymbol {
         self._io.borrow()
     }
 }
+impl MicrosoftPe_CoffSymbol {
+    pub fn name_annoying_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_annoying_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MicrosoftPe_DataDir {
@@ -939,6 +978,7 @@ impl KStruct for MicrosoftPe_DataDir {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeaderDataDirs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -952,6 +992,7 @@ impl KStruct for MicrosoftPe_DataDir {
         let _io = io;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -982,11 +1023,13 @@ pub struct MicrosoftPe_MzPlaceholder {
     data1: RefCell<Vec<u8>>,
     ofs_pe: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    data1_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MicrosoftPe_MzPlaceholder {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1004,6 +1047,7 @@ impl KStruct for MicrosoftPe_MzPlaceholder {
         }
         *self_rc.data1.borrow_mut() = _io.read_bytes(58_usize)?;
         *self_rc.ofs_pe.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1033,6 +1077,11 @@ impl MicrosoftPe_MzPlaceholder {
         self._io.borrow()
     }
 }
+impl MicrosoftPe_MzPlaceholder {
+    pub fn data1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data1_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MicrosoftPe_OptionalHeader {
@@ -1048,6 +1097,7 @@ impl KStruct for MicrosoftPe_OptionalHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1065,6 +1115,7 @@ impl KStruct for MicrosoftPe_OptionalHeader {
         *self_rc.windows.borrow_mut() = t;
         let t = Self::read_into::<_, MicrosoftPe_OptionalHeaderDataDirs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_dirs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1117,6 +1168,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderDataDirs {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1158,6 +1210,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderDataDirs {
         *self_rc.delay_import_descriptor.borrow_mut() = t;
         let t = Self::read_into::<_, MicrosoftPe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.clr_runtime_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1264,6 +1317,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderStd {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1286,6 +1340,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderStd {
         if *self_rc.format() == MicrosoftPe_PeFormat::Pe32 {
             *self_rc.base_of_data.borrow_mut() = _io.read_u4le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1379,6 +1434,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderWindows {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1436,6 +1492,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderWindows {
         }
         *self_rc.loader_flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.number_of_rva_and_sizes.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1576,7 +1633,7 @@ impl MicrosoftPe_OptionalHeaderWindows {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftPe_OptionalHeaderWindows_SubsystemEnum {
     Unknown,
     Native,
@@ -1649,6 +1706,7 @@ pub struct MicrosoftPe_PeHeader {
     optional_hdr: RefCell<OptRc<MicrosoftPe_OptionalHeader>>,
     sections: RefCell<Vec<OptRc<MicrosoftPe_Section>>>,
     _io: RefCell<BytesReader>,
+    optional_hdr_raw: RefCell<Vec<u8>>,
     certificate_table_raw: RefCell<Vec<u8>>,
     f_certificate_table: Cell<bool>,
     certificate_table: RefCell<OptRc<MicrosoftPe_CertificateTable>>,
@@ -1657,6 +1715,7 @@ impl KStruct for MicrosoftPe_PeHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1674,7 +1733,10 @@ impl KStruct for MicrosoftPe_PeHeader {
         }
         let t = Self::read_into::<_, MicrosoftPe_CoffHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.coff_hdr.borrow_mut() = t;
-        let t = Self::read_into::<_, MicrosoftPe_OptionalHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_optional_hdr = _io.read_bytes(usize::from(*self_rc.coff_hdr().size_of_optional_header()))?;
+        *self_rc.optional_hdr_raw.borrow_mut() = _raw_optional_hdr.clone();
+        let _io_optional_hdr = BytesReader::from(_raw_optional_hdr);
+        let t = Self::read_into::<BytesReader, MicrosoftPe_OptionalHeader>(&_io_optional_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.optional_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
         let l_sections = usize::from(*self_rc.coff_hdr().number_of_sections());
@@ -1682,10 +1744,12 @@ impl KStruct for MicrosoftPe_PeHeader {
             let t = Self::read_into::<_, MicrosoftPe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe_PeHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn certificate_table(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftPe_CertificateTable>>> {
@@ -1693,10 +1757,10 @@ impl MicrosoftPe_PeHeader {
         if self.f_certificate_table.get() {
             return Ok(self.certificate_table.borrow());
         }
-        if *self.optional_hdr().data_dirs().certificate_table().virtual_address() != 0 {
+        if ((to_i128(*self.optional_hdr().data_dirs().certificate_table().virtual_address())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().virtual_address())?)?;
-            *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().size())?)?.into();
+            *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.optional_hdr().data_dirs().certificate_table().len())?))?)?.into();
             let certificate_table_raw = self.certificate_table_raw.borrow();
             let _t_certificate_table_raw_io = BytesReader::from(certificate_table_raw.clone());
             let t = Self::read_into::<BytesReader, MicrosoftPe_CertificateTable>(&_t_certificate_table_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -1732,6 +1796,11 @@ impl MicrosoftPe_PeHeader {
     }
 }
 impl MicrosoftPe_PeHeader {
+    pub fn optional_hdr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.optional_hdr_raw.borrow()
+    }
+}
+impl MicrosoftPe_PeHeader {
     pub fn certificate_table_raw(&self) -> Ref<'_, Vec<u8>> {
         self.certificate_table_raw.borrow()
     }
@@ -1753,6 +1822,7 @@ pub struct MicrosoftPe_Section {
     number_of_linenumbers: RefCell<u16>,
     characteristics: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
 }
@@ -1760,6 +1830,7 @@ impl KStruct for MicrosoftPe_Section {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1771,7 +1842,7 @@ impl KStruct for MicrosoftPe_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "UTF-8")?;
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;
@@ -1781,10 +1852,12 @@ impl KStruct for MicrosoftPe_Section {
         *self_rc.number_of_relocations.borrow_mut() = _io.read_u2le()?;
         *self_rc.number_of_linenumbers.borrow_mut() = _io.read_u2le()?;
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MicrosoftPe_Section {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -1853,5 +1926,10 @@ impl MicrosoftPe_Section {
 impl MicrosoftPe_Section {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl MicrosoftPe_Section {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
     }
 }

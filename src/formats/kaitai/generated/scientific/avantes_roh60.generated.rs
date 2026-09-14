@@ -59,6 +59,7 @@ impl KStruct for AvantesRoh60 {
     type Root = AvantesRoh60;
     type Parent = AvantesRoh60;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -96,6 +97,7 @@ impl KStruct for AvantesRoh60 {
         *self_rc.integration_ms.borrow_mut() = _io.read_f4le()?;
         *self_rc.averaging.borrow_mut() = _io.read_f4le()?;
         *self_rc.pixel_smoothing.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

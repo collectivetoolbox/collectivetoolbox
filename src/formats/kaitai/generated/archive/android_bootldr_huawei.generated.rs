@@ -35,11 +35,14 @@ pub struct AndroidBootldrHuawei {
     header_ext: RefCell<Vec<u8>>,
     image_header: RefCell<OptRc<AndroidBootldrHuawei_ImageHdr>>,
     _io: RefCell<BytesReader>,
+    header_ext_raw: RefCell<Vec<u8>>,
+    image_header_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidBootldrHuawei {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -53,9 +56,13 @@ impl KStruct for AndroidBootldrHuawei {
         let _io = io;
         let t = Self::read_into::<_, AndroidBootldrHuawei_MetaHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.meta_header.borrow_mut() = t;
-        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.meta_header().len_meta_header())).saturating_sub(0_i32))?)?;
-        let t = Self::read_into::<_, AndroidBootldrHuawei_ImageHdr>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        *self_rc.header_ext.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.meta_header().len_meta_header())).saturating_sub(76_i32))?)?;
+        let _raw_image_header = _io.read_bytes(usize::from(*self_rc.meta_header().len_image_header()))?;
+        *self_rc.image_header_raw.borrow_mut() = _raw_image_header.clone();
+        let _io_image_header = BytesReader::from(_raw_image_header);
+        let t = Self::read_into::<BytesReader, AndroidBootldrHuawei_ImageHdr>(&_io_image_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -81,6 +88,16 @@ impl AndroidBootldrHuawei {
         self._io.borrow()
     }
 }
+impl AndroidBootldrHuawei {
+    pub fn header_ext_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_ext_raw.borrow()
+    }
+}
+impl AndroidBootldrHuawei {
+    pub fn image_header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.image_header_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidBootldrHuawei_ImageHdr {
@@ -94,6 +111,7 @@ impl KStruct for AndroidBootldrHuawei_ImageHdr {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,6 +132,7 @@ impl KStruct for AndroidBootldrHuawei_ImageHdr {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -152,6 +171,7 @@ pub struct AndroidBootldrHuawei_ImageHdrEntry {
     ofs_body: RefCell<u32>,
     len_body: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
     f_is_used: Cell<bool>,
@@ -161,6 +181,7 @@ impl KStruct for AndroidBootldrHuawei_ImageHdrEntry {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei_ImageHdr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -172,13 +193,15 @@ impl KStruct for AndroidBootldrHuawei_ImageHdrEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(72_usize)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(72_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidBootldrHuawei_ImageHdrEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -200,6 +223,7 @@ impl AndroidBootldrHuawei_ImageHdrEntry {
     /**
      * \sa <https://source.codeaurora.org/quic/la/device/qcom/common/tree/meta_image/meta_image.c?h=LA.UM.6.1.1&id=a68d284aee85#n119> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_used(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -208,7 +232,7 @@ impl AndroidBootldrHuawei_ImageHdrEntry {
             return Ok(self.is_used.borrow());
         }
         self.f_is_used.set(true);
-        *self.is_used.borrow_mut() = ( ((*self.ofs_body() != 0) && (*self.len_body() != 0)) ).try_into()?;
+        *self.is_used.borrow_mut() = ( ((((to_i128(*self.ofs_body())) != (to_i128(0)))) && (((to_i128(*self.len_body())) != (to_i128(0))))) ).try_into()?;
         Ok(self.is_used.borrow())
     }
 }
@@ -236,6 +260,11 @@ impl AndroidBootldrHuawei_ImageHdrEntry {
         self._io.borrow()
     }
 }
+impl AndroidBootldrHuawei_ImageHdrEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidBootldrHuawei_MetaHdr {
@@ -248,11 +277,13 @@ pub struct AndroidBootldrHuawei_MetaHdr {
     len_meta_header: RefCell<u16>,
     len_image_header: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    image_version_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidBootldrHuawei_MetaHdr {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -270,9 +301,10 @@ impl KStruct for AndroidBootldrHuawei_MetaHdr {
         }
         let t = Self::read_into::<_, AndroidBootldrHuawei_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
-        *self_rc.image_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
+        *self_rc.image_version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc.len_meta_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_image_header.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -308,6 +340,11 @@ impl AndroidBootldrHuawei_MetaHdr {
         self._io.borrow()
     }
 }
+impl AndroidBootldrHuawei_MetaHdr {
+    pub fn image_version_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.image_version_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidBootldrHuawei_Version {
@@ -322,6 +359,7 @@ impl KStruct for AndroidBootldrHuawei_Version {
     type Root = AndroidBootldrHuawei;
     type Parent = AndroidBootldrHuawei_MetaHdr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -335,6 +373,7 @@ impl KStruct for AndroidBootldrHuawei_Version {
         let _io = io;
         *self_rc.major.borrow_mut() = _io.read_u2le()?;
         *self_rc.minor.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

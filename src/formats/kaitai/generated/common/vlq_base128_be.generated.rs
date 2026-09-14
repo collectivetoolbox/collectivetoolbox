@@ -38,6 +38,7 @@ impl KStruct for VlqBase128Be {
     type Root = VlqBase128Be;
     type Parent = VlqBase128Be;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -61,10 +62,12 @@ impl KStruct for VlqBase128Be {
                 if !(*_tmpa.has_next()) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl VlqBase128Be {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn last(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -80,6 +83,7 @@ impl VlqBase128Be {
     /**
      * Resulting value as normal integer
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -120,6 +124,7 @@ impl KStruct for VlqBase128Be_Group {
     type Root = VlqBase128Be;
     type Parent = VlqBase128Be;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,6 +138,7 @@ impl KStruct for VlqBase128Be_Group {
         let _io = io;
         *self_rc.has_next.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

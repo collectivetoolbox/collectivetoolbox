@@ -20,6 +20,7 @@ impl KStruct for Fallout2Dat {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -31,10 +32,12 @@ impl KStruct for Fallout2Dat {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Fallout2Dat {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn footer(
         &self
     ) -> KResult<Ref<'_, OptRc<Fallout2Dat_Footer>>> {
@@ -43,12 +46,13 @@ impl Fallout2Dat {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((_io.size()).saturating_sub(8_usize))?)?;
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i32))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Footer>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
         Ok(self.footer.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<Fallout2Dat_Index>>> {
@@ -57,7 +61,7 @@ impl Fallout2Dat {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((_io.size()).saturating_sub(8_usize)).saturating_sub(usize::try_from(*self.footer()?.index_size())?))?)?;
+        _io.seek(usize::try_from((u32::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i32))?).saturating_sub(*self.footer()?.index_size()))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Index>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -69,7 +73,7 @@ impl Fallout2Dat {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Fallout2Dat_Compression {
     None,
     Zlib,
@@ -124,6 +128,7 @@ impl KStruct for Fallout2Dat_File {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat_Index;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,10 +146,12 @@ impl KStruct for Fallout2Dat_File {
         *self_rc.size_unpacked.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_packed.borrow_mut() = _io.read_u4le()?;
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Fallout2Dat_File {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -158,6 +165,7 @@ impl Fallout2Dat_File {
         }
         Ok(self.contents.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents_raw(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -175,6 +183,7 @@ impl Fallout2Dat_File {
         }
         Ok(self.contents_raw.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents_zlib(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -187,7 +196,7 @@ impl Fallout2Dat_File {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.offset())?)?;
-            *self.contents_zlib.borrow_mut() = io.read_bytes(usize::try_from(*self.size_packed())?)?;
+            *self.contents_zlib.borrow_mut() = process_zlib(&io.read_bytes(usize::try_from(*self.size_packed())?)?)?;
             io.seek(_pos)?;
         }
         Ok(self.contents_zlib.borrow())
@@ -237,6 +246,7 @@ impl KStruct for Fallout2Dat_Footer {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -250,6 +260,7 @@ impl KStruct for Fallout2Dat_Footer {
         let _io = io;
         *self_rc.index_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -284,6 +295,7 @@ impl KStruct for Fallout2Dat_Index {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -302,6 +314,7 @@ impl KStruct for Fallout2Dat_Index {
             let t = Self::read_into::<_, Fallout2Dat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -331,11 +344,13 @@ pub struct Fallout2Dat_Pstr {
     size: RefCell<u32>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Fallout2Dat_Pstr {
     type Root = Fallout2Dat;
     type Parent = Fallout2Dat_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -349,6 +364,7 @@ impl KStruct for Fallout2Dat_Pstr {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.size())?)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -367,5 +383,10 @@ impl Fallout2Dat_Pstr {
 impl Fallout2Dat_Pstr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Fallout2Dat_Pstr {
+    pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_raw.borrow()
     }
 }

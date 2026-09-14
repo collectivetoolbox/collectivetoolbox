@@ -18,6 +18,7 @@ impl KStruct for SomeIpContainer {
     type Root = SomeIpContainer;
     type Parent = SomeIpContainer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -38,6 +39,7 @@ impl KStruct for SomeIpContainer {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -30,6 +30,7 @@ pub struct Pcx {
     pub(crate) _self_shared: SharedType<Self>,
     hdr: RefCell<OptRc<Pcx_Header>>,
     _io: RefCell<BytesReader>,
+    hdr_raw: RefCell<Vec<u8>>,
     f_palette_256: Cell<bool>,
     palette_256: RefCell<OptRc<Pcx_TPalette256>>,
 }
@@ -37,6 +38,7 @@ impl KStruct for Pcx {
     type Root = Pcx;
     type Parent = Pcx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -48,8 +50,12 @@ impl KStruct for Pcx {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Pcx_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_hdr = _io.read_bytes(128_usize)?;
+        *self_rc.hdr_raw.borrow_mut() = _raw_hdr.clone();
+        let _io_hdr = BytesReader::from(_raw_hdr);
+        let t = Self::read_into::<BytesReader, Pcx_Header>(&_io_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.hdr.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -58,6 +64,7 @@ impl Pcx {
     /**
      * \sa https://web.archive.org/web/20100206055706/http://www.qzx.com/pc-gpe/pcx.txt - "VGA 256 Color Palette Information"
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn palette_256(
         &self
     ) -> KResult<Ref<'_, OptRc<Pcx_TPalette256>>> {
@@ -65,9 +72,9 @@ impl Pcx {
         if self.f_palette_256.get() {
             return Ok(self.palette_256.borrow());
         }
-        if  ((*self.hdr().version() == Pcx_Versions::V30) && (*self.hdr().bits_per_pixel() == 8) && (*self.hdr().num_planes() == 1))  {
+        if  ((*self.hdr().version() == Pcx_Versions::V30) && (((to_i128(*self.hdr().bits_per_pixel())) == (to_i128(8)))) && (((to_i128(*self.hdr().num_planes())) == (to_i128(1)))))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((_io.size()).saturating_sub(769_usize))?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(769_i32))?)?;
             let t = Self::read_into::<_, Pcx_TPalette256>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.palette_256.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -85,7 +92,12 @@ impl Pcx {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Pcx {
+    pub fn hdr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.hdr_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Pcx_Encodings {
     Rle,
     Unknown(i64),
@@ -114,7 +126,7 @@ impl Default for Pcx_Encodings {
     fn default() -> Self { Pcx_Encodings::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Pcx_Versions {
     V25,
     V28WithPalette,
@@ -183,11 +195,13 @@ pub struct Pcx_Header {
     h_screen_size: RefCell<u16>,
     v_screen_size: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    palette_16_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Pcx_Header {
     type Root = Pcx;
     type Parent = Pcx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -222,6 +236,7 @@ impl KStruct for Pcx_Header {
         *self_rc.palette_info.borrow_mut() = _io.read_u2le()?;
         *self_rc.h_screen_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.v_screen_size.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -325,6 +340,11 @@ impl Pcx_Header {
         self._io.borrow()
     }
 }
+impl Pcx_Header {
+    pub fn palette_16_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.palette_16_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Pcx_Rgb {
@@ -340,6 +360,7 @@ impl KStruct for Pcx_Rgb {
     type Root = Pcx;
     type Parent = Pcx_TPalette256;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -354,6 +375,7 @@ impl KStruct for Pcx_Rgb {
         *self_rc.r.borrow_mut() = _io.read_u1()?;
         *self_rc.g.borrow_mut() = _io.read_u1()?;
         *self_rc.b.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -393,6 +415,7 @@ impl KStruct for Pcx_TPalette256 {
     type Root = Pcx;
     type Parent = Pcx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -414,6 +437,7 @@ impl KStruct for Pcx_TPalette256 {
             let t = Self::read_into::<_, Pcx_Rgb>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

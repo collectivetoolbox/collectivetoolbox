@@ -24,11 +24,14 @@ pub struct Dbf {
     header_terminator: RefCell<Vec<u8>>,
     records: RefCell<Vec<OptRc<Dbf_Record>>>,
     _io: RefCell<BytesReader>,
+    header2_raw: RefCell<Vec<u8>>,
+    records_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dbf {
     type Root = Dbf;
     type Parent = Dbf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -42,7 +45,10 @@ impl KStruct for Dbf {
         let _io = io;
         let t = Self::read_into::<_, Dbf_Header1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header1.borrow_mut() = t;
-        let t = Self::read_into::<_, Dbf_Header2>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header2 = _io.read_bytes(usize::try_from(((i32::from(*self_rc.header1().len_header())).saturating_sub(12_i32)).saturating_sub(1_i32))?)?;
+        *self_rc.header2_raw.borrow_mut() = _raw_header2.clone();
+        let _io_header2 = BytesReader::from(_raw_header2);
+        let t = Self::read_into::<BytesReader, Dbf_Header2>(&_io_header2, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header2.borrow_mut() = t;
         *self_rc.header_terminator.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.header_terminator() == vec![0xdu8]) {
@@ -51,9 +57,12 @@ impl KStruct for Dbf {
         *self_rc.records.borrow_mut() = Vec::new();
         let l_records = usize::try_from(*self_rc.header1().num_records())?;
         for _i in 0_usize..l_records {
-            let t = Self::read_into::<_, Dbf_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_records = _io.read_bytes(usize::from(*self_rc.header1().len_record()))?;
+            let _io_records = BytesReader::from(_raw_records);
+            let t = Self::read_into::<BytesReader, Dbf_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -84,7 +93,17 @@ impl Dbf {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Dbf {
+    pub fn header2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header2_raw.borrow()
+    }
+}
+impl Dbf {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Dbf_DeleteState {
     False,
     True,
@@ -133,11 +152,16 @@ pub struct Dbf_Field {
     set_fields_flag: RefCell<u8>,
     reserved3: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
+    reserved1_raw: RefCell<Vec<u8>>,
+    reserved2_raw: RefCell<Vec<u8>>,
+    reserved3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dbf_Field {
     type Root = Dbf;
     type Parent = Dbf_Header2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -149,7 +173,7 @@ impl KStruct for Dbf_Field {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(11_usize)?, 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(11_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc.datatype.borrow_mut() = _io.read_u1()?;
         *self_rc.data_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
@@ -159,6 +183,7 @@ impl KStruct for Dbf_Field {
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.set_fields_flag.borrow_mut() = _io.read_u1()?;
         *self_rc.reserved3.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -219,6 +244,26 @@ impl Dbf_Field {
         self._io.borrow()
     }
 }
+impl Dbf_Field {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl Dbf_Field {
+    pub fn reserved1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved1_raw.borrow()
+    }
+}
+impl Dbf_Field {
+    pub fn reserved2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved2_raw.borrow()
+    }
+}
+impl Dbf_Field {
+    pub fn reserved3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved3_raw.borrow()
+    }
+}
 
 /**
  * \sa http://www.dbase.com/Knowledgebase/INT/db7_file_fmt.htm - section 1.1
@@ -244,6 +289,7 @@ impl KStruct for Dbf_Header1 {
     type Root = Dbf;
     type Parent = Dbf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -262,10 +308,12 @@ impl KStruct for Dbf_Header1 {
         *self_rc.num_records.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.len_record.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Dbf_Header1 {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn dbase_level(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -333,6 +381,7 @@ impl KStruct for Dbf_Header2 {
     type Root = Dbf;
     type Parent = Dbf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -361,6 +410,7 @@ impl KStruct for Dbf_Header2 {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -396,11 +446,15 @@ pub struct Dbf_HeaderDbase3 {
     reserved2: RefCell<Vec<u8>>,
     reserved3: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    reserved1_raw: RefCell<Vec<u8>>,
+    reserved2_raw: RefCell<Vec<u8>>,
+    reserved3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dbf_HeaderDbase3 {
     type Root = Dbf;
     type Parent = Dbf_Header2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -415,6 +469,7 @@ impl KStruct for Dbf_HeaderDbase3 {
         *self_rc.reserved1.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(13_usize)?;
         *self_rc.reserved3.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -440,6 +495,21 @@ impl Dbf_HeaderDbase3 {
         self._io.borrow()
     }
 }
+impl Dbf_HeaderDbase3 {
+    pub fn reserved1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved1_raw.borrow()
+    }
+}
+impl Dbf_HeaderDbase3 {
+    pub fn reserved2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved2_raw.borrow()
+    }
+}
+impl Dbf_HeaderDbase3 {
+    pub fn reserved3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved3_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Dbf_HeaderDbase7 {
@@ -456,11 +526,15 @@ pub struct Dbf_HeaderDbase7 {
     language_driver_name: RefCell<Vec<u8>>,
     reserved4: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    reserved2_raw: RefCell<Vec<u8>>,
+    language_driver_name_raw: RefCell<Vec<u8>>,
+    reserved4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dbf_HeaderDbase7 {
     type Root = Dbf;
     type Parent = Dbf_Header2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -487,6 +561,7 @@ impl KStruct for Dbf_HeaderDbase7 {
         }
         *self_rc.language_driver_name.borrow_mut() = _io.read_bytes(32_usize)?;
         *self_rc.reserved4.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -542,6 +617,21 @@ impl Dbf_HeaderDbase7 {
         self._io.borrow()
     }
 }
+impl Dbf_HeaderDbase7 {
+    pub fn reserved2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved2_raw.borrow()
+    }
+}
+impl Dbf_HeaderDbase7 {
+    pub fn language_driver_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.language_driver_name_raw.borrow()
+    }
+}
+impl Dbf_HeaderDbase7 {
+    pub fn reserved4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved4_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Dbf_Record {
@@ -551,11 +641,13 @@ pub struct Dbf_Record {
     deleted: RefCell<Dbf_DeleteState>,
     record_fields: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    record_fields_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dbf_Record {
     type Root = Dbf;
     type Parent = Dbf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -571,8 +663,9 @@ impl KStruct for Dbf_Record {
         *self_rc.record_fields.borrow_mut() = Vec::new();
         let l_record_fields = usize::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().len())?;
         for _i in 0_usize..l_record_fields {
-            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(_i).ok_or(KError::CastError)?.length()))?);
+            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from((i64::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(_i).ok_or(KError::CastError)?.len())?)))?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -591,5 +684,10 @@ impl Dbf_Record {
 impl Dbf_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Dbf_Record {
+    pub fn record_fields_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.record_fields_raw.borrow()
     }
 }

@@ -32,6 +32,7 @@ impl KStruct for WindowsShellItems {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -52,9 +53,10 @@ impl KStruct for WindowsShellItems {
                 let _t_items = self_rc.items.borrow();
                 let Some(_tmpa) = _t_items.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.len_data() == 0 { break; }
+                if ((to_i128(*_tmpa.len_data())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -98,6 +100,7 @@ impl KStruct for WindowsShellItems_FileEntryBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,10 +116,12 @@ impl KStruct for WindowsShellItems_FileEntryBody {
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.last_mod_time.borrow_mut() = _io.read_u4le()?;
         *self_rc.file_attrs.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl WindowsShellItems_FileEntryBody {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_dir(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -128,6 +133,7 @@ impl WindowsShellItems_FileEntryBody {
         *self.is_dir.borrow_mut() = (((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.code())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_file(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -178,11 +184,13 @@ pub struct WindowsShellItems_RootFolderBody {
     sort_index: RefCell<u8>,
     shell_folder_id: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    shell_folder_id_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for WindowsShellItems_RootFolderBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -196,6 +204,7 @@ impl KStruct for WindowsShellItems_RootFolderBody {
         let _io = io;
         *self_rc.sort_index.borrow_mut() = _io.read_u1()?;
         *self_rc.shell_folder_id.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -216,6 +225,11 @@ impl WindowsShellItems_RootFolderBody {
         self._io.borrow()
     }
 }
+impl WindowsShellItems_RootFolderBody {
+    pub fn shell_folder_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.shell_folder_id_raw.borrow()
+    }
+}
 
 /**
  * \sa https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-SHLLINK/[MS-SHLLINK].pdf Section 2.2.2
@@ -229,11 +243,13 @@ pub struct WindowsShellItems_ShellItem {
     len_data: RefCell<u16>,
     data: RefCell<OptRc<WindowsShellItems_ShellItemData>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for WindowsShellItems_ShellItem {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -246,10 +262,14 @@ impl KStruct for WindowsShellItems_ShellItem {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_data.borrow_mut() = _io.read_u2le()?;
-        if *self_rc.len_data() >= 2 {
-            let t = Self::read_into::<_, WindowsShellItems_ShellItemData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        if ((to_i128(*self_rc.len_data())) >= (to_i128(2))) {
+            let _raw_data = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_data())).saturating_sub(2_i32))?)?;
+            *self_rc.data_raw.borrow_mut() = _raw_data.clone();
+            let _io_data = BytesReader::from(_raw_data);
+            let t = Self::read_into::<BytesReader, WindowsShellItems_ShellItemData>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.data.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -270,6 +290,11 @@ impl WindowsShellItems_ShellItem {
         self._io.borrow()
     }
 }
+impl WindowsShellItems_ShellItem {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct WindowsShellItems_ShellItemData {
@@ -280,8 +305,6 @@ pub struct WindowsShellItems_ShellItemData {
     body1: RefCell<Option<WindowsShellItems_ShellItemData_Body1>>,
     body2: RefCell<Option<WindowsShellItems_ShellItemData_Body2>>,
     _io: RefCell<BytesReader>,
-    body1_raw: RefCell<Vec<u8>>,
-    body2_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum WindowsShellItems_ShellItemData_Body1 {
@@ -291,6 +314,15 @@ impl From<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_Ro
     fn from(v: &WindowsShellItems_ShellItemData_Body1) -> Self {
         let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v;
         x.clone()
+    }
+}
+impl TryFrom<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body1) -> Result<Self, Self::Error> {
+        if let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<WindowsShellItems_RootFolderBody>> for WindowsShellItems_ShellItemData_Body1 {
@@ -303,13 +335,13 @@ pub enum WindowsShellItems_ShellItemData_Body2 {
     WindowsShellItems_VolumeBody(OptRc<WindowsShellItems_VolumeBody>),
     WindowsShellItems_FileEntryBody(OptRc<WindowsShellItems_FileEntryBody>),
 }
-impl From<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_VolumeBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &WindowsShellItems_ShellItemData_Body2) -> Self {
+impl TryFrom<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_VolumeBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_VolumeBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected WindowsShellItems_ShellItemData_Body2::WindowsShellItems_VolumeBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<WindowsShellItems_VolumeBody>> for WindowsShellItems_ShellItemData_Body2 {
@@ -317,13 +349,13 @@ impl From<OptRc<WindowsShellItems_VolumeBody>> for WindowsShellItems_ShellItemDa
         Self::WindowsShellItems_VolumeBody(v)
     }
 }
-impl From<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_FileEntryBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &WindowsShellItems_ShellItemData_Body2) -> Self {
+impl TryFrom<&WindowsShellItems_ShellItemData_Body2> for OptRc<WindowsShellItems_FileEntryBody> {
+    type Error = KError;
+    fn try_from(v: &WindowsShellItems_ShellItemData_Body2) -> Result<Self, Self::Error> {
         if let WindowsShellItems_ShellItemData_Body2::WindowsShellItems_FileEntryBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected WindowsShellItems_ShellItemData_Body2::WindowsShellItems_FileEntryBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<WindowsShellItems_FileEntryBody>> for WindowsShellItems_ShellItemData_Body2 {
@@ -335,6 +367,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItem;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -349,31 +382,23 @@ impl KStruct for WindowsShellItems_ShellItemData {
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         match *self_rc.code() {
             31 => {
-                *self_rc.body1_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body1_raw = self_rc.body1_raw.borrow();
-                let _t_body1_raw_io = BytesReader::from(body1_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsShellItems_RootFolderBody>(&_t_body1_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, WindowsShellItems_RootFolderBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body1.borrow_mut() = Some(t);
             }
             _ => {}
         }
         match ((i32::from(*self_rc.code())) & (112_i32)) {
             32 => {
-                *self_rc.body2_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body2_raw = self_rc.body2_raw.borrow();
-                let _t_body2_raw_io = BytesReader::from(body2_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsShellItems_VolumeBody>(&_t_body2_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, WindowsShellItems_VolumeBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body2.borrow_mut() = Some(t);
             }
             48 => {
-                *self_rc.body2_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body2_raw = self_rc.body2_raw.borrow();
-                let _t_body2_raw_io = BytesReader::from(body2_raw.clone());
-                let t = Self::read_into::<BytesReader, WindowsShellItems_FileEntryBody>(&_t_body2_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, WindowsShellItems_FileEntryBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body2.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -399,16 +424,6 @@ impl WindowsShellItems_ShellItemData {
         self._io.borrow()
     }
 }
-impl WindowsShellItems_ShellItemData {
-    pub fn body1_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body1_raw.borrow()
-    }
-}
-impl WindowsShellItems_ShellItemData {
-    pub fn body2_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body2_raw.borrow()
-    }
-}
 
 /**
  * \sa <https://github.com/libyal/libfwsi/blob/main/documentation/Windows%20Shell%20Item%20format.asciidoc#33-volume-shell-item> Source
@@ -426,6 +441,7 @@ impl KStruct for WindowsShellItems_VolumeBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -438,6 +454,7 @@ impl KStruct for WindowsShellItems_VolumeBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

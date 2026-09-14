@@ -26,6 +26,8 @@ pub struct EthernetFrame {
     ether_type_2: RefCell<EthernetFrame_EtherTypeEnum>,
     body: RefCell<Option<EthernetFrame_Body>>,
     _io: RefCell<BytesReader>,
+    dst_mac_raw: RefCell<Vec<u8>>,
+    src_mac_raw: RefCell<Vec<u8>>,
     body_raw: RefCell<Vec<u8>>,
     f_ether_type: Cell<bool>,
     ether_type: RefCell<EthernetFrame_EtherTypeEnum>,
@@ -36,13 +38,13 @@ pub enum EthernetFrame_Body {
     Ipv6Packet(OptRc<Ipv6Packet>),
     Bytes(Vec<u8>),
 }
-impl From<&EthernetFrame_Body> for OptRc<Ipv4Packet> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &EthernetFrame_Body) -> Self {
+impl TryFrom<&EthernetFrame_Body> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &EthernetFrame_Body) -> Result<Self, Self::Error> {
         if let EthernetFrame_Body::Ipv4Packet(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected EthernetFrame_Body::Ipv4Packet, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Ipv4Packet>> for EthernetFrame_Body {
@@ -50,13 +52,13 @@ impl From<OptRc<Ipv4Packet>> for EthernetFrame_Body {
         Self::Ipv4Packet(v)
     }
 }
-impl From<&EthernetFrame_Body> for OptRc<Ipv6Packet> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &EthernetFrame_Body) -> Self {
+impl TryFrom<&EthernetFrame_Body> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &EthernetFrame_Body) -> Result<Self, Self::Error> {
         if let EthernetFrame_Body::Ipv6Packet(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected EthernetFrame_Body::Ipv6Packet, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Ipv6Packet>> for EthernetFrame_Body {
@@ -64,13 +66,13 @@ impl From<OptRc<Ipv6Packet>> for EthernetFrame_Body {
         Self::Ipv6Packet(v)
     }
 }
-impl From<&EthernetFrame_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &EthernetFrame_Body) -> Self {
+impl TryFrom<&EthernetFrame_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &EthernetFrame_Body) -> Result<Self, Self::Error> {
         if let EthernetFrame_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected EthernetFrame_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for EthernetFrame_Body {
@@ -82,6 +84,7 @@ impl KStruct for EthernetFrame {
     type Root = EthernetFrame;
     type Parent = EthernetFrame;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -122,6 +125,7 @@ impl KStruct for EthernetFrame {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -133,6 +137,7 @@ impl EthernetFrame {
      * real ether frame yet, an additional payload (`tci`) is expected
      * and real ether type is upcoming next.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ether_type(
         &self
     ) -> KResult<Ref<'_, EthernetFrame_EtherTypeEnum>> {
@@ -193,11 +198,21 @@ impl EthernetFrame {
     }
 }
 impl EthernetFrame {
+    pub fn dst_mac_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dst_mac_raw.borrow()
+    }
+}
+impl EthernetFrame {
+    pub fn src_mac_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.src_mac_raw.borrow()
+    }
+}
+impl EthernetFrame {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
         self.body_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EthernetFrame_EtherTypeEnum {
     Ipv4,
     X75Internet,
@@ -270,6 +285,7 @@ impl KStruct for EthernetFrame_TagControlInfo {
     type Root = EthernetFrame;
     type Parent = EthernetFrame;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -284,6 +300,7 @@ impl KStruct for EthernetFrame_TagControlInfo {
         *self_rc.priority.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc.drop_eligible.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.vlan_id.borrow_mut() = _io.read_bits_int_be(12)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

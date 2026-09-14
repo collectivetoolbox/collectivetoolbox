@@ -64,35 +64,47 @@ impl From<u64> for Bcd_Digits {
         Self::Variant(v)
     }
 }
-impl From<&Bcd_Digits> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bcd_Digits) -> Self {
-        if let Bcd_Digits::Variant(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Bcd_Digits::Variant to u64, enum value {:?}", e)
-    }
-}
 impl From<u8> for Bcd_Digits {
     fn from(v: u8) -> Self {
         Self::U1(v)
     }
 }
-impl From<&Bcd_Digits> for u8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bcd_Digits) -> Self {
-        if let Bcd_Digits::U1(v) = e {
-            return *v;
+impl TryFrom<&Bcd_Digits> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bcd_Digits) -> Result<Self, Self::Error> {
+        match e {
+            Bcd_Digits::Variant(v) => Ok(i64::try_from(*v)?),
+            Bcd_Digits::U1(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Bcd_Digits::U1 to u8, enum value {:?}", e)
     }
 }
-impl From<&Bcd_Digits> for usize {
-    fn from(e: &Bcd_Digits) -> Self {
+impl TryFrom<&Bcd_Digits> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bcd_Digits) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bcd_Digits::Variant(v) => usize::try_from(*v).unwrap_or(0),
-            Bcd_Digits::U1(v) => usize::from(*v),
+            Bcd_Digits::Variant(v) => Ok(u64::try_from(*v)?),
+            Bcd_Digits::U1(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bcd_Digits> for u8 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bcd_Digits) -> Result<Self, Self::Error> {
+        match e {
+            Bcd_Digits::Variant(v) => Ok(u8::try_from(*v)?),
+            Bcd_Digits::U1(v) => Ok(u8::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bcd_Digits> for usize {
+    type Error = KError;
+    fn try_from(e: &Bcd_Digits) -> Result<Self, Self::Error> {
+        match e {
+            Bcd_Digits::Variant(v) => Ok(usize::try_from(*v)?),
+            Bcd_Digits::U1(v) => Ok(usize::from(*v)),
         }
     }
 }
@@ -101,6 +113,7 @@ impl KStruct for Bcd {
     type Root = Bcd;
     type Parent = Bcd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,6 +138,7 @@ impl KStruct for Bcd {
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -155,6 +169,7 @@ impl Bcd {
     /**
      * Value of this BCD number as integer. Endianness would be selected based on `is_le` parameter given.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn as_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -170,6 +185,7 @@ impl Bcd {
     /**
      * Value of this BCD number as integer (treating digit order as big-endian).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn as_int_be(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -178,13 +194,14 @@ impl Bcd {
             return Ok(self.as_int_be.borrow());
         }
         self.f_as_int_be.set(true);
-        *self.as_int_be.borrow_mut() = ((usize::from(self.digits().get(usize::try_from(*self.last_idx()?)?).ok_or(KError::CastError)?)).saturating_add(if *self.num_digits() < 2 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(1_i32))?).ok_or(KError::CastError)?)).saturating_mul(10_usize)).saturating_add(if *self.num_digits() < 3 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(2_i32))?).ok_or(KError::CastError)?)).saturating_mul(100_usize)).saturating_add(if *self.num_digits() < 4 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(3_i32))?).ok_or(KError::CastError)?)).saturating_mul(1000_usize)).saturating_add(if *self.num_digits() < 5 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(4_i32))?).ok_or(KError::CastError)?)).saturating_mul(10000_usize)).saturating_add(if *self.num_digits() < 6 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(5_i32))?).ok_or(KError::CastError)?)).saturating_mul(100000_usize)).saturating_add(if *self.num_digits() < 7 { 0_usize } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(6_i32))?).ok_or(KError::CastError)?)).saturating_mul(1000000_usize)).saturating_add(if *self.num_digits() < 8 { 0_usize } else { (usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(7_i32))?).ok_or(KError::CastError)?)).saturating_mul(10000000_usize) }) }) }) }) }) }) })).try_into()?;
+        *self.as_int_be.borrow_mut() = ((usize::from(self.digits().get(usize::try_from(*self.last_idx()?)?).ok_or(KError::CastError)?)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(2))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(1_i32))?).ok_or(KError::CastError)?)).saturating_mul(10_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(3))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(2_i32))?).ok_or(KError::CastError)?)).saturating_mul(100_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(4))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(3_i32))?).ok_or(KError::CastError)?)).saturating_mul(1000_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(5))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(4_i32))?).ok_or(KError::CastError)?)).saturating_mul(10000_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(6))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(5_i32))?).ok_or(KError::CastError)?)).saturating_mul(100000_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(7))) { 0_u64 } else { ((usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(6_i32))?).ok_or(KError::CastError)?)).saturating_mul(1000000_usize)).saturating_add(if ((to_i128(*self.num_digits())) < (to_i128(8))) { 0_u64 } else { (usize::from(self.digits().get(usize::try_from((*self.last_idx()?).saturating_sub(7_i32))?).ok_or(KError::CastError)?)).saturating_mul(10000000_usize) }) }) }) }) }) }) })?)).try_into()?;
         Ok(self.as_int_be.borrow())
     }
 
     /**
      * Value of this BCD number as integer (treating digit order as little-endian).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn as_int_le(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -193,13 +210,14 @@ impl Bcd {
             return Ok(self.as_int_le.borrow());
         }
         self.f_as_int_le.set(true);
-        *self.as_int_le.borrow_mut() = ((usize::from(self.digits().get(0_usize).ok_or(KError::CastError)?)).saturating_add(if *self.num_digits() < 2 { 0_usize } else { ((usize::from(self.digits().get(1_usize).ok_or(KError::CastError)?)).saturating_mul(10_usize)).saturating_add(if *self.num_digits() < 3 { 0_usize } else { ((usize::from(self.digits().get(2_usize).ok_or(KError::CastError)?)).saturating_mul(100_usize)).saturating_add(if *self.num_digits() < 4 { 0_usize } else { ((usize::from(self.digits().get(3_usize).ok_or(KError::CastError)?)).saturating_mul(1000_usize)).saturating_add(if *self.num_digits() < 5 { 0_usize } else { ((usize::from(self.digits().get(4_usize).ok_or(KError::CastError)?)).saturating_mul(10000_usize)).saturating_add(if *self.num_digits() < 6 { 0_usize } else { ((usize::from(self.digits().get(5_usize).ok_or(KError::CastError)?)).saturating_mul(100000_usize)).saturating_add(if *self.num_digits() < 7 { 0_usize } else { ((usize::from(self.digits().get(6_usize).ok_or(KError::CastError)?)).saturating_mul(1000000_usize)).saturating_add(if *self.num_digits() < 8 { 0_usize } else { (usize::from(self.digits().get(7_usize).ok_or(KError::CastError)?)).saturating_mul(10000000_usize) }) }) }) }) }) }) })).try_into()?;
+        *self.as_int_le.borrow_mut() = ((usize::from(self.digits().get(0_usize).ok_or(KError::CastError)?)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(2))) { 0_u64 } else { ((usize::from(self.digits().get(1_usize).ok_or(KError::CastError)?)).saturating_mul(10_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(3))) { 0_u64 } else { ((usize::from(self.digits().get(2_usize).ok_or(KError::CastError)?)).saturating_mul(100_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(4))) { 0_u64 } else { ((usize::from(self.digits().get(3_usize).ok_or(KError::CastError)?)).saturating_mul(1000_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(5))) { 0_u64 } else { ((usize::from(self.digits().get(4_usize).ok_or(KError::CastError)?)).saturating_mul(10000_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(6))) { 0_u64 } else { ((usize::from(self.digits().get(5_usize).ok_or(KError::CastError)?)).saturating_mul(100000_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(7))) { 0_u64 } else { ((usize::from(self.digits().get(6_usize).ok_or(KError::CastError)?)).saturating_mul(1000000_usize)).saturating_add(usize::try_from(if ((to_i128(*self.num_digits())) < (to_i128(8))) { 0_u64 } else { u64::try_from((usize::from(self.digits().get(7_usize).ok_or(KError::CastError)?)).saturating_mul(10000000_usize))? })?) })?) })?) })?) })?) })?) })?)).try_into()?;
         Ok(self.as_int_le.borrow())
     }
 
     /**
      * Index of last digit (0-based).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn last_idx(
         &self
     ) -> KResult<Ref<'_, i32>> {

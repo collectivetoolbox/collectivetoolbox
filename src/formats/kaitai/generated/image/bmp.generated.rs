@@ -88,11 +88,14 @@ pub struct Bmp {
     dib_info: RefCell<OptRc<Bmp_BitmapInfo>>,
     bitmap: RefCell<OptRc<Bmp_Bitmap>>,
     _io: RefCell<BytesReader>,
+    dib_info_raw: RefCell<Vec<u8>>,
+    bitmap_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Bmp {
     type Root = Bmp;
     type Parent = Bmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -106,10 +109,17 @@ impl KStruct for Bmp {
         let _io = io;
         let t = Self::read_into::<_, Bmp_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.file_hdr.borrow_mut() = t;
-        let t = Self::read_into::<_, Bmp_BitmapInfo>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_dib_info = _io.read_bytes(usize::try_from((*self_rc.file_hdr().ofs_bitmap()).saturating_sub(14_i32))?)?;
+        *self_rc.dib_info_raw.borrow_mut() = _raw_dib_info.clone();
+        let _io_dib_info = BytesReader::from(_raw_dib_info);
+        let t = Self::read_into::<BytesReader, Bmp_BitmapInfo>(&_io_dib_info, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.dib_info.borrow_mut() = t;
-        let t = Self::read_into::<_, Bmp_Bitmap>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_bitmap = _io.read_bytes_full()?;
+        *self_rc.bitmap_raw.borrow_mut() = _raw_bitmap.clone();
+        let _io_bitmap = BytesReader::from(_raw_bitmap);
+        let t = Self::read_into::<BytesReader, Bmp_Bitmap>(&_io_bitmap, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bitmap.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -135,7 +145,17 @@ impl Bmp {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Bmp {
+    pub fn dib_info_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dib_info_raw.borrow()
+    }
+}
+impl Bmp {
+    pub fn bitmap_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bitmap_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_ColorSpace {
 
     /**
@@ -201,7 +221,7 @@ impl Default for Bmp_ColorSpace {
     fn default() -> Self { Bmp_ColorSpace::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_Compressions {
 
     /**
@@ -274,7 +294,7 @@ impl Default for Bmp_Compressions {
     fn default() -> Self { Bmp_Compressions::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_HeaderType {
     BitmapCoreHeader,
     BitmapInfoHeader,
@@ -321,7 +341,7 @@ impl Default for Bmp_HeaderType {
     fn default() -> Self { Bmp_HeaderType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_Intent {
 
     /**
@@ -375,7 +395,7 @@ impl Default for Bmp_Intent {
     fn default() -> Self { Bmp_Intent::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_Os2Compressions {
     Rgb,
     Rle8,
@@ -424,7 +444,7 @@ impl Default for Bmp_Os2Compressions {
     fn default() -> Self { Bmp_Os2Compressions::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Bmp_Os2Rendering {
     NoHalftoning,
     ErrorDiffusion,
@@ -487,6 +507,7 @@ impl KStruct for Bmp_Bitmap {
     type Root = Bmp;
     type Parent = Bmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -498,6 +519,7 @@ impl KStruct for Bmp_Bitmap {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -559,35 +581,57 @@ impl From<u32> for Bmp_BitmapHeader_ImageWidth {
         Self::U4(v)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageWidth> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bmp_BitmapHeader_ImageWidth) -> Self {
-        if let Bmp_BitmapHeader_ImageWidth::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Bmp_BitmapHeader_ImageWidth::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u16> for Bmp_BitmapHeader_ImageWidth {
     fn from(v: u16) -> Self {
         Self::U2(v)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageWidth> for u16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bmp_BitmapHeader_ImageWidth) -> Self {
-        if let Bmp_BitmapHeader_ImageWidth::U2(v) = e {
-            return *v;
+impl TryFrom<&Bmp_BitmapHeader_ImageWidth> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageWidth) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageWidth::U4(v) => Ok(i64::try_from(*v)?),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Bmp_BitmapHeader_ImageWidth::U2 to u16, enum value {:?}", e)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageWidth> for usize {
-    fn from(e: &Bmp_BitmapHeader_ImageWidth) -> Self {
+impl TryFrom<&Bmp_BitmapHeader_ImageWidth> for u16 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageWidth) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bmp_BitmapHeader_ImageWidth::U4(v) => usize::try_from(*v).unwrap_or(0),
-            Bmp_BitmapHeader_ImageWidth::U2(v) => usize::from(*v),
+            Bmp_BitmapHeader_ImageWidth::U4(v) => Ok(u16::try_from(*v)?),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageWidth> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageWidth) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageWidth::U4(v) => Ok(u32::try_from(*v)?),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageWidth> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageWidth) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageWidth::U4(v) => Ok(u64::try_from(*v)?),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageWidth> for usize {
+    type Error = KError;
+    fn try_from(e: &Bmp_BitmapHeader_ImageWidth) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageWidth::U4(v) => Ok(usize::try_from(*v)?),
+            Bmp_BitmapHeader_ImageWidth::U2(v) => Ok(usize::from(*v)),
         }
     }
 }
@@ -602,36 +646,57 @@ impl From<i32> for Bmp_BitmapHeader_ImageHeightRaw {
         Self::S4(v)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageHeightRaw> for i32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Self {
-        if let Bmp_BitmapHeader_ImageHeightRaw::S4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Bmp_BitmapHeader_ImageHeightRaw::S4 to i32, enum value {:?}", e)
-    }
-}
 impl From<i16> for Bmp_BitmapHeader_ImageHeightRaw {
     fn from(v: i16) -> Self {
         Self::S2(v)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageHeightRaw> for i16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Self {
-        if let Bmp_BitmapHeader_ImageHeightRaw::S2(v) = e {
-            return *v;
+impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for i16 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => Ok(i16::try_from(*v)?),
+            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => Ok(i16::try_from(*v)?),
         }
-        panic!("trying to convert from enum Bmp_BitmapHeader_ImageHeightRaw::S2 to i16, enum value {:?}", e)
     }
 }
-impl From<&Bmp_BitmapHeader_ImageHeightRaw> for usize {
-    fn from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Self {
+impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for i32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => usize::try_from(*v).unwrap_or(0),
+            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => Ok(i32::try_from(*v)?),
+            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => Ok(i32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => Ok(i64::try_from(*v)?),
+            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => Ok(u64::try_from(*v)?),
+            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Bmp_BitmapHeader_ImageHeightRaw> for usize {
+    type Error = KError;
+    fn try_from(e: &Bmp_BitmapHeader_ImageHeightRaw) -> Result<Self, Self::Error> {
+        match e {
+            Bmp_BitmapHeader_ImageHeightRaw::S4(v) => Ok(usize::try_from(*v)?),
+            Bmp_BitmapHeader_ImageHeightRaw::S2(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -640,6 +705,7 @@ impl KStruct for Bmp_BitmapHeader {
     type Root = Bmp;
     type Parent = Bmp_BitmapInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -690,6 +756,7 @@ impl KStruct for Bmp_BitmapHeader {
             let t = Self::read_into::<_, Bmp_BitmapV5Extension>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.bitmap_v5_ext.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -704,6 +771,7 @@ impl Bmp_BitmapHeader {
     }
 }
 impl Bmp_BitmapHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bottom_up(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -712,9 +780,10 @@ impl Bmp_BitmapHeader {
             return Ok(self.bottom_up.borrow());
         }
         self.f_bottom_up.set(true);
-        *self.bottom_up.borrow_mut() = (self.image_height_raw() > 0).try_into()?;
+        *self.bottom_up.borrow_mut() = (((to_i128(self.image_height_raw())) > (to_i128(0)))).try_into()?;
         Ok(self.bottom_up.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn extends_bitmap_info(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -726,6 +795,7 @@ impl Bmp_BitmapHeader {
         *self.extends_bitmap_info.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapInfoHeader))))).try_into()?;
         Ok(self.extends_bitmap_info.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn extends_bitmap_v4(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -737,6 +807,7 @@ impl Bmp_BitmapHeader {
         *self.extends_bitmap_v4.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapV4Header))))).try_into()?;
         Ok(self.extends_bitmap_v4.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn extends_bitmap_v5(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -748,6 +819,7 @@ impl Bmp_BitmapHeader {
         *self.extends_bitmap_v5.borrow_mut() = (((to_i128(*self.len_header())) >= (to_i128(i64::from(&Bmp_HeaderType::BitmapV5Header))))).try_into()?;
         Ok(self.extends_bitmap_v5.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn extends_os2_2x_bitmap(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -759,6 +831,7 @@ impl Bmp_BitmapHeader {
         *self.extends_os2_2x_bitmap.borrow_mut() = (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::Os22xBitmapHeader))))).try_into()?;
         Ok(self.extends_os2_2x_bitmap.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn image_height(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -767,9 +840,10 @@ impl Bmp_BitmapHeader {
             return Ok(self.image_height.borrow());
         }
         self.f_image_height.set(true);
-        *self.image_height.borrow_mut() = (if self.image_height_raw() < 0 { (0_i32).saturating_sub(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
+        *self.image_height.borrow_mut() = (if ((to_i128(self.image_height_raw())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(self.image_height_raw())) } else { self.image_height_raw() }).try_into()?;
         Ok(self.image_height.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_color_mask_here(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -781,6 +855,7 @@ impl Bmp_BitmapHeader {
         *self.is_color_mask_here.borrow_mut() = ( ((((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapV2InfoHeader))))) || (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapV3InfoHeader))))) || (*self.extends_bitmap_v4()?)) ).try_into()?;
         Ok(self.is_color_mask_here.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_core_header(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -792,6 +867,7 @@ impl Bmp_BitmapHeader {
         *self.is_core_header.borrow_mut() = (((to_i128(*self.len_header())) == (to_i128(i64::from(&Bmp_HeaderType::BitmapCoreHeader))))).try_into()?;
         Ok(self.is_core_header.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn uses_fixed_palette(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -800,7 +876,7 @@ impl Bmp_BitmapHeader {
             return Ok(self.uses_fixed_palette.borrow());
         }
         self.f_uses_fixed_palette.set(true);
-        *self.uses_fixed_palette.borrow_mut() = ( ((!( ((*self.bits_per_pixel() == 16) || (*self.bits_per_pixel() == 24) || (*self.bits_per_pixel() == 32)) )) && (!( ((*self.extends_bitmap_info()?) && (!(*self.extends_os2_2x_bitmap()?)) && ( ((*self.bitmap_info_ext().compression() == Bmp_Compressions::Jpeg) || (*self.bitmap_info_ext().compression() == Bmp_Compressions::Png)) )) ))) ).try_into()?;
+        *self.uses_fixed_palette.borrow_mut() = ( ((!( ((((to_i128(*self.bits_per_pixel())) == (to_i128(16)))) || (((to_i128(*self.bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.bits_per_pixel())) == (to_i128(32))))) )) && (!( ((*self.extends_bitmap_info()?) && (!(*self.extends_os2_2x_bitmap()?)) && ( ((*self.bitmap_info_ext().compression() == Bmp_Compressions::Jpeg) || (*self.bitmap_info_ext().compression() == Bmp_Compressions::Png)) )) ))) ).try_into()?;
         Ok(self.uses_fixed_palette.borrow())
     }
 }
@@ -811,7 +887,7 @@ impl Bmp_BitmapHeader {
 impl Bmp_BitmapHeader {
     pub fn image_width(&self) -> u32 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.image_width.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.image_width.borrow().as_ref().and_then(|v| u32::try_from(v).ok()).unwrap_or(0)
     }
     pub fn image_width_enum(&self) -> Ref<'_, Option<Bmp_BitmapHeader_ImageWidth>> {
         self.image_width.borrow()
@@ -824,7 +900,7 @@ impl Bmp_BitmapHeader {
 impl Bmp_BitmapHeader {
     pub fn image_height_raw(&self) -> i32 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.image_height_raw.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.image_height_raw.borrow().as_ref().and_then(|v| i32::try_from(v).ok()).unwrap_or(0)
     }
     pub fn image_height_raw_enum(&self) -> Ref<'_, Option<Bmp_BitmapHeader_ImageHeightRaw>> {
         self.image_height_raw.borrow()
@@ -893,6 +969,8 @@ pub struct Bmp_BitmapInfo {
     color_mask: RefCell<OptRc<Bmp_ColorMask>>,
     color_table: RefCell<OptRc<Bmp_ColorTable>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
+    color_table_raw: RefCell<Vec<u8>>,
     f_color_mask_alpha: Cell<bool>,
     color_mask_alpha: RefCell<i32>,
     f_color_mask_blue: Cell<bool>,
@@ -912,6 +990,7 @@ impl KStruct for Bmp_BitmapInfo {
     type Root = Bmp;
     type Parent = Bmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -924,8 +1003,11 @@ impl KStruct for Bmp_BitmapInfo {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4le()?;
+        let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(u32::try_from(4_i32)?))?)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
         let f = |t : &mut Bmp_BitmapHeader| Ok(t.set_params((*self_rc.len_header()).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, Bmp_BitmapHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let t = Self::read_into_with_init::<BytesReader, Bmp_BitmapHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.header.borrow_mut() = t;
         if *self_rc.is_color_mask_here()? {
             let f = |t : &mut Bmp_ColorMask| Ok(t.set_params(*self_rc.header().bitmap_info_ext().compression() == Bmp_Compressions::AlphaBitfields));
@@ -933,14 +1015,19 @@ impl KStruct for Bmp_BitmapInfo {
             *self_rc.color_mask.borrow_mut() = t;
         }
         if !(_io.is_eof()) {
+            let _raw_color_table = _io.read_bytes_full()?;
+            *self_rc.color_table_raw.borrow_mut() = _raw_color_table.clone();
+            let _io_color_table = BytesReader::from(_raw_color_table);
             let f = |t : &mut Bmp_ColorTable| Ok(t.set_params(!(*self_rc.header().is_core_header()?), (if *self_rc.header().extends_bitmap_info()? { *self_rc.header().bitmap_info_ext().num_colors_used() } else { 0_u32 }).try_into().map_err(|_| KError::CastError)?));
-            let t = Self::read_into_with_init::<_, Bmp_ColorTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+            let t = Self::read_into_with_init::<BytesReader, Bmp_ColorTable>(&_io_color_table, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             *self_rc.color_table.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Bmp_BitmapInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn color_mask_alpha(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -952,6 +1039,7 @@ impl Bmp_BitmapInfo {
         *self.color_mask_alpha.borrow_mut() = (if  ((*self.is_color_mask_given()?) && (*self.color_mask_given()?.has_alpha_mask()))  { *self.color_mask_given()?.alpha_mask() } else { 0_u32 }).try_into()?;
         Ok(self.color_mask_alpha.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn color_mask_blue(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -960,9 +1048,10 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_blue.borrow());
         }
         self.f_color_mask_blue.set(true);
-        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.blue_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 31_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 255_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_blue.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.blue_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 31_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 255_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_blue.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn color_mask_given(
         &self
     ) -> KResult<Ref<'_, OptRc<Bmp_ColorMask>>> {
@@ -975,6 +1064,7 @@ impl Bmp_BitmapInfo {
         }
         Ok(self.color_mask_given.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn color_mask_green(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -983,9 +1073,10 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_green.borrow());
         }
         self.f_color_mask_green.set(true);
-        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.green_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 992_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 65280_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_green.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.green_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 992_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 65280_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_green.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn color_mask_red(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -994,9 +1085,10 @@ impl Bmp_BitmapInfo {
             return Ok(self.color_mask_red.borrow());
         }
         self.f_color_mask_red.set(true);
-        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.red_mask() } else { u32::try_from(if *self.header().bits_per_pixel() == 16 { 31744_i32 } else { if  ((*self.header().bits_per_pixel() == 24) || (*self.header().bits_per_pixel() == 32))  { 16711680_i32 } else { 0_i32 } })? }).try_into()?;
+        *self.color_mask_red.borrow_mut() = (if *self.is_color_mask_given()? { *self.color_mask_given()?.red_mask() } else { u32::try_from(if ((to_i128(*self.header().bits_per_pixel())) == (to_i128(16))) { 31744_i32 } else { if  ((((to_i128(*self.header().bits_per_pixel())) == (to_i128(24)))) || (((to_i128(*self.header().bits_per_pixel())) == (to_i128(32)))))  { 16711680_i32 } else { 0_i32 } })? }).try_into()?;
         Ok(self.color_mask_red.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_color_mask_given(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1008,6 +1100,7 @@ impl Bmp_BitmapInfo {
         *self.is_color_mask_given.borrow_mut() = ( ((*self.header().extends_bitmap_info()?) && ( ((*self.header().bitmap_info_ext().compression() == Bmp_Compressions::Bitfields) || (*self.header().bitmap_info_ext().compression() == Bmp_Compressions::AlphaBitfields)) ) && ( ((*self.is_color_mask_here()?) || (*self.header().is_color_mask_here()?)) )) ).try_into()?;
         Ok(self.is_color_mask_given.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_color_mask_here(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1049,6 +1142,16 @@ impl Bmp_BitmapInfo {
         self._io.borrow()
     }
 }
+impl Bmp_BitmapInfo {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+impl Bmp_BitmapInfo {
+    pub fn color_table_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.color_table_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://learn.microsoft.com/en-us/previous-versions/dd183376(v=vs.85)> Source
@@ -1072,6 +1175,7 @@ impl KStruct for Bmp_BitmapInfoExtension {
     type Root = Bmp;
     type Parent = Bmp_BitmapHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1094,6 +1198,7 @@ impl KStruct for Bmp_BitmapInfoExtension {
         *self_rc.y_resolution.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_colors_used.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_colors_important.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1167,6 +1272,7 @@ impl KStruct for Bmp_BitmapV4Extension {
     type Root = Bmp;
     type Parent = Bmp_BitmapHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1191,6 +1297,7 @@ impl KStruct for Bmp_BitmapV4Extension {
         *self_rc.gamma_blue.borrow_mut() = t;
         let t = Self::read_into::<_, Bmp_FixedPoint16Dot16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.gamma_green.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1262,13 +1369,13 @@ pub enum Bmp_BitmapV5Extension_ProfileData {
     String(String),
     Bytes(Vec<u8>),
 }
-impl From<&Bmp_BitmapV5Extension_ProfileData> for String {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Bmp_BitmapV5Extension_ProfileData) -> Self {
+impl TryFrom<&Bmp_BitmapV5Extension_ProfileData> for String {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapV5Extension_ProfileData) -> Result<Self, Self::Error> {
         if let Bmp_BitmapV5Extension_ProfileData::String(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Bmp_BitmapV5Extension_ProfileData::String, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<String> for Bmp_BitmapV5Extension_ProfileData {
@@ -1276,13 +1383,13 @@ impl From<String> for Bmp_BitmapV5Extension_ProfileData {
         Self::String(v)
     }
 }
-impl From<&Bmp_BitmapV5Extension_ProfileData> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Bmp_BitmapV5Extension_ProfileData) -> Self {
+impl TryFrom<&Bmp_BitmapV5Extension_ProfileData> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Bmp_BitmapV5Extension_ProfileData) -> Result<Self, Self::Error> {
         if let Bmp_BitmapV5Extension_ProfileData::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Bmp_BitmapV5Extension_ProfileData::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Bmp_BitmapV5Extension_ProfileData {
@@ -1294,6 +1401,7 @@ impl KStruct for Bmp_BitmapV5Extension {
     type Root = Bmp;
     type Parent = Bmp_BitmapHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1309,10 +1417,12 @@ impl KStruct for Bmp_BitmapV5Extension {
         *self_rc.ofs_profile.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_profile.borrow_mut() = _io.read_u4le()?;
         *self_rc.reserved.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Bmp_BitmapV5Extension {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_profile(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1328,6 +1438,7 @@ impl Bmp_BitmapV5Extension {
     /**
      * \sa https://learn.microsoft.com/en-us/windows/win32/wcs/using-structures-in-wcs-1-0 "If the profile is embedded, profile data is the actual profile, and if it is linked, the profile data is the null-terminated file name of the profile. This cannot be a Unicode string. It must be composed exclusively of characters from the Windows character set (code page 1252)."
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn profile_data(
         &self
     ) -> KResult<Ref<'_, Option<Bmp_BitmapV5Extension_ProfileData>>> {
@@ -1339,7 +1450,7 @@ impl Bmp_BitmapV5Extension {
         if *self.has_profile()? {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
-            io.seek(usize::try_from((u32::try_from(0_i32)?).saturating_add(*self.ofs_profile()))?)?;
+            io.seek(usize::try_from((u32::try_from(14_i32)?).saturating_add(*self.ofs_profile()))?)?;
             match *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.bitmap_v4_ext().color_space_type() == Bmp_ColorSpace::ProfileLinked {
                 true => {
                     *self.profile_data_raw.borrow_mut() = io.read_bytes(usize::try_from(*self.len_profile())?)?.into();
@@ -1408,6 +1519,7 @@ impl KStruct for Bmp_CieXyz {
     type Root = Bmp;
     type Parent = Bmp_BitmapV4Extension;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1425,6 +1537,7 @@ impl KStruct for Bmp_CieXyz {
         *self_rc.y.borrow_mut() = t;
         let t = Self::read_into::<_, Bmp_FixedPoint2Dot30>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.z.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1467,6 +1580,7 @@ impl KStruct for Bmp_ColorMask {
     type Root = Bmp;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1484,6 +1598,7 @@ impl KStruct for Bmp_ColorMask {
         if *self_rc.has_alpha_mask() {
             *self_rc.alpha_mask.borrow_mut() = _io.read_u4le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1541,6 +1656,7 @@ impl KStruct for Bmp_ColorTable {
     type Root = Bmp;
     type Parent = Bmp_BitmapInfo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1553,12 +1669,13 @@ impl KStruct for Bmp_ColorTable {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.colors.borrow_mut() = Vec::new();
-        let l_colors = usize::try_from(if  ((*self_rc.num_colors() > 0) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? })?;
+        let l_colors = usize::try_from(if  ((((to_i128(*self_rc.num_colors())) > (to_i128(0)))) && (((to_i128(*self_rc.num_colors())) < (to_i128(*self_rc.num_colors_present()?)))))  { *self_rc.num_colors() } else { u32::try_from(*self_rc.num_colors_present()?)? })?;
         for _i in 0_usize..l_colors {
             let f = |t : &mut Bmp_RgbRecord| Ok(t.set_params(*self_rc.has_reserved_field()));
             let t = Self::read_into_with_init::<_, Bmp_RgbRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.colors.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1579,6 +1696,7 @@ impl Bmp_ColorTable {
     }
 }
 impl Bmp_ColorTable {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_colors_present(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1587,7 +1705,7 @@ impl Bmp_ColorTable {
             return Ok(self.num_colors_present.borrow());
         }
         self.f_num_colors_present.set(true);
-        *self.num_colors_present.borrow_mut() = ((_io.size()).checked_div(usize::try_from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 })?).ok_or(KError::CastError)?).try_into()?;
+        *self.num_colors_present.borrow_mut() = (div_floor(i64::from((i64::try_from(_io.size())?)), i64::from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }))?).try_into()?;
         Ok(self.num_colors_present.borrow())
     }
 }
@@ -1622,6 +1740,7 @@ impl KStruct for Bmp_FileHeader {
     type Root = Bmp;
     type Parent = Bmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1641,6 +1760,7 @@ impl KStruct for Bmp_FileHeader {
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
         *self_rc.reserved2.borrow_mut() = _io.read_u2le()?;
         *self_rc.ofs_bitmap.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1699,6 +1819,7 @@ impl KStruct for Bmp_FixedPoint16Dot16 {
     type Root = Bmp;
     type Parent = Bmp_BitmapV4Extension;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1711,10 +1832,12 @@ impl KStruct for Bmp_FixedPoint16Dot16 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Bmp_FixedPoint16Dot16 {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -1752,6 +1875,7 @@ impl KStruct for Bmp_FixedPoint2Dot30 {
     type Root = Bmp;
     type Parent = Bmp_CieXyz;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1764,10 +1888,12 @@ impl KStruct for Bmp_FixedPoint2Dot30 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Bmp_FixedPoint2Dot30 {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -1814,6 +1940,7 @@ impl KStruct for Bmp_Os22xBitmapExtension {
     type Root = Bmp;
     type Parent = Bmp_BitmapHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1833,6 +1960,7 @@ impl KStruct for Bmp_Os22xBitmapExtension {
         *self_rc.size2.borrow_mut() = _io.read_u4le()?;
         *self_rc.color_encoding.borrow_mut() = _io.read_u4le()?;
         *self_rc.identifier.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1933,6 +2061,7 @@ impl KStruct for Bmp_RgbRecord {
     type Root = Bmp;
     type Parent = Bmp_ColorTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1950,6 +2079,7 @@ impl KStruct for Bmp_RgbRecord {
         if *self_rc.has_reserved_field() {
             *self_rc.reserved.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

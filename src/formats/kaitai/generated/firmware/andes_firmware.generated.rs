@@ -18,11 +18,15 @@ pub struct AndesFirmware {
     ilm: RefCell<Vec<u8>>,
     dlm: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    image_header_raw: RefCell<Vec<u8>>,
+    ilm_raw: RefCell<Vec<u8>>,
+    dlm_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndesFirmware {
     type Root = AndesFirmware;
     type Parent = AndesFirmware;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -34,10 +38,14 @@ impl KStruct for AndesFirmware {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, AndesFirmware_ImageHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_image_header = _io.read_bytes(32_usize)?;
+        *self_rc.image_header_raw.borrow_mut() = _raw_image_header.clone();
+        let _io_image_header = BytesReader::from(_raw_image_header);
+        let t = Self::read_into::<BytesReader, AndesFirmware_ImageHeader>(&_io_image_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.image_header.borrow_mut() = t;
         *self_rc.ilm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().ilm_len())?)?;
         *self_rc.dlm.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.image_header().dlm_len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -63,6 +71,21 @@ impl AndesFirmware {
         self._io.borrow()
     }
 }
+impl AndesFirmware {
+    pub fn image_header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.image_header_raw.borrow()
+    }
+}
+impl AndesFirmware {
+    pub fn ilm_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ilm_raw.borrow()
+    }
+}
+impl AndesFirmware {
+    pub fn dlm_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dlm_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndesFirmware_ImageHeader {
@@ -76,11 +99,13 @@ pub struct AndesFirmware_ImageHeader {
     extra: RefCell<u32>,
     build_time: RefCell<String>,
     _io: RefCell<BytesReader>,
+    build_time_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndesFirmware_ImageHeader {
     type Root = AndesFirmware;
     type Parent = AndesFirmware;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -98,6 +123,7 @@ impl KStruct for AndesFirmware_ImageHeader {
         *self_rc.build_ver.borrow_mut() = _io.read_u2le()?;
         *self_rc.extra.borrow_mut() = _io.read_u4le()?;
         *self_rc.build_time.borrow_mut() = bytes_to_str(&_io.read_bytes(16_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -136,5 +162,10 @@ impl AndesFirmware_ImageHeader {
 impl AndesFirmware_ImageHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AndesFirmware_ImageHeader {
+    pub fn build_time_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.build_time_raw.borrow()
     }
 }

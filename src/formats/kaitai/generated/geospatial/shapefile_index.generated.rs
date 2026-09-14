@@ -18,6 +18,7 @@ impl KStruct for ShapefileIndex {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -40,6 +41,7 @@ impl KStruct for ShapefileIndex {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -64,7 +66,7 @@ impl ShapefileIndex {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShapefileIndex_ShapeType {
     NullShape,
     Point,
@@ -148,6 +150,7 @@ impl KStruct for ShapefileIndex_BoundingBoxXYZM {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_FileHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -167,6 +170,7 @@ impl KStruct for ShapefileIndex_BoundingBoxXYZM {
         *self_rc.z.borrow_mut() = t;
         let t = Self::read_into::<_, ShapefileIndex_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.m.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -211,6 +215,7 @@ impl KStruct for ShapefileIndex_BoundsMinMax {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_BoundingBoxXYZM;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,6 +229,7 @@ impl KStruct for ShapefileIndex_BoundsMinMax {
         let _io = io;
         *self_rc.min.borrow_mut() = _io.read_f8be()?;
         *self_rc.max.borrow_mut() = _io.read_f8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -266,6 +272,7 @@ impl KStruct for ShapefileIndex_FileHeader {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -309,6 +316,7 @@ impl KStruct for ShapefileIndex_FileHeader {
         *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         let t = Self::read_into::<_, ShapefileIndex_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -391,6 +399,7 @@ impl KStruct for ShapefileIndex_Record {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -404,6 +413,7 @@ impl KStruct for ShapefileIndex_Record {
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_s4be()?;
         *self_rc.content_length.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

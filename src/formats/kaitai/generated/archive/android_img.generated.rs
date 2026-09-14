@@ -30,6 +30,10 @@ pub struct AndroidImg {
     boot_header_size: RefCell<u32>,
     dtb: RefCell<OptRc<AndroidImg_LoadLong>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
+    cmdline_raw: RefCell<Vec<u8>>,
+    sha_raw: RefCell<Vec<u8>>,
+    extra_cmdline_raw: RefCell<Vec<u8>>,
     f_base: Cell<bool>,
     base: RefCell<i32>,
     f_dtb_img: Cell<bool>,
@@ -57,6 +61,7 @@ impl KStruct for AndroidImg {
     type Root = AndroidImg;
     type Parent = AndroidImg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -83,21 +88,22 @@ impl KStruct for AndroidImg {
         *self_rc.header_version.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, AndroidImg_OsVersion>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.os_version.borrow_mut() = t;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "ASCII")?;
-        *self_rc.cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(512_usize)?, 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ASCII")?;
+        *self_rc.cmdline.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(512_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc.sha.borrow_mut() = _io.read_bytes(32_usize)?;
-        *self_rc.extra_cmdline.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(1024_usize)?, 0, false), "ASCII")?;
-        if *self_rc.header_version() > 0 {
+        *self_rc.extra_cmdline.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(1024_usize)?, Some(0), false, None), "ASCII")?;
+        if ((to_i128(*self_rc.header_version())) > (to_i128(0))) {
             let t = Self::read_into::<_, AndroidImg_SizeOffset>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.recovery_dtbo.borrow_mut() = t;
         }
-        if *self_rc.header_version() > 0 {
+        if ((to_i128(*self_rc.header_version())) > (to_i128(0))) {
             *self_rc.boot_header_size.borrow_mut() = _io.read_u4le()?;
         }
-        if *self_rc.header_version() > 1 {
+        if ((to_i128(*self_rc.header_version())) > (to_i128(1))) {
             let t = Self::read_into::<_, AndroidImg_LoadLong>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.dtb.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -106,6 +112,7 @@ impl AndroidImg {
     /**
      * base loading address
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn base(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -117,6 +124,7 @@ impl AndroidImg {
         *self.base.borrow_mut() = ((*self.kernel().addr()).saturating_sub(32768_u32)).try_into()?;
         Ok(self.base.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn dtb_img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -125,10 +133,10 @@ impl AndroidImg {
             return Ok(self.dtb_img.borrow());
         }
         self.f_dtb_img.set(true);
-        if  ((*self.header_version() > 1) && (*self.dtb().size() > 0))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(1)))) && (((to_i128((i64::try_from(self.dtb().len())?))) > (to_i128(0)))))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.second().size())).saturating_add(*self.recovery_dtbo().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.dtb().size())?)?;
+            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add((i64::try_from(self.ramdisk().len())?))).saturating_add((i64::try_from(self.second().len())?))).saturating_add((i64::try_from(self.recovery_dtbo().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.dtb().len())?))?)?;
             _io.seek(_pos)?;
         }
         Ok(self.dtb_img.borrow())
@@ -137,6 +145,7 @@ impl AndroidImg {
     /**
      * dtb offset from base
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn dtb_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -145,11 +154,12 @@ impl AndroidImg {
             return Ok(self.dtb_offset.borrow());
         }
         self.f_dtb_offset.set(true);
-        if *self.header_version() > 1 {
-            *self.dtb_offset.borrow_mut() = (if *self.dtb().addr() > 0 { (*self.dtb().addr()).saturating_sub(u64::try_from(*self.base()?)?) } else { 0_u64 }).try_into()?;
+        if ((to_i128(*self.header_version())) > (to_i128(1))) {
+            *self.dtb_offset.borrow_mut() = (if ((to_i128(*self.dtb().addr())) > (to_i128(0))) { (*self.dtb().addr()).saturating_sub(u64::try_from(*self.base()?)?) } else { 0_u64 }).try_into()?;
         }
         Ok(self.dtb_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn kernel_img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -160,7 +170,7 @@ impl AndroidImg {
         self.f_kernel_img.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.page_size())?)?;
-        *self.kernel_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.kernel().size())?)?;
+        *self.kernel_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.kernel().len())?))?)?;
         _io.seek(_pos)?;
         Ok(self.kernel_img.borrow())
     }
@@ -168,6 +178,7 @@ impl AndroidImg {
     /**
      * kernel offset from base
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn kernel_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -179,6 +190,7 @@ impl AndroidImg {
         *self.kernel_offset.borrow_mut() = ((*self.kernel().addr()).saturating_sub(u32::try_from(*self.base()?)?)).try_into()?;
         Ok(self.kernel_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ramdisk_img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -187,10 +199,10 @@ impl AndroidImg {
             return Ok(self.ramdisk_img.borrow());
         }
         self.f_ramdisk_img.set(true);
-        if *self.ramdisk().size() > 0 {
+        if ((to_i128((i64::try_from(self.ramdisk().len())?))) > (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.ramdisk().size())?)?;
+            _io.seek(usize::try_from((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.ramdisk().len())?))?)?;
             _io.seek(_pos)?;
         }
         Ok(self.ramdisk_img.borrow())
@@ -199,6 +211,7 @@ impl AndroidImg {
     /**
      * ramdisk offset from base
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ramdisk_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -207,9 +220,10 @@ impl AndroidImg {
             return Ok(self.ramdisk_offset.borrow());
         }
         self.f_ramdisk_offset.set(true);
-        *self.ramdisk_offset.borrow_mut() = (if *self.ramdisk().addr() > 0 { (*self.ramdisk().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
+        *self.ramdisk_offset.borrow_mut() = (if ((to_i128(*self.ramdisk().addr())) > (to_i128(0))) { (*self.ramdisk().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.ramdisk_offset.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn recovery_dtbo_img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -218,14 +232,15 @@ impl AndroidImg {
             return Ok(self.recovery_dtbo_img.borrow());
         }
         self.f_recovery_dtbo_img.set(true);
-        if  ((*self.header_version() > 0) && (*self.recovery_dtbo().size() > 0))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(0)))) && (((to_i128((i64::try_from(self.recovery_dtbo().len())?))) > (to_i128(0)))))  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.recovery_dtbo().offset())?)?;
-            *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.recovery_dtbo().size())?)?;
+            *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.recovery_dtbo().len())?))?)?;
             _io.seek(_pos)?;
         }
         Ok(self.recovery_dtbo_img.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn second_img(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -234,10 +249,10 @@ impl AndroidImg {
             return Ok(self.second_img.borrow());
         }
         self.f_second_img.set(true);
-        if *self.second().size() > 0 {
+        if ((to_i128((i64::try_from(self.second().len())?))) > (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.second().size())?)?;
+            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add((i64::try_from(self.ramdisk().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.second().len())?))?)?;
             _io.seek(_pos)?;
         }
         Ok(self.second_img.borrow())
@@ -246,6 +261,7 @@ impl AndroidImg {
     /**
      * 2nd bootloader offset from base
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn second_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -254,13 +270,14 @@ impl AndroidImg {
             return Ok(self.second_offset.borrow());
         }
         self.f_second_offset.set(true);
-        *self.second_offset.borrow_mut() = (if *self.second().addr() > 0 { (*self.second().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
+        *self.second_offset.borrow_mut() = (if ((to_i128(*self.second().addr())) > (to_i128(0))) { (*self.second().addr()).saturating_sub(u32::try_from(*self.base()?)?) } else { 0_u32 }).try_into()?;
         Ok(self.second_offset.borrow())
     }
 
     /**
      * tags offset from base
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tags_offset(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -353,6 +370,26 @@ impl AndroidImg {
         self._io.borrow()
     }
 }
+impl AndroidImg {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl AndroidImg {
+    pub fn cmdline_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.cmdline_raw.borrow()
+    }
+}
+impl AndroidImg {
+    pub fn sha_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.sha_raw.borrow()
+    }
+}
+impl AndroidImg {
+    pub fn extra_cmdline_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.extra_cmdline_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidImg_Load {
@@ -367,6 +404,7 @@ impl KStruct for AndroidImg_Load {
     type Root = AndroidImg;
     type Parent = AndroidImg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -380,6 +418,7 @@ impl KStruct for AndroidImg_Load {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc.addr.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -414,6 +453,7 @@ impl KStruct for AndroidImg_LoadLong {
     type Root = AndroidImg;
     type Parent = AndroidImg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -427,6 +467,7 @@ impl KStruct for AndroidImg_LoadLong {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc.addr.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -470,6 +511,7 @@ impl KStruct for AndroidImg_OsVersion {
     type Root = AndroidImg;
     type Parent = AndroidImg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -482,10 +524,12 @@ impl KStruct for AndroidImg_OsVersion {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidImg_OsVersion {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn major(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -497,6 +541,7 @@ impl AndroidImg_OsVersion {
         *self.major.borrow_mut() = ((((*self.version()).wrapping_shr(25_u32)) & (127_u32))).try_into()?;
         Ok(self.major.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn minor(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -508,6 +553,7 @@ impl AndroidImg_OsVersion {
         *self.minor.borrow_mut() = ((((*self.version()).wrapping_shr(18_u32)) & (127_u32))).try_into()?;
         Ok(self.minor.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn month(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -519,6 +565,7 @@ impl AndroidImg_OsVersion {
         *self.month.borrow_mut() = (((*self.version()) & (15_u32))).try_into()?;
         Ok(self.month.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn patch(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -530,6 +577,7 @@ impl AndroidImg_OsVersion {
         *self.patch.borrow_mut() = ((((*self.version()).wrapping_shr(11_u32)) & (127_u32))).try_into()?;
         Ok(self.patch.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn year(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -566,6 +614,7 @@ impl KStruct for AndroidImg_SizeOffset {
     type Root = AndroidImg;
     type Parent = AndroidImg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -579,6 +628,7 @@ impl KStruct for AndroidImg_SizeOffset {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc.offset.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

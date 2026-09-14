@@ -29,6 +29,7 @@ pub struct VmwareVmdk {
     stuff: RefCell<Vec<u8>>,
     compression_method: RefCell<VmwareVmdk_CompressionMethods>,
     _io: RefCell<BytesReader>,
+    stuff_raw: RefCell<Vec<u8>>,
     f_descriptor: Cell<bool>,
     descriptor: RefCell<Vec<u8>>,
     f_grain_primary: Cell<bool>,
@@ -42,6 +43,7 @@ impl KStruct for VmwareVmdk {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -71,10 +73,12 @@ impl KStruct for VmwareVmdk {
         *self_rc.is_dirty.borrow_mut() = _io.read_u1()?;
         *self_rc.stuff.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.compression_method.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl VmwareVmdk {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn descriptor(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -89,6 +93,7 @@ impl VmwareVmdk {
         _io.seek(_pos)?;
         Ok(self.descriptor.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn grain_primary(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -103,6 +108,7 @@ impl VmwareVmdk {
         _io.seek(_pos)?;
         Ok(self.grain_primary.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn grain_secondary(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -117,6 +123,7 @@ impl VmwareVmdk {
         _io.seek(_pos)?;
         Ok(self.grain_secondary.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_sector(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -228,7 +235,12 @@ impl VmwareVmdk {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl VmwareVmdk {
+    pub fn stuff_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.stuff_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum VmwareVmdk_CompressionMethods {
     None,
     Deflate,
@@ -285,6 +297,7 @@ impl KStruct for VmwareVmdk_HeaderFlags {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -307,6 +320,7 @@ impl KStruct for VmwareVmdk_HeaderFlags {
         *self_rc.has_compressed_grain.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         io.align_to_byte()?;
         *self_rc.reserved4.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

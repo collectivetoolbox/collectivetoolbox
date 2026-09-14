@@ -33,11 +33,13 @@ pub struct Stl {
     num_triangles: RefCell<u32>,
     triangles: RefCell<Vec<OptRc<Stl_Triangle>>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Stl {
     type Root = Stl;
     type Parent = Stl;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -57,6 +59,7 @@ impl KStruct for Stl {
             let t = Self::read_into::<_, Stl_Triangle>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.triangles.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -82,6 +85,11 @@ impl Stl {
         self._io.borrow()
     }
 }
+impl Stl {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
 
 /**
  * Each STL triangle is defined by its 3 points in 3D space and a
@@ -103,6 +111,7 @@ impl KStruct for Stl_Triangle {
     type Root = Stl;
     type Parent = Stl;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,6 +132,7 @@ impl KStruct for Stl_Triangle {
             self_rc.vertices.borrow_mut().push(t);
         }
         *self_rc.abr.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -174,6 +184,7 @@ impl KStruct for Stl_Vec3d {
     type Root = Stl;
     type Parent = Stl_Triangle;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -188,6 +199,7 @@ impl KStruct for Stl_Vec3d {
         *self_rc.x.borrow_mut() = _io.read_f4le()?;
         *self_rc.y.borrow_mut() = _io.read_f4le()?;
         *self_rc.z.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

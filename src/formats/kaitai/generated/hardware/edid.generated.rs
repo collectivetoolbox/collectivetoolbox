@@ -27,6 +27,7 @@ pub struct Edid {
     est_timings: RefCell<OptRc<Edid_EstTimingsInfo>>,
     std_timings: RefCell<Vec<OptRc<Edid_StdTiming>>>,
     _io: RefCell<BytesReader>,
+    std_timings_raw: RefCell<Vec<u8>>,
     f_gamma: Cell<bool>,
     gamma: RefCell<f64>,
     f_mfg_id_ch1: Cell<bool>,
@@ -44,6 +45,7 @@ impl KStruct for Edid {
     type Root = Edid;
     type Parent = Edid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,13 +80,17 @@ impl KStruct for Edid {
         *self_rc.std_timings.borrow_mut() = Vec::new();
         let l_std_timings = 8_usize;
         for _i in 0_usize..l_std_timings {
-            let t = Self::read_into::<_, Edid_StdTiming>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_std_timings = _io.read_bytes(2_usize)?;
+            let _io_std_timings = BytesReader::from(_raw_std_timings);
+            let t = Self::read_into::<BytesReader, Edid_StdTiming>(&_io_std_timings, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.std_timings.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Edid {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn gamma(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -93,11 +99,12 @@ impl Edid {
             return Ok(self.gamma.borrow());
         }
         self.f_gamma.set(true);
-        if *self.gamma_mod() != 255 {
+        if ((to_i128(*self.gamma_mod())) != (to_i128(255))) {
             *self.gamma.borrow_mut() = (((to_f64((i32::from(*self.gamma_mod())).saturating_add(100_i32))) / (100.0))).try_into()?;
         }
         Ok(self.gamma.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mfg_id_ch1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -109,6 +116,7 @@ impl Edid {
         *self.mfg_id_ch1.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (31744_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.mfg_id_ch1.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mfg_id_ch2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -120,6 +128,7 @@ impl Edid {
         *self.mfg_id_ch2.borrow_mut() = ((((i32::from(*self.mfg_bytes())) & (992_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.mfg_id_ch2.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mfg_id_ch3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -131,6 +140,7 @@ impl Edid {
         *self.mfg_id_ch3.borrow_mut() = (((i32::from(*self.mfg_bytes())) & (31_i32))).try_into()?;
         Ok(self.mfg_id_ch3.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mfg_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -142,6 +152,7 @@ impl Edid {
         *self.mfg_str.borrow_mut() = bytes_to_str(&vec![u8::try_from((*self.mfg_id_ch1()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch2()?).saturating_add(64_i32))?, u8::try_from((*self.mfg_id_ch3()?).saturating_add(64_i32))?], "ASCII")?.to_string();
         Ok(self.mfg_str.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mfg_year(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -293,6 +304,11 @@ impl Edid {
         self._io.borrow()
     }
 }
+impl Edid {
+    pub fn std_timings_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.std_timings_raw.borrow()
+    }
+}
 
 /**
  * Chromaticity information: colorimetry and white point
@@ -359,6 +375,7 @@ impl KStruct for Edid_ChromacityInfo {
     type Root = Edid;
     type Parent = Edid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -387,6 +404,7 @@ impl KStruct for Edid_ChromacityInfo {
         *self_rc.blue_y_9_2.borrow_mut() = _io.read_u1()?;
         *self_rc.white_x_9_2.borrow_mut() = _io.read_u1()?;
         *self_rc.white_y_9_2.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -395,6 +413,7 @@ impl Edid_ChromacityInfo {
     /**
      * Blue X coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blue_x(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -406,6 +425,7 @@ impl Edid_ChromacityInfo {
         *self.blue_x.borrow_mut() = (((to_f64(*self.blue_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_x.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blue_x_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -421,6 +441,7 @@ impl Edid_ChromacityInfo {
     /**
      * Blue Y coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blue_y(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -432,6 +453,7 @@ impl Edid_ChromacityInfo {
         *self.blue_y.borrow_mut() = (((to_f64(*self.blue_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.blue_y.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blue_y_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -447,6 +469,7 @@ impl Edid_ChromacityInfo {
     /**
      * Green X coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn green_x(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -458,6 +481,7 @@ impl Edid_ChromacityInfo {
         *self.green_x.borrow_mut() = (((to_f64(*self.green_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_x.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn green_x_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -473,6 +497,7 @@ impl Edid_ChromacityInfo {
     /**
      * Green Y coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn green_y(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -484,6 +509,7 @@ impl Edid_ChromacityInfo {
         *self.green_y.borrow_mut() = (((to_f64(*self.green_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.green_y.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn green_y_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -499,6 +525,7 @@ impl Edid_ChromacityInfo {
     /**
      * Red X coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn red_x(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -510,6 +537,7 @@ impl Edid_ChromacityInfo {
         *self.red_x.borrow_mut() = (((to_f64(*self.red_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_x.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn red_x_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -525,6 +553,7 @@ impl Edid_ChromacityInfo {
     /**
      * Red Y coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn red_y(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -536,6 +565,7 @@ impl Edid_ChromacityInfo {
         *self.red_y.borrow_mut() = (((to_f64(*self.red_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.red_y.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn red_y_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -551,6 +581,7 @@ impl Edid_ChromacityInfo {
     /**
      * White X coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn white_x(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -562,6 +593,7 @@ impl Edid_ChromacityInfo {
         *self.white_x.borrow_mut() = (((to_f64(*self.white_x_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_x.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn white_x_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -577,6 +609,7 @@ impl Edid_ChromacityInfo {
     /**
      * White Y coordinate
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn white_y(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -588,6 +621,7 @@ impl Edid_ChromacityInfo {
         *self.white_y.borrow_mut() = (((to_f64(*self.white_y_int()?)) / (1024.0))).try_into()?;
         Ok(self.white_y.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn white_y_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -779,6 +813,7 @@ impl KStruct for Edid_EstTimingsInfo {
     type Root = Edid;
     type Parent = Edid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -808,6 +843,7 @@ impl KStruct for Edid_EstTimingsInfo {
         *self_rc.can_1280x1024px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.can_1152x870px_75hz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -999,6 +1035,7 @@ impl KStruct for Edid_StdTiming {
     type Root = Edid;
     type Parent = Edid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1013,10 +1050,12 @@ impl KStruct for Edid_StdTiming {
         *self_rc.horiz_active_pixels_mod.borrow_mut() = _io.read_u1()?;
         *self_rc.aspect_ratio.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
         *self_rc.refresh_rate_mod.borrow_mut() = _io.read_bits_int_be(6)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Edid_StdTiming {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bytes_lookahead(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -1035,6 +1074,7 @@ impl Edid_StdTiming {
     /**
      * Range of horizontal active pixels.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn horiz_active_pixels(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1048,6 +1088,7 @@ impl Edid_StdTiming {
         }
         Ok(self.horiz_active_pixels.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_used(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1063,6 +1104,7 @@ impl Edid_StdTiming {
     /**
      * Vertical refresh rate, Hz.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn refresh_rate(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -1113,7 +1155,7 @@ impl Edid_StdTiming {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Edid_StdTiming_AspectRatios {
     Ratio1610,
     Ratio43,

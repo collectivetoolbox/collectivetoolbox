@@ -40,6 +40,7 @@ impl KStruct for TrDosImage {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -63,10 +64,12 @@ impl KStruct for TrDosImage {
                 if *_tmpa.is_terminator()? { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl TrDosImage {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn volume_info(
         &self
     ) -> KResult<Ref<'_, OptRc<TrDosImage_VolumeInfo>>> {
@@ -92,7 +95,7 @@ impl TrDosImage {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum TrDosImage_DiskType {
     Type80TracksDoubleSide,
     Type40TracksDoubleSide,
@@ -143,7 +146,7 @@ pub struct TrDosImage_File {
     starting_sector: RefCell<u8>,
     starting_track: RefCell<u8>,
     _io: RefCell<BytesReader>,
-    position_and_length_raw: RefCell<Vec<u8>>,
+    name_raw: RefCell<Vec<u8>>,
     f_contents: Cell<bool>,
     contents: RefCell<Vec<u8>>,
     f_is_deleted: Cell<bool>,
@@ -158,13 +161,13 @@ pub enum TrDosImage_File_PositionAndLength {
     TrDosImage_PositionAndLengthCode(OptRc<TrDosImage_PositionAndLengthCode>),
     TrDosImage_PositionAndLengthGeneric(OptRc<TrDosImage_PositionAndLengthGeneric>),
 }
-impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthPrint> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthPrint(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthPrint, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<TrDosImage_PositionAndLengthPrint>> for TrDosImage_File_PositionAndLength {
@@ -172,13 +175,13 @@ impl From<OptRc<TrDosImage_PositionAndLengthPrint>> for TrDosImage_File_Position
         Self::TrDosImage_PositionAndLengthPrint(v)
     }
 }
-impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthBasic> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthBasic(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthBasic, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<TrDosImage_PositionAndLengthBasic>> for TrDosImage_File_PositionAndLength {
@@ -186,13 +189,13 @@ impl From<OptRc<TrDosImage_PositionAndLengthBasic>> for TrDosImage_File_Position
         Self::TrDosImage_PositionAndLengthBasic(v)
     }
 }
-impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthCode> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthCode(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthCode, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<TrDosImage_PositionAndLengthCode>> for TrDosImage_File_PositionAndLength {
@@ -200,13 +203,13 @@ impl From<OptRc<TrDosImage_PositionAndLengthCode>> for TrDosImage_File_PositionA
         Self::TrDosImage_PositionAndLengthCode(v)
     }
 }
-impl From<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &TrDosImage_File_PositionAndLength) -> Self {
+impl TryFrom<&TrDosImage_File_PositionAndLength> for OptRc<TrDosImage_PositionAndLengthGeneric> {
+    type Error = KError;
+    fn try_from(v: &TrDosImage_File_PositionAndLength) -> Result<Self, Self::Error> {
         if let TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthGeneric(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected TrDosImage_File_PositionAndLength::TrDosImage_PositionAndLengthGeneric, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<TrDosImage_PositionAndLengthGeneric>> for TrDosImage_File_PositionAndLength {
@@ -218,6 +221,7 @@ impl KStruct for TrDosImage_File {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -229,46 +233,39 @@ impl KStruct for TrDosImage_File {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, TrDosImage_Filename>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_name = _io.read_bytes(8_usize)?;
+        *self_rc.name_raw.borrow_mut() = _raw_name.clone();
+        let _io_name = BytesReader::from(_raw_name);
+        let t = Self::read_into::<BytesReader, TrDosImage_Filename>(&_io_name, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.name.borrow_mut() = t;
         *self_rc.extension.borrow_mut() = _io.read_u1()?;
         match *self_rc.extension() {
             35 => {
-                *self_rc.position_and_length_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let position_and_length_raw = self_rc.position_and_length_raw.borrow();
-                let _t_position_and_length_raw_io = BytesReader::from(position_and_length_raw.clone());
-                let t = Self::read_into::<BytesReader, TrDosImage_PositionAndLengthPrint>(&_t_position_and_length_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthPrint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             66 => {
-                *self_rc.position_and_length_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let position_and_length_raw = self_rc.position_and_length_raw.borrow();
-                let _t_position_and_length_raw_io = BytesReader::from(position_and_length_raw.clone());
-                let t = Self::read_into::<BytesReader, TrDosImage_PositionAndLengthBasic>(&_t_position_and_length_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthBasic>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             67 => {
-                *self_rc.position_and_length_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let position_and_length_raw = self_rc.position_and_length_raw.borrow();
-                let _t_position_and_length_raw_io = BytesReader::from(position_and_length_raw.clone());
-                let t = Self::read_into::<BytesReader, TrDosImage_PositionAndLengthCode>(&_t_position_and_length_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthCode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
             _ => {
-                *self_rc.position_and_length_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let position_and_length_raw = self_rc.position_and_length_raw.borrow();
-                let _t_position_and_length_raw_io = BytesReader::from(position_and_length_raw.clone());
-                let t = Self::read_into::<BytesReader, TrDosImage_PositionAndLengthGeneric>(&_t_position_and_length_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, TrDosImage_PositionAndLengthGeneric>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.position_and_length.borrow_mut() = Some(t);
             }
         }
         *self_rc.length_sectors.borrow_mut() = _io.read_u1()?;
         *self_rc.starting_sector.borrow_mut() = _io.read_u1()?;
         *self_rc.starting_track.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl TrDosImage_File {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -283,6 +280,7 @@ impl TrDosImage_File {
         _io.seek(_pos)?;
         Ok(self.contents.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_deleted(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -291,9 +289,10 @@ impl TrDosImage_File {
             return Ok(self.is_deleted.borrow());
         }
         self.f_is_deleted.set(true);
-        *self.is_deleted.borrow_mut() = (*self.name().first_byte()? == 1).try_into()?;
+        *self.is_deleted.borrow_mut() = (((to_i128(*self.name().first_byte()?)) == (to_i128(1)))).try_into()?;
         Ok(self.is_deleted.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_terminator(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -302,7 +301,7 @@ impl TrDosImage_File {
             return Ok(self.is_terminator.borrow());
         }
         self.f_is_terminator.set(true);
-        *self.is_terminator.borrow_mut() = (*self.name().first_byte()? == 0).try_into()?;
+        *self.is_terminator.borrow_mut() = (((to_i128(*self.name().first_byte()?)) == (to_i128(0)))).try_into()?;
         Ok(self.is_terminator.borrow())
     }
 }
@@ -342,8 +341,8 @@ impl TrDosImage_File {
     }
 }
 impl TrDosImage_File {
-    pub fn position_and_length_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.position_and_length_raw.borrow()
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
     }
 }
 
@@ -354,6 +353,7 @@ pub struct TrDosImage_Filename {
     pub(crate) _self_shared: SharedType<Self>,
     name: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_first_byte: Cell<bool>,
     first_byte: RefCell<u8>,
 }
@@ -361,6 +361,7 @@ impl KStruct for TrDosImage_Filename {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -373,10 +374,12 @@ impl KStruct for TrDosImage_Filename {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.name.borrow_mut() = _io.read_bytes(8_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl TrDosImage_Filename {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_byte(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -402,6 +405,11 @@ impl TrDosImage_Filename {
         self._io.borrow()
     }
 }
+impl TrDosImage_Filename {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct TrDosImage_PositionAndLengthBasic {
@@ -416,6 +424,7 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -429,6 +438,7 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
         let _io = io;
         *self_rc.program_and_data_length.borrow_mut() = _io.read_u2le()?;
         *self_rc.program_length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -463,6 +473,7 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -476,6 +487,7 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
         let _io = io;
         *self_rc.start_address.borrow_mut() = _io.read_u2le()?;
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -514,6 +526,7 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -527,6 +540,7 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u2le()?;
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -562,6 +576,7 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -576,6 +591,7 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
         *self_rc.extent_no.borrow_mut() = _io.read_u1()?;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
         *self_rc.length.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -622,6 +638,12 @@ pub struct TrDosImage_VolumeInfo {
     label: RefCell<Vec<u8>>,
     unused_4: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    unused_raw: RefCell<Vec<u8>>,
+    unused_2_raw: RefCell<Vec<u8>>,
+    password_raw: RefCell<Vec<u8>>,
+    unused_3_raw: RefCell<Vec<u8>>,
+    label_raw: RefCell<Vec<u8>>,
+    unused_4_raw: RefCell<Vec<u8>>,
     f_num_sides: Cell<bool>,
     num_sides: RefCell<i32>,
     f_num_tracks: Cell<bool>,
@@ -631,6 +653,7 @@ impl KStruct for TrDosImage_VolumeInfo {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -662,10 +685,12 @@ impl KStruct for TrDosImage_VolumeInfo {
         *self_rc.num_deleted_files.borrow_mut() = _io.read_u1()?;
         *self_rc.label.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.unused_4.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl TrDosImage_VolumeInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_sides(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -674,9 +699,10 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_sides.borrow());
         }
         self.f_num_sides.set(true);
-        *self.num_sides.borrow_mut() = (if ((i64::from(&*self.disk_type())) & (8_i64)) != 0 { 1_i32 } else { 2_i32 }).try_into()?;
+        *self.num_sides.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (8_i64)))) != (to_i128(0))) { 1_i32 } else { 2_i32 }).try_into()?;
         Ok(self.num_sides.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_tracks(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -685,7 +711,7 @@ impl TrDosImage_VolumeInfo {
             return Ok(self.num_tracks.borrow());
         }
         self.f_num_tracks.set(true);
-        *self.num_tracks.borrow_mut() = (if ((i64::from(&*self.disk_type())) & (1_i64)) != 0 { 40_i32 } else { 80_i32 }).try_into()?;
+        *self.num_tracks.borrow_mut() = (if ((to_i128(((i64::from(&*self.disk_type())) & (1_i64)))) != (to_i128(0))) { 40_i32 } else { 80_i32 }).try_into()?;
         Ok(self.num_tracks.borrow())
     }
 }
@@ -773,5 +799,35 @@ impl TrDosImage_VolumeInfo {
 impl TrDosImage_VolumeInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn unused_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unused_raw.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn unused_2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unused_2_raw.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn password_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.password_raw.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn unused_3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unused_3_raw.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn label_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.label_raw.borrow()
+    }
+}
+impl TrDosImage_VolumeInfo {
+    pub fn unused_4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unused_4_raw.borrow()
     }
 }

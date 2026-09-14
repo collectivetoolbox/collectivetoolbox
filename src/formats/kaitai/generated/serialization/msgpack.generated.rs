@@ -31,6 +31,7 @@ pub struct Msgpack {
     num_map_elements_32: RefCell<u32>,
     map_elements: RefCell<Vec<OptRc<Msgpack_MapTuple>>>,
     _io: RefCell<BytesReader>,
+    str_value_raw: RefCell<Vec<u8>>,
     f_bool_value: Cell<bool>,
     bool_value: RefCell<bool>,
     f_float_value: Cell<bool>,
@@ -106,27 +107,9 @@ impl From<u8> for Msgpack_IntExtra {
         Self::U1(v)
     }
 }
-impl From<&Msgpack_IntExtra> for u8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::U1(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::U1 to u8, enum value {:?}", e)
-    }
-}
 impl From<u16> for Msgpack_IntExtra {
     fn from(v: u16) -> Self {
         Self::U2(v)
-    }
-}
-impl From<&Msgpack_IntExtra> for u16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::U2(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::U2 to u16, enum value {:?}", e)
     }
 }
 impl From<u32> for Msgpack_IntExtra {
@@ -134,27 +117,9 @@ impl From<u32> for Msgpack_IntExtra {
         Self::U4(v)
     }
 }
-impl From<&Msgpack_IntExtra> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Msgpack_IntExtra {
     fn from(v: u64) -> Self {
         Self::U8(v)
-    }
-}
-impl From<&Msgpack_IntExtra> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::U8(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::U8 to u64, enum value {:?}", e)
     }
 }
 impl From<i8> for Msgpack_IntExtra {
@@ -162,27 +127,9 @@ impl From<i8> for Msgpack_IntExtra {
         Self::S1(v)
     }
 }
-impl From<&Msgpack_IntExtra> for i8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::S1(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::S1 to i8, enum value {:?}", e)
-    }
-}
 impl From<i16> for Msgpack_IntExtra {
     fn from(v: i16) -> Self {
         Self::S2(v)
-    }
-}
-impl From<&Msgpack_IntExtra> for i16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::S2(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::S2 to i16, enum value {:?}", e)
     }
 }
 impl From<i32> for Msgpack_IntExtra {
@@ -190,46 +137,151 @@ impl From<i32> for Msgpack_IntExtra {
         Self::S4(v)
     }
 }
-impl From<&Msgpack_IntExtra> for i32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::S4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Msgpack_IntExtra::S4 to i32, enum value {:?}", e)
-    }
-}
 impl From<i64> for Msgpack_IntExtra {
     fn from(v: i64) -> Self {
         Self::S8(v)
     }
 }
-impl From<&Msgpack_IntExtra> for i64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Msgpack_IntExtra) -> Self {
-        if let Msgpack_IntExtra::S8(v) = e {
-            return *v;
+impl TryFrom<&Msgpack_IntExtra> for i16 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(i16::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(i16::try_from(*v)?),
         }
-        panic!("trying to convert from enum Msgpack_IntExtra::S8 to i64, enum value {:?}", e)
     }
 }
-impl From<&Msgpack_IntExtra> for usize {
-    fn from(e: &Msgpack_IntExtra) -> Self {
+impl TryFrom<&Msgpack_IntExtra> for i32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
         match e {
-            Msgpack_IntExtra::U1(v) => usize::from(*v),
-            Msgpack_IntExtra::U2(v) => usize::from(*v),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::U8(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::S1(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::S2(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::S4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Msgpack_IntExtra::S8(v) => usize::try_from(*v).unwrap_or(0),
+            Msgpack_IntExtra::U1(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(i32::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(i32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(i64::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for i8 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(i8::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(i8::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for u16 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(u16::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(u16::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(u32::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(u64::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for u8 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::U2(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::U4(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(u8::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(u8::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Msgpack_IntExtra> for usize {
+    type Error = KError;
+    fn try_from(e: &Msgpack_IntExtra) -> Result<Self, Self::Error> {
+        match e {
+            Msgpack_IntExtra::U1(v) => Ok(usize::from(*v)),
+            Msgpack_IntExtra::U2(v) => Ok(usize::from(*v)),
+            Msgpack_IntExtra::U4(v) => Ok(usize::try_from(*v)?),
+            Msgpack_IntExtra::U8(v) => Ok(usize::try_from(*v)?),
+            Msgpack_IntExtra::S1(v) => Ok(usize::try_from(*v)?),
+            Msgpack_IntExtra::S2(v) => Ok(usize::try_from(*v)?),
+            Msgpack_IntExtra::S4(v) => Ok(usize::try_from(*v)?),
+            Msgpack_IntExtra::S8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -238,6 +290,7 @@ impl KStruct for Msgpack {
     type Root = Msgpack;
     type Parent = Msgpack;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -305,7 +358,7 @@ impl KStruct for Msgpack {
             *self_rc.array_elements.borrow_mut() = Vec::new();
             let l_array_elements = usize::try_from(*self_rc.num_array_elements()?)?;
             for _i in 0_usize..l_array_elements {
-                let t = Self::read_into::<_, Msgpack>(&*_io, None, None)?.into();
+                let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.array_elements.borrow_mut().push(t);
             }
         }
@@ -323,6 +376,7 @@ impl KStruct for Msgpack {
                 self_rc.map_elements.borrow_mut().push(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -331,6 +385,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-bool> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bool_value(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -340,10 +395,11 @@ impl Msgpack {
         }
         self.f_bool_value.set(true);
         if *self.is_bool()? {
-            *self.bool_value.borrow_mut() = (*self.b1() == 195).try_into()?;
+            *self.bool_value.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(195)))).try_into()?;
         }
         Ok(self.bool_value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn float_value(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -357,6 +413,7 @@ impl Msgpack {
         }
         Ok(self.float_value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn int_value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -374,6 +431,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-array> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_array(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -389,6 +447,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-array> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_array_16(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -397,13 +456,14 @@ impl Msgpack {
             return Ok(self.is_array_16.borrow());
         }
         self.f_is_array_16.set(true);
-        *self.is_array_16.borrow_mut() = (*self.b1() == 220).try_into()?;
+        *self.is_array_16.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(220)))).try_into()?;
         Ok(self.is_array_16.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-array> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_array_32(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -412,9 +472,10 @@ impl Msgpack {
             return Ok(self.is_array_32.borrow());
         }
         self.f_is_array_32.set(true);
-        *self.is_array_32.borrow_mut() = (*self.b1() == 221).try_into()?;
+        *self.is_array_32.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(221)))).try_into()?;
         Ok(self.is_array_32.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_bool(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -423,13 +484,14 @@ impl Msgpack {
             return Ok(self.is_bool.borrow());
         }
         self.f_is_bool.set(true);
-        *self.is_bool.borrow_mut() = ( ((*self.b1() == 194) || (*self.b1() == 195)) ).try_into()?;
+        *self.is_bool.borrow_mut() = ( ((((to_i128(*self.b1())) == (to_i128(194)))) || (((to_i128(*self.b1())) == (to_i128(195))))) ).try_into()?;
         Ok(self.is_bool.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-array> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_fix_array(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -445,6 +507,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-map> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_fix_map(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -460,6 +523,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-str> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_fix_str(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -471,6 +535,7 @@ impl Msgpack {
         *self.is_fix_str.borrow_mut() = (((i32::from(*self.b1())) & (224_i32)) == 160).try_into()?;
         Ok(self.is_fix_str.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_float(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -486,6 +551,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-float> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_float_32(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -494,13 +560,14 @@ impl Msgpack {
             return Ok(self.is_float_32.borrow());
         }
         self.f_is_float_32.set(true);
-        *self.is_float_32.borrow_mut() = (*self.b1() == 202).try_into()?;
+        *self.is_float_32.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(202)))).try_into()?;
         Ok(self.is_float_32.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-float> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_float_64(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -509,9 +576,10 @@ impl Msgpack {
             return Ok(self.is_float_64.borrow());
         }
         self.f_is_float_64.set(true);
-        *self.is_float_64.borrow_mut() = (*self.b1() == 203).try_into()?;
+        *self.is_float_64.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(203)))).try_into()?;
         Ok(self.is_float_64.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_int(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -527,6 +595,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-map> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_map(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -542,6 +611,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-map> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_map_16(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -550,13 +620,14 @@ impl Msgpack {
             return Ok(self.is_map_16.borrow());
         }
         self.f_is_map_16.set(true);
-        *self.is_map_16.borrow_mut() = (*self.b1() == 222).try_into()?;
+        *self.is_map_16.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(222)))).try_into()?;
         Ok(self.is_map_16.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-map> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_map_32(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -565,9 +636,10 @@ impl Msgpack {
             return Ok(self.is_map_32.borrow());
         }
         self.f_is_map_32.set(true);
-        *self.is_map_32.borrow_mut() = (*self.b1() == 223).try_into()?;
+        *self.is_map_32.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(223)))).try_into()?;
         Ok(self.is_map_32.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_neg_int5(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -583,6 +655,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-nil> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_nil(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -591,9 +664,10 @@ impl Msgpack {
             return Ok(self.is_nil.borrow());
         }
         self.f_is_nil.set(true);
-        *self.is_nil.borrow_mut() = (*self.b1() == 192).try_into()?;
+        *self.is_nil.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(192)))).try_into()?;
         Ok(self.is_nil.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_pos_int7(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -605,6 +679,7 @@ impl Msgpack {
         *self.is_pos_int7.borrow_mut() = (((i32::from(*self.b1())) & (128_i32)) == 0).try_into()?;
         Ok(self.is_pos_int7.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -620,6 +695,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-str> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_16(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -628,13 +704,14 @@ impl Msgpack {
             return Ok(self.is_str_16.borrow());
         }
         self.f_is_str_16.set(true);
-        *self.is_str_16.borrow_mut() = (*self.b1() == 218).try_into()?;
+        *self.is_str_16.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(218)))).try_into()?;
         Ok(self.is_str_16.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-str> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_32(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -643,13 +720,14 @@ impl Msgpack {
             return Ok(self.is_str_32.borrow());
         }
         self.f_is_str_32.set(true);
-        *self.is_str_32.borrow_mut() = (*self.b1() == 219).try_into()?;
+        *self.is_str_32.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(219)))).try_into()?;
         Ok(self.is_str_32.borrow())
     }
 
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-str> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_str_8(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -658,9 +736,10 @@ impl Msgpack {
             return Ok(self.is_str_8.borrow());
         }
         self.f_is_str_8.set(true);
-        *self.is_str_8.borrow_mut() = (*self.b1() == 217).try_into()?;
+        *self.is_str_8.borrow_mut() = (((to_i128(*self.b1())) == (to_i128(217)))).try_into()?;
         Ok(self.is_str_8.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn neg_int5_value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -670,7 +749,7 @@ impl Msgpack {
         }
         self.f_neg_int5_value.set(true);
         if *self.is_neg_int5()? {
-            *self.neg_int5_value.borrow_mut() = ((0_i32).saturating_sub(((i32::from(*self.b1())) & (31_i32)))).try_into()?;
+            *self.neg_int5_value.borrow_mut() = ((0_i32).saturating_sub(to_i32(((i32::from(*self.b1())) & (31_i32))))).try_into()?;
         }
         Ok(self.neg_int5_value.borrow())
     }
@@ -678,6 +757,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-array> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_array_elements(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -695,6 +775,7 @@ impl Msgpack {
     /**
      * \sa <https://github.com/msgpack/msgpack/blob/master/spec.md#formats-map> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_map_elements(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -708,6 +789,7 @@ impl Msgpack {
         }
         Ok(self.num_map_elements.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pos_int7_value(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -721,6 +803,7 @@ impl Msgpack {
         }
         Ok(self.pos_int7_value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn str_len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -749,7 +832,7 @@ impl Msgpack {
 impl Msgpack {
     pub fn int_extra(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.int_extra.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.int_extra.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn int_extra_enum(&self) -> Ref<'_, Option<Msgpack_IntExtra>> {
         self.int_extra.borrow()
@@ -820,6 +903,11 @@ impl Msgpack {
         self._io.borrow()
     }
 }
+impl Msgpack {
+    pub fn str_value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_value_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Msgpack_MapTuple {
@@ -834,6 +922,7 @@ impl KStruct for Msgpack_MapTuple {
     type Root = Msgpack;
     type Parent = Msgpack;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -845,10 +934,11 @@ impl KStruct for Msgpack_MapTuple {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Msgpack>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.key.borrow_mut() = t;
-        let t = Self::read_into::<_, Msgpack>(&*_io, None, None)?.into();
+        let t = Self::read_into::<_, Msgpack>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

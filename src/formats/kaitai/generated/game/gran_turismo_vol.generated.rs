@@ -25,6 +25,7 @@ impl KStruct for GranTurismoVol {
     type Root = GranTurismoVol;
     type Parent = GranTurismoVol;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,10 +52,12 @@ impl KStruct for GranTurismoVol {
         for _i in 0_usize..l_offsets {
             self_rc.offsets.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GranTurismoVol {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn files(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<GranTurismoVol_FileInfo>>>> {
@@ -74,6 +77,7 @@ impl GranTurismoVol {
         _io.seek(_pos)?;
         Ok(self.files.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_dir(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -127,6 +131,7 @@ pub struct GranTurismoVol_FileInfo {
     flags: RefCell<u8>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
     f_is_dir: Cell<bool>,
@@ -140,6 +145,7 @@ impl KStruct for GranTurismoVol_FileInfo {
     type Root = GranTurismoVol;
     type Parent = GranTurismoVol;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -154,11 +160,13 @@ impl KStruct for GranTurismoVol_FileInfo {
         *self_rc.timestamp.borrow_mut() = _io.read_u4le()?;
         *self_rc.offset_idx.borrow_mut() = _io.read_u2le()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(25_usize)?, 0), 0, false), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(25_usize)?, Some(0), false, Some(0)), "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GranTurismoVol_FileInfo {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -175,6 +183,7 @@ impl GranTurismoVol_FileInfo {
         }
         Ok(self.body.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_dir(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -186,6 +195,7 @@ impl GranTurismoVol_FileInfo {
         *self.is_dir.borrow_mut() = (((i32::from(*self.flags())) & (1_i32)) != 0).try_into()?;
         Ok(self.is_dir.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_last_entry(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -197,6 +207,7 @@ impl GranTurismoVol_FileInfo {
         *self.is_last_entry.borrow_mut() = (((i32::from(*self.flags())) & (128_i32)) != 0).try_into()?;
         Ok(self.is_last_entry.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn size(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -232,5 +243,10 @@ impl GranTurismoVol_FileInfo {
 impl GranTurismoVol_FileInfo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl GranTurismoVol_FileInfo {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
     }
 }

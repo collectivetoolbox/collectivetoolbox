@@ -639,6 +639,122 @@ pub fn synthesize_test_from_kst(
     Ok(out)
 }
 
+/// Computes a deterministic 64-bit FNV-1a hash across all non-generated
+/// source files in the kaitai directory.
+///
+/// This includes compiler, parser, spec, codegen, runtime, handwritten
+/// test, and configuration files in `formats/kaitai`, ensuring any change
+/// triggers a rebuild.
+///
+/// Format definitions and test specs are excluded because they are tracked
+/// with individual per-file timestamps.
+///
+/// # Errors
+/// Returns an error if directory traversal or file metadata reading fails.
+pub fn compute_source_hash(manifest_dir: &Path) -> Result<u64> {
+    let mut files: Vec<(PathBuf, PathBuf)> = Vec::new();
+
+    for entry in WalkDir::new(manifest_dir) {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let rel_path = match path.strip_prefix(manifest_dir) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+
+        // Skip hidden files/directories (like .git, .build_cache)
+        let is_hidden = rel_path.components().any(|c| {
+            c.as_os_str().to_string_lossy().starts_with('.')
+        });
+        if is_hidden {
+            continue;
+        }
+
+        // Skip target directory
+        if rel_path.components().any(|c| c.as_os_str() == "target") {
+            continue;
+        }
+
+        // Skip generated files and generated directories
+        let first_comp = rel_path
+            .components()
+            .next()
+            .map(|c| c.as_os_str().to_string_lossy());
+        if first_comp.as_deref() == Some("generated") {
+            continue;
+        }
+        if rel_path.starts_with("tests/generated") {
+            continue;
+        }
+        if rel_path == Path::new("generated.generated.rs") {
+            continue;
+        }
+        if let Some(file_name) = rel_path.file_name().and_then(|s| s.to_str()) {
+            if file_name.ends_with(".generated.rs") {
+                continue;
+            }
+        }
+
+        // Exclude format definitions and test specifications (tracked per-file)
+        if rel_path.starts_with("data/definitions") {
+            continue;
+        }
+        if rel_path.starts_with("kaitai_struct_tests/spec/ks") {
+            continue;
+        }
+        if rel_path.starts_with("kaitai_struct_tests/formats") {
+            continue;
+        }
+
+        files.push((path.to_path_buf(), rel_path.to_path_buf()));
+    }
+
+    // Sort files by relative path for deterministic hash ordering
+    files.sort_by(|a, b| a.1.cmp(&b.1));
+
+    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    for (abs_path, rel_path) in files {
+        for byte in rel_path.to_string_lossy().as_bytes() {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
+        }
+
+        let metadata = fs::metadata(&abs_path)?;
+        let size = metadata.len();
+        // Reason for fallback: system clock before UNIX epoch defaults to zero
+        let mtime = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map_or(0_u128, |d| d.as_nanos());
+
+        for byte in size.to_le_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
+        }
+        for byte in mtime.to_le_bytes() {
+            hash ^= u64::from(byte);
+            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
+        }
+
+        // For small files (< 1MB), also incorporate file content
+        if size < 1_000_000 {
+            if let Ok(bytes) = fs::read(&abs_path) {
+                for byte in bytes {
+                    hash ^= u64::from(byte);
+                    hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
+                }
+            }
+        }
+    }
+
+    Ok(hash)
+}
+
 /// Regenerates all Kaitai Struct tests from `.kst` specifications in `kst_dir`,
 /// writing `.generated.rs` test files into `out_dir` with caching via `cache_file`.
 ///
@@ -659,14 +775,26 @@ pub fn regenerate_tests_from_kst(
 
     fs::create_dir_all(out_dir)?;
 
+    let manifest_dir = kst_dir
+        .ancestors()
+        .find(|p| p.join("Cargo.toml").is_file() && p.ends_with("kaitai"))
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")));
+    let source_hash = compute_source_hash(&manifest_dir)?;
+    let header_prefix = format!("# source_hash\t{source_hash}");
+
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if !force && cache_file.exists() {
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
-            for line in cache_str.lines() {
-                let parts: Vec<&str> = line.split('\t').collect();
-                if let [p0, p1, p2] = parts.as_slice() {
-                    if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
-                        cache.insert((*p0).to_string(), (mtime, size));
+            let mut lines = cache_str.lines();
+            let first_line = lines.next().unwrap_or_default();
+            if first_line == header_prefix {
+                for line in lines {
+                    let parts: Vec<&str> = line.split('\t').collect();
+                    if let [p0, p1, p2] = parts.as_slice() {
+                        if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
+                            cache.insert((*p0).to_string(), (mtime, size));
+                        }
                     }
                 }
             }
@@ -720,7 +848,33 @@ pub fn regenerate_tests_from_kst(
             .to_string_lossy()
             .to_string();
 
-        if !force && target_path.exists() {
+        // Check format schema file if present
+        let mut ksy_info = None;
+        let mut ksy_up_to_date = true;
+        if let Some(dir) = formats_dir {
+            let ksy_path = dir.join(format!("{stem}.ksy"));
+            if ksy_path.exists() {
+                if let Ok(meta) = fs::metadata(&ksy_path) {
+                    let k_mtime = meta
+                        .modified()
+                        .ok()
+                        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                        .map_or(0_u128, |d| d.as_nanos());
+                    let k_size = meta.len();
+                    let ksy_key = format!("format:{stem}.ksy");
+                    if let Some((cached_m, cached_s)) = cache.get(&ksy_key) {
+                        if *cached_m != k_mtime || *cached_s != k_size {
+                            ksy_up_to_date = false;
+                        }
+                    } else {
+                        ksy_up_to_date = false;
+                    }
+                    ksy_info = Some((ksy_key, k_mtime, k_size));
+                }
+            }
+        }
+
+        if !force && target_path.exists() && ksy_up_to_date {
             if let Some((cached_mtime, cached_size)) = cache.get(&rel_key) {
                 if *cached_mtime == mtime && *cached_size == size {
                     stats.cache_hits = stats.cache_hits.saturating_add(1);
@@ -732,12 +886,19 @@ pub fn regenerate_tests_from_kst(
         let generated_code = synthesize_test_from_kst(path, formats_dir)?;
         write_if_changed(&target_path, &generated_code)?;
         updated_cache.insert(rel_key, (mtime, size));
+        if let Some((k_key, k_mtime, k_size)) = ksy_info {
+            updated_cache.insert(k_key, (k_mtime, k_size));
+        }
         stats.generated_count = stats.generated_count.saturating_add(1);
     }
 
-    let mut cache_str = String::new();
-    for (k, (mtime, size)) in &updated_cache {
-        cache_str.push_str(&format!("{k}\t{mtime}\t{size}\n"));
+    let mut cache_str = format!("# source_hash\t{source_hash}\n");
+    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
+    sorted_keys.sort();
+    for k in sorted_keys {
+        if let Some((mtime, size)) = updated_cache.get(&k) {
+            cache_str.push_str(&format!("{k}\t{mtime}\t{size}\n"));
+        }
     }
     write_if_changed(cache_file, &cache_str)?;
 
@@ -772,15 +933,23 @@ pub fn regenerate_tests(
 
     fs::create_dir_all(out_dir)?;
 
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let source_hash = compute_source_hash(&manifest_dir)?;
+    let header_prefix = format!("# source_hash\t{source_hash}");
+
     // 1. Load build cache
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if !force && cache_file.exists() {
         if let Ok(cache_str) = fs::read_to_string(cache_file) {
-            for line in cache_str.lines() {
-                let parts: Vec<&str> = line.split('\t').collect();
-                if let [p0, p1, p2] = parts.as_slice() {
-                    if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
-                        cache.insert((*p0).to_string(), (mtime, size));
+            let mut lines = cache_str.lines();
+            let first_line = lines.next().unwrap_or_default();
+            if first_line == header_prefix {
+                for line in lines {
+                    let parts: Vec<&str> = line.split('\t').collect();
+                    if let [p0, p1, p2] = parts.as_slice() {
+                        if let (Ok(mtime), Ok(size)) = (p1.parse(), p2.parse()) {
+                            cache.insert((*p0).to_string(), (mtime, size));
+                        }
                     }
                 }
             }
@@ -860,9 +1029,13 @@ pub fn regenerate_tests(
     }
 
     // 5. Write updated build cache
-    let mut cache_str = String::new();
-    for (k, (mtime, size)) in &updated_cache {
-        cache_str.push_str(&format!("{k}\t{mtime}\t{size}\n"));
+    let mut cache_str = format!("# source_hash\t{source_hash}\n");
+    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
+    sorted_keys.sort();
+    for k in sorted_keys {
+        if let Some((mtime, size)) = updated_cache.get(&k) {
+            cache_str.push_str(&format!("{k}\t{mtime}\t{size}\n"));
+        }
     }
     write_if_changed(cache_file, &cache_str)?;
 

@@ -22,6 +22,7 @@ impl KStruct for RtcpPayload {
     type Root = RtcpPayload;
     type Parent = RtcpPayload;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -42,6 +43,7 @@ impl KStruct for RtcpPayload {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -57,7 +59,7 @@ impl RtcpPayload {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RtcpPayload_PayloadType {
     Fir,
     Nack,
@@ -122,7 +124,7 @@ impl Default for RtcpPayload_PayloadType {
     fn default() -> Self { RtcpPayload_PayloadType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RtcpPayload_PsfbSubtype {
     Pli,
     Sli,
@@ -172,7 +174,7 @@ impl Default for RtcpPayload_PsfbSubtype {
     fn default() -> Self { RtcpPayload_PsfbSubtype::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RtcpPayload_RtpfbSubtype {
     Nack,
     Tmmbr,
@@ -213,7 +215,7 @@ impl Default for RtcpPayload_RtpfbSubtype {
     fn default() -> Self { RtcpPayload_RtpfbSubtype::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RtcpPayload_SdesSubtype {
     Pad,
     Cname,
@@ -285,6 +287,7 @@ impl KStruct for RtcpPayload_PacketStatusChunk {
     type Root = RtcpPayload;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -309,10 +312,12 @@ impl KStruct for RtcpPayload_PacketStatusChunk {
         if (if *self_rc.t() { 1_i32 } else { 0_i32 }) == 1 {
             *self_rc.symbol_list.borrow_mut() = _io.read_bits_int_be(14)?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_PacketStatusChunk {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn s(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -371,13 +376,13 @@ pub enum RtcpPayload_PsfbAfbPacket_Contents {
     RtcpPayload_PsfbAfbRembPacket(OptRc<RtcpPayload_PsfbAfbRembPacket>),
     Bytes(Vec<u8>),
 }
-impl From<&RtcpPayload_PsfbAfbPacket_Contents> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Self {
+impl TryFrom<&RtcpPayload_PsfbAfbPacket_Contents> for OptRc<RtcpPayload_PsfbAfbRembPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Result<Self, Self::Error> {
         if let RtcpPayload_PsfbAfbPacket_Contents::RtcpPayload_PsfbAfbRembPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_PsfbAfbPacket_Contents::RtcpPayload_PsfbAfbRembPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_PsfbAfbRembPacket>> for RtcpPayload_PsfbAfbPacket_Contents {
@@ -385,13 +390,13 @@ impl From<OptRc<RtcpPayload_PsfbAfbRembPacket>> for RtcpPayload_PsfbAfbPacket_Co
         Self::RtcpPayload_PsfbAfbRembPacket(v)
     }
 }
-impl From<&RtcpPayload_PsfbAfbPacket_Contents> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Self {
+impl TryFrom<&RtcpPayload_PsfbAfbPacket_Contents> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbAfbPacket_Contents) -> Result<Self, Self::Error> {
         if let RtcpPayload_PsfbAfbPacket_Contents::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_PsfbAfbPacket_Contents::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for RtcpPayload_PsfbAfbPacket_Contents {
@@ -403,6 +408,7 @@ impl KStruct for RtcpPayload_PsfbAfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_PsfbPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -427,6 +433,7 @@ impl KStruct for RtcpPayload_PsfbAfbPacket {
                 *self_rc.contents.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -470,6 +477,7 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_PsfbAfbPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -490,10 +498,12 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
         for _i in 0_usize..l_ssrc_list {
             self_rc.ssrc_list.borrow_mut().push(_io.read_u4be()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_PsfbAfbRembPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn max_total_bitrate(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -550,13 +560,13 @@ pub enum RtcpPayload_PsfbPacket_FciBlock {
     RtcpPayload_PsfbAfbPacket(OptRc<RtcpPayload_PsfbAfbPacket>),
     Bytes(Vec<u8>),
 }
-impl From<&RtcpPayload_PsfbPacket_FciBlock> for OptRc<RtcpPayload_PsfbAfbPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Self {
+impl TryFrom<&RtcpPayload_PsfbPacket_FciBlock> for OptRc<RtcpPayload_PsfbAfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Result<Self, Self::Error> {
         if let RtcpPayload_PsfbPacket_FciBlock::RtcpPayload_PsfbAfbPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_PsfbPacket_FciBlock::RtcpPayload_PsfbAfbPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_PsfbAfbPacket>> for RtcpPayload_PsfbPacket_FciBlock {
@@ -564,13 +574,13 @@ impl From<OptRc<RtcpPayload_PsfbAfbPacket>> for RtcpPayload_PsfbPacket_FciBlock 
         Self::RtcpPayload_PsfbAfbPacket(v)
     }
 }
-impl From<&RtcpPayload_PsfbPacket_FciBlock> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Self {
+impl TryFrom<&RtcpPayload_PsfbPacket_FciBlock> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_PsfbPacket_FciBlock) -> Result<Self, Self::Error> {
         if let RtcpPayload_PsfbPacket_FciBlock::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_PsfbPacket_FciBlock::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for RtcpPayload_PsfbPacket_FciBlock {
@@ -582,6 +592,7 @@ impl KStruct for RtcpPayload_PsfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -607,10 +618,12 @@ impl KStruct for RtcpPayload_PsfbPacket {
                 *self_rc.fci_block.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_PsfbPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fmt(
         &self
     ) -> KResult<Ref<'_, RtcpPayload_PsfbSubtype>> {
@@ -670,6 +683,7 @@ impl KStruct for RtcpPayload_ReportBlock {
     type Root = RtcpPayload;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -687,10 +701,12 @@ impl KStruct for RtcpPayload_ReportBlock {
         *self_rc.interarrival_jitter.borrow_mut() = _io.read_u4be()?;
         *self_rc.lsr.borrow_mut() = _io.read_u4be()?;
         *self_rc.dlsr.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_ReportBlock {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn cumulative_packets_lost(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -702,6 +718,7 @@ impl RtcpPayload_ReportBlock {
         *self.cumulative_packets_lost.borrow_mut() = (((i32::from(*self.lost_val())) & (16777215_i32))).try_into()?;
         Ok(self.cumulative_packets_lost.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fraction_lost(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -763,6 +780,7 @@ impl KStruct for RtcpPayload_RrPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -781,6 +799,7 @@ impl KStruct for RtcpPayload_RrPacket {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -825,13 +844,13 @@ pub enum RtcpPayload_RtcpPacket_Body {
     RtcpPayload_SrPacket(OptRc<RtcpPayload_SrPacket>),
     Bytes(Vec<u8>),
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_PsfbPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_PsfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_PsfbPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::RtcpPayload_PsfbPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_PsfbPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -839,13 +858,13 @@ impl From<OptRc<RtcpPayload_PsfbPacket>> for RtcpPayload_RtcpPacket_Body {
         Self::RtcpPayload_PsfbPacket(v)
     }
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RrPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RrPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_RrPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::RtcpPayload_RrPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_RrPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -853,13 +872,13 @@ impl From<OptRc<RtcpPayload_RrPacket>> for RtcpPayload_RtcpPacket_Body {
         Self::RtcpPayload_RrPacket(v)
     }
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RtpfbPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_RtpfbPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_RtpfbPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::RtcpPayload_RtpfbPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_RtpfbPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -867,13 +886,13 @@ impl From<OptRc<RtcpPayload_RtpfbPacket>> for RtcpPayload_RtcpPacket_Body {
         Self::RtcpPayload_RtpfbPacket(v)
     }
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SdesPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SdesPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_SdesPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::RtcpPayload_SdesPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_SdesPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -881,13 +900,13 @@ impl From<OptRc<RtcpPayload_SdesPacket>> for RtcpPayload_RtcpPacket_Body {
         Self::RtcpPayload_SdesPacket(v)
     }
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SrPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for OptRc<RtcpPayload_SrPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::RtcpPayload_SrPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::RtcpPayload_SrPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_SrPacket>> for RtcpPayload_RtcpPacket_Body {
@@ -895,13 +914,13 @@ impl From<OptRc<RtcpPayload_SrPacket>> for RtcpPayload_RtcpPacket_Body {
         Self::RtcpPayload_SrPacket(v)
     }
 }
-impl From<&RtcpPayload_RtcpPacket_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtcpPacket_Body) -> Self {
+impl TryFrom<&RtcpPayload_RtcpPacket_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtcpPacket_Body) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtcpPacket_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtcpPacket_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for RtcpPayload_RtcpPacket_Body {
@@ -913,6 +932,7 @@ impl KStruct for RtcpPayload_RtcpPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -932,35 +952,35 @@ impl KStruct for RtcpPayload_RtcpPacket {
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
         match *self_rc.payload_type() {
             RtcpPayload_PayloadType::Psfb => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, RtcpPayload_PsfbPacket>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             RtcpPayload_PayloadType::Rr => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, RtcpPayload_RrPacket>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             RtcpPayload_PayloadType::Rtpfb => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, RtcpPayload_RtpfbPacket>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             RtcpPayload_PayloadType::Sdes => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, RtcpPayload_SdesPacket>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             RtcpPayload_PayloadType::Sr => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from((4_i32).saturating_mul(i32::from(*self_rc.length())))?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, RtcpPayload_SrPacket>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -970,6 +990,7 @@ impl KStruct for RtcpPayload_RtcpPacket {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1034,13 +1055,13 @@ pub enum RtcpPayload_RtpfbPacket_FciBlock {
     RtcpPayload_RtpfbTransportFeedbackPacket(OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>),
     Bytes(Vec<u8>),
 }
-impl From<&RtcpPayload_RtpfbPacket_FciBlock> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Self {
+impl TryFrom<&RtcpPayload_RtpfbPacket_FciBlock> for OptRc<RtcpPayload_RtpfbTransportFeedbackPacket> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtpfbPacket_FciBlock::RtcpPayload_RtpfbTransportFeedbackPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtpfbPacket_FciBlock::RtcpPayload_RtpfbTransportFeedbackPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>> for RtcpPayload_RtpfbPacket_FciBlock {
@@ -1048,13 +1069,13 @@ impl From<OptRc<RtcpPayload_RtpfbTransportFeedbackPacket>> for RtcpPayload_Rtpfb
         Self::RtcpPayload_RtpfbTransportFeedbackPacket(v)
     }
 }
-impl From<&RtcpPayload_RtpfbPacket_FciBlock> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Self {
+impl TryFrom<&RtcpPayload_RtpfbPacket_FciBlock> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &RtcpPayload_RtpfbPacket_FciBlock) -> Result<Self, Self::Error> {
         if let RtcpPayload_RtpfbPacket_FciBlock::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected RtcpPayload_RtpfbPacket_FciBlock::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for RtcpPayload_RtpfbPacket_FciBlock {
@@ -1066,6 +1087,7 @@ impl KStruct for RtcpPayload_RtpfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1091,10 +1113,12 @@ impl KStruct for RtcpPayload_RtpfbPacket {
                 *self_rc.fci_block.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_RtpfbPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fmt(
         &self
     ) -> KResult<Ref<'_, RtcpPayload_RtpfbSubtype>> {
@@ -1156,6 +1180,7 @@ impl KStruct for RtcpPayload_RtpfbTransportFeedbackPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtpfbPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1171,10 +1196,12 @@ impl KStruct for RtcpPayload_RtpfbTransportFeedbackPacket {
         *self_rc.packet_status_count.borrow_mut() = _io.read_u2be()?;
         *self_rc.b4.borrow_mut() = _io.read_u4be()?;
         *self_rc.remaining.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_RtpfbTransportFeedbackPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fb_pkt_count(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1186,6 +1213,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
         *self.fb_pkt_count.borrow_mut() = (((*self.b4()) & (255_u32))).try_into()?;
         Ok(self.fb_pkt_count.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn packet_status(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -1197,6 +1225,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
         *self.packet_status.borrow_mut() = _io.read_bytes(0_usize)?;
         Ok(self.packet_status.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn recv_delta(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -1208,6 +1237,7 @@ impl RtcpPayload_RtpfbTransportFeedbackPacket {
         *self.recv_delta.borrow_mut() = _io.read_bytes(0_usize)?;
         Ok(self.recv_delta.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn reference_time(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1260,6 +1290,7 @@ impl KStruct for RtcpPayload_SdesPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1277,10 +1308,12 @@ impl KStruct for RtcpPayload_SdesPacket {
             let t = Self::read_into::<_, RtcpPayload_SourceChunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.source_chunk.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_SdesPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn source_count(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -1313,11 +1346,13 @@ pub struct RtcpPayload_SdesTlv {
     length: RefCell<u8>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for RtcpPayload_SdesTlv {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_SourceChunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1336,6 +1371,7 @@ impl KStruct for RtcpPayload_SdesTlv {
         if *self_rc.r#type() != RtcpPayload_SdesSubtype::Pad {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::from(*self_rc.length()))?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1361,6 +1397,11 @@ impl RtcpPayload_SdesTlv {
         self._io.borrow()
     }
 }
+impl RtcpPayload_SdesTlv {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct RtcpPayload_SourceChunk {
@@ -1375,6 +1416,7 @@ impl KStruct for RtcpPayload_SourceChunk {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_SdesPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1396,6 +1438,7 @@ impl KStruct for RtcpPayload_SourceChunk {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1437,6 +1480,7 @@ impl KStruct for RtcpPayload_SrPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1460,10 +1504,12 @@ impl KStruct for RtcpPayload_SrPacket {
             let t = Self::read_into::<_, RtcpPayload_ReportBlock>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.report_block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl RtcpPayload_SrPacket {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ntp(
         &self
     ) -> KResult<Ref<'_, i32>> {

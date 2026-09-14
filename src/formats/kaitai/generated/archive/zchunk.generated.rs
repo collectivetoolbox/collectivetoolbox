@@ -19,11 +19,15 @@ pub struct Zchunk {
     dict: RefCell<Vec<u8>>,
     chunks: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    header_rest_raw: RefCell<Vec<u8>>,
+    dict_raw: RefCell<Vec<u8>>,
+    chunks_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Zchunk {
     type Root = Zchunk;
     type Parent = Zchunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,7 +41,10 @@ impl KStruct for Zchunk {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_HeaderLead>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.lead.borrow_mut() = t;
-        let t = Self::read_into::<_, Zchunk_HeaderWithoutLead>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header_rest = _io.read_bytes(usize::try_from(*self_rc.lead().len_header_rest().value()?)?)?;
+        *self_rc.header_rest_raw.borrow_mut() = _raw_header_rest.clone();
+        let _io_header_rest = BytesReader::from(_raw_header_rest);
+        let t = Self::read_into::<BytesReader, Zchunk_HeaderWithoutLead>(&_io_header_rest, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_rest.borrow_mut() = t;
         *self_rc.dict.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header_rest().index().len_dict().value()?)?)?;
         if !(*self_rc.lead().is_detached_header()?) {
@@ -47,6 +54,7 @@ impl KStruct for Zchunk {
                 self_rc.chunks.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.header_rest().index().chunks_metadata().get(_i).ok_or(KError::CastError)?.len_chunk().value()?)?)?);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -95,7 +103,22 @@ impl Zchunk {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Zchunk {
+    pub fn header_rest_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_rest_raw.borrow()
+    }
+}
+impl Zchunk {
+    pub fn dict_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dict_raw.borrow()
+    }
+}
+impl Zchunk {
+    pub fn chunks_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chunks_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Zchunk_ChecksumTypes {
     Sha1,
     Sha256,
@@ -133,7 +156,7 @@ impl Default for Zchunk_ChecksumTypes {
     fn default() -> Self { Zchunk_ChecksumTypes::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Zchunk_CompressionTypes {
     None,
     Zstd,
@@ -182,6 +205,7 @@ impl KStruct for Zchunk_ChecksumType {
     type Root = Zchunk;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -195,14 +219,17 @@ impl KStruct for Zchunk_ChecksumType {
         let _io = io;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.raw.borrow_mut() = t;
-        let _tmpa = &*self_rc.raw();
+        let _borrowed = self_rc.raw();
+        let _tmpa = &*_borrowed;
         if !((*self_rc.len_checksum()? != 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/checksum_type/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Zchunk_ChecksumType {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_checksum(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -214,6 +241,7 @@ impl Zchunk_ChecksumType {
         *self.len_checksum.borrow_mut() = (if *self.value()? == Zchunk_ChecksumTypes::Sha1 { 20_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha256 { 32_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha512 { 64_i32 } else { if *self.value()? == Zchunk_ChecksumTypes::Sha512128 { 16_i32 } else { 0_i32 } } } }).try_into()?;
         Ok(self.len_checksum.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, Zchunk_ChecksumTypes>> {
@@ -255,11 +283,14 @@ pub struct Zchunk_Chunk {
     len_chunk: RefCell<OptRc<Zchunk_CompressedInteger>>,
     len_uncompressed_chunk: RefCell<OptRc<Zchunk_CompressedInteger>>,
     _io: RefCell<BytesReader>,
+    chunk_checksum_raw: RefCell<Vec<u8>>,
+    uncompressed_chunk_checksum_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Zchunk_Chunk {
     type Root = Zchunk;
     type Parent = Zchunk_Index;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -283,6 +314,7 @@ impl KStruct for Zchunk_Chunk {
         *self_rc.len_chunk.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_uncompressed_chunk.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -345,6 +377,16 @@ impl Zchunk_Chunk {
         self._io.borrow()
     }
 }
+impl Zchunk_Chunk {
+    pub fn chunk_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chunk_checksum_raw.borrow()
+    }
+}
+impl Zchunk_Chunk {
+    pub fn uncompressed_chunk_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.uncompressed_chunk_checksum_raw.borrow()
+    }
+}
 
 /**
  * Like `/common/vlq_base128_le` (LEB128), but the logic of the
@@ -371,6 +413,7 @@ impl KStruct for Zchunk_CompressedInteger {
     type Root = Zchunk;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -395,10 +438,12 @@ impl KStruct for Zchunk_CompressedInteger {
                 if *_tmpa.is_last() { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Zchunk_CompressedInteger {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -414,6 +459,7 @@ impl Zchunk_CompressedInteger {
     /**
      * Resulting unsigned value as normal integer
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -455,6 +501,7 @@ impl KStruct for Zchunk_CompressedInteger_Group {
     type Root = Zchunk;
     type Parent = Zchunk_CompressedInteger;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -467,10 +514,15 @@ impl KStruct for Zchunk_CompressedInteger_Group {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.is_last.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        if !(*self_rc.is_last() == if *self_rc.idx() == 9 { true } else { *self_rc.is_last() }) {
+        if !(*self_rc.is_last() == if ((to_i128(*self_rc.idx())) == (to_i128(9))) { true } else { *self_rc.is_last() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/compressed_integer/types/group/seq/0".to_string() }));
         }
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
+        let max_val: u64 = (u64::try_from(if ((to_i128(*self_rc.idx())) == (to_i128(9))) { 1_i32 } else { 127_i32 })?).try_into()?;
+        if !(*self_rc.value() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/compressed_integer/types/group/seq/1".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -528,6 +580,8 @@ pub struct Zchunk_HeaderLead {
     len_header_rest: RefCell<OptRc<Zchunk_CompressedInteger>>,
     header_checksum: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
+    header_checksum_raw: RefCell<Vec<u8>>,
     f_is_detached_header: Cell<bool>,
     is_detached_header: RefCell<bool>,
 }
@@ -535,6 +589,7 @@ impl KStruct for Zchunk_HeaderLead {
     type Root = Zchunk;
     type Parent = Zchunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -547,11 +602,16 @@ impl KStruct for Zchunk_HeaderLead {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(5_usize)?;
+        let _item = &*self_rc.magic();
+        if !(_item == vec![0x0u8, 0x5au8, 0x43u8, 0x4bu8, 0x31u8] || _item == vec![0x0u8, 0x5au8, 0x48u8, 0x52u8, 0x31u8]) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header_lead/seq/0".to_string() }));
+        }
         let t = Self::read_into::<_, Zchunk_ChecksumType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.overall_checksum_type.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_header_rest.borrow_mut() = t;
         *self_rc.header_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.overall_checksum_type().len_checksum()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -561,6 +621,7 @@ impl Zchunk_HeaderLead {
      * Determines whether this file is a zchunk detached header (`.zhr`). If
      * not, it is a complete zchunk file (`.zck`).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_detached_header(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -569,7 +630,7 @@ impl Zchunk_HeaderLead {
             return Ok(self.is_detached_header.borrow());
         }
         self.f_is_detached_header.set(true);
-        *self.is_detached_header.borrow_mut() = (*(self.magic().get(2_usize).ok_or(KError::CastError)?) == 72).try_into()?;
+        *self.is_detached_header.borrow_mut() = (((to_i128(*(self.magic().get(2_usize).ok_or(KError::CastError)?))) == (to_i128(72)))).try_into()?;
         Ok(self.is_detached_header.borrow())
     }
 }
@@ -627,6 +688,16 @@ impl Zchunk_HeaderLead {
         self._io.borrow()
     }
 }
+impl Zchunk_HeaderLead {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
+    }
+}
+impl Zchunk_HeaderLead {
+    pub fn header_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_checksum_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Zchunk_HeaderWithoutLead {
@@ -638,11 +709,13 @@ pub struct Zchunk_HeaderWithoutLead {
     index: RefCell<OptRc<Zchunk_Index>>,
     num_signatures: RefCell<OptRc<Zchunk_CompressedInteger>>,
     _io: RefCell<BytesReader>,
+    index_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Zchunk_HeaderWithoutLead {
     type Root = Zchunk;
     type Parent = Zchunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -658,14 +731,19 @@ impl KStruct for Zchunk_HeaderWithoutLead {
         *self_rc.preface.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_index.borrow_mut() = t;
-        let t = Self::read_into::<_, Zchunk_Index>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_index = _io.read_bytes(usize::try_from(*self_rc.len_index().value()?)?)?;
+        *self_rc.index_raw.borrow_mut() = _raw_index.clone();
+        let _io_index = BytesReader::from(_raw_index);
+        let t = Self::read_into::<BytesReader, Zchunk_Index>(&_io_index, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_signatures.borrow_mut() = t;
-        let _tmpa = &*self_rc.num_signatures();
+        let _borrowed = self_rc.num_signatures();
+        let _tmpa = &*_borrowed;
         if !((*_tmpa.value()? == 0_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/header_without_lead/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -713,6 +791,11 @@ impl Zchunk_HeaderWithoutLead {
         self._io.borrow()
     }
 }
+impl Zchunk_HeaderWithoutLead {
+    pub fn index_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.index_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Zchunk_Index {
@@ -728,6 +811,8 @@ pub struct Zchunk_Index {
     len_uncompressed_dict: RefCell<OptRc<Zchunk_CompressedInteger>>,
     chunks_metadata: RefCell<Vec<OptRc<Zchunk_Chunk>>>,
     _io: RefCell<BytesReader>,
+    dict_checksum_raw: RefCell<Vec<u8>>,
+    uncompressed_dict_checksum_raw: RefCell<Vec<u8>>,
     f_num_data_chunks: Cell<bool>,
     num_data_chunks: RefCell<i32>,
 }
@@ -735,6 +820,7 @@ impl KStruct for Zchunk_Index {
     type Root = Zchunk;
     type Parent = Zchunk_HeaderWithoutLead;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -750,14 +836,16 @@ impl KStruct for Zchunk_Index {
         *self_rc.chunk_checksum_type.borrow_mut() = t;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.num_chunks.borrow_mut() = t;
-        let _tmpa = &*self_rc.num_chunks();
+        let _borrowed = self_rc.num_chunks();
+        let _tmpa = &*_borrowed;
         if !((*_tmpa.value()? >= 1_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/1".to_string() }));
         }
         if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.preface().has_data_streams()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.dict_stream.borrow_mut() = t;
-            let _tmpa = &*self_rc.dict_stream();
+            let _borrowed = self_rc.dict_stream();
+            let _tmpa = &*_borrowed;
             if !((*_tmpa.value()? == 0_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/index/seq/2".to_string() }));
             }
@@ -777,6 +865,7 @@ impl KStruct for Zchunk_Index {
             let t = Self::read_into_with_init::<_, Zchunk_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.chunks_metadata.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -786,6 +875,7 @@ impl Zchunk_Index {
      * Number of data chunks. `num_chunks` counts the dictionary as chunk 0,
      * so it is one greater than this number.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_data_chunks(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -874,6 +964,16 @@ impl Zchunk_Index {
         self._io.borrow()
     }
 }
+impl Zchunk_Index {
+    pub fn dict_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dict_checksum_raw.borrow()
+    }
+}
+impl Zchunk_Index {
+    pub fn uncompressed_dict_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.uncompressed_dict_checksum_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Zchunk_OptionalElement {
@@ -884,11 +984,13 @@ pub struct Zchunk_OptionalElement {
     len_data: RefCell<OptRc<Zchunk_CompressedInteger>>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Zchunk_OptionalElement {
     type Root = Zchunk;
     type Parent = Zchunk_Preface;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -905,6 +1007,7 @@ impl KStruct for Zchunk_OptionalElement {
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.len_data.borrow_mut() = t;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data().value()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -930,6 +1033,11 @@ impl Zchunk_OptionalElement {
         self._io.borrow()
     }
 }
+impl Zchunk_OptionalElement {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Zchunk_Preface {
@@ -942,6 +1050,7 @@ pub struct Zchunk_Preface {
     num_optional_elements: RefCell<OptRc<Zchunk_CompressedInteger>>,
     optional_elements: RefCell<Vec<OptRc<Zchunk_OptionalElement>>>,
     _io: RefCell<BytesReader>,
+    data_checksum_raw: RefCell<Vec<u8>>,
     f_compression_type: Cell<bool>,
     compression_type: RefCell<Zchunk_CompressionTypes>,
     f_has_data_streams: Cell<bool>,
@@ -955,6 +1064,7 @@ impl KStruct for Zchunk_Preface {
     type Root = Zchunk;
     type Parent = Zchunk_HeaderWithoutLead;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -969,20 +1079,23 @@ impl KStruct for Zchunk_Preface {
         *self_rc.data_checksum.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.lead().overall_checksum_type().len_checksum()?)?)?;
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.flags.borrow_mut() = t;
-        let _tmpa = &*self_rc.flags();
+        let _borrowed = self_rc.flags();
+        let _tmpa = &*_borrowed;
         if !((*_tmpa.value()? <= 7_i32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/1".to_string() }));
         }
         let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.compression_type_int.borrow_mut() = t;
-        let _tmpa = &*self_rc.compression_type_int();
+        let _borrowed = self_rc.compression_type_int();
+        let _tmpa = &*_borrowed;
         if !( (((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::None)))) || ((to_i128(*_tmpa.value()?)) == (to_i128(i64::from(&Zchunk_CompressionTypes::Zstd))))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/2".to_string() }));
         }
         if *self_rc.has_optional_elements()? {
             let t = Self::read_into::<_, Zchunk_CompressedInteger>(&*_io, Some(self_rc._root.clone()), None)?.into();
             *self_rc.num_optional_elements.borrow_mut() = t;
-            let _tmpa = &*self_rc.num_optional_elements();
+            let _borrowed = self_rc.num_optional_elements();
+            let _tmpa = &*_borrowed;
             if !((*_tmpa.value()? >= 1_i32)) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/preface/seq/3".to_string() }));
             }
@@ -995,10 +1108,12 @@ impl KStruct for Zchunk_Preface {
                 self_rc.optional_elements.borrow_mut().push(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Zchunk_Preface {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn compression_type(
         &self
     ) -> KResult<Ref<'_, Zchunk_CompressionTypes>> {
@@ -1010,6 +1125,7 @@ impl Zchunk_Preface {
         *self.compression_type.borrow_mut() = i64::from(*self.compression_type_int().value()?).try_into()?;
         Ok(self.compression_type.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_data_streams(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1021,6 +1137,7 @@ impl Zchunk_Preface {
         *self.has_data_streams.borrow_mut() = (((*self.flags().value()?) & (1_i32)) != 0).try_into()?;
         Ok(self.has_data_streams.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_optional_elements(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1037,6 +1154,7 @@ impl Zchunk_Preface {
      * The file may be applied against an uncompressed source. This adds an
      * uncompressed checksum to every index entry, including the dictionary.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_uncompressed_source(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1108,5 +1226,10 @@ impl Zchunk_Preface {
 impl Zchunk_Preface {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Zchunk_Preface {
+    pub fn data_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_checksum_raw.borrow()
     }
 }

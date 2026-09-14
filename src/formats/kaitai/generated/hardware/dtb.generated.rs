@@ -61,6 +61,7 @@ impl KStruct for Dtb {
     type Root = Dtb;
     type Parent = Dtb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -82,13 +83,19 @@ impl KStruct for Dtb {
         *self_rc.ofs_memory_reservation_block.borrow_mut() = _io.read_u4be()?;
         *self_rc.version.borrow_mut() = _io.read_u4be()?;
         *self_rc.min_compatible_version.borrow_mut() = _io.read_u4be()?;
+        let max_val: u32 = (*self_rc.version()).try_into()?;
+        if !(*self_rc.min_compatible_version() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/seq/6".to_string() }));
+        }
         *self_rc.boot_cpuid_phys.borrow_mut() = _io.read_u4be()?;
         *self_rc.len_strings_block.borrow_mut() = _io.read_u4be()?;
         *self_rc.len_structure_block.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Dtb {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn memory_reservation_block(
         &self
     ) -> KResult<Ref<'_, OptRc<Dtb_MemoryBlock>>> {
@@ -106,6 +113,7 @@ impl Dtb {
         _io.seek(_pos)?;
         Ok(self.memory_reservation_block.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn strings_block(
         &self
     ) -> KResult<Ref<'_, OptRc<Dtb_Strings>>> {
@@ -123,6 +131,7 @@ impl Dtb {
         _io.seek(_pos)?;
         Ok(self.strings_block.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn structure_block(
         &self
     ) -> KResult<Ref<'_, OptRc<Dtb_FdtBlock>>> {
@@ -211,7 +220,7 @@ impl Dtb {
         self.structure_block_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Dtb_Fdt {
     BeginNode,
     EndNode,
@@ -261,11 +270,13 @@ pub struct Dtb_FdtBeginNode {
     name: RefCell<String>,
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    padding_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Dtb_FdtBeginNode {
     type Root = Dtb;
     type Parent = Dtb_FdtNode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -277,8 +288,9 @@ impl KStruct for Dtb_FdtBeginNode {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -299,6 +311,11 @@ impl Dtb_FdtBeginNode {
         self._io.borrow()
     }
 }
+impl Dtb_FdtBeginNode {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Dtb_FdtBlock {
@@ -312,6 +329,7 @@ impl KStruct for Dtb_FdtBlock {
     type Root = Dtb;
     type Parent = Dtb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -335,6 +353,7 @@ impl KStruct for Dtb_FdtBlock {
                 if *_tmpa.r#type() == Dtb_Fdt::End { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -359,20 +378,19 @@ pub struct Dtb_FdtNode {
     r#type: RefCell<Dtb_Fdt>,
     body: RefCell<Option<Dtb_FdtNode_Body>>,
     _io: RefCell<BytesReader>,
-    body_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Dtb_FdtNode_Body {
     Dtb_FdtBeginNode(OptRc<Dtb_FdtBeginNode>),
     Dtb_FdtProp(OptRc<Dtb_FdtProp>),
 }
-impl From<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtBeginNode> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Dtb_FdtNode_Body) -> Self {
+impl TryFrom<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtBeginNode> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtNode_Body) -> Result<Self, Self::Error> {
         if let Dtb_FdtNode_Body::Dtb_FdtBeginNode(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Dtb_FdtNode_Body::Dtb_FdtBeginNode, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Dtb_FdtBeginNode>> for Dtb_FdtNode_Body {
@@ -380,13 +398,13 @@ impl From<OptRc<Dtb_FdtBeginNode>> for Dtb_FdtNode_Body {
         Self::Dtb_FdtBeginNode(v)
     }
 }
-impl From<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtProp> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Dtb_FdtNode_Body) -> Self {
+impl TryFrom<&Dtb_FdtNode_Body> for OptRc<Dtb_FdtProp> {
+    type Error = KError;
+    fn try_from(v: &Dtb_FdtNode_Body) -> Result<Self, Self::Error> {
         if let Dtb_FdtNode_Body::Dtb_FdtProp(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Dtb_FdtNode_Body::Dtb_FdtProp, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Dtb_FdtProp>> for Dtb_FdtNode_Body {
@@ -398,6 +416,7 @@ impl KStruct for Dtb_FdtNode {
     type Root = Dtb;
     type Parent = Dtb_FdtBlock;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -412,21 +431,16 @@ impl KStruct for Dtb_FdtNode {
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.r#type() {
             Dtb_Fdt::BeginNode => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Dtb_FdtBeginNode>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_FdtBeginNode>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Dtb_Fdt::Prop => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Dtb_FdtProp>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Dtb_FdtProp>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -447,11 +461,6 @@ impl Dtb_FdtNode {
         self._io.borrow()
     }
 }
-impl Dtb_FdtNode {
-    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Dtb_FdtProp {
@@ -463,6 +472,8 @@ pub struct Dtb_FdtProp {
     property: RefCell<Vec<u8>>,
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    property_raw: RefCell<Vec<u8>>,
+    padding_raw: RefCell<Vec<u8>>,
     f_name: Cell<bool>,
     name: RefCell<String>,
 }
@@ -470,6 +481,7 @@ impl KStruct for Dtb_FdtProp {
     type Root = Dtb;
     type Parent = Dtb_FdtNode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -485,10 +497,12 @@ impl KStruct for Dtb_FdtProp {
         *self_rc.ofs_name.borrow_mut() = _io.read_u4be()?;
         *self_rc.property.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_property())?)?;
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Dtb_FdtProp {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -500,7 +514,7 @@ impl Dtb_FdtProp {
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.strings_block()?._io());
         let _pos = io.pos();
         io.seek(usize::try_from(*self.ofs_name())?)?;
-        *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         io.seek(_pos)?;
         Ok(self.name.borrow())
     }
@@ -530,6 +544,16 @@ impl Dtb_FdtProp {
         self._io.borrow()
     }
 }
+impl Dtb_FdtProp {
+    pub fn property_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.property_raw.borrow()
+    }
+}
+impl Dtb_FdtProp {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Dtb_MemoryBlock {
@@ -543,6 +567,7 @@ impl KStruct for Dtb_MemoryBlock {
     type Root = Dtb;
     type Parent = Dtb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -563,6 +588,7 @@ impl KStruct for Dtb_MemoryBlock {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -592,6 +618,7 @@ impl KStruct for Dtb_MemoryBlockEntry {
     type Root = Dtb;
     type Parent = Dtb_MemoryBlock;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -605,6 +632,7 @@ impl KStruct for Dtb_MemoryBlockEntry {
         let _io = io;
         *self_rc.address.borrow_mut() = _io.read_u8be()?;
         *self_rc.size.borrow_mut() = _io.read_u8be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -646,6 +674,7 @@ impl KStruct for Dtb_Strings {
     type Root = Dtb;
     type Parent = Dtb;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -661,10 +690,11 @@ impl KStruct for Dtb_Strings {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                self_rc.strings.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
+                self_rc.strings.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?);
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

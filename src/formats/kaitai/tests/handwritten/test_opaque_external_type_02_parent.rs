@@ -32,6 +32,10 @@ use kaitai::*;
 use rust::formats::opaque_external_type_02_parent::*;
 
 #[crate::ctb_test]
+#[allow(
+    clippy::panic_in_result_fn,
+    reason = "Standard test assertions in fallible test"
+)]
 fn test_opaque_external_type_02_parent() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;

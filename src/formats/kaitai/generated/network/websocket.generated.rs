@@ -24,6 +24,7 @@ impl KStruct for Websocket {
     type Root = Websocket;
     type Parent = Websocket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,6 +52,7 @@ impl KStruct for Websocket {
                 }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -71,7 +73,7 @@ impl Websocket {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Websocket_Opcode {
     Continuation,
     Text,
@@ -155,11 +157,14 @@ pub struct Websocket_Dataframe {
     payload_bytes: RefCell<Vec<u8>>,
     payload_text: RefCell<String>,
     _io: RefCell<BytesReader>,
+    payload_bytes_raw: RefCell<Vec<u8>>,
+    payload_text_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Websocket_Dataframe {
     type Root = Websocket;
     type Parent = Websocket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -179,6 +184,7 @@ impl KStruct for Websocket_Dataframe {
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.initial_frame().header().opcode() == Websocket_Opcode::Text {
             *self_rc.payload_text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?, "UTF-8")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -204,6 +210,16 @@ impl Websocket_Dataframe {
         self._io.borrow()
     }
 }
+impl Websocket_Dataframe {
+    pub fn payload_bytes_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.payload_bytes_raw.borrow()
+    }
+}
+impl Websocket_Dataframe {
+    pub fn payload_text_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.payload_text_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Websocket_FrameHeader {
@@ -226,6 +242,7 @@ impl KStruct for Websocket_FrameHeader {
     type Root = Websocket;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -243,19 +260,21 @@ impl KStruct for Websocket_FrameHeader {
         *self_rc.is_masked.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.len_payload_primary.borrow_mut() = _io.read_bits_int_be(7)?;
         io.align_to_byte()?;
-        if *self_rc.len_payload_primary() == 126 {
+        if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(126))) {
             *self_rc.len_payload_extended_1.borrow_mut() = _io.read_u2be()?;
         }
-        if *self_rc.len_payload_primary() == 127 {
+        if ((to_i128(*self_rc.len_payload_primary())) == (to_i128(127))) {
             *self_rc.len_payload_extended_2.borrow_mut() = _io.read_u4be()?;
         }
         if *self_rc.is_masked() {
             *self_rc.mask_key.borrow_mut() = _io.read_u4be()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Websocket_FrameHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_payload(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -264,7 +283,7 @@ impl Websocket_FrameHeader {
             return Ok(self.len_payload.borrow());
         }
         self.f_len_payload.set(true);
-        *self.len_payload.borrow_mut() = (if *self.len_payload_primary() <= 125 { *self.len_payload_primary() } else { u64::from(if *self.len_payload_primary() == 126 { u32::from(*self.len_payload_extended_1()) } else { *self.len_payload_extended_2() }) }).try_into()?;
+        *self.len_payload.borrow_mut() = (if ((to_i128(*self.len_payload_primary())) <= (to_i128(125))) { *self.len_payload_primary() } else { u64::from(if ((to_i128(*self.len_payload_primary())) == (to_i128(126))) { u32::from(*self.len_payload_extended_1()) } else { *self.len_payload_extended_2() }) }).try_into()?;
         Ok(self.len_payload.borrow())
     }
 }
@@ -323,11 +342,14 @@ pub struct Websocket_InitialFrame {
     payload_bytes: RefCell<Vec<u8>>,
     payload_text: RefCell<String>,
     _io: RefCell<BytesReader>,
+    payload_bytes_raw: RefCell<Vec<u8>>,
+    payload_text_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Websocket_InitialFrame {
     type Root = Websocket;
     type Parent = Websocket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -347,6 +369,7 @@ impl KStruct for Websocket_InitialFrame {
         if *self_rc.header().opcode() == Websocket_Opcode::Text {
             *self_rc.payload_text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_payload()?)?)?, "UTF-8")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -370,5 +393,15 @@ impl Websocket_InitialFrame {
 impl Websocket_InitialFrame {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Websocket_InitialFrame {
+    pub fn payload_bytes_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.payload_bytes_raw.borrow()
+    }
+}
+impl Websocket_InitialFrame {
+    pub fn payload_text_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.payload_text_raw.borrow()
     }
 }

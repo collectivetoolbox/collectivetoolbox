@@ -23,6 +23,7 @@ impl KStruct for SudoersTs {
     type Root = SudoersTs;
     type Parent = SudoersTs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -43,6 +44,7 @@ impl KStruct for SudoersTs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -58,7 +60,7 @@ impl SudoersTs {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SudoersTs_TsType {
     Global,
     Tty,
@@ -114,13 +116,13 @@ pub enum SudoersTs_Record_Payload {
     SudoersTs_RecordV2(OptRc<SudoersTs_RecordV2>),
     Bytes(Vec<u8>),
 }
-impl From<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV1> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SudoersTs_Record_Payload) -> Self {
+impl TryFrom<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV1> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
         if let SudoersTs_Record_Payload::SudoersTs_RecordV1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SudoersTs_Record_Payload::SudoersTs_RecordV1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<SudoersTs_RecordV1>> for SudoersTs_Record_Payload {
@@ -128,13 +130,13 @@ impl From<OptRc<SudoersTs_RecordV1>> for SudoersTs_Record_Payload {
         Self::SudoersTs_RecordV1(v)
     }
 }
-impl From<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV2> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SudoersTs_Record_Payload) -> Self {
+impl TryFrom<&SudoersTs_Record_Payload> for OptRc<SudoersTs_RecordV2> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
         if let SudoersTs_Record_Payload::SudoersTs_RecordV2(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SudoersTs_Record_Payload::SudoersTs_RecordV2, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<SudoersTs_RecordV2>> for SudoersTs_Record_Payload {
@@ -142,13 +144,13 @@ impl From<OptRc<SudoersTs_RecordV2>> for SudoersTs_Record_Payload {
         Self::SudoersTs_RecordV2(v)
     }
 }
-impl From<&SudoersTs_Record_Payload> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SudoersTs_Record_Payload) -> Self {
+impl TryFrom<&SudoersTs_Record_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &SudoersTs_Record_Payload) -> Result<Self, Self::Error> {
         if let SudoersTs_Record_Payload::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SudoersTs_Record_Payload::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for SudoersTs_Record_Payload {
@@ -160,6 +162,7 @@ impl KStruct for SudoersTs_Record {
     type Root = SudoersTs;
     type Parent = SudoersTs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -175,14 +178,14 @@ impl KStruct for SudoersTs_Record {
         *self_rc.len_record.borrow_mut() = _io.read_u2le()?;
         match *self_rc.version() {
             1 => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_record())).saturating_sub(4_i32))?)?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, SudoersTs_RecordV1>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             2 => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.len_record())).saturating_sub(4_i32))?)?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, SudoersTs_RecordV2>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -192,6 +195,7 @@ impl KStruct for SudoersTs_Record {
                 *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -249,6 +253,7 @@ impl KStruct for SudoersTs_RecordV1 {
     type Root = SudoersTs;
     type Parent = SudoersTs_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -273,6 +278,7 @@ impl KStruct for SudoersTs_RecordV1 {
         if *self_rc.r#type() == SudoersTs_TsType::Ppid {
             *self_rc.ppid.borrow_mut() = _io.read_u4le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -366,6 +372,7 @@ impl KStruct for SudoersTs_RecordV2 {
     type Root = SudoersTs;
     type Parent = SudoersTs_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -392,6 +399,7 @@ impl KStruct for SudoersTs_RecordV2 {
         if *self_rc.r#type() == SudoersTs_TsType::Ppid {
             *self_rc.ppid.borrow_mut() = _io.read_u4le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -488,6 +496,7 @@ impl KStruct for SudoersTs_Timespec {
     type Root = SudoersTs;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -501,6 +510,7 @@ impl KStruct for SudoersTs_Timespec {
         let _io = io;
         *self_rc.sec.borrow_mut() = _io.read_s8le()?;
         *self_rc.nsec.borrow_mut() = _io.read_s8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -545,6 +555,7 @@ impl KStruct for SudoersTs_TsFlag {
     type Root = SudoersTs;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -560,6 +571,7 @@ impl KStruct for SudoersTs_TsFlag {
         *self_rc.anyuid.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.disabled.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(8)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

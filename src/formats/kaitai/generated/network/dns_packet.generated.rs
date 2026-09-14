@@ -30,6 +30,7 @@ impl KStruct for DnsPacket {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -88,6 +89,7 @@ impl KStruct for DnsPacket {
                 self_rc.additionals.borrow_mut().push(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -168,7 +170,7 @@ impl DnsPacket {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DnsPacket_ClassType {
     InClass,
     Cs,
@@ -206,7 +208,7 @@ impl Default for DnsPacket_ClassType {
     fn default() -> Self { DnsPacket_ClassType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DnsPacket_TypeType {
     A,
     Ns,
@@ -294,11 +296,13 @@ pub struct DnsPacket_Address {
     pub(crate) _self_shared: SharedType<Self>,
     ip: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    ip_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DnsPacket_Address {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -311,6 +315,7 @@ impl KStruct for DnsPacket_Address {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ip.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -326,6 +331,11 @@ impl DnsPacket_Address {
         self._io.borrow()
     }
 }
+impl DnsPacket_Address {
+    pub fn ip_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ip_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DnsPacket_AddressV6 {
@@ -334,11 +344,13 @@ pub struct DnsPacket_AddressV6 {
     pub(crate) _self_shared: SharedType<Self>,
     ip_v6: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    ip_v6_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DnsPacket_AddressV6 {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -351,6 +363,7 @@ impl KStruct for DnsPacket_AddressV6 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ip_v6.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -364,6 +377,11 @@ impl DnsPacket_AddressV6 {
 impl DnsPacket_AddressV6 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DnsPacket_AddressV6 {
+    pub fn ip_v6_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ip_v6_raw.borrow()
     }
 }
 
@@ -392,13 +410,13 @@ pub enum DnsPacket_Answer_Payload {
     DnsPacket_TxtBody(OptRc<DnsPacket_TxtBody>),
     Bytes(Vec<u8>),
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Address> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Address> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_Address(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_Address, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_Address>> for DnsPacket_Answer_Payload {
@@ -406,13 +424,13 @@ impl From<OptRc<DnsPacket_Address>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_Address(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AddressV6> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AddressV6> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_AddressV6(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_AddressV6, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_AddressV6>> for DnsPacket_Answer_Payload {
@@ -420,13 +438,13 @@ impl From<OptRc<DnsPacket_AddressV6>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_AddressV6(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_DomainName> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_DomainName> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_DomainName(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_DomainName, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_DomainName>> for DnsPacket_Answer_Payload {
@@ -434,13 +452,13 @@ impl From<OptRc<DnsPacket_DomainName>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_DomainName(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_MxInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_MxInfo> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_MxInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_MxInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_MxInfo>> for DnsPacket_Answer_Payload {
@@ -448,13 +466,13 @@ impl From<OptRc<DnsPacket_MxInfo>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_MxInfo(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AuthorityInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_AuthorityInfo> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_AuthorityInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_AuthorityInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_AuthorityInfo>> for DnsPacket_Answer_Payload {
@@ -462,13 +480,13 @@ impl From<OptRc<DnsPacket_AuthorityInfo>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_AuthorityInfo(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Service> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_Service> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_Service(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_Service, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_Service>> for DnsPacket_Answer_Payload {
@@ -476,13 +494,13 @@ impl From<OptRc<DnsPacket_Service>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_Service(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_TxtBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for OptRc<DnsPacket_TxtBody> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::DnsPacket_TxtBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::DnsPacket_TxtBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DnsPacket_TxtBody>> for DnsPacket_Answer_Payload {
@@ -490,13 +508,13 @@ impl From<OptRc<DnsPacket_TxtBody>> for DnsPacket_Answer_Payload {
         Self::DnsPacket_TxtBody(v)
     }
 }
-impl From<&DnsPacket_Answer_Payload> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DnsPacket_Answer_Payload) -> Self {
+impl TryFrom<&DnsPacket_Answer_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &DnsPacket_Answer_Payload) -> Result<Self, Self::Error> {
         if let DnsPacket_Answer_Payload::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DnsPacket_Answer_Payload::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for DnsPacket_Answer_Payload {
@@ -508,6 +526,7 @@ impl KStruct for DnsPacket_Answer {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -527,63 +546,63 @@ impl KStruct for DnsPacket_Answer {
         *self_rc.rdlength.borrow_mut() = _io.read_u2be()?;
         match *self_rc.r#type() {
             DnsPacket_TypeType::A => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_Address>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Aaaa => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_AddressV6>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Cname => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Mx => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_MxInfo>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Ns => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Ptr => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_DomainName>(&_t_payload_raw_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Soa => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_AuthorityInfo>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Srv => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_Service>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.payload.borrow_mut() = Some(t);
             }
             DnsPacket_TypeType::Txt => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.rdlength()))?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, DnsPacket_TxtBody>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -593,6 +612,7 @@ impl KStruct for DnsPacket_Answer {
                 *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -665,6 +685,7 @@ impl KStruct for DnsPacket_AuthorityInfo {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -685,6 +706,7 @@ impl KStruct for DnsPacket_AuthorityInfo {
         *self_rc.retry_interval.borrow_mut() = _io.read_u4be()?;
         *self_rc.expire_limit.borrow_mut() = _io.read_u4be()?;
         *self_rc.min_ttl.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -743,6 +765,7 @@ impl KStruct for DnsPacket_DomainName {
     type Root = DnsPacket;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -763,9 +786,10 @@ impl KStruct for DnsPacket_DomainName {
                 let _t_name = self_rc.name.borrow();
                 let Some(_tmpa) = _t_name.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((*_tmpa.length() == 0) || (*_tmpa.length() >= 192))  { break; }
+                if  ((((to_i128((i64::try_from(_tmpa.len())?))) == (to_i128(0)))) || (((to_i128((i64::try_from(_tmpa.len())?))) >= (to_i128(192)))))  { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -795,6 +819,7 @@ pub struct DnsPacket_Label {
     pointer: RefCell<OptRc<DnsPacket_PointerStruct>>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_is_pointer: Cell<bool>,
     is_pointer: RefCell<bool>,
 }
@@ -802,6 +827,7 @@ impl KStruct for DnsPacket_Label {
     type Root = DnsPacket;
     type Parent = DnsPacket_DomainName;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -819,12 +845,14 @@ impl KStruct for DnsPacket_Label {
             *self_rc.pointer.borrow_mut() = t;
         }
         if !(*self_rc.is_pointer()?) {
-            *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "UTF-8")?;
+            *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DnsPacket_Label {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_pointer(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -833,7 +861,7 @@ impl DnsPacket_Label {
             return Ok(self.is_pointer.borrow());
         }
         self.f_is_pointer.set(true);
-        *self.is_pointer.borrow_mut() = (*self.length() >= 192).try_into()?;
+        *self.is_pointer.borrow_mut() = (((to_i128(*self.length())) >= (to_i128(192)))).try_into()?;
         Ok(self.is_pointer.borrow())
     }
 }
@@ -865,6 +893,11 @@ impl DnsPacket_Label {
         self._io.borrow()
     }
 }
+impl DnsPacket_Label {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DnsPacket_MxInfo {
@@ -879,6 +912,7 @@ impl KStruct for DnsPacket_MxInfo {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -893,6 +927,7 @@ impl KStruct for DnsPacket_MxInfo {
         *self_rc.preference.borrow_mut() = _io.read_u2be()?;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.mx.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -948,6 +983,7 @@ impl KStruct for DnsPacket_PacketFlags {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -960,10 +996,12 @@ impl KStruct for DnsPacket_PacketFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.flag.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DnsPacket_PacketFlags {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn aa(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -975,6 +1013,7 @@ impl DnsPacket_PacketFlags {
         *self.aa.borrow_mut() = ((((i32::from(*self.flag())) & (1024_i32))).wrapping_shr(10_u32)).try_into()?;
         Ok(self.aa.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ad(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -986,6 +1025,7 @@ impl DnsPacket_PacketFlags {
         *self.ad.borrow_mut() = ((((i32::from(*self.flag())) & (32_i32))).wrapping_shr(5_u32)).try_into()?;
         Ok(self.ad.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn cd(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -997,6 +1037,7 @@ impl DnsPacket_PacketFlags {
         *self.cd.borrow_mut() = ((((i32::from(*self.flag())) & (16_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.cd.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_opcode_valid(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1008,6 +1049,7 @@ impl DnsPacket_PacketFlags {
         *self.is_opcode_valid.borrow_mut() = ( ((*self.opcode()? == 0) || (*self.opcode()? == 1) || (*self.opcode()? == 2)) ).try_into()?;
         Ok(self.is_opcode_valid.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn opcode(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1019,6 +1061,7 @@ impl DnsPacket_PacketFlags {
         *self.opcode.borrow_mut() = ((((i32::from(*self.flag())) & (30720_i32))).wrapping_shr(11_u32)).try_into()?;
         Ok(self.opcode.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn qr(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1030,6 +1073,7 @@ impl DnsPacket_PacketFlags {
         *self.qr.borrow_mut() = ((((i32::from(*self.flag())) & (32768_i32))).wrapping_shr(15_u32)).try_into()?;
         Ok(self.qr.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ra(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1041,6 +1085,7 @@ impl DnsPacket_PacketFlags {
         *self.ra.borrow_mut() = ((((i32::from(*self.flag())) & (128_i32))).wrapping_shr(7_u32)).try_into()?;
         Ok(self.ra.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn rcode(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1052,6 +1097,7 @@ impl DnsPacket_PacketFlags {
         *self.rcode.borrow_mut() = ((((i32::from(*self.flag())) & (15_i32))).wrapping_shr(0_u32)).try_into()?;
         Ok(self.rcode.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn rd(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1063,6 +1109,7 @@ impl DnsPacket_PacketFlags {
         *self.rd.borrow_mut() = ((((i32::from(*self.flag())) & (256_i32))).wrapping_shr(8_u32)).try_into()?;
         Ok(self.rd.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tc(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1074,6 +1121,7 @@ impl DnsPacket_PacketFlags {
         *self.tc.borrow_mut() = ((((i32::from(*self.flag())) & (512_i32))).wrapping_shr(9_u32)).try_into()?;
         Ok(self.tc.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn z(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1111,6 +1159,7 @@ impl KStruct for DnsPacket_PointerStruct {
     type Root = DnsPacket;
     type Parent = DnsPacket_Label;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1123,10 +1172,12 @@ impl KStruct for DnsPacket_PointerStruct {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DnsPacket_PointerStruct {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
         &self
     ) -> KResult<Ref<'_, OptRc<DnsPacket_DomainName>>> {
@@ -1136,7 +1187,7 @@ impl DnsPacket_PointerStruct {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.length())).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
+        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from((i64::try_from(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.len())?))).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&io, Some(self._root.clone()), None)?.into();
         *self.contents.borrow_mut() = t;
         io.seek(_pos)?;
@@ -1172,6 +1223,7 @@ impl KStruct for DnsPacket_Query {
     type Root = DnsPacket;
     type Parent = DnsPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1187,6 +1239,7 @@ impl KStruct for DnsPacket_Query {
         *self_rc.name.borrow_mut() = t;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.query_class.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1228,6 +1281,7 @@ impl KStruct for DnsPacket_Service {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1244,6 +1298,7 @@ impl KStruct for DnsPacket_Service {
         *self_rc.port.borrow_mut() = _io.read_u2be()?;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.target.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1283,11 +1338,13 @@ pub struct DnsPacket_Txt {
     length: RefCell<u8>,
     text: RefCell<String>,
     _io: RefCell<BytesReader>,
+    text_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DnsPacket_Txt {
     type Root = DnsPacket;
     type Parent = DnsPacket_TxtBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1300,7 +1357,8 @@ impl KStruct for DnsPacket_Txt {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.length.borrow_mut() = _io.read_u1()?;
-        *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "UTF-8")?;
+        *self_rc.text.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.length()))?, "utf-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1321,6 +1379,11 @@ impl DnsPacket_Txt {
         self._io.borrow()
     }
 }
+impl DnsPacket_Txt {
+    pub fn text_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.text_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DnsPacket_TxtBody {
@@ -1334,6 +1397,7 @@ impl KStruct for DnsPacket_TxtBody {
     type Root = DnsPacket;
     type Parent = DnsPacket_Answer;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1354,6 +1418,7 @@ impl KStruct for DnsPacket_TxtBody {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -35,6 +35,7 @@ impl KStruct for AllegroDat {
     type Root = AllegroDat;
     type Parent = AllegroDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -58,6 +59,7 @@ impl KStruct for AllegroDat {
             let t = Self::read_into::<_, AllegroDat_DatObject>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.objects.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -88,7 +90,7 @@ impl AllegroDat {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AllegroDat_PackEnum {
     Unpacked,
     Unknown(i64),
@@ -133,6 +135,7 @@ impl KStruct for AllegroDat_DatBitmap {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -148,6 +151,7 @@ impl KStruct for AllegroDat_DatBitmap {
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
         *self_rc.image.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -187,7 +191,6 @@ pub struct AllegroDat_DatFont {
     font_size: RefCell<i16>,
     body: RefCell<Option<AllegroDat_DatFont_Body>>,
     _io: RefCell<BytesReader>,
-    body_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum AllegroDat_DatFont_Body {
@@ -195,13 +198,13 @@ pub enum AllegroDat_DatFont_Body {
     AllegroDat_DatFont16(OptRc<AllegroDat_DatFont16>),
     AllegroDat_DatFont8(OptRc<AllegroDat_DatFont8>),
 }
-impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont39> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatFont_Body) -> Self {
+impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont39> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont39(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatFont_Body::AllegroDat_DatFont39, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatFont39>> for AllegroDat_DatFont_Body {
@@ -209,13 +212,13 @@ impl From<OptRc<AllegroDat_DatFont39>> for AllegroDat_DatFont_Body {
         Self::AllegroDat_DatFont39(v)
     }
 }
-impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont16> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatFont_Body) -> Self {
+impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont16> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont16(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatFont_Body::AllegroDat_DatFont16, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatFont16>> for AllegroDat_DatFont_Body {
@@ -223,13 +226,13 @@ impl From<OptRc<AllegroDat_DatFont16>> for AllegroDat_DatFont_Body {
         Self::AllegroDat_DatFont16(v)
     }
 }
-impl From<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatFont_Body) -> Self {
+impl TryFrom<&AllegroDat_DatFont_Body> for OptRc<AllegroDat_DatFont8> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatFont_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatFont_Body::AllegroDat_DatFont8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatFont_Body::AllegroDat_DatFont8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatFont8>> for AllegroDat_DatFont_Body {
@@ -241,6 +244,7 @@ impl KStruct for AllegroDat_DatFont {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -255,28 +259,20 @@ impl KStruct for AllegroDat_DatFont {
         *self_rc.font_size.borrow_mut() = _io.read_s2be()?;
         match *self_rc.font_size() {
             0 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, AllegroDat_DatFont39>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, AllegroDat_DatFont39>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             16 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, AllegroDat_DatFont16>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, AllegroDat_DatFont16>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             8 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, AllegroDat_DatFont8>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, AllegroDat_DatFont8>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -297,11 +293,6 @@ impl AllegroDat_DatFont {
         self._io.borrow()
     }
 }
-impl AllegroDat_DatFont {
-    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body_raw.borrow()
-    }
-}
 
 /**
  * Simple monochrome monospaced font, 95 characters, 8x16 px
@@ -315,11 +306,13 @@ pub struct AllegroDat_DatFont16 {
     pub(crate) _self_shared: SharedType<Self>,
     chars: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    chars_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AllegroDat_DatFont16 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -336,6 +329,7 @@ impl KStruct for AllegroDat_DatFont16 {
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(16_usize)?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -349,6 +343,11 @@ impl AllegroDat_DatFont16 {
 impl AllegroDat_DatFont16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AllegroDat_DatFont16 {
+    pub fn chars_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chars_raw.borrow()
     }
 }
 
@@ -371,6 +370,7 @@ impl KStruct for AllegroDat_DatFont39 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -389,6 +389,7 @@ impl KStruct for AllegroDat_DatFont39 {
             let t = Self::read_into::<_, AllegroDat_DatFont39_Range>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ranges.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -419,11 +420,13 @@ pub struct AllegroDat_DatFont39_FontChar {
     height: RefCell<u16>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AllegroDat_DatFont39_FontChar {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont39_Range;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -438,6 +441,7 @@ impl KStruct for AllegroDat_DatFont39_FontChar {
         *self_rc.width.borrow_mut() = _io.read_u2be()?;
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::from((*self_rc.width()).saturating_mul(*self_rc.height())))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -463,6 +467,11 @@ impl AllegroDat_DatFont39_FontChar {
         self._io.borrow()
     }
 }
+impl AllegroDat_DatFont39_FontChar {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AllegroDat_DatFont39_Range {
@@ -479,6 +488,7 @@ impl KStruct for AllegroDat_DatFont39_Range {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont39;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -499,6 +509,7 @@ impl KStruct for AllegroDat_DatFont39_Range {
             let t = Self::read_into::<_, AllegroDat_DatFont39_FontChar>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chars.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -550,11 +561,13 @@ pub struct AllegroDat_DatFont8 {
     pub(crate) _self_shared: SharedType<Self>,
     chars: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    chars_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AllegroDat_DatFont8 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -571,6 +584,7 @@ impl KStruct for AllegroDat_DatFont8 {
         for _i in 0_usize..l_chars {
             self_rc.chars.borrow_mut().push(_io.read_bytes(8_usize)?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -584,6 +598,11 @@ impl AllegroDat_DatFont8 {
 impl AllegroDat_DatFont8 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AllegroDat_DatFont8 {
+    pub fn chars_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chars_raw.borrow()
     }
 }
 
@@ -608,13 +627,13 @@ pub enum AllegroDat_DatObject_Body {
     AllegroDat_DatRleSprite(OptRc<AllegroDat_DatRleSprite>),
     Bytes(Vec<u8>),
 }
-impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatBitmap> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatObject_Body) -> Self {
+impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatBitmap> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatObject_Body::AllegroDat_DatBitmap(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatObject_Body::AllegroDat_DatBitmap, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatBitmap>> for AllegroDat_DatObject_Body {
@@ -622,13 +641,13 @@ impl From<OptRc<AllegroDat_DatBitmap>> for AllegroDat_DatObject_Body {
         Self::AllegroDat_DatBitmap(v)
     }
 }
-impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatFont> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatObject_Body) -> Self {
+impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatFont> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatObject_Body::AllegroDat_DatFont(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatObject_Body::AllegroDat_DatFont, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatFont>> for AllegroDat_DatObject_Body {
@@ -636,13 +655,13 @@ impl From<OptRc<AllegroDat_DatFont>> for AllegroDat_DatObject_Body {
         Self::AllegroDat_DatFont(v)
     }
 }
-impl From<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatRleSprite> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatObject_Body) -> Self {
+impl TryFrom<&AllegroDat_DatObject_Body> for OptRc<AllegroDat_DatRleSprite> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatObject_Body::AllegroDat_DatRleSprite(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatObject_Body::AllegroDat_DatRleSprite, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AllegroDat_DatRleSprite>> for AllegroDat_DatObject_Body {
@@ -650,13 +669,13 @@ impl From<OptRc<AllegroDat_DatRleSprite>> for AllegroDat_DatObject_Body {
         Self::AllegroDat_DatRleSprite(v)
     }
 }
-impl From<&AllegroDat_DatObject_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AllegroDat_DatObject_Body) -> Self {
+impl TryFrom<&AllegroDat_DatObject_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &AllegroDat_DatObject_Body) -> Result<Self, Self::Error> {
         if let AllegroDat_DatObject_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AllegroDat_DatObject_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for AllegroDat_DatObject_Body {
@@ -668,6 +687,7 @@ impl KStruct for AllegroDat_DatObject {
     type Root = AllegroDat;
     type Parent = AllegroDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -695,21 +715,21 @@ impl KStruct for AllegroDat_DatObject {
         *self_rc.len_uncompressed.borrow_mut() = _io.read_s4be()?;
         match self_rc.r#type()?.as_str() {
             "BMP " => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_compressed())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, AllegroDat_DatBitmap>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "FONT" => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_compressed())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, AllegroDat_DatFont>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "RLE " => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_compressed())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, AllegroDat_DatRleSprite>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -719,10 +739,12 @@ impl KStruct for AllegroDat_DatObject {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AllegroDat_DatObject {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn r#type(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -782,6 +804,7 @@ impl KStruct for AllegroDat_DatRleSprite {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -798,6 +821,7 @@ impl KStruct for AllegroDat_DatRleSprite {
         *self_rc.height.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_image.borrow_mut() = _io.read_u4be()?;
         *self_rc.image.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -844,6 +868,9 @@ pub struct AllegroDat_Property {
     len_body: RefCell<u32>,
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
+    type_raw: RefCell<Vec<u8>>,
+    body_raw: RefCell<Vec<u8>>,
     f_is_valid: Cell<bool>,
     is_valid: RefCell<bool>,
 }
@@ -851,6 +878,7 @@ impl KStruct for AllegroDat_Property {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -872,10 +900,12 @@ impl KStruct for AllegroDat_Property {
         if *self_rc.is_valid()? {
             *self_rc.body.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_body())?)?, "UTF-8")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AllegroDat_Property {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_valid(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -884,7 +914,7 @@ impl AllegroDat_Property {
             return Ok(self.is_valid.borrow());
         }
         self.f_is_valid.set(true);
-        *self.is_valid.borrow_mut() = (*self.magic() == "prop").try_into()?;
+        *self.is_valid.borrow_mut() = ((self.magic().as_str() == "prop")).try_into()?;
         Ok(self.is_valid.borrow())
     }
 }
@@ -911,5 +941,20 @@ impl AllegroDat_Property {
 impl AllegroDat_Property {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AllegroDat_Property {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
+    }
+}
+impl AllegroDat_Property {
+    pub fn type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.type_raw.borrow()
+    }
+}
+impl AllegroDat_Property {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

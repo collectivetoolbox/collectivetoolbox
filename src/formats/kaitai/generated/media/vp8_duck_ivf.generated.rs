@@ -36,6 +36,7 @@ impl KStruct for Vp8DuckIvf {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -69,6 +70,7 @@ impl KStruct for Vp8DuckIvf {
             let t = Self::read_into::<_, Vp8DuckIvf_Blocks>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.image_data.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -180,11 +182,13 @@ pub struct Vp8DuckIvf_Block {
     timestamp: RefCell<u64>,
     framedata: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    framedata_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Vp8DuckIvf_Block {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf_Blocks;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -199,6 +203,7 @@ impl KStruct for Vp8DuckIvf_Block {
         *self_rc.len_frame.borrow_mut() = _io.read_u4le()?;
         *self_rc.timestamp.borrow_mut() = _io.read_u8le()?;
         *self_rc.framedata.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_frame())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -228,6 +233,11 @@ impl Vp8DuckIvf_Block {
         self._io.borrow()
     }
 }
+impl Vp8DuckIvf_Block {
+    pub fn framedata_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.framedata_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Vp8DuckIvf_Blocks {
@@ -241,6 +251,7 @@ impl KStruct for Vp8DuckIvf_Blocks {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -254,6 +265,7 @@ impl KStruct for Vp8DuckIvf_Blocks {
         let _io = io;
         let t = Self::read_into::<_, Vp8DuckIvf_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.entries.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

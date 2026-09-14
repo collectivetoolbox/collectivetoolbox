@@ -26,6 +26,7 @@ impl KStruct for GptPartitionTable {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,10 +38,12 @@ impl KStruct for GptPartitionTable {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GptPartitionTable {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn backup(
         &self
     ) -> KResult<Ref<'_, OptRc<GptPartitionTable_PartitionHeader>>> {
@@ -50,12 +53,13 @@ impl GptPartitionTable {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((_io.size()).saturating_sub(usize::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
+        io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?))?)?;
         let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.backup.borrow_mut() = t;
         io.seek(_pos)?;
         Ok(self.backup.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn primary(
         &self
     ) -> KResult<Ref<'_, OptRc<GptPartitionTable_PartitionHeader>>> {
@@ -71,6 +75,7 @@ impl GptPartitionTable {
         io.seek(_pos)?;
         Ok(self.primary.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sector_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -101,11 +106,15 @@ pub struct GptPartitionTable_PartitionEntry {
     attributes: RefCell<u64>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    type_guid_raw: RefCell<Vec<u8>>,
+    guid_raw: RefCell<Vec<u8>>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for GptPartitionTable_PartitionEntry {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable_PartitionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,6 +132,7 @@ impl KStruct for GptPartitionTable_PartitionEntry {
         *self_rc.last_lba.borrow_mut() = _io.read_u8le()?;
         *self_rc.attributes.borrow_mut() = _io.read_u8le()?;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes(72_usize)?, "UTF-16LE")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -163,6 +173,21 @@ impl GptPartitionTable_PartitionEntry {
         self._io.borrow()
     }
 }
+impl GptPartitionTable_PartitionEntry {
+    pub fn type_guid_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.type_guid_raw.borrow()
+    }
+}
+impl GptPartitionTable_PartitionEntry {
+    pub fn guid_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.guid_raw.borrow()
+    }
+}
+impl GptPartitionTable_PartitionEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct GptPartitionTable_PartitionHeader {
@@ -184,6 +209,7 @@ pub struct GptPartitionTable_PartitionHeader {
     entries_size: RefCell<u32>,
     crc32_array: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    disk_guid_raw: RefCell<Vec<u8>>,
     entries_raw: RefCell<Vec<Vec<u8>>>,
     f_entries: Cell<bool>,
     entries: RefCell<Vec<OptRc<GptPartitionTable_PartitionEntry>>>,
@@ -192,6 +218,7 @@ impl KStruct for GptPartitionTable_PartitionHeader {
     type Root = GptPartitionTable;
     type Parent = GptPartitionTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,10 +247,12 @@ impl KStruct for GptPartitionTable_PartitionHeader {
         *self_rc.entries_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.entries_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.crc32_array.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GptPartitionTable_PartitionHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn entries(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<GptPartitionTable_PartitionEntry>>>> {
@@ -322,6 +351,11 @@ impl GptPartitionTable_PartitionHeader {
 impl GptPartitionTable_PartitionHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl GptPartitionTable_PartitionHeader {
+    pub fn disk_guid_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.disk_guid_raw.borrow()
     }
 }
 impl GptPartitionTable_PartitionHeader {

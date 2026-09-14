@@ -20,11 +20,13 @@ pub struct NtMdtPal {
     something2: RefCell<Vec<u8>>,
     tables: RefCell<Vec<OptRc<NtMdtPal_ColTable>>>,
     _io: RefCell<BytesReader>,
+    something2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NtMdtPal {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -55,6 +57,7 @@ impl KStruct for NtMdtPal {
             let t = Self::read_into_with_init::<_, NtMdtPal_ColTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.tables.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -90,6 +93,11 @@ impl NtMdtPal {
         self._io.borrow()
     }
 }
+impl NtMdtPal {
+    pub fn something2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.something2_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct NtMdtPal_ColTable {
@@ -103,11 +111,13 @@ pub struct NtMdtPal_ColTable {
     unkn1: RefCell<u16>,
     colors: RefCell<Vec<OptRc<NtMdtPal_Color>>>,
     _io: RefCell<BytesReader>,
+    title_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NtMdtPal_ColTable {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,7 +131,7 @@ impl KStruct for NtMdtPal_ColTable {
         let _io = io;
         *self_rc.size1.borrow_mut() = _io.read_u1()?;
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
-        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.name_size()))?, "UTF-8")?;
+        *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.name_size()))?, "UTF-16LE")?;
         *self_rc.unkn1.borrow_mut() = _io.read_u2be()?;
         *self_rc.colors.borrow_mut() = Vec::new();
         let l_colors = usize::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.meta().get(usize::from(*self_rc.index())).ok_or(KError::CastError)?.colors_count())).saturating_sub(1_i32))?;
@@ -129,6 +139,7 @@ impl KStruct for NtMdtPal_ColTable {
             let t = Self::read_into::<_, NtMdtPal_Color>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colors.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -174,6 +185,11 @@ impl NtMdtPal_ColTable {
         self._io.borrow()
     }
 }
+impl NtMdtPal_ColTable {
+    pub fn title_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.title_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct NtMdtPal_Color {
@@ -190,6 +206,7 @@ impl KStruct for NtMdtPal_Color {
     type Root = NtMdtPal;
     type Parent = NtMdtPal_ColTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -205,6 +222,7 @@ impl KStruct for NtMdtPal_Color {
         *self_rc.unkn.borrow_mut() = _io.read_u1()?;
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
         *self_rc.green.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -251,11 +269,19 @@ pub struct NtMdtPal_Meta {
     unkn12: RefCell<Vec<u8>>,
     name_size: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    unkn00_raw: RefCell<Vec<u8>>,
+    unkn01_raw: RefCell<Vec<u8>>,
+    unkn02_raw: RefCell<Vec<u8>>,
+    unkn03_raw: RefCell<Vec<u8>>,
+    unkn10_raw: RefCell<Vec<u8>>,
+    unkn11_raw: RefCell<Vec<u8>>,
+    unkn12_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NtMdtPal_Meta {
     type Root = NtMdtPal;
     type Parent = NtMdtPal;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -276,6 +302,7 @@ impl KStruct for NtMdtPal_Meta {
         *self_rc.unkn11.borrow_mut() = _io.read_bytes(1_usize)?;
         *self_rc.unkn12.borrow_mut() = _io.read_bytes(2_usize)?;
         *self_rc.name_size.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -349,5 +376,40 @@ impl NtMdtPal_Meta {
 impl NtMdtPal_Meta {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn00_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn00_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn01_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn01_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn02_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn02_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn03_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn03_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn10_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn10_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn11_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn11_raw.borrow()
+    }
+}
+impl NtMdtPal_Meta {
+    pub fn unkn12_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unkn12_raw.borrow()
     }
 }

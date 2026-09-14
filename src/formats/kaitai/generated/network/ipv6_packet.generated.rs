@@ -22,11 +22,14 @@ pub struct Ipv6Packet {
     next_header: RefCell<OptRc<ProtocolBody>>,
     rest: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    src_ipv6_addr_raw: RefCell<Vec<u8>>,
+    dst_ipv6_addr_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Ipv6Packet {
     type Root = Ipv6Packet;
     type Parent = Ipv6Packet;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,6 +54,7 @@ impl KStruct for Ipv6Packet {
         let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, None, None, &f)?.into();
         *self_rc.next_header.borrow_mut() = t;
         *self_rc.rest.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -109,5 +113,15 @@ impl Ipv6Packet {
 impl Ipv6Packet {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Ipv6Packet {
+    pub fn src_ipv6_addr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.src_ipv6_addr_raw.borrow()
+    }
+}
+impl Ipv6Packet {
+    pub fn dst_ipv6_addr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.dst_ipv6_addr_raw.borrow()
     }
 }

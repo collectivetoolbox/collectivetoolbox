@@ -23,11 +23,13 @@ pub struct UdpDatagram {
     checksum: RefCell<u16>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for UdpDatagram {
     type Root = UdpDatagram;
     type Parent = UdpDatagram;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -44,6 +46,7 @@ impl KStruct for UdpDatagram {
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from((i32::from(*self_rc.length())).saturating_sub(8_i32))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -77,5 +80,10 @@ impl UdpDatagram {
 impl UdpDatagram {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl UdpDatagram {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

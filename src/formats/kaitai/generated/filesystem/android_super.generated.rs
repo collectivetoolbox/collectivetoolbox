@@ -28,6 +28,7 @@ impl KStruct for AndroidSuper {
     type Root = AndroidSuper;
     type Parent = AndroidSuper;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -39,10 +40,12 @@ impl KStruct for AndroidSuper {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidSuper {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn root(
         &self
     ) -> KResult<Ref<'_, OptRc<AndroidSuper_Root>>> {
@@ -76,11 +79,13 @@ pub struct AndroidSuper_Geometry {
     metadata_slot_count: RefCell<u32>,
     logical_block_size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    checksum_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Geometry {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Root;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -101,6 +106,7 @@ impl KStruct for AndroidSuper_Geometry {
         *self_rc.metadata_max_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.metadata_slot_count.borrow_mut() = _io.read_u4le()?;
         *self_rc.logical_block_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -146,6 +152,11 @@ impl AndroidSuper_Geometry {
         self._io.borrow()
     }
 }
+impl AndroidSuper_Geometry {
+    pub fn checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.checksum_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidSuper_Metadata {
@@ -164,11 +175,14 @@ pub struct AndroidSuper_Metadata {
     groups: RefCell<OptRc<AndroidSuper_Metadata_TableDescriptor>>,
     block_devices: RefCell<OptRc<AndroidSuper_Metadata_TableDescriptor>>,
     _io: RefCell<BytesReader>,
+    header_checksum_raw: RefCell<Vec<u8>>,
+    tables_checksum_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Metadata {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Root;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -202,6 +216,7 @@ impl KStruct for AndroidSuper_Metadata {
         let f = |t : &mut AndroidSuper_Metadata_TableDescriptor| Ok(t.set_params(AndroidSuper_Metadata_TableKind::BlockDevices));
         let t = Self::read_into_with_init::<_, AndroidSuper_Metadata_TableDescriptor>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.block_devices.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -276,7 +291,17 @@ impl AndroidSuper_Metadata {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl AndroidSuper_Metadata {
+    pub fn header_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_checksum_raw.borrow()
+    }
+}
+impl AndroidSuper_Metadata {
+    pub fn tables_checksum_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.tables_checksum_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AndroidSuper_Metadata_TableKind {
     Partitions,
     Extents,
@@ -328,11 +353,13 @@ pub struct AndroidSuper_Metadata_BlockDevice {
     flag_slot_suffixed: RefCell<bool>,
     flags_reserved: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    partition_name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Metadata_BlockDevice {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -348,9 +375,10 @@ impl KStruct for AndroidSuper_Metadata_BlockDevice {
         *self_rc.alignment.borrow_mut() = _io.read_u4le()?;
         *self_rc.alignment_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u8le()?;
-        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
-        *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_be(31)?;
+        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(36_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_le(31)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -396,6 +424,11 @@ impl AndroidSuper_Metadata_BlockDevice {
         self._io.borrow()
     }
 }
+impl AndroidSuper_Metadata_BlockDevice {
+    pub fn partition_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.partition_name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidSuper_Metadata_Extent {
@@ -412,6 +445,7 @@ impl KStruct for AndroidSuper_Metadata_Extent {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -427,6 +461,7 @@ impl KStruct for AndroidSuper_Metadata_Extent {
         *self_rc.target_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.target_data.borrow_mut() = _io.read_u8le()?;
         *self_rc.target_source.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -457,7 +492,7 @@ impl AndroidSuper_Metadata_Extent {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AndroidSuper_Metadata_Extent_TargetType {
     Linear,
     Zero,
@@ -500,11 +535,13 @@ pub struct AndroidSuper_Metadata_Group {
     flags_reserved: RefCell<u64>,
     maximum_size: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Metadata_Group {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -516,11 +553,12 @@ impl KStruct for AndroidSuper_Metadata_Group {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
-        *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_be(31)?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(36_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.flag_slot_suffixed.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.flags_reserved.borrow_mut() = _io.read_bits_int_le(31)?;
         io.align_to_byte()?;
         *self_rc.maximum_size.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -551,6 +589,11 @@ impl AndroidSuper_Metadata_Group {
         self._io.borrow()
     }
 }
+impl AndroidSuper_Metadata_Group {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidSuper_Metadata_Partition {
@@ -567,11 +610,13 @@ pub struct AndroidSuper_Metadata_Partition {
     num_extents: RefCell<u32>,
     group_index: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Metadata_Partition {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -583,16 +628,17 @@ impl KStruct for AndroidSuper_Metadata_Partition {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(36_usize)?, 0, false), "UTF-8")?;
-        *self_rc.attr_readonly.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.attr_slot_suffixed.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.attr_updated.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.attr_disabled.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.attrs_reserved.borrow_mut() = _io.read_bits_int_be(28)?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(36_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.attr_readonly.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.attr_slot_suffixed.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.attr_updated.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.attr_disabled.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.attrs_reserved.borrow_mut() = _io.read_bits_int_le(28)?;
         io.align_to_byte()?;
         *self_rc.first_extent_index.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_extents.borrow_mut() = _io.read_u4le()?;
         *self_rc.group_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -648,6 +694,11 @@ impl AndroidSuper_Metadata_Partition {
         self._io.borrow()
     }
 }
+impl AndroidSuper_Metadata_Partition {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidSuper_Metadata_TableDescriptor {
@@ -671,13 +722,13 @@ pub enum AndroidSuper_Metadata_TableDescriptor_Table {
     AndroidSuper_Metadata_Partition(OptRc<AndroidSuper_Metadata_Partition>),
     Bytes(Vec<u8>),
 }
-impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_BlockDevice> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_BlockDevice> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_BlockDevice(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_BlockDevice, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_BlockDevice>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -685,13 +736,13 @@ impl From<OptRc<AndroidSuper_Metadata_BlockDevice>> for AndroidSuper_Metadata_Ta
         Self::AndroidSuper_Metadata_BlockDevice(v)
     }
 }
-impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Extent> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Extent> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Extent(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Extent, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_Extent>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -699,13 +750,13 @@ impl From<OptRc<AndroidSuper_Metadata_Extent>> for AndroidSuper_Metadata_TableDe
         Self::AndroidSuper_Metadata_Extent(v)
     }
 }
-impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Group> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Group> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Group(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Group, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_Group>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -713,13 +764,13 @@ impl From<OptRc<AndroidSuper_Metadata_Group>> for AndroidSuper_Metadata_TableDes
         Self::AndroidSuper_Metadata_Group(v)
     }
 }
-impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Partition> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for OptRc<AndroidSuper_Metadata_Partition> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
         if let AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Partition(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSuper_Metadata_TableDescriptor_Table::AndroidSuper_Metadata_Partition, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<AndroidSuper_Metadata_Partition>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -727,13 +778,13 @@ impl From<OptRc<AndroidSuper_Metadata_Partition>> for AndroidSuper_Metadata_Tabl
         Self::AndroidSuper_Metadata_Partition(v)
     }
 }
-impl From<&AndroidSuper_Metadata_TableDescriptor_Table> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Self {
+impl TryFrom<&AndroidSuper_Metadata_TableDescriptor_Table> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &AndroidSuper_Metadata_TableDescriptor_Table) -> Result<Self, Self::Error> {
         if let AndroidSuper_Metadata_TableDescriptor_Table::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSuper_Metadata_TableDescriptor_Table::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for AndroidSuper_Metadata_TableDescriptor_Table {
@@ -745,6 +796,7 @@ impl KStruct for AndroidSuper_Metadata_TableDescriptor {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -759,6 +811,7 @@ impl KStruct for AndroidSuper_Metadata_TableDescriptor {
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_entries.borrow_mut() = _io.read_u4le()?;
         *self_rc.entry_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -773,6 +826,7 @@ impl AndroidSuper_Metadata_TableDescriptor {
     }
 }
 impl AndroidSuper_Metadata_TableDescriptor {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn table(
         &self
     ) -> KResult<Ref<'_, Vec<AndroidSuper_Metadata_TableDescriptor_Table>>> {
@@ -790,6 +844,7 @@ impl AndroidSuper_Metadata_TableDescriptor {
             self.table_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let table_raw = self.table_raw.borrow();
             let _io_table_raw = BytesReader::from(table_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            self.table.borrow_mut().push(None);
         }
         _io.seek(_pos)?;
         Ok(self.table.borrow())
@@ -831,11 +886,16 @@ pub struct AndroidSuper_Root {
     primary_metadata: RefCell<Vec<OptRc<AndroidSuper_Metadata>>>,
     backup_metadata: RefCell<Vec<OptRc<AndroidSuper_Metadata>>>,
     _io: RefCell<BytesReader>,
+    primary_geometry_raw: RefCell<Vec<u8>>,
+    backup_geometry_raw: RefCell<Vec<u8>>,
+    primary_metadata_raw: RefCell<Vec<u8>>,
+    backup_metadata_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSuper_Root {
     type Root = AndroidSuper;
     type Parent = AndroidSuper;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -847,22 +907,33 @@ impl KStruct for AndroidSuper_Root {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, AndroidSuper_Geometry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_primary_geometry = _io.read_bytes(4096_usize)?;
+        *self_rc.primary_geometry_raw.borrow_mut() = _raw_primary_geometry.clone();
+        let _io_primary_geometry = BytesReader::from(_raw_primary_geometry);
+        let t = Self::read_into::<BytesReader, AndroidSuper_Geometry>(&_io_primary_geometry, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.primary_geometry.borrow_mut() = t;
-        let t = Self::read_into::<_, AndroidSuper_Geometry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_backup_geometry = _io.read_bytes(4096_usize)?;
+        *self_rc.backup_geometry_raw.borrow_mut() = _raw_backup_geometry.clone();
+        let _io_backup_geometry = BytesReader::from(_raw_backup_geometry);
+        let t = Self::read_into::<BytesReader, AndroidSuper_Geometry>(&_io_backup_geometry, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.backup_geometry.borrow_mut() = t;
         *self_rc.primary_metadata.borrow_mut() = Vec::new();
         let l_primary_metadata = usize::try_from(*self_rc.primary_geometry().metadata_slot_count())?;
         for _i in 0_usize..l_primary_metadata {
-            let t = Self::read_into::<_, AndroidSuper_Metadata>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_primary_metadata = _io.read_bytes(usize::try_from(*self_rc.primary_geometry().metadata_max_size())?)?;
+            let _io_primary_metadata = BytesReader::from(_raw_primary_metadata);
+            let t = Self::read_into::<BytesReader, AndroidSuper_Metadata>(&_io_primary_metadata, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.primary_metadata.borrow_mut().push(t);
         }
         *self_rc.backup_metadata.borrow_mut() = Vec::new();
         let l_backup_metadata = usize::try_from(*self_rc.primary_geometry().metadata_slot_count())?;
         for _i in 0_usize..l_backup_metadata {
-            let t = Self::read_into::<_, AndroidSuper_Metadata>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_backup_metadata = _io.read_bytes(usize::try_from(*self_rc.primary_geometry().metadata_max_size())?)?;
+            let _io_backup_metadata = BytesReader::from(_raw_backup_metadata);
+            let t = Self::read_into::<BytesReader, AndroidSuper_Metadata>(&_io_backup_metadata, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.backup_metadata.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -891,5 +962,25 @@ impl AndroidSuper_Root {
 impl AndroidSuper_Root {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AndroidSuper_Root {
+    pub fn primary_geometry_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.primary_geometry_raw.borrow()
+    }
+}
+impl AndroidSuper_Root {
+    pub fn backup_geometry_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.backup_geometry_raw.borrow()
+    }
+}
+impl AndroidSuper_Root {
+    pub fn primary_metadata_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.primary_metadata_raw.borrow()
+    }
+}
+impl AndroidSuper_Root {
+    pub fn backup_metadata_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.backup_metadata_raw.borrow()
     }
 }

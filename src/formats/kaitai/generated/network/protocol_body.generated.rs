@@ -34,7 +34,6 @@ pub struct ProtocolBody {
     protocol_num: RefCell<u8>,
     body: RefCell<Option<ProtocolBody_Body>>,
     _io: RefCell<BytesReader>,
-    body_raw: RefCell<Vec<u8>>,
     f_protocol: Cell<bool>,
     protocol: RefCell<ProtocolBody_ProtocolEnum>,
 }
@@ -48,13 +47,13 @@ pub enum ProtocolBody_Body {
     TcpSegment(OptRc<TcpSegment>),
     UdpDatagram(OptRc<UdpDatagram>),
 }
-impl From<&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<ProtocolBody_OptionHopByHop> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::ProtocolBody_OptionHopByHop(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::ProtocolBody_OptionHopByHop, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ProtocolBody_OptionHopByHop>> for ProtocolBody_Body {
@@ -62,13 +61,13 @@ impl From<OptRc<ProtocolBody_OptionHopByHop>> for ProtocolBody_Body {
         Self::ProtocolBody_OptionHopByHop(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<IcmpPacket> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<IcmpPacket> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::IcmpPacket(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::IcmpPacket, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<IcmpPacket>> for ProtocolBody_Body {
@@ -76,13 +75,13 @@ impl From<OptRc<IcmpPacket>> for ProtocolBody_Body {
         Self::IcmpPacket(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<Ipv4Packet> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<Ipv4Packet> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::Ipv4Packet(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::Ipv4Packet, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Ipv4Packet>> for ProtocolBody_Body {
@@ -90,13 +89,13 @@ impl From<OptRc<Ipv4Packet>> for ProtocolBody_Body {
         Self::Ipv4Packet(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<Ipv6Packet> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<Ipv6Packet> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::Ipv6Packet(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::Ipv6Packet, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Ipv6Packet>> for ProtocolBody_Body {
@@ -104,13 +103,13 @@ impl From<OptRc<Ipv6Packet>> for ProtocolBody_Body {
         Self::Ipv6Packet(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<ProtocolBody_NoNextHeader> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::ProtocolBody_NoNextHeader(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::ProtocolBody_NoNextHeader, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ProtocolBody_NoNextHeader>> for ProtocolBody_Body {
@@ -118,13 +117,13 @@ impl From<OptRc<ProtocolBody_NoNextHeader>> for ProtocolBody_Body {
         Self::ProtocolBody_NoNextHeader(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<TcpSegment> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<TcpSegment> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::TcpSegment(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::TcpSegment, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<TcpSegment>> for ProtocolBody_Body {
@@ -132,13 +131,13 @@ impl From<OptRc<TcpSegment>> for ProtocolBody_Body {
         Self::TcpSegment(v)
     }
 }
-impl From<&ProtocolBody_Body> for OptRc<UdpDatagram> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ProtocolBody_Body) -> Self {
+impl TryFrom<&ProtocolBody_Body> for OptRc<UdpDatagram> {
+    type Error = KError;
+    fn try_from(v: &ProtocolBody_Body) -> Result<Self, Self::Error> {
         if let ProtocolBody_Body::UdpDatagram(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ProtocolBody_Body::UdpDatagram, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<UdpDatagram>> for ProtocolBody_Body {
@@ -150,6 +149,7 @@ impl KStruct for ProtocolBody {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -163,56 +163,36 @@ impl KStruct for ProtocolBody {
         let _io = io;
         match *self_rc.protocol()? {
             ProtocolBody_ProtocolEnum::Hopopt => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, ProtocolBody_OptionHopByHop>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, ProtocolBody_OptionHopByHop>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Icmp => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, IcmpPacket>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<_, IcmpPacket>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv4 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Ipv4Packet>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<_, Ipv4Packet>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv6 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, Ipv6Packet>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<_, Ipv6Packet>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Ipv6Nonxt => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, ProtocolBody_NoNextHeader>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, ProtocolBody_NoNextHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Tcp => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, TcpSegment>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<_, TcpSegment>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             ProtocolBody_ProtocolEnum::Udp => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, UdpDatagram>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<_, UdpDatagram>(&*_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -227,6 +207,7 @@ impl ProtocolBody {
     }
 }
 impl ProtocolBody {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn protocol(
         &self
     ) -> KResult<Ref<'_, ProtocolBody_ProtocolEnum>> {
@@ -249,12 +230,7 @@ impl ProtocolBody {
         self._io.borrow()
     }
 }
-impl ProtocolBody {
-    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body_raw.borrow()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ProtocolBody_ProtocolEnum {
     Hopopt,
     Icmp,
@@ -728,6 +704,7 @@ impl KStruct for ProtocolBody_NoNextHeader {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -739,6 +716,7 @@ impl KStruct for ProtocolBody_NoNextHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -760,11 +738,13 @@ pub struct ProtocolBody_OptionHopByHop {
     body: RefCell<Vec<u8>>,
     next_header: RefCell<OptRc<ProtocolBody>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProtocolBody_OptionHopByHop {
     type Root = ProtocolBody;
     type Parent = ProtocolBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -778,10 +758,11 @@ impl KStruct for ProtocolBody_OptionHopByHop {
         let _io = io;
         *self_rc.next_header_type.borrow_mut() = _io.read_u1()?;
         *self_rc.hdr_ext_len.borrow_mut() = _io.read_u1()?;
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.hdr_ext_len() > 0 { (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32) } else { 1_i32 })?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.hdr_ext_len())) > (to_i128(0))) { (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32) } else { 1_i32 })?)?;
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, None, None, &f)?.into();
+        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.next_header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -810,5 +791,10 @@ impl ProtocolBody_OptionHopByHop {
 impl ProtocolBody_OptionHopByHop {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProtocolBody_OptionHopByHop {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

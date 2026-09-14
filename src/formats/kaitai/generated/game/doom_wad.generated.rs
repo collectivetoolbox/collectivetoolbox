@@ -14,6 +14,7 @@ pub struct DoomWad {
     num_index_entries: RefCell<i32>,
     index_offset: RefCell<i32>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
     f_index: Cell<bool>,
     index: RefCell<Vec<OptRc<DoomWad_IndexEntry>>>,
 }
@@ -21,6 +22,7 @@ impl KStruct for DoomWad {
     type Root = DoomWad;
     type Parent = DoomWad;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -35,10 +37,12 @@ impl KStruct for DoomWad {
         *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc.num_index_entries.borrow_mut() = _io.read_s4le()?;
         *self_rc.index_offset.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DoomWad {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<DoomWad_IndexEntry>>>> {
@@ -87,6 +91,11 @@ impl DoomWad {
         self._io.borrow()
     }
 }
+impl DoomWad {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DoomWad_Blockmap {
@@ -104,6 +113,7 @@ impl KStruct for DoomWad_Blockmap {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,6 +135,7 @@ impl KStruct for DoomWad_Blockmap {
             let t = Self::read_into::<_, DoomWad_Blockmap_Blocklist>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.linedefs_in_block.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -195,6 +206,7 @@ impl KStruct for DoomWad_Blockmap_Blocklist {
     type Root = DoomWad;
     type Parent = DoomWad_Blockmap;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,6 +219,7 @@ impl KStruct for DoomWad_Blockmap_Blocklist {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -215,6 +228,7 @@ impl DoomWad_Blockmap_Blocklist {
     /**
      * List of linedefs found in this block
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn linedefs(
         &self
     ) -> KResult<Ref<'_, Vec<i16>>> {
@@ -234,7 +248,7 @@ impl DoomWad_Blockmap_Blocklist {
                 let Some(_tmpa) = _t_linedefs.last() else { break; };
                 let _tmpa = *_tmpa;
                 _i = _i.saturating_add(1);
-                if ((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(1)))) { break; }
+                if ((to_i128(_tmpa)) == (to_i128((0_i32).saturating_sub(to_i32(1))))) { break; }
             }
         }
         _io.seek(_pos)?;
@@ -265,6 +279,7 @@ pub struct DoomWad_IndexEntry {
     size: RefCell<i32>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     contents_raw: RefCell<Vec<u8>>,
     f_contents: Cell<bool>,
     contents: RefCell<Option<DoomWad_IndexEntry_Contents>>,
@@ -281,13 +296,13 @@ pub enum DoomWad_IndexEntry_Contents {
     DoomWad_Vertexes(OptRc<DoomWad_Vertexes>),
     Bytes(Vec<u8>),
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Blockmap> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Blockmap> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Blockmap(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Blockmap, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Blockmap>> for DoomWad_IndexEntry_Contents {
@@ -295,13 +310,13 @@ impl From<OptRc<DoomWad_Blockmap>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Blockmap(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Linedefs> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Linedefs> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Linedefs(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Linedefs, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Linedefs>> for DoomWad_IndexEntry_Contents {
@@ -309,13 +324,13 @@ impl From<OptRc<DoomWad_Linedefs>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Linedefs(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Pnames> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Pnames> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Pnames(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Pnames, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Pnames>> for DoomWad_IndexEntry_Contents {
@@ -323,13 +338,13 @@ impl From<OptRc<DoomWad_Pnames>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Pnames(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sectors> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sectors> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Sectors(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Sectors, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Sectors>> for DoomWad_IndexEntry_Contents {
@@ -337,13 +352,13 @@ impl From<OptRc<DoomWad_Sectors>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Sectors(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sidedefs> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Sidedefs> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Sidedefs(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Sidedefs, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Sidedefs>> for DoomWad_IndexEntry_Contents {
@@ -351,13 +366,13 @@ impl From<OptRc<DoomWad_Sidedefs>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Sidedefs(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Texture12> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Texture12> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Texture12(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Texture12, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Texture12>> for DoomWad_IndexEntry_Contents {
@@ -365,13 +380,13 @@ impl From<OptRc<DoomWad_Texture12>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Texture12(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Things> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Things> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Things(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Things, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Things>> for DoomWad_IndexEntry_Contents {
@@ -379,13 +394,13 @@ impl From<OptRc<DoomWad_Things>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Things(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Vertexes> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for OptRc<DoomWad_Vertexes> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::DoomWad_Vertexes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::DoomWad_Vertexes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<DoomWad_Vertexes>> for DoomWad_IndexEntry_Contents {
@@ -393,13 +408,13 @@ impl From<OptRc<DoomWad_Vertexes>> for DoomWad_IndexEntry_Contents {
         Self::DoomWad_Vertexes(v)
     }
 }
-impl From<&DoomWad_IndexEntry_Contents> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &DoomWad_IndexEntry_Contents) -> Self {
+impl TryFrom<&DoomWad_IndexEntry_Contents> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &DoomWad_IndexEntry_Contents) -> Result<Self, Self::Error> {
         if let DoomWad_IndexEntry_Contents::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected DoomWad_IndexEntry_Contents::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for DoomWad_IndexEntry_Contents {
@@ -411,6 +426,7 @@ impl KStruct for DoomWad_IndexEntry {
     type Root = DoomWad;
     type Parent = DoomWad;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -424,11 +440,13 @@ impl KStruct for DoomWad_IndexEntry {
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_s4le()?;
         *self_rc.size.borrow_mut() = _io.read_s4le()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DoomWad_IndexEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
         &self
     ) -> KResult<Ref<'_, Option<DoomWad_IndexEntry_Contents>>> {
@@ -533,6 +551,11 @@ impl DoomWad_IndexEntry {
     }
 }
 impl DoomWad_IndexEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl DoomWad_IndexEntry {
     pub fn contents_raw(&self) -> Ref<'_, Vec<u8>> {
         self.contents_raw.borrow()
     }
@@ -556,6 +579,7 @@ impl KStruct for DoomWad_Linedef {
     type Root = DoomWad;
     type Parent = DoomWad_Linedefs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -574,6 +598,7 @@ impl KStruct for DoomWad_Linedef {
         *self_rc.sector_tag.borrow_mut() = _io.read_u2le()?;
         *self_rc.sidedef_right_idx.borrow_mut() = _io.read_u2le()?;
         *self_rc.sidedef_left_idx.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -632,6 +657,7 @@ impl KStruct for DoomWad_Linedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -652,6 +678,7 @@ impl KStruct for DoomWad_Linedefs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -680,11 +707,13 @@ pub struct DoomWad_Pnames {
     num_patches: RefCell<u32>,
     names: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+    names_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DoomWad_Pnames {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -700,8 +729,9 @@ impl KStruct for DoomWad_Pnames {
         *self_rc.names.borrow_mut() = Vec::new();
         let l_names = usize::try_from(*self_rc.num_patches())?;
         for _i in 0_usize..l_names {
-            self_rc.names.borrow_mut().push(bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?);
+            self_rc.names.borrow_mut().push(bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -726,6 +756,11 @@ impl DoomWad_Pnames {
         self._io.borrow()
     }
 }
+impl DoomWad_Pnames {
+    pub fn names_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.names_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DoomWad_Sector {
@@ -740,11 +775,14 @@ pub struct DoomWad_Sector {
     special_type: RefCell<DoomWad_Sector_SpecialSector>,
     tag: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    floor_flat_raw: RefCell<Vec<u8>>,
+    ceil_flat_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DoomWad_Sector {
     type Root = DoomWad;
     type Parent = DoomWad_Sectors;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -763,6 +801,7 @@ impl KStruct for DoomWad_Sector {
         *self_rc.light.borrow_mut() = _io.read_s2le()?;
         *self_rc.special_type.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -819,7 +858,17 @@ impl DoomWad_Sector {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl DoomWad_Sector {
+    pub fn floor_flat_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.floor_flat_raw.borrow()
+    }
+}
+impl DoomWad_Sector {
+    pub fn ceil_flat_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ceil_flat_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DoomWad_Sector_SpecialSector {
     Normal,
     DLightFlicker,
@@ -930,6 +979,7 @@ impl KStruct for DoomWad_Sectors {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -950,6 +1000,7 @@ impl KStruct for DoomWad_Sectors {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -978,11 +1029,15 @@ pub struct DoomWad_Sidedef {
     normal_texture_name: RefCell<String>,
     sector_id: RefCell<i16>,
     _io: RefCell<BytesReader>,
+    upper_texture_name_raw: RefCell<Vec<u8>>,
+    lower_texture_name_raw: RefCell<Vec<u8>>,
+    normal_texture_name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DoomWad_Sidedef {
     type Root = DoomWad;
     type Parent = DoomWad_Sidedefs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1000,6 +1055,7 @@ impl KStruct for DoomWad_Sidedef {
         *self_rc.lower_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc.normal_texture_name.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         *self_rc.sector_id.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1040,6 +1096,21 @@ impl DoomWad_Sidedef {
         self._io.borrow()
     }
 }
+impl DoomWad_Sidedef {
+    pub fn upper_texture_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.upper_texture_name_raw.borrow()
+    }
+}
+impl DoomWad_Sidedef {
+    pub fn lower_texture_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.lower_texture_name_raw.borrow()
+    }
+}
+impl DoomWad_Sidedef {
+    pub fn normal_texture_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.normal_texture_name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DoomWad_Sidedefs {
@@ -1053,6 +1124,7 @@ impl KStruct for DoomWad_Sidedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1073,6 +1145,7 @@ impl KStruct for DoomWad_Sidedefs {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1111,6 +1184,7 @@ impl KStruct for DoomWad_Texture12 {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1129,6 +1203,7 @@ impl KStruct for DoomWad_Texture12 {
             let t = Self::read_into::<_, DoomWad_Texture12_TextureIndex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.textures.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1170,6 +1245,7 @@ impl KStruct for DoomWad_Texture12_Patch {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1186,6 +1262,7 @@ impl KStruct for DoomWad_Texture12_Patch {
         *self_rc.patch_id.borrow_mut() = _io.read_u2le()?;
         *self_rc.step_dir.borrow_mut() = _io.read_u2le()?;
         *self_rc.colormap.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1247,11 +1324,13 @@ pub struct DoomWad_Texture12_TextureBody {
     num_patches: RefCell<u16>,
     patches: RefCell<Vec<OptRc<DoomWad_Texture12_Patch>>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DoomWad_Texture12_TextureBody {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1263,7 +1342,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "ASCII")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "ASCII")?;
         *self_rc.masked.borrow_mut() = _io.read_u4le()?;
         *self_rc.width.borrow_mut() = _io.read_u2le()?;
         *self_rc.height.borrow_mut() = _io.read_u2le()?;
@@ -1275,6 +1354,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
             let t = Self::read_into::<_, DoomWad_Texture12_Patch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.patches.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1332,6 +1412,11 @@ impl DoomWad_Texture12_TextureBody {
         self._io.borrow()
     }
 }
+impl DoomWad_Texture12_TextureBody {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DoomWad_Texture12_TextureIndex {
@@ -1347,6 +1432,7 @@ impl KStruct for DoomWad_Texture12_TextureIndex {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1359,10 +1445,12 @@ impl KStruct for DoomWad_Texture12_TextureIndex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.offset.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DoomWad_Texture12_TextureIndex {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, OptRc<DoomWad_Texture12_TextureBody>>> {
@@ -1405,6 +1493,7 @@ impl KStruct for DoomWad_Thing {
     type Root = DoomWad;
     type Parent = DoomWad_Things;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1421,6 +1510,7 @@ impl KStruct for DoomWad_Thing {
         *self_rc.angle.borrow_mut() = _io.read_u2le()?;
         *self_rc.r#type.borrow_mut() = _io.read_u2le()?;
         *self_rc.flags.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1469,6 +1559,7 @@ impl KStruct for DoomWad_Things {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1489,6 +1580,7 @@ impl KStruct for DoomWad_Things {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1518,6 +1610,7 @@ impl KStruct for DoomWad_Vertex {
     type Root = DoomWad;
     type Parent = DoomWad_Vertexes;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1531,6 +1624,7 @@ impl KStruct for DoomWad_Vertex {
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_s2le()?;
         *self_rc.y.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1564,6 +1658,7 @@ impl KStruct for DoomWad_Vertexes {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1584,6 +1679,7 @@ impl KStruct for DoomWad_Vertexes {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

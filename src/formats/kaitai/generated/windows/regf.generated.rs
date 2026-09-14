@@ -32,11 +32,13 @@ pub struct Regf {
     header: RefCell<OptRc<Regf_FileHeader>>,
     hive_bins: RefCell<Vec<OptRc<Regf_HiveBin>>>,
     _io: RefCell<BytesReader>,
+    hive_bins_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Regf {
     type Root = Regf;
     type Parent = Regf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -54,11 +56,14 @@ impl KStruct for Regf {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Regf_HiveBin>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let _raw_hive_bins = _io.read_bytes(4096_usize)?;
+                let _io_hive_bins = BytesReader::from(_raw_hive_bins);
+                let t = Self::read_into::<BytesReader, Regf_HiveBin>(&_io_hive_bins, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.hive_bins.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -77,6 +82,11 @@ impl Regf {
 impl Regf {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Regf {
+    pub fn hive_bins_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.hive_bins_raw.borrow()
     }
 }
 
@@ -103,11 +113,15 @@ pub struct Regf_FileHeader {
     boot_type: RefCell<u32>,
     boot_recover: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    unknown1_raw: RefCell<Vec<u8>>,
+    unknown2_raw: RefCell<Vec<u8>>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Regf_FileHeader {
     type Root = Regf;
     type Parent = Regf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,6 +154,7 @@ impl KStruct for Regf_FileHeader {
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3576_usize)?;
         *self_rc.boot_type.borrow_mut() = _io.read_u4le()?;
         *self_rc.boot_recover.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -235,7 +250,22 @@ impl Regf_FileHeader {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Regf_FileHeader {
+    pub fn unknown1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unknown1_raw.borrow()
+    }
+}
+impl Regf_FileHeader {
+    pub fn unknown2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unknown2_raw.borrow()
+    }
+}
+impl Regf_FileHeader {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Regf_FileHeader_FileFormat {
     DirectMemoryLoad,
     Unknown(i64),
@@ -264,7 +294,7 @@ impl Default for Regf_FileHeader_FileFormat {
     fn default() -> Self { Regf_FileHeader_FileFormat::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Regf_FileHeader_FileType {
     Normal,
     TransactionLog,
@@ -309,6 +339,7 @@ impl KStruct for Regf_Filetime {
     type Root = Regf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,6 +352,7 @@ impl KStruct for Regf_Filetime {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -350,6 +382,7 @@ impl KStruct for Regf_HiveBin {
     type Root = Regf;
     type Parent = Regf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -372,6 +405,7 @@ impl KStruct for Regf_HiveBin {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -402,6 +436,7 @@ pub struct Regf_HiveBinCell {
     identifier: RefCell<String>,
     data: RefCell<Option<Regf_HiveBinCell_Data>>,
     _io: RefCell<BytesReader>,
+    identifier_raw: RefCell<Vec<u8>>,
     data_raw: RefCell<Vec<u8>>,
     f_cell_size: Cell<bool>,
     cell_size: RefCell<i32>,
@@ -418,13 +453,13 @@ pub enum Regf_HiveBinCell_Data {
     Regf_HiveBinCell_SubKeyListVk(OptRc<Regf_HiveBinCell_SubKeyListVk>),
     Bytes(Vec<u8>),
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLhLf> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLhLf(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLhLf, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListLhLf>> for Regf_HiveBinCell_Data {
@@ -432,13 +467,13 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListLhLf>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_SubKeyListLhLf(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListLi> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLi(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListLi, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListLi>> for Regf_HiveBinCell_Data {
@@ -446,13 +481,13 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListLi>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_SubKeyListLi(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_NamedKey> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_NamedKey(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_NamedKey, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_NamedKey>> for Regf_HiveBinCell_Data {
@@ -460,13 +495,13 @@ impl From<OptRc<Regf_HiveBinCell_NamedKey>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_NamedKey(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListRi> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListRi(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListRi, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListRi>> for Regf_HiveBinCell_Data {
@@ -474,13 +509,13 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListRi>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_SubKeyListRi(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListSk> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListSk(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListSk, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListSk>> for Regf_HiveBinCell_Data {
@@ -488,13 +523,13 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListSk>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_SubKeyListSk(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for OptRc<Regf_HiveBinCell_SubKeyListVk> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListVk(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Regf_HiveBinCell_SubKeyListVk, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Regf_HiveBinCell_SubKeyListVk>> for Regf_HiveBinCell_Data {
@@ -502,13 +537,13 @@ impl From<OptRc<Regf_HiveBinCell_SubKeyListVk>> for Regf_HiveBinCell_Data {
         Self::Regf_HiveBinCell_SubKeyListVk(v)
     }
 }
-impl From<&Regf_HiveBinCell_Data> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Regf_HiveBinCell_Data) -> Self {
+impl TryFrom<&Regf_HiveBinCell_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Regf_HiveBinCell_Data) -> Result<Self, Self::Error> {
         if let Regf_HiveBinCell_Data::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Regf_HiveBinCell_Data::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Regf_HiveBinCell_Data {
@@ -520,6 +555,7 @@ impl KStruct for Regf_HiveBinCell {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -535,49 +571,49 @@ impl KStruct for Regf_HiveBinCell {
         *self_rc.identifier.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ascii")?;
         match self_rc.identifier().as_str() {
             "lf" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLhLf>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "lh" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLhLf>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "li" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListLi>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "nk" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_NamedKey>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "ri" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListRi>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "sk" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListSk>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             "vk" => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.cell_size()?).saturating_sub(2_i32)).saturating_sub(4_i32))?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Regf_HiveBinCell_SubKeyListVk>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -587,10 +623,12 @@ impl KStruct for Regf_HiveBinCell {
                 *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Regf_HiveBinCell {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn cell_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -599,9 +637,10 @@ impl Regf_HiveBinCell {
             return Ok(self.cell_size.borrow());
         }
         self.f_cell_size.set(true);
-        *self.cell_size.borrow_mut() = ((if *self.cell_size_raw() < 0 { (0_i32).saturating_sub(1) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
+        *self.cell_size.borrow_mut() = ((if ((to_i128(*self.cell_size_raw())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(1)) } else { 1_i32 }).saturating_mul(*self.cell_size_raw())).try_into()?;
         Ok(self.cell_size.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_allocated(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -610,7 +649,7 @@ impl Regf_HiveBinCell {
             return Ok(self.is_allocated.borrow());
         }
         self.f_is_allocated.set(true);
-        *self.is_allocated.borrow_mut() = (*self.cell_size_raw() < 0).try_into()?;
+        *self.is_allocated.borrow_mut() = (((to_i128(*self.cell_size_raw())) < (to_i128(0)))).try_into()?;
         Ok(self.is_allocated.borrow())
     }
 }
@@ -632,6 +671,11 @@ impl Regf_HiveBinCell {
 impl Regf_HiveBinCell {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Regf_HiveBinCell {
+    pub fn identifier_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.identifier_raw.borrow()
     }
 }
 impl Regf_HiveBinCell {
@@ -666,11 +710,13 @@ pub struct Regf_HiveBinCell_NamedKey {
     unknown_string_size: RefCell<u32>,
     unknown_string: RefCell<String>,
     _io: RefCell<BytesReader>,
+    unknown_string_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Regf_HiveBinCell_NamedKey {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -703,6 +749,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
         *self_rc.class_name_size.borrow_mut() = _io.read_u2le()?;
         *self_rc.unknown_string_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.unknown_string.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.unknown_string_size())?)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -813,7 +860,12 @@ impl Regf_HiveBinCell_NamedKey {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Regf_HiveBinCell_NamedKey {
+    pub fn unknown_string_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unknown_string_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Regf_HiveBinCell_NamedKey_NkFlags {
     KeyIsVolatile,
     KeyHiveExit,
@@ -889,6 +941,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -907,6 +960,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLhLf_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -941,6 +995,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLhLf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -954,6 +1009,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
         let _io = io;
         *self_rc.named_key_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.hash_value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -988,6 +1044,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1006,6 +1063,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListLi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1039,6 +1097,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1051,6 +1110,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.named_key_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1080,6 +1140,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1098,6 +1159,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
             let t = Self::read_into::<_, Regf_HiveBinCell_SubKeyListRi_Item>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.items.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1131,6 +1193,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListRi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1143,6 +1206,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.sub_key_list_offset.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1174,6 +1238,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1189,6 +1254,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
         *self_rc.previous_security_key_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.next_security_key_offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.reference_count.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1233,11 +1299,13 @@ pub struct Regf_HiveBinCell_SubKeyListVk {
     padding: RefCell<u16>,
     value_name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    value_name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Regf_HiveBinCell_SubKeyListVk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1258,6 +1326,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
         if *self_rc.flags() == Regf_HiveBinCell_SubKeyListVk_VkFlags::ValueCompName {
             *self_rc.value_name.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.value_name_size()))?, "ascii")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1303,7 +1372,12 @@ impl Regf_HiveBinCell_SubKeyListVk {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Regf_HiveBinCell_SubKeyListVk {
+    pub fn value_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_name_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Regf_HiveBinCell_SubKeyListVk_DataTypeEnum {
     RegNone,
     RegSz,
@@ -1365,7 +1439,7 @@ impl Default for Regf_HiveBinCell_SubKeyListVk_DataTypeEnum {
     fn default() -> Self { Regf_HiveBinCell_SubKeyListVk_DataTypeEnum::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Regf_HiveBinCell_SubKeyListVk_VkFlags {
     ValueCompName,
     Unknown(i64),
@@ -1413,6 +1487,7 @@ impl KStruct for Regf_HiveBinHeader {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1435,6 +1510,7 @@ impl KStruct for Regf_HiveBinHeader {
         let t = Self::read_into::<_, Regf_Filetime>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.timestamp.borrow_mut() = t;
         *self_rc.unknown4.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

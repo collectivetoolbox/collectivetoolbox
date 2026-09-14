@@ -46,6 +46,7 @@ impl KStruct for PythonPickle {
     type Root = PythonPickle;
     type Parent = PythonPickle;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -69,6 +70,7 @@ impl KStruct for PythonPickle {
                 if *_tmpa.code() == PythonPickle_Opcode::Stop { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -84,7 +86,7 @@ impl PythonPickle {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PythonPickle_Opcode {
 
     /**
@@ -604,11 +606,13 @@ pub struct PythonPickle_Bytearray8 {
     len: RefCell<u64>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Bytearray8 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -622,6 +626,7 @@ impl KStruct for PythonPickle_Bytearray8 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -642,6 +647,11 @@ impl PythonPickle_Bytearray8 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Bytearray8 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Length prefixed byte string, between 0 and 255 bytes long.
@@ -655,11 +665,13 @@ pub struct PythonPickle_Bytes1 {
     len: RefCell<u8>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Bytes1 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -673,6 +685,7 @@ impl KStruct for PythonPickle_Bytes1 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -693,6 +706,11 @@ impl PythonPickle_Bytes1 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Bytes1 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Length prefixed string, between 0 and 2**32-1 bytes long
@@ -706,11 +724,13 @@ pub struct PythonPickle_Bytes4 {
     len: RefCell<u32>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Bytes4 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -724,6 +744,7 @@ impl KStruct for PythonPickle_Bytes4 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -744,6 +765,11 @@ impl PythonPickle_Bytes4 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Bytes4 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Length prefixed string, between 0 and 2**64-1 bytes long.
@@ -762,11 +788,13 @@ pub struct PythonPickle_Bytes8 {
     len: RefCell<u64>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Bytes8 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -780,6 +808,7 @@ impl KStruct for PythonPickle_Bytes8 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -800,6 +829,11 @@ impl PythonPickle_Bytes8 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Bytes8 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Integer, encoded with the ASCII characters [0-9-], followed by 'L'.
@@ -817,6 +851,7 @@ impl KStruct for PythonPickle_DecimalnlLong {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -829,6 +864,7 @@ impl KStruct for PythonPickle_DecimalnlLong {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -864,6 +900,7 @@ impl KStruct for PythonPickle_DecimalnlShort {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -876,6 +913,7 @@ impl KStruct for PythonPickle_DecimalnlShort {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -909,6 +947,7 @@ impl KStruct for PythonPickle_Floatnl {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -921,6 +960,7 @@ impl KStruct for PythonPickle_Floatnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -950,11 +990,13 @@ pub struct PythonPickle_Long1 {
     len: RefCell<u8>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Long1 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -968,6 +1010,7 @@ impl KStruct for PythonPickle_Long1 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -988,6 +1031,11 @@ impl PythonPickle_Long1 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Long1 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Large signed integer, in the range -2**(8*2**32-1) to 2**(8*2**32-1)-1,
@@ -1002,11 +1050,13 @@ pub struct PythonPickle_Long4 {
     len: RefCell<u32>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Long4 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1020,6 +1070,7 @@ impl KStruct for PythonPickle_Long4 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1040,6 +1091,11 @@ impl PythonPickle_Long4 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Long4 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Some opcodes take no argument, this empty type is used for them.
@@ -1056,6 +1112,7 @@ impl KStruct for PythonPickle_NoArg {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1067,6 +1124,7 @@ impl KStruct for PythonPickle_NoArg {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1086,7 +1144,6 @@ pub struct PythonPickle_Op {
     code: RefCell<PythonPickle_Opcode>,
     arg: RefCell<Option<PythonPickle_Op_Arg>>,
     _io: RefCell<BytesReader>,
-    arg_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum PythonPickle_Op_Arg {
@@ -1116,13 +1173,13 @@ pub enum PythonPickle_Op_Arg {
     PythonPickle_Stringnl(OptRc<PythonPickle_Stringnl>),
     PythonPickle_Unicodestringnl(OptRc<PythonPickle_Unicodestringnl>),
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_NoArg> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_NoArg> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_NoArg(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_NoArg, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_NoArg>> for PythonPickle_Op_Arg {
@@ -1130,13 +1187,13 @@ impl From<OptRc<PythonPickle_NoArg>> for PythonPickle_Op_Arg {
         Self::PythonPickle_NoArg(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes4> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Bytes4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Bytes4>> for PythonPickle_Op_Arg {
@@ -1144,13 +1201,13 @@ impl From<OptRc<PythonPickle_Bytes4>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Bytes4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Bytes8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Bytes8>> for PythonPickle_Op_Arg {
@@ -1158,13 +1215,13 @@ impl From<OptRc<PythonPickle_Bytes8>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Bytes8(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for f64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for f64 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::F8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::F8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<f64> for PythonPickle_Op_Arg {
@@ -1172,13 +1229,13 @@ impl From<f64> for PythonPickle_Op_Arg {
         Self::F8(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for u8 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for u8 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::U1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::U1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<u8> for PythonPickle_Op_Arg {
@@ -1186,13 +1243,13 @@ impl From<u8> for PythonPickle_Op_Arg {
         Self::U1(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for i32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for i32 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::S4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::S4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<i32> for PythonPickle_Op_Arg {
@@ -1200,13 +1257,13 @@ impl From<i32> for PythonPickle_Op_Arg {
         Self::S4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for u16 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for u16 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::U2(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::U2, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<u16> for PythonPickle_Op_Arg {
@@ -1214,13 +1271,13 @@ impl From<u16> for PythonPickle_Op_Arg {
         Self::U2(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String4> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_String4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_String4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_String4>> for PythonPickle_Op_Arg {
@@ -1228,13 +1285,13 @@ impl From<OptRc<PythonPickle_String4>> for PythonPickle_Op_Arg {
         Self::PythonPickle_String4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring4> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Unicodestring4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Unicodestring4>> for PythonPickle_Op_Arg {
@@ -1242,13 +1299,13 @@ impl From<OptRc<PythonPickle_Unicodestring4>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Unicodestring4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Unicodestring8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Unicodestring8>> for PythonPickle_Op_Arg {
@@ -1256,13 +1313,13 @@ impl From<OptRc<PythonPickle_Unicodestring8>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Unicodestring8(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytearray8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytearray8> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Bytearray8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Bytearray8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Bytearray8>> for PythonPickle_Op_Arg {
@@ -1270,13 +1327,13 @@ impl From<OptRc<PythonPickle_Bytearray8>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Bytearray8(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for u32 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::U4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::U4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<u32> for PythonPickle_Op_Arg {
@@ -1284,13 +1341,13 @@ impl From<u32> for PythonPickle_Op_Arg {
         Self::U4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Floatnl> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Floatnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Floatnl(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Floatnl, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Floatnl>> for PythonPickle_Op_Arg {
@@ -1298,13 +1355,13 @@ impl From<OptRc<PythonPickle_Floatnl>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Floatnl(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for u64 {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::U8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::U8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<u64> for PythonPickle_Op_Arg {
@@ -1312,13 +1369,13 @@ impl From<u64> for PythonPickle_Op_Arg {
         Self::U8(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlShort> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlShort> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_DecimalnlShort(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_DecimalnlShort, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_DecimalnlShort>> for PythonPickle_Op_Arg {
@@ -1326,13 +1383,13 @@ impl From<OptRc<PythonPickle_DecimalnlShort>> for PythonPickle_Op_Arg {
         Self::PythonPickle_DecimalnlShort(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescapePair> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescapePair> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_StringnlNoescapePair(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_StringnlNoescapePair, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_StringnlNoescapePair>> for PythonPickle_Op_Arg {
@@ -1340,13 +1397,13 @@ impl From<OptRc<PythonPickle_StringnlNoescapePair>> for PythonPickle_Op_Arg {
         Self::PythonPickle_StringnlNoescapePair(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlLong> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_DecimalnlLong> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_DecimalnlLong(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_DecimalnlLong, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_DecimalnlLong>> for PythonPickle_Op_Arg {
@@ -1354,13 +1411,13 @@ impl From<OptRc<PythonPickle_DecimalnlLong>> for PythonPickle_Op_Arg {
         Self::PythonPickle_DecimalnlLong(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long1> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Long1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Long1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Long1>> for PythonPickle_Op_Arg {
@@ -1368,13 +1425,13 @@ impl From<OptRc<PythonPickle_Long1>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Long1(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long4> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Long4> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Long4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Long4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Long4>> for PythonPickle_Op_Arg {
@@ -1382,13 +1439,13 @@ impl From<OptRc<PythonPickle_Long4>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Long4(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescape> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_StringnlNoescape> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_StringnlNoescape(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_StringnlNoescape, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_StringnlNoescape>> for PythonPickle_Op_Arg {
@@ -1396,13 +1453,13 @@ impl From<OptRc<PythonPickle_StringnlNoescape>> for PythonPickle_Op_Arg {
         Self::PythonPickle_StringnlNoescape(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes1> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Bytes1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Bytes1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Bytes1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Bytes1>> for PythonPickle_Op_Arg {
@@ -1410,13 +1467,13 @@ impl From<OptRc<PythonPickle_Bytes1>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Bytes1(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String1> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_String1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_String1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_String1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_String1>> for PythonPickle_Op_Arg {
@@ -1424,13 +1481,13 @@ impl From<OptRc<PythonPickle_String1>> for PythonPickle_Op_Arg {
         Self::PythonPickle_String1(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring1> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestring1> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestring1(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Unicodestring1, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Unicodestring1>> for PythonPickle_Op_Arg {
@@ -1438,13 +1495,13 @@ impl From<OptRc<PythonPickle_Unicodestring1>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Unicodestring1(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Stringnl> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Stringnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Stringnl(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Stringnl, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Stringnl>> for PythonPickle_Op_Arg {
@@ -1452,13 +1509,13 @@ impl From<OptRc<PythonPickle_Stringnl>> for PythonPickle_Op_Arg {
         Self::PythonPickle_Stringnl(v)
     }
 }
-impl From<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestringnl> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PythonPickle_Op_Arg) -> Self {
+impl TryFrom<&PythonPickle_Op_Arg> for OptRc<PythonPickle_Unicodestringnl> {
+    type Error = KError;
+    fn try_from(v: &PythonPickle_Op_Arg) -> Result<Self, Self::Error> {
         if let PythonPickle_Op_Arg::PythonPickle_Unicodestringnl(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PythonPickle_Op_Arg::PythonPickle_Unicodestringnl, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PythonPickle_Unicodestringnl>> for PythonPickle_Op_Arg {
@@ -1470,6 +1527,7 @@ impl KStruct for PythonPickle_Op {
     type Root = PythonPickle;
     type Parent = PythonPickle;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1484,38 +1542,23 @@ impl KStruct for PythonPickle_Op {
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         match *self_rc.code() {
             PythonPickle_Opcode::Additems => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Append => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Appends => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binbytes => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Bytes4>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Bytes4>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binbytes8 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Bytes8>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Bytes8>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binfloat => {
@@ -1534,90 +1577,54 @@ impl KStruct for PythonPickle_Op {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u2le()?.into());
             }
             PythonPickle_Opcode::Binpersid => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binput => {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u1()?.into());
             }
             PythonPickle_Opcode::Binstring => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_String4>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_String4>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binunicode => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Unicodestring4>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Unicodestring4>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Binunicode8 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Unicodestring8>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Unicodestring8>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Build => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Bytearray8 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Bytearray8>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Bytearray8>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Dict => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Dup => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::EmptyDict => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::EmptyList => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::EmptySet => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::EmptyTuple => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Ext1 => {
@@ -1630,76 +1637,46 @@ impl KStruct for PythonPickle_Op {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u4le()?.into());
             }
             PythonPickle_Opcode::Float => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Floatnl>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Floatnl>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Frame => {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u8le()?.into());
             }
             PythonPickle_Opcode::Frozenset => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Get => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_DecimalnlShort>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_DecimalnlShort>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::GlobalOpcode => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_StringnlNoescapePair>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_StringnlNoescapePair>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Inst => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_StringnlNoescapePair>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_StringnlNoescapePair>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Int => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_DecimalnlShort>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_DecimalnlShort>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::List => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Long => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_DecimalnlLong>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_DecimalnlLong>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Long1 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Long1>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Long1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Long4 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Long4>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Long4>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::LongBinget => {
@@ -1709,206 +1686,123 @@ impl KStruct for PythonPickle_Op {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u4le()?.into());
             }
             PythonPickle_Opcode::Mark => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Memoize => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Newfalse => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Newobj => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::NewobjEx => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Newtrue => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::NextBuffer => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::None => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Obj => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Persid => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_StringnlNoescape>(&_t_arg_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, PythonPickle_StringnlNoescape>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Pop => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::PopMark => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Proto => {
                 *self_rc.arg.borrow_mut() = Some(_io.read_u1()?.into());
             }
             PythonPickle_Opcode::Put => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_DecimalnlShort>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_DecimalnlShort>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::ReadonlyBuffer => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Reduce => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Setitem => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Setitems => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::ShortBinbytes => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Bytes1>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Bytes1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::ShortBinstring => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_String1>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_String1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::ShortBinunicode => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Unicodestring1>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Unicodestring1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::StackGlobal => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Stop => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::String => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Stringnl>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Stringnl>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Tuple => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Tuple1 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Tuple2 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Tuple3 => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_NoArg>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_NoArg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             PythonPickle_Opcode::Unicode => {
-                *self_rc.arg_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let arg_raw = self_rc.arg_raw.borrow();
-                let _t_arg_raw_io = BytesReader::from(arg_raw.clone());
-                let t = Self::read_into::<BytesReader, PythonPickle_Unicodestringnl>(&_t_arg_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, PythonPickle_Unicodestringnl>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.arg.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1940,11 +1834,6 @@ impl PythonPickle_Op {
         self._io.borrow()
     }
 }
-impl PythonPickle_Op {
-    pub fn arg_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.arg_raw.borrow()
-    }
-}
 
 /**
  * Length prefixed string, between 0 and 255 bytes long. Encoding is
@@ -1971,11 +1860,13 @@ pub struct PythonPickle_String1 {
     len: RefCell<u8>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_String1 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1989,6 +1880,7 @@ impl KStruct for PythonPickle_String1 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2007,6 +1899,11 @@ impl PythonPickle_String1 {
 impl PythonPickle_String1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl PythonPickle_String1 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
     }
 }
 
@@ -2029,11 +1926,13 @@ pub struct PythonPickle_String4 {
     len: RefCell<i32>,
     val: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_String4 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2047,6 +1946,7 @@ impl KStruct for PythonPickle_String4 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_s4le()?;
         *self_rc.val.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2067,6 +1967,11 @@ impl PythonPickle_String4 {
         self._io.borrow()
     }
 }
+impl PythonPickle_String4 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Quoted string, possibly containing Python string escapes.
@@ -2084,6 +1989,7 @@ impl KStruct for PythonPickle_Stringnl {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2096,6 +2002,7 @@ impl KStruct for PythonPickle_Stringnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2128,6 +2035,7 @@ impl KStruct for PythonPickle_StringnlNoescape {
     type Root = PythonPickle;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2140,6 +2048,7 @@ impl KStruct for PythonPickle_StringnlNoescape {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2173,6 +2082,7 @@ impl KStruct for PythonPickle_StringnlNoescapePair {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2188,6 +2098,7 @@ impl KStruct for PythonPickle_StringnlNoescapePair {
         *self_rc.val1.borrow_mut() = t;
         let t = Self::read_into::<_, PythonPickle_StringnlNoescape>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.val2.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2221,11 +2132,13 @@ pub struct PythonPickle_Unicodestring1 {
     len: RefCell<u8>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Unicodestring1 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2239,6 +2152,7 @@ impl KStruct for PythonPickle_Unicodestring1 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u1()?;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len()))?, "utf8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2259,6 +2173,11 @@ impl PythonPickle_Unicodestring1 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Unicodestring1 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Length prefixed string, between 0 and 2**32-1 bytes long
@@ -2272,11 +2191,13 @@ pub struct PythonPickle_Unicodestring4 {
     len: RefCell<u32>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Unicodestring4 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2290,6 +2211,7 @@ impl KStruct for PythonPickle_Unicodestring4 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u4le()?;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "utf8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2310,6 +2232,11 @@ impl PythonPickle_Unicodestring4 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Unicodestring4 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Length prefixed string, between 0 and 2**64-1 bytes long.
@@ -2328,11 +2255,13 @@ pub struct PythonPickle_Unicodestring8 {
     len: RefCell<u64>,
     val: RefCell<String>,
     _io: RefCell<BytesReader>,
+    val_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PythonPickle_Unicodestring8 {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2346,6 +2275,7 @@ impl KStruct for PythonPickle_Unicodestring8 {
         let _io = io;
         *self_rc.len.borrow_mut() = _io.read_u8le()?;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len())?)?, "utf8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2366,6 +2296,11 @@ impl PythonPickle_Unicodestring8 {
         self._io.borrow()
     }
 }
+impl PythonPickle_Unicodestring8 {
+    pub fn val_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.val_raw.borrow()
+    }
+}
 
 /**
  * Unquoted string, containing Python Unicode escapes.
@@ -2383,6 +2318,7 @@ impl KStruct for PythonPickle_Unicodestringnl {
     type Root = PythonPickle;
     type Parent = PythonPickle_Op;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2395,6 +2331,7 @@ impl KStruct for PythonPickle_Unicodestringnl {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.val.borrow_mut() = bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

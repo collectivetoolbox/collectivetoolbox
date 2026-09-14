@@ -57,6 +57,7 @@ impl KStruct for VlqBase128Le {
     type Root = VlqBase128Le;
     type Parent = VlqBase128Le;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -72,7 +73,7 @@ impl KStruct for VlqBase128Le {
         {
             let mut _i = 0_usize;
             loop {
-                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { *self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if _i != 0 { if _i == 9 { 9223372036854775808_u64 } else { (*self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
+                let f = |t : &mut VlqBase128Le_Group| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if ((to_i128(_i)) != (to_i128(0))) { *self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.interm_value()? } else { 0_i32 }).try_into().map_err(|_| KError::CastError)?, (if ((to_i128(_i)) != (to_i128(0))) { if ((to_i128(_i)) == (to_i128(9))) { 9223372036854775808_u64 } else { (*self_rc.groups().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.multiplier()).saturating_mul(128_u64) } } else { 1_u64 }).try_into().map_err(|_| KError::CastError)?));
                 let t = Self::read_into_with_init::<_, VlqBase128Le_Group>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
                 self_rc.groups.borrow_mut().push(t);
                 let _t_groups = self_rc.groups.borrow();
@@ -81,10 +82,12 @@ impl KStruct for VlqBase128Le {
                 if !(*_tmpa.has_next()) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl VlqBase128Le {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -96,6 +99,7 @@ impl VlqBase128Le {
         *self.len.borrow_mut() = (self.groups().len()).try_into()?;
         Ok(self.len.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sign_bit(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -111,6 +115,7 @@ impl VlqBase128Le {
     /**
      * Resulting unsigned value as normal integer
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -122,6 +127,7 @@ impl VlqBase128Le {
         *self.value.borrow_mut() = (*self.groups().last().ok_or(KError::EmptyIterator)?.interm_value()?).try_into()?;
         Ok(self.value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value_signed(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -167,6 +173,7 @@ impl KStruct for VlqBase128Le_Group {
     type Root = VlqBase128Le;
     type Parent = VlqBase128Le;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -179,10 +186,15 @@ impl KStruct for VlqBase128Le_Group {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.has_next.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        if !(*self_rc.has_next() == if *self_rc.idx() == 9 { false } else { *self_rc.has_next() }) {
+        if !(*self_rc.has_next() == if ((to_i128(*self_rc.idx())) == (to_i128(9))) { false } else { *self_rc.has_next() }) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/group/seq/0".to_string() }));
         }
         *self_rc.value.borrow_mut() = _io.read_bits_int_be(7)?;
+        let max_val: u64 = (u64::try_from(if ((to_i128(*self_rc.idx())) == (to_i128(9))) { 1_i32 } else { 127_i32 })?).try_into()?;
+        if !(*self_rc.value() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/group/seq/1".to_string() }));
+        }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -209,6 +221,7 @@ impl VlqBase128Le_Group {
     }
 }
 impl VlqBase128Le_Group {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn interm_value(
         &self
     ) -> KResult<Ref<'_, i32>> {

@@ -44,6 +44,7 @@ impl KStruct for WindowsResourceFile {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -64,6 +65,7 @@ impl KStruct for WindowsResourceFile {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -105,6 +107,9 @@ pub struct WindowsResourceFile_Resource {
     value: RefCell<Vec<u8>>,
     padding2: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    padding1_raw: RefCell<Vec<u8>>,
+    value_raw: RefCell<Vec<u8>>,
+    padding2_raw: RefCell<Vec<u8>>,
     f_type_as_predef: Cell<bool>,
     type_as_predef: RefCell<WindowsResourceFile_Resource_PredefTypes>,
 }
@@ -112,6 +117,7 @@ impl KStruct for WindowsResourceFile_Resource {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -137,6 +143,7 @@ impl KStruct for WindowsResourceFile_Resource {
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
         *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.value_size())?)?;
         *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from(((4_usize).saturating_sub(_io.pos())).checked_rem(4_usize).ok_or(KError::CastError)?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -148,6 +155,7 @@ impl WindowsResourceFile_Resource {
      * well-known values in that range. This instance allows to get
      * it as enum value, if applicable.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn type_as_predef(
         &self
     ) -> KResult<Ref<'_, WindowsResourceFile_Resource_PredefTypes>> {
@@ -156,7 +164,7 @@ impl WindowsResourceFile_Resource {
             return Ok(self.type_as_predef.borrow());
         }
         self.f_type_as_predef.set(true);
-        if  ((!(*self.r#type().is_string()?)) && (*self.r#type().as_numeric() <= 255))  {
+        if  ((!(*self.r#type().is_string()?)) && (((to_i128(*self.r#type().as_numeric())) <= (to_i128(255)))))  {
             *self.type_as_predef.borrow_mut() = i64::from(*self.r#type().as_numeric()).try_into()?;
         }
         Ok(self.type_as_predef.borrow())
@@ -244,7 +252,22 @@ impl WindowsResourceFile_Resource {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl WindowsResourceFile_Resource {
+    pub fn padding1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding1_raw.borrow()
+    }
+}
+impl WindowsResourceFile_Resource {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
+    }
+}
+impl WindowsResourceFile_Resource {
+    pub fn padding2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding2_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum WindowsResourceFile_Resource_PredefTypes {
     Cursor,
     Bitmap,
@@ -352,6 +375,7 @@ pub struct WindowsResourceFile_UnicodeOrId {
     rest: RefCell<Vec<u16>>,
     noop: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    noop_raw: RefCell<Vec<u8>>,
     f_as_string: Cell<bool>,
     as_string: RefCell<String>,
     f_is_string: Cell<bool>,
@@ -365,6 +389,7 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile_Resource;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -392,17 +417,19 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
                     let Some(_tmpa) = _t_rest.last() else { break; };
                     let _tmpa = *_tmpa;
                     _i = _i.saturating_add(1);
-                    if _tmpa == 0 { break; }
+                    if ((to_i128(_tmpa)) == (to_i128(0))) { break; }
                 }
             }
         }
         if  ((*self_rc.is_string()?) && (*self_rc.save_pos2()? >= 0))  {
             *self_rc.noop.borrow_mut() = _io.read_bytes(0_usize)?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl WindowsResourceFile_UnicodeOrId {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn as_string(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -419,6 +446,7 @@ impl WindowsResourceFile_UnicodeOrId {
         }
         Ok(self.as_string.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_string(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -427,9 +455,10 @@ impl WindowsResourceFile_UnicodeOrId {
             return Ok(self.is_string.borrow());
         }
         self.f_is_string.set(true);
-        *self.is_string.borrow_mut() = (*self.first() != 65535).try_into()?;
+        *self.is_string.borrow_mut() = (((to_i128(*self.first())) != (to_i128(65535)))).try_into()?;
         Ok(self.is_string.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn save_pos1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -441,6 +470,7 @@ impl WindowsResourceFile_UnicodeOrId {
         *self.save_pos1.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.save_pos1.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn save_pos2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -476,5 +506,10 @@ impl WindowsResourceFile_UnicodeOrId {
 impl WindowsResourceFile_UnicodeOrId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl WindowsResourceFile_UnicodeOrId {
+    pub fn noop_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.noop_raw.borrow()
     }
 }

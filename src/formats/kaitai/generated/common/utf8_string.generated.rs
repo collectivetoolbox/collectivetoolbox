@@ -38,6 +38,7 @@ impl KStruct for Utf8String {
     type Root = Utf8String;
     type Parent = Utf8String;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -59,6 +60,7 @@ impl KStruct for Utf8String {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -83,6 +85,7 @@ pub struct Utf8String_Utf8Codepoint {
     ofs: RefCell<u64>,
     bytes: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    bytes_raw: RefCell<Vec<u8>>,
     f_byte0: Cell<bool>,
     byte0: RefCell<u8>,
     f_len_bytes: Cell<bool>,
@@ -102,6 +105,7 @@ impl KStruct for Utf8String_Utf8Codepoint {
     type Root = Utf8String;
     type Parent = Utf8String;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,6 +118,7 @@ impl KStruct for Utf8String_Utf8Codepoint {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.bytes.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_bytes()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -128,6 +133,7 @@ impl Utf8String_Utf8Codepoint {
     }
 }
 impl Utf8String_Utf8Codepoint {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn byte0(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -142,6 +148,7 @@ impl Utf8String_Utf8Codepoint {
         _io.seek(_pos)?;
         Ok(self.byte0.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_bytes(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -150,9 +157,10 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.len_bytes.borrow());
         }
         self.f_len_bytes.set(true);
-        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { (0_i32).saturating_sub(1) } } } }).try_into()?;
+        *self.len_bytes.borrow_mut() = (if ((i32::from(*self.byte0()?)) & (128_i32)) == 0 { 1_i32 } else { if ((i32::from(*self.byte0()?)) & (224_i32)) == 192 { 2_i32 } else { if ((i32::from(*self.byte0()?)) & (240_i32)) == 224 { 3_i32 } else { if ((i32::from(*self.byte0()?)) & (248_i32)) == 240 { 4_i32 } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
         Ok(self.len_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn raw0(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -164,6 +172,7 @@ impl Utf8String_Utf8Codepoint {
         *self.raw0.borrow_mut() = (((i32::from(*(self.bytes().get(0_usize).ok_or(KError::CastError)?))) & (if *self.len_bytes()? == 1 { 127_i32 } else { if *self.len_bytes()? == 2 { 31_i32 } else { if *self.len_bytes()? == 3 { 15_i32 } else { if *self.len_bytes()? == 4 { 7_i32 } else { 0_i32 } } } }))).try_into()?;
         Ok(self.raw0.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn raw1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -177,6 +186,7 @@ impl Utf8String_Utf8Codepoint {
         }
         Ok(self.raw1.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn raw2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -190,6 +200,7 @@ impl Utf8String_Utf8Codepoint {
         }
         Ok(self.raw2.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn raw3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -203,6 +214,7 @@ impl Utf8String_Utf8Codepoint {
         }
         Ok(self.raw3.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value_as_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -211,7 +223,7 @@ impl Utf8String_Utf8Codepoint {
             return Ok(self.value_as_int.borrow());
         }
         self.f_value_as_int.set(true);
-        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { (0_i32).saturating_sub(1) } } } }).try_into()?;
+        *self.value_as_int.borrow_mut() = (if *self.len_bytes()? == 1 { *self.raw0()? } else { if *self.len_bytes()? == 2 { (((*self.raw0()?).wrapping_shl(6_u32)) | (*self.raw1()?)) } else { if *self.len_bytes()? == 3 { (((((*self.raw0()?).wrapping_shl(12_u32)) | ((*self.raw1()?).wrapping_shl(6_u32)))) | (*self.raw2()?)) } else { if *self.len_bytes()? == 4 { (((((((*self.raw0()?).wrapping_shl(18_u32)) | ((*self.raw1()?).wrapping_shl(12_u32)))) | ((*self.raw2()?).wrapping_shl(6_u32)))) | (*self.raw3()?)) } else { (0_i32).saturating_sub(to_i32(1)) } } } }).try_into()?;
         Ok(self.value_as_int.borrow())
     }
 }
@@ -223,5 +235,10 @@ impl Utf8String_Utf8Codepoint {
 impl Utf8String_Utf8Codepoint {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Utf8String_Utf8Codepoint {
+    pub fn bytes_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bytes_raw.borrow()
     }
 }

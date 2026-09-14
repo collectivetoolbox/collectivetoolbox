@@ -28,6 +28,7 @@ impl KStruct for Vfat {
     type Root = Vfat;
     type Parent = Vfat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -41,10 +42,12 @@ impl KStruct for Vfat {
         let _io = io;
         let t = Self::read_into::<_, Vfat_BootSector>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.boot_sector.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Vfat {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn fats(
         &self
     ) -> KResult<Ref<'_, Vec<Vec<u8>>>> {
@@ -62,10 +65,12 @@ impl Vfat {
             self.fats_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.boot_sector().size_fat()?)?)?.into());
             let fats_raw = self.fats_raw.borrow();
             let _io_fats_raw = BytesReader::from(fats_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            self.fats.borrow_mut().push(_io_fats_raw.read_bytes(usize::try_from(*self.boot_sector().size_fat()?)?)?);
         }
         _io.seek(_pos)?;
         Ok(self.fats.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn root_dir(
         &self
     ) -> KResult<Ref<'_, OptRc<Vfat_RootDirectory>>> {
@@ -128,6 +133,7 @@ impl KStruct for Vfat_BiosParamBlock {
     type Root = Vfat;
     type Parent = Vfat_BootSector;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -151,6 +157,7 @@ impl KStruct for Vfat_BiosParamBlock {
         *self_rc.num_heads.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_hidden_sectors.borrow_mut() = _io.read_u4le()?;
         *self_rc.total_ls_4.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -297,6 +304,8 @@ pub struct Vfat_BootSector {
     ebpb_fat16: RefCell<OptRc<Vfat_ExtBiosParamBlockFat16>>,
     ebpb_fat32: RefCell<OptRc<Vfat_ExtBiosParamBlockFat32>>,
     _io: RefCell<BytesReader>,
+    jmp_instruction_raw: RefCell<Vec<u8>>,
+    oem_name_raw: RefCell<Vec<u8>>,
     f_is_fat32: Cell<bool>,
     is_fat32: RefCell<bool>,
     f_ls_per_fat: Cell<bool>,
@@ -316,6 +325,7 @@ impl KStruct for Vfat_BootSector {
     type Root = Vfat;
     type Parent = Vfat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -328,7 +338,7 @@ impl KStruct for Vfat_BootSector {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.jmp_instruction.borrow_mut() = _io.read_bytes(3_usize)?;
-        *self_rc.oem_name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 32), "ASCII")?;
+        *self_rc.oem_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
         let t = Self::read_into::<_, Vfat_BiosParamBlock>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bpb.borrow_mut() = t;
         if !(*self_rc.is_fat32()?) {
@@ -339,6 +349,7 @@ impl KStruct for Vfat_BootSector {
             let t = Self::read_into::<_, Vfat_ExtBiosParamBlockFat32>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.ebpb_fat32.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -350,6 +361,7 @@ impl Vfat_BootSector {
      * determine whether we should parse post-BPB data as
      * `ext_bios_param_block_fat16` or `ext_bios_param_block_fat32`.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_fat32(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -358,9 +370,10 @@ impl Vfat_BootSector {
             return Ok(self.is_fat32.borrow());
         }
         self.f_is_fat32.set(true);
-        *self.is_fat32.borrow_mut() = (*self.bpb().max_root_dir_rec() == 0).try_into()?;
+        *self.is_fat32.borrow_mut() = (((to_i128(*self.bpb().max_root_dir_rec())) == (to_i128(0)))).try_into()?;
         Ok(self.is_fat32.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ls_per_fat(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -377,6 +390,7 @@ impl Vfat_BootSector {
      * Size of root directory in logical sectors
      * \sa FAT: General Overview of On-Disk Format, section "FAT Data Structure"
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ls_per_root_dir(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -392,6 +406,7 @@ impl Vfat_BootSector {
     /**
      * Offset of FATs in bytes from start of filesystem
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pos_fats(
         &self
     ) -> KResult<Ref<'_, u16>> {
@@ -407,6 +422,7 @@ impl Vfat_BootSector {
     /**
      * Offset of root directory in bytes from start of filesystem
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pos_root_dir(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -422,6 +438,7 @@ impl Vfat_BootSector {
     /**
      * Size of one FAT in bytes
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn size_fat(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -437,6 +454,7 @@ impl Vfat_BootSector {
     /**
      * Size of root directory in bytes
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn size_root_dir(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -491,6 +509,16 @@ impl Vfat_BootSector {
         self._io.borrow()
     }
 }
+impl Vfat_BootSector {
+    pub fn jmp_instruction_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.jmp_instruction_raw.borrow()
+    }
+}
+impl Vfat_BootSector {
+    pub fn oem_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.oem_name_raw.borrow()
+    }
+}
 
 /**
  * Extended BIOS Parameter Block (DOS 4.0+, OS/2 1.0+). Used only
@@ -509,11 +537,15 @@ pub struct Vfat_ExtBiosParamBlockFat16 {
     partition_volume_label: RefCell<String>,
     fs_type_str: RefCell<String>,
     _io: RefCell<BytesReader>,
+    volume_id_raw: RefCell<Vec<u8>>,
+    partition_volume_label_raw: RefCell<Vec<u8>>,
+    fs_type_str_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Vfat_ExtBiosParamBlockFat16 {
     type Root = Vfat;
     type Parent = Vfat_BootSector;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -529,8 +561,9 @@ impl KStruct for Vfat_ExtBiosParamBlockFat16 {
         *self_rc.reserved1.borrow_mut() = _io.read_u1()?;
         *self_rc.ext_boot_sign.borrow_mut() = _io.read_u1()?;
         *self_rc.volume_id.borrow_mut() = _io.read_bytes(4_usize)?;
-        *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(11_usize)?, 32), "ASCII")?;
-        *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 32), "ASCII")?;
+        *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(11_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -595,6 +628,21 @@ impl Vfat_ExtBiosParamBlockFat16 {
         self._io.borrow()
     }
 }
+impl Vfat_ExtBiosParamBlockFat16 {
+    pub fn volume_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.volume_id_raw.borrow()
+    }
+}
+impl Vfat_ExtBiosParamBlockFat16 {
+    pub fn partition_volume_label_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.partition_volume_label_raw.borrow()
+    }
+}
+impl Vfat_ExtBiosParamBlockFat16 {
+    pub fn fs_type_str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.fs_type_str_raw.borrow()
+    }
+}
 
 /**
  * Extended BIOS Parameter Block for FAT32
@@ -622,11 +670,16 @@ pub struct Vfat_ExtBiosParamBlockFat32 {
     partition_volume_label: RefCell<String>,
     fs_type_str: RefCell<String>,
     _io: RefCell<BytesReader>,
+    reserved3_raw: RefCell<Vec<u8>>,
+    volume_id_raw: RefCell<Vec<u8>>,
+    partition_volume_label_raw: RefCell<Vec<u8>>,
+    fs_type_str_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Vfat_ExtBiosParamBlockFat32 {
     type Root = Vfat;
     type Parent = Vfat_BootSector;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -639,9 +692,9 @@ impl KStruct for Vfat_ExtBiosParamBlockFat32 {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ls_per_fat.borrow_mut() = _io.read_u4le()?;
-        *self_rc.has_active_fat.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(3)?;
-        *self_rc.active_fat_id.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc.has_active_fat.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.reserved1.borrow_mut() = _io.read_bits_int_le(3)?;
+        *self_rc.active_fat_id.borrow_mut() = _io.read_bits_int_le(4)?;
         io.align_to_byte()?;
         *self_rc.reserved2.borrow_mut() = _io.read_bytes(1_usize)?;
         if !(*self_rc.reserved2() == vec![0x0u8]) {
@@ -656,8 +709,9 @@ impl KStruct for Vfat_ExtBiosParamBlockFat32 {
         *self_rc.reserved4.borrow_mut() = _io.read_u1()?;
         *self_rc.ext_boot_sign.borrow_mut() = _io.read_u1()?;
         *self_rc.volume_id.borrow_mut() = _io.read_bytes(4_usize)?;
-        *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(11_usize)?, 32), "ASCII")?;
-        *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 32), "ASCII")?;
+        *self_rc.partition_volume_label.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(11_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc.fs_type_str.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(32)), "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -807,6 +861,26 @@ impl Vfat_ExtBiosParamBlockFat32 {
         self._io.borrow()
     }
 }
+impl Vfat_ExtBiosParamBlockFat32 {
+    pub fn reserved3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved3_raw.borrow()
+    }
+}
+impl Vfat_ExtBiosParamBlockFat32 {
+    pub fn volume_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.volume_id_raw.borrow()
+    }
+}
+impl Vfat_ExtBiosParamBlockFat32 {
+    pub fn partition_volume_label_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.partition_volume_label_raw.borrow()
+    }
+}
+impl Vfat_ExtBiosParamBlockFat32 {
+    pub fn fs_type_str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.fs_type_str_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Vfat_RootDirectory {
@@ -820,6 +894,7 @@ impl KStruct for Vfat_RootDirectory {
     type Root = Vfat;
     type Parent = Vfat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -837,6 +912,7 @@ impl KStruct for Vfat_RootDirectory {
             let t = Self::read_into::<_, Vfat_RootDirectoryRec>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -865,11 +941,16 @@ pub struct Vfat_RootDirectoryRec {
     start_clus: RefCell<u16>,
     file_size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    file_name_raw: RefCell<Vec<u8>>,
+    attrs_raw: RefCell<Vec<u8>>,
+    reserved_raw: RefCell<Vec<u8>>,
+    last_write_time_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Vfat_RootDirectoryRec {
     type Root = Vfat;
     type Parent = Vfat_RootDirectory;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -882,13 +963,20 @@ impl KStruct for Vfat_RootDirectoryRec {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.file_name.borrow_mut() = _io.read_bytes(11_usize)?;
-        let t = Self::read_into::<_, Vfat_RootDirectoryRec_AttrFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_attrs = _io.read_bytes(1_usize)?;
+        *self_rc.attrs_raw.borrow_mut() = _raw_attrs.clone();
+        let _io_attrs = BytesReader::from(_raw_attrs);
+        let t = Self::read_into::<BytesReader, Vfat_RootDirectoryRec_AttrFlags>(&_io_attrs, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.attrs.borrow_mut() = t;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(10_usize)?;
-        let t = Self::read_into::<_, DosDatetime>(&*_io, None, None)?.into();
+        let _raw_last_write_time = _io.read_bytes(4_usize)?;
+        *self_rc.last_write_time_raw.borrow_mut() = _raw_last_write_time.clone();
+        let _io_last_write_time = BytesReader::from(_raw_last_write_time);
+        let t = Self::read_into::<BytesReader, DosDatetime>(&_io_last_write_time, None, None)?.into();
         *self_rc.last_write_time.borrow_mut() = t;
         *self_rc.start_clus.borrow_mut() = _io.read_u2le()?;
         *self_rc.file_size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -929,6 +1017,26 @@ impl Vfat_RootDirectoryRec {
         self._io.borrow()
     }
 }
+impl Vfat_RootDirectoryRec {
+    pub fn file_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_name_raw.borrow()
+    }
+}
+impl Vfat_RootDirectoryRec {
+    pub fn attrs_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.attrs_raw.borrow()
+    }
+}
+impl Vfat_RootDirectoryRec {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+impl Vfat_RootDirectoryRec {
+    pub fn last_write_time_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.last_write_time_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Vfat_RootDirectoryRec_AttrFlags {
@@ -950,6 +1058,7 @@ impl KStruct for Vfat_RootDirectoryRec_AttrFlags {
     type Root = Vfat;
     type Parent = Vfat_RootDirectoryRec;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -961,17 +1070,19 @@ impl KStruct for Vfat_RootDirectoryRec_AttrFlags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.read_only.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.hidden.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.system.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.volume_id.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.is_directory.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.archive.borrow_mut() = _io.read_bits_int_be(1)? != 0;
-        *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(2)?;
+        *self_rc.read_only.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.hidden.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.system.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.volume_id.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.is_directory.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.archive.borrow_mut() = _io.read_bits_int_le(1)? != 0;
+        *self_rc.reserved.borrow_mut() = _io.read_bits_int_le(2)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Vfat_RootDirectoryRec_AttrFlags {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn long_name(
         &self
     ) -> KResult<Ref<'_, bool>> {

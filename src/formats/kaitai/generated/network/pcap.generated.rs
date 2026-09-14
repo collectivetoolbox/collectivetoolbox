@@ -29,6 +29,7 @@ impl KStruct for Pcap {
     type Root = Pcap;
     type Parent = Pcap;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -52,6 +53,7 @@ impl KStruct for Pcap {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -77,7 +79,7 @@ impl Pcap {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Pcap_Linktype {
     NullLinktype,
     Ethernet,
@@ -730,7 +732,7 @@ impl Default for Pcap_Linktype {
     fn default() -> Self { Pcap_Linktype::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Pcap_Magic {
     LeNanoseconds,
     BeNanoseconds,
@@ -791,6 +793,7 @@ impl KStruct for Pcap_Header {
     type Root = Pcap;
     type Parent = Pcap;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -830,6 +833,7 @@ impl KStruct for Pcap_Header {
         *self_rc.sigfigs.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.snaplen.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.network.borrow_mut() = i64::from(_io.read_u4()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -921,13 +925,13 @@ pub enum Pcap_Packet_Body {
     PacketPpi(OptRc<PacketPpi>),
     Bytes(Vec<u8>),
 }
-impl From<&Pcap_Packet_Body> for OptRc<EthernetFrame> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Pcap_Packet_Body) -> Self {
+impl TryFrom<&Pcap_Packet_Body> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &Pcap_Packet_Body) -> Result<Self, Self::Error> {
         if let Pcap_Packet_Body::EthernetFrame(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Pcap_Packet_Body::EthernetFrame, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<EthernetFrame>> for Pcap_Packet_Body {
@@ -935,13 +939,13 @@ impl From<OptRc<EthernetFrame>> for Pcap_Packet_Body {
         Self::EthernetFrame(v)
     }
 }
-impl From<&Pcap_Packet_Body> for OptRc<PacketPpi> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Pcap_Packet_Body) -> Self {
+impl TryFrom<&Pcap_Packet_Body> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &Pcap_Packet_Body) -> Result<Self, Self::Error> {
         if let Pcap_Packet_Body::PacketPpi(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Pcap_Packet_Body::PacketPpi, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PacketPpi>> for Pcap_Packet_Body {
@@ -949,13 +953,13 @@ impl From<OptRc<PacketPpi>> for Pcap_Packet_Body {
         Self::PacketPpi(v)
     }
 }
-impl From<&Pcap_Packet_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Pcap_Packet_Body) -> Self {
+impl TryFrom<&Pcap_Packet_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Pcap_Packet_Body) -> Result<Self, Self::Error> {
         if let Pcap_Packet_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Pcap_Packet_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Pcap_Packet_Body {
@@ -967,6 +971,7 @@ impl KStruct for Pcap_Packet {
     type Root = Pcap;
     type Parent = Pcap;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1002,14 +1007,14 @@ impl KStruct for Pcap_Packet {
         *self_rc.orig_len.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().network() {
             Pcap_Linktype::Ethernet => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, EthernetFrame>(&_t_body_raw_io, None, None)?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             Pcap_Linktype::Ppi => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(if *self_rc.incl_len() < *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() { *self_rc.incl_len() } else { *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.hdr().snaplen() })?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, PacketPpi>(&_t_body_raw_io, None, None)?.into();
@@ -1019,6 +1024,7 @@ impl KStruct for Pcap_Packet {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

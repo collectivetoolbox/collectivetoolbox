@@ -32,6 +32,7 @@ impl KStruct for DimeMessage {
     type Root = DimeMessage;
     type Parent = DimeMessage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -52,6 +53,7 @@ impl KStruct for DimeMessage {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -67,7 +69,7 @@ impl DimeMessage {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DimeMessage_TypeFormats {
     Unchanged,
     MediaType,
@@ -122,11 +124,13 @@ pub struct DimeMessage_OptionElement {
     len_element: RefCell<u16>,
     element_data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    element_data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DimeMessage_OptionElement {
     type Root = DimeMessage;
     type Parent = DimeMessage_OptionField;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,6 +145,7 @@ impl KStruct for DimeMessage_OptionElement {
         *self_rc.element_format.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_element.borrow_mut() = _io.read_u2be()?;
         *self_rc.element_data.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_element()))?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -166,6 +171,11 @@ impl DimeMessage_OptionElement {
         self._io.borrow()
     }
 }
+impl DimeMessage_OptionElement {
+    pub fn element_data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.element_data_raw.borrow()
+    }
+}
 
 /**
  * the option field of the record
@@ -183,6 +193,7 @@ impl KStruct for DimeMessage_OptionField {
     type Root = DimeMessage;
     type Parent = DimeMessage_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -203,6 +214,7 @@ impl KStruct for DimeMessage_OptionField {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -230,11 +242,13 @@ pub struct DimeMessage_Padding {
     pub(crate) _self_shared: SharedType<Self>,
     boundary_padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    boundary_padding_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DimeMessage_Padding {
     type Root = DimeMessage;
     type Parent = DimeMessage_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -247,6 +261,7 @@ impl KStruct for DimeMessage_Padding {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.boundary_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(_io.pos()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -260,6 +275,11 @@ impl DimeMessage_Padding {
 impl DimeMessage_Padding {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DimeMessage_Padding {
+    pub fn boundary_padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.boundary_padding_raw.borrow()
     }
 }
 
@@ -291,11 +311,16 @@ pub struct DimeMessage_Record {
     data: RefCell<Vec<u8>>,
     data_padding: RefCell<OptRc<DimeMessage_Padding>>,
     _io: RefCell<BytesReader>,
+    options_raw: RefCell<Vec<u8>>,
+    id_raw: RefCell<Vec<u8>>,
+    type_raw: RefCell<Vec<u8>>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DimeMessage_Record {
     type Root = DimeMessage;
     type Parent = DimeMessage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -318,19 +343,23 @@ impl KStruct for DimeMessage_Record {
         *self_rc.len_id.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_type.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_data.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, DimeMessage_OptionField>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_options = _io.read_bytes(usize::from(*self_rc.len_options()))?;
+        *self_rc.options_raw.borrow_mut() = _raw_options.clone();
+        let _io_options = BytesReader::from(_raw_options);
+        let t = Self::read_into::<BytesReader, DimeMessage_OptionField>(&_io_options, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options.borrow_mut() = t;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.options_padding.borrow_mut() = t;
-        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_id()))?, "UTF-8")?;
+        *self_rc.id.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_id()))?, "ASCII")?;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.id_padding.borrow_mut() = t;
-        *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_type()))?, "UTF-8")?;
+        *self_rc.r#type.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.len_type()))?, "ASCII")?;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.type_padding.borrow_mut() = t;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_data())?)?;
         let t = Self::read_into::<_, DimeMessage_Padding>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_padding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -481,5 +510,25 @@ impl DimeMessage_Record {
 impl DimeMessage_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DimeMessage_Record {
+    pub fn options_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.options_raw.borrow()
+    }
+}
+impl DimeMessage_Record {
+    pub fn id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.id_raw.borrow()
+    }
+}
+impl DimeMessage_Record {
+    pub fn type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.type_raw.borrow()
+    }
+}
+impl DimeMessage_Record {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
     }
 }

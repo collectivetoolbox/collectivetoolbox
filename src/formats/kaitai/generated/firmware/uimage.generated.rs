@@ -20,11 +20,13 @@ pub struct Uimage {
     header: RefCell<OptRc<Uimage_Uheader>>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Uimage {
     type Root = Uimage;
     type Parent = Uimage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -39,6 +41,7 @@ impl KStruct for Uimage {
         let t = Self::read_into::<_, Uimage_Uheader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_image())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -59,7 +62,12 @@ impl Uimage {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Uimage {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageArch {
 
     /**
@@ -274,7 +282,7 @@ impl Default for Uimage_UimageArch {
     fn default() -> Self { Uimage_UimageArch::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageComp {
 
     /**
@@ -325,7 +333,7 @@ impl Default for Uimage_UimageComp {
     fn default() -> Self { Uimage_UimageComp::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageOs {
 
     /**
@@ -554,7 +562,7 @@ impl Default for Uimage_UimageOs {
     fn default() -> Self { Uimage_UimageOs::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uimage_UimageType {
 
     /**
@@ -886,11 +894,13 @@ pub struct Uimage_Uheader {
     compression_type: RefCell<Uimage_UimageComp>,
     name: RefCell<String>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Uimage_Uheader {
     type Root = Uimage;
     type Parent = Uimage;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -916,7 +926,8 @@ impl KStruct for Uimage_Uheader {
         *self_rc.architecture.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.image_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.compression_type.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -985,5 +996,10 @@ impl Uimage_Uheader {
 impl Uimage_Uheader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Uimage_Uheader {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
     }
 }

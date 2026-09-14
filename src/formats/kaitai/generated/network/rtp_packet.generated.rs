@@ -30,6 +30,8 @@ pub struct RtpPacket {
     data: RefCell<Vec<u8>>,
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
+    padding_raw: RefCell<Vec<u8>>,
     f_len_padding: Cell<bool>,
     len_padding: RefCell<i32>,
     f_len_padding_if_exists: Cell<bool>,
@@ -39,6 +41,7 @@ impl KStruct for RtpPacket {
     type Root = RtpPacket;
     type Parent = RtpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -64,8 +67,9 @@ impl KStruct for RtpPacket {
             let t = Self::read_into::<_, RtpPacket_HeaderExtention>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.header_extension.borrow_mut() = t;
         }
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((_io.size()).saturating_sub(_io.pos())).saturating_sub(usize::try_from(*self_rc.len_padding()?)?))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(*self_rc.len_padding()?))?)?;
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_padding()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -74,6 +78,7 @@ impl RtpPacket {
     /**
      * Always returns number of padding bytes to in the payload.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_padding(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -90,6 +95,7 @@ impl RtpPacket {
      * If padding bit is enabled, last byte of data contains number of
      * bytes appended to the payload as padding.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_padding_if_exists(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -100,7 +106,7 @@ impl RtpPacket {
         self.f_len_padding_if_exists.set(true);
         if *self.has_padding() {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((_io.size()).saturating_sub(1_usize))?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(1_i32))?)?;
             *self.len_padding_if_exists.borrow_mut() = _io.read_u1()?;
             _io.seek(_pos)?;
         }
@@ -176,7 +182,17 @@ impl RtpPacket {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl RtpPacket {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
+impl RtpPacket {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum RtpPacket_PayloadTypeEnum {
     Pcmu,
     Reserved1,
@@ -324,6 +340,7 @@ impl KStruct for RtpPacket_HeaderExtention {
     type Root = RtpPacket;
     type Parent = RtpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -337,6 +354,7 @@ impl KStruct for RtpPacket_HeaderExtention {
         let _io = io;
         *self_rc.id.borrow_mut() = _io.read_u2be()?;
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

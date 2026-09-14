@@ -18,6 +18,7 @@ impl KStruct for FtlDat {
     type Root = FtlDat;
     type Parent = FtlDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -36,6 +37,7 @@ impl KStruct for FtlDat {
             let t = Self::read_into::<_, FtlDat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -75,6 +77,7 @@ impl KStruct for FtlDat_File {
     type Root = FtlDat;
     type Parent = FtlDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,10 +90,12 @@ impl KStruct for FtlDat_File {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_meta.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl FtlDat_File {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn meta(
         &self
     ) -> KResult<Ref<'_, OptRc<FtlDat_Meta>>> {
@@ -98,7 +103,7 @@ impl FtlDat_File {
         if self.f_meta.get() {
             return Ok(self.meta.borrow());
         }
-        if *self.ofs_meta() != 0 {
+        if ((to_i128(*self.ofs_meta())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_meta())?)?;
             let t = Self::read_into::<_, FtlDat_Meta>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
@@ -129,11 +134,14 @@ pub struct FtlDat_Meta {
     filename: RefCell<String>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    filename_raw: RefCell<Vec<u8>>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for FtlDat_Meta {
     type Root = FtlDat;
     type Parent = FtlDat_File;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -149,6 +157,7 @@ impl KStruct for FtlDat_Meta {
         *self_rc.len_filename.borrow_mut() = _io.read_u4le()?;
         *self_rc.filename.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.len_filename())?)?, "UTF-8")?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_file())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -177,5 +186,15 @@ impl FtlDat_Meta {
 impl FtlDat_Meta {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl FtlDat_Meta {
+    pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.filename_raw.borrow()
+    }
+}
+impl FtlDat_Meta {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

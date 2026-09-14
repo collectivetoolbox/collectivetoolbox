@@ -29,6 +29,7 @@ impl KStruct for Ogg {
     type Root = Ogg;
     type Parent = Ogg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -49,6 +50,7 @@ impl KStruct for Ogg {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -89,11 +91,13 @@ pub struct Ogg_Page {
     len_segments: RefCell<Vec<u8>>,
     segments: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    segments_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Ogg_Page {
     type Root = Ogg;
     type Parent = Ogg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,6 +137,7 @@ impl KStruct for Ogg_Page {
         for _i in 0_usize..l_segments {
             self_rc.segments.borrow_mut().push(_io.read_bytes(usize::from(*(self_rc.len_segments().get(_i).ok_or(KError::CastError)?)))?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -273,5 +278,10 @@ impl Ogg_Page {
 impl Ogg_Page {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Ogg_Page {
+    pub fn segments_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.segments_raw.borrow()
     }
 }

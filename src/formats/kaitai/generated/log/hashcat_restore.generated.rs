@@ -24,11 +24,15 @@ pub struct HashcatRestore {
     padding2: RefCell<Vec<u8>>,
     argv: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+    cwd_raw: RefCell<Vec<u8>>,
+    padding_raw: RefCell<Vec<u8>>,
+    padding2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for HashcatRestore {
     type Root = HashcatRestore;
     type Parent = HashcatRestore;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -41,7 +45,7 @@ impl KStruct for HashcatRestore {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
-        *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(256_usize)?, 0, false), "UTF-8")?;
+        *self_rc.cwd.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(256_usize)?, Some(0), false, None), "UTF-8")?;
         *self_rc.dicts_pos.borrow_mut() = _io.read_u4le()?;
         *self_rc.masks_pos.borrow_mut() = _io.read_u4le()?;
         *self_rc.padding.borrow_mut() = _io.read_bytes(4_usize)?;
@@ -53,6 +57,7 @@ impl KStruct for HashcatRestore {
         for _i in 0_usize..l_argv {
             self_rc.argv.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(10, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -106,5 +111,20 @@ impl HashcatRestore {
 impl HashcatRestore {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl HashcatRestore {
+    pub fn cwd_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.cwd_raw.borrow()
+    }
+}
+impl HashcatRestore {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
+impl HashcatRestore {
+    pub fn padding2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding2_raw.borrow()
     }
 }

@@ -22,6 +22,7 @@ impl KStruct for FalloutDat {
     type Root = FalloutDat;
     type Parent = FalloutDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -49,6 +50,7 @@ impl KStruct for FalloutDat {
             let t = Self::read_into::<_, FalloutDat_Folder>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.folders.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -89,7 +91,7 @@ impl FalloutDat {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum FalloutDat_Compression {
     None,
     Lzss,
@@ -140,6 +142,7 @@ impl KStruct for FalloutDat_File {
     type Root = FalloutDat;
     type Parent = FalloutDat_Folder;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -157,10 +160,12 @@ impl KStruct for FalloutDat_File {
         *self_rc.offset.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_unpacked.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_packed.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl FalloutDat_File {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn contents(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -224,6 +229,7 @@ impl KStruct for FalloutDat_Folder {
     type Root = FalloutDat;
     type Parent = FalloutDat;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -245,6 +251,7 @@ impl KStruct for FalloutDat_Folder {
             let t = Self::read_into::<_, FalloutDat_File>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.files.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -289,11 +296,13 @@ pub struct FalloutDat_Pstr {
     size: RefCell<u8>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for FalloutDat_Pstr {
     type Root = FalloutDat;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -307,6 +316,7 @@ impl KStruct for FalloutDat_Pstr {
         let _io = io;
         *self_rc.size.borrow_mut() = _io.read_u1()?;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::from(*self_rc.size()))?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -325,5 +335,10 @@ impl FalloutDat_Pstr {
 impl FalloutDat_Pstr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl FalloutDat_Pstr {
+    pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_raw.borrow()
     }
 }

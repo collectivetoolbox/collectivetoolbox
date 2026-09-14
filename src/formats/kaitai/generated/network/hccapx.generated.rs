@@ -22,6 +22,7 @@ impl KStruct for Hccapx {
     type Root = Hccapx;
     type Parent = Hccapx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -42,6 +43,7 @@ impl KStruct for Hccapx {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -80,11 +82,21 @@ pub struct Hccapx_HccapxRecord {
     eapol: RefCell<Vec<u8>>,
     padding2: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    essid_raw: RefCell<Vec<u8>>,
+    padding1_raw: RefCell<Vec<u8>>,
+    keymic_raw: RefCell<Vec<u8>>,
+    mac_ap_raw: RefCell<Vec<u8>>,
+    nonce_ap_raw: RefCell<Vec<u8>>,
+    mac_station_raw: RefCell<Vec<u8>>,
+    nonce_station_raw: RefCell<Vec<u8>>,
+    eapol_raw: RefCell<Vec<u8>>,
+    padding2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Hccapx_HccapxRecord {
     type Root = Hccapx;
     type Parent = Hccapx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,6 +128,7 @@ impl KStruct for Hccapx_HccapxRecord {
         *self_rc.len_eapol.borrow_mut() = _io.read_u2le()?;
         *self_rc.eapol.borrow_mut() = _io.read_bytes(usize::from(*self_rc.len_eapol()))?;
         *self_rc.padding2.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_sub(i32::from(*self_rc.len_eapol())))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -273,5 +286,50 @@ impl Hccapx_HccapxRecord {
 impl Hccapx_HccapxRecord {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn essid_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.essid_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn padding1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding1_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn keymic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.keymic_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn mac_ap_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.mac_ap_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn nonce_ap_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.nonce_ap_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn mac_station_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.mac_station_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn nonce_station_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.nonce_station_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn eapol_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.eapol_raw.borrow()
+    }
+}
+impl Hccapx_HccapxRecord {
+    pub fn padding2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding2_raw.borrow()
     }
 }

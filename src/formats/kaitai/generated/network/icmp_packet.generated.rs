@@ -20,6 +20,7 @@ impl KStruct for IcmpPacket {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -44,6 +45,7 @@ impl KStruct for IcmpPacket {
             let t = Self::read_into::<_, IcmpPacket_EchoMsg>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.echo.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -74,7 +76,7 @@ impl IcmpPacket {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum IcmpPacket_IcmpTypeEnum {
     EchoReply,
     DestinationUnreachable,
@@ -132,6 +134,7 @@ impl KStruct for IcmpPacket_DestinationUnreachableMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -145,6 +148,7 @@ impl KStruct for IcmpPacket_DestinationUnreachableMsg {
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -165,7 +169,7 @@ impl IcmpPacket_DestinationUnreachableMsg {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum IcmpPacket_DestinationUnreachableMsg_DestinationUnreachableCode {
     NetUnreachable,
     HostUnreachable,
@@ -256,6 +260,7 @@ impl KStruct for IcmpPacket_EchoMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -275,6 +280,7 @@ impl KStruct for IcmpPacket_EchoMsg {
         *self_rc.identifier.borrow_mut() = _io.read_u2be()?;
         *self_rc.seq_num.borrow_mut() = _io.read_u2be()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -324,6 +330,7 @@ impl KStruct for IcmpPacket_TimeExceededMsg {
     type Root = IcmpPacket;
     type Parent = IcmpPacket;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -337,6 +344,7 @@ impl KStruct for IcmpPacket_TimeExceededMsg {
         let _io = io;
         *self_rc.code.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.checksum.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -357,7 +365,7 @@ impl IcmpPacket_TimeExceededMsg {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum IcmpPacket_TimeExceededMsg_TimeExceededCode {
     TimeToLiveExceededInTransit,
     FragmentReassemblyTimeExceeded,

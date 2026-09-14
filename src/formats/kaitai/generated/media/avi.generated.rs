@@ -19,11 +19,13 @@ pub struct Avi {
     magic2: RefCell<Vec<u8>>,
     data: RefCell<OptRc<Avi_Blocks>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Avi {
     type Root = Avi;
     type Parent = Avi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -44,8 +46,12 @@ impl KStruct for Avi {
         if !(*self_rc.magic2() == vec![0x41u8, 0x56u8, 0x49u8, 0x20u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/seq/2".to_string() }));
         }
-        let t = Self::read_into::<_, Avi_Blocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        let _raw_data = _io.read_bytes(usize::try_from((*self_rc.file_size()).saturating_sub(4_u32))?)?;
+        *self_rc.data_raw.borrow_mut() = _raw_data.clone();
+        let _io_data = BytesReader::from(_raw_data);
+        let t = Self::read_into::<BytesReader, Avi_Blocks>(&_io_data, Some(self_rc._root.clone()), None)?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -76,7 +82,12 @@ impl Avi {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Avi {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Avi_ChunkType {
     Idx1,
     Junk,
@@ -135,7 +146,7 @@ impl Default for Avi_ChunkType {
     fn default() -> Self { Avi_ChunkType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Avi_HandlerType {
     Mp3,
     Ac3,
@@ -176,7 +187,7 @@ impl Default for Avi_HandlerType {
     fn default() -> Self { Avi_HandlerType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Avi_StreamType {
     Mids,
     Vids,
@@ -237,11 +248,13 @@ pub struct Avi_AvihBody {
     height: RefCell<u32>,
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Avi_AvihBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -264,6 +277,7 @@ impl KStruct for Avi_AvihBody {
         *self_rc.width.borrow_mut() = _io.read_u4le()?;
         *self_rc.height.borrow_mut() = _io.read_u4le()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -329,6 +343,11 @@ impl Avi_AvihBody {
         self._io.borrow()
     }
 }
+impl Avi_AvihBody {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Avi_Block {
@@ -348,13 +367,13 @@ pub enum Avi_Block_Data {
     Avi_StrhBody(OptRc<Avi_StrhBody>),
     Bytes(Vec<u8>),
 }
-impl From<&Avi_Block_Data> for OptRc<Avi_AvihBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Avi_Block_Data) -> Self {
+impl TryFrom<&Avi_Block_Data> for OptRc<Avi_AvihBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_Block_Data) -> Result<Self, Self::Error> {
         if let Avi_Block_Data::Avi_AvihBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Avi_Block_Data::Avi_AvihBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Avi_AvihBody>> for Avi_Block_Data {
@@ -362,13 +381,13 @@ impl From<OptRc<Avi_AvihBody>> for Avi_Block_Data {
         Self::Avi_AvihBody(v)
     }
 }
-impl From<&Avi_Block_Data> for OptRc<Avi_ListBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Avi_Block_Data) -> Self {
+impl TryFrom<&Avi_Block_Data> for OptRc<Avi_ListBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_Block_Data) -> Result<Self, Self::Error> {
         if let Avi_Block_Data::Avi_ListBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Avi_Block_Data::Avi_ListBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Avi_ListBody>> for Avi_Block_Data {
@@ -376,13 +395,13 @@ impl From<OptRc<Avi_ListBody>> for Avi_Block_Data {
         Self::Avi_ListBody(v)
     }
 }
-impl From<&Avi_Block_Data> for OptRc<Avi_StrhBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Avi_Block_Data) -> Self {
+impl TryFrom<&Avi_Block_Data> for OptRc<Avi_StrhBody> {
+    type Error = KError;
+    fn try_from(v: &Avi_Block_Data) -> Result<Self, Self::Error> {
         if let Avi_Block_Data::Avi_StrhBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Avi_Block_Data::Avi_StrhBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Avi_StrhBody>> for Avi_Block_Data {
@@ -390,13 +409,13 @@ impl From<OptRc<Avi_StrhBody>> for Avi_Block_Data {
         Self::Avi_StrhBody(v)
     }
 }
-impl From<&Avi_Block_Data> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Avi_Block_Data) -> Self {
+impl TryFrom<&Avi_Block_Data> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Avi_Block_Data) -> Result<Self, Self::Error> {
         if let Avi_Block_Data::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Avi_Block_Data::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Avi_Block_Data {
@@ -408,6 +427,7 @@ impl KStruct for Avi_Block {
     type Root = Avi;
     type Parent = Avi_Blocks;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -423,21 +443,21 @@ impl KStruct for Avi_Block {
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
         match *self_rc.four_cc() {
             Avi_ChunkType::Avih => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Avi_AvihBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Avi_ChunkType::List => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Avi_ListBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             Avi_ChunkType::Strh => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.data_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.block_size())?)?.into();
                 let data_raw = self_rc.data_raw.borrow();
                 let _t_data_raw_io = BytesReader::from(data_raw.clone());
                 let t = Self::read_into::<BytesReader, Avi_StrhBody>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -447,6 +467,7 @@ impl KStruct for Avi_Block {
                 *self_rc.data.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -490,6 +511,7 @@ impl KStruct for Avi_Blocks {
     type Root = Avi;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -510,6 +532,7 @@ impl KStruct for Avi_Blocks {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -539,6 +562,7 @@ impl KStruct for Avi_ListBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -553,6 +577,7 @@ impl KStruct for Avi_ListBody {
         *self_rc.list_type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         let t = Self::read_into::<_, Avi_Blocks>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.data.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -589,6 +614,7 @@ impl KStruct for Avi_Rect {
     type Root = Avi;
     type Parent = Avi_StrhBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -604,6 +630,7 @@ impl KStruct for Avi_Rect {
         *self_rc.top.borrow_mut() = _io.read_s2le()?;
         *self_rc.right.borrow_mut() = _io.read_s2le()?;
         *self_rc.bottom.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -650,6 +677,7 @@ impl KStruct for Avi_StrfBody {
     type Root = Avi;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -661,6 +689,7 @@ impl KStruct for Avi_StrfBody {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -702,6 +731,7 @@ impl KStruct for Avi_StrhBody {
     type Root = Avi;
     type Parent = Avi_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -728,6 +758,7 @@ impl KStruct for Avi_StrhBody {
         *self_rc.sample_size.borrow_mut() = _io.read_u4le()?;
         let t = Self::read_into::<_, Avi_Rect>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.frame.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

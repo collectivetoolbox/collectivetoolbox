@@ -18,11 +18,13 @@ pub struct Respack {
     header: RefCell<OptRc<Respack_Header>>,
     json: RefCell<String>,
     _io: RefCell<BytesReader>,
+    json_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Respack {
     type Root = Respack;
     type Parent = Respack;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,6 +39,7 @@ impl KStruct for Respack {
         let t = Self::read_into::<_, Respack_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.json.borrow_mut() = bytes_to_str(&_io.read_bytes(usize::try_from(*self_rc.header().len_json())?)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -57,6 +60,11 @@ impl Respack {
         self._io.borrow()
     }
 }
+impl Respack {
+    pub fn json_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.json_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Respack_Header {
@@ -68,11 +76,14 @@ pub struct Respack_Header {
     len_json: RefCell<u32>,
     md5: RefCell<String>,
     _io: RefCell<BytesReader>,
+    unknown_raw: RefCell<Vec<u8>>,
+    md5_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Respack_Header {
     type Root = Respack;
     type Parent = Respack;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +102,7 @@ impl KStruct for Respack_Header {
         *self_rc.unknown.borrow_mut() = _io.read_bytes(8_usize)?;
         *self_rc.len_json.borrow_mut() = _io.read_u4le()?;
         *self_rc.md5.borrow_mut() = bytes_to_str(&_io.read_bytes(32_usize)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -123,5 +135,15 @@ impl Respack_Header {
 impl Respack_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Respack_Header {
+    pub fn unknown_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unknown_raw.borrow()
+    }
+}
+impl Respack_Header {
+    pub fn md5_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.md5_raw.borrow()
     }
 }

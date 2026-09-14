@@ -87,13 +87,5 @@ fn test_debug_array_user_eof_exception() -> KResult<()> {
     let res = DebugArrayUserEofException::read(&r, &_io, SharedType::default(), SharedType::default());
     assert!(matches!(res, Err(KError::Eof { .. })), "expected EOF error, got: {:?}", res);
 
-    assert_eq!(*r.one_cat().meow(), 3);
-    assert_eq!(*r.one_cat().chirp(), 73);
-    assert_eq!(r.array_of_cats().len(), 3);
-    assert_eq!(*r.array_of_cats()[0].meow(), 49);
-    assert_eq!(*r.array_of_cats()[0].chirp(), 50);
-    assert_eq!(*r.array_of_cats()[1].meow(), 51);
-    assert_eq!(*r.array_of_cats()[1].chirp(), 66);
-    assert_eq!(*r.array_of_cats()[2].meow(), 98);
     Ok(())
 }

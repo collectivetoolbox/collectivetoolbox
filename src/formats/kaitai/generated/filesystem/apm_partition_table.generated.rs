@@ -28,6 +28,7 @@ impl KStruct for ApmPartitionTable {
     type Root = ApmPartitionTable;
     type Parent = ApmPartitionTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -39,10 +40,12 @@ impl KStruct for ApmPartitionTable {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl ApmPartitionTable {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn partition_entries(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<ApmPartitionTable_PartitionEntry>>>> {
@@ -73,6 +76,7 @@ impl ApmPartitionTable {
      * We parse the first entry, to know how many to parse, including the first one.
      * No logic is given what to do if other entries have a different number.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn partition_lookup(
         &self
     ) -> KResult<Ref<'_, OptRc<ApmPartitionTable_PartitionEntry>>> {
@@ -96,6 +100,7 @@ impl ApmPartitionTable {
      * 0x200 (512) bytes for disks, 0x1000 (4096) bytes is not supported by APM
      * 0x800 (2048) bytes for CDROM
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sector_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -148,6 +153,12 @@ pub struct ApmPartitionTable_PartitionEntry {
     boot_code_cksum: RefCell<u32>,
     processor_type: RefCell<String>,
     _io: RefCell<BytesReader>,
+    reserved_1_raw: RefCell<Vec<u8>>,
+    partition_name_raw: RefCell<Vec<u8>>,
+    partition_type_raw: RefCell<Vec<u8>>,
+    reserved_2_raw: RefCell<Vec<u8>>,
+    reserved_3_raw: RefCell<Vec<u8>>,
+    processor_type_raw: RefCell<Vec<u8>>,
     f_boot_code: Cell<bool>,
     boot_code: RefCell<Vec<u8>>,
     f_data: Cell<bool>,
@@ -159,6 +170,7 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
     type Root = ApmPartitionTable;
     type Parent = ApmPartitionTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -178,8 +190,8 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         *self_rc.number_of_partitions.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_start.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_size.borrow_mut() = _io.read_u4be()?;
-        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
-        *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
+        *self_rc.partition_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc.partition_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "ascii")?;
         *self_rc.data_start.borrow_mut() = _io.read_u4be()?;
         *self_rc.data_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.partition_status.borrow_mut() = _io.read_u4be()?;
@@ -190,11 +202,13 @@ impl KStruct for ApmPartitionTable_PartitionEntry {
         *self_rc.boot_code_entry.borrow_mut() = _io.read_u4be()?;
         *self_rc.reserved_3.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.boot_code_cksum.borrow_mut() = _io.read_u4be()?;
-        *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "UTF-8")?;
+        *self_rc.processor_type.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ascii")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl ApmPartitionTable_PartitionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn boot_code(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -210,6 +224,7 @@ impl ApmPartitionTable_PartitionEntry {
         io.seek(_pos)?;
         Ok(self.boot_code.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn data(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -225,6 +240,7 @@ impl ApmPartitionTable_PartitionEntry {
         io.seek(_pos)?;
         Ok(self.data.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn partition(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -233,7 +249,7 @@ impl ApmPartitionTable_PartitionEntry {
             return Ok(self.partition.borrow());
         }
         self.f_partition.set(true);
-        if ((*self.partition_status()) & (1_u32)) != 0 {
+        if ((to_i128(((*self.partition_status()) & (1_u32)))) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from((*self.partition_start()).saturating_mul(u32::try_from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)?))?)?;
@@ -372,5 +388,35 @@ impl ApmPartitionTable_PartitionEntry {
 impl ApmPartitionTable_PartitionEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn reserved_1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_1_raw.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn partition_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.partition_name_raw.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn partition_type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.partition_type_raw.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn reserved_2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_2_raw.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn reserved_3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_3_raw.borrow()
+    }
+}
+impl ApmPartitionTable_PartitionEntry {
+    pub fn processor_type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.processor_type_raw.borrow()
     }
 }

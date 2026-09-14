@@ -25,6 +25,7 @@ pub struct SystemdJournal {
     header: RefCell<OptRc<SystemdJournal_Header>>,
     objects: RefCell<Vec<OptRc<SystemdJournal_JournalObject>>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
     f_data_hash_table: Cell<bool>,
     data_hash_table: RefCell<Vec<u8>>,
     f_field_hash_table: Cell<bool>,
@@ -36,6 +37,7 @@ impl KStruct for SystemdJournal {
     type Root = SystemdJournal;
     type Parent = SystemdJournal;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -47,7 +49,10 @@ impl KStruct for SystemdJournal {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, SystemdJournal_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(usize::try_from(*self_rc.len_header()?)?)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, SystemdJournal_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.objects.borrow_mut() = Vec::new();
         let l_objects = usize::try_from(*self_rc.header().num_objects())?;
@@ -55,10 +60,12 @@ impl KStruct for SystemdJournal {
             let t = Self::read_into::<_, SystemdJournal_JournalObject>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.objects.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl SystemdJournal {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn data_hash_table(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -73,6 +80,7 @@ impl SystemdJournal {
         _io.seek(_pos)?;
         Ok(self.data_hash_table.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn field_hash_table(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -92,6 +100,7 @@ impl SystemdJournal {
      * Header length is used to set substream size, as it thus required
      * prior to declaration of header.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_header(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -122,7 +131,12 @@ impl SystemdJournal {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl SystemdJournal {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SystemdJournal_State {
 
     /**
@@ -202,6 +216,7 @@ impl KStruct for SystemdJournal_DataObject {
     type Root = SystemdJournal;
     type Parent = SystemdJournal_JournalObject;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,10 +235,12 @@ impl KStruct for SystemdJournal_DataObject {
         *self_rc.ofs_entry_array.borrow_mut() = _io.read_u8le()?;
         *self_rc.num_entries.borrow_mut() = _io.read_u8le()?;
         *self_rc.payload.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl SystemdJournal_DataObject {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn entry(
         &self
     ) -> KResult<Ref<'_, OptRc<SystemdJournal_JournalObject>>> {
@@ -231,7 +248,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry.get() {
             return Ok(self.entry.borrow());
         }
-        if *self.ofs_entry() != 0 {
+        if ((to_i128(*self.ofs_entry())) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry())?)?;
@@ -241,6 +258,7 @@ impl SystemdJournal_DataObject {
         }
         Ok(self.entry.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn entry_array(
         &self
     ) -> KResult<Ref<'_, OptRc<SystemdJournal_JournalObject>>> {
@@ -248,7 +266,7 @@ impl SystemdJournal_DataObject {
         if self.f_entry_array.get() {
             return Ok(self.entry_array.borrow());
         }
-        if *self.ofs_entry_array() != 0 {
+        if ((to_i128(*self.ofs_entry_array())) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_entry_array())?)?;
@@ -258,6 +276,7 @@ impl SystemdJournal_DataObject {
         }
         Ok(self.entry_array.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn head_field(
         &self
     ) -> KResult<Ref<'_, OptRc<SystemdJournal_JournalObject>>> {
@@ -265,7 +284,7 @@ impl SystemdJournal_DataObject {
         if self.f_head_field.get() {
             return Ok(self.head_field.borrow());
         }
-        if *self.ofs_head_field() != 0 {
+        if ((to_i128(*self.ofs_head_field())) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_head_field())?)?;
@@ -275,6 +294,7 @@ impl SystemdJournal_DataObject {
         }
         Ok(self.head_field.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next_hash(
         &self
     ) -> KResult<Ref<'_, OptRc<SystemdJournal_JournalObject>>> {
@@ -282,7 +302,7 @@ impl SystemdJournal_DataObject {
         if self.f_next_hash.get() {
             return Ok(self.next_hash.borrow());
         }
-        if *self.ofs_next_hash() != 0 {
+        if ((to_i128(*self.ofs_next_hash())) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_next_hash())?)?;
@@ -368,11 +388,17 @@ pub struct SystemdJournal_Header {
     num_tags: RefCell<u64>,
     num_entry_arrays: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
+    file_id_raw: RefCell<Vec<u8>>,
+    machine_id_raw: RefCell<Vec<u8>>,
+    boot_id_raw: RefCell<Vec<u8>>,
+    seqnum_id_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for SystemdJournal_Header {
     type Root = SystemdJournal;
     type Parent = SystemdJournal;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -423,6 +449,7 @@ impl KStruct for SystemdJournal_Header {
         if !(_io.is_eof()) {
             *self_rc.num_entry_arrays.borrow_mut() = _io.read_u8le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -573,6 +600,31 @@ impl SystemdJournal_Header {
         self._io.borrow()
     }
 }
+impl SystemdJournal_Header {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+impl SystemdJournal_Header {
+    pub fn file_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_id_raw.borrow()
+    }
+}
+impl SystemdJournal_Header {
+    pub fn machine_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.machine_id_raw.borrow()
+    }
+}
+impl SystemdJournal_Header {
+    pub fn boot_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.boot_id_raw.borrow()
+    }
+}
+impl SystemdJournal_Header {
+    pub fn seqnum_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.seqnum_id_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://www.freedesktop.org/wiki/Software/systemd/journal-files/#objects> Source
@@ -590,6 +642,8 @@ pub struct SystemdJournal_JournalObject {
     len_object: RefCell<u64>,
     payload: RefCell<Option<SystemdJournal_JournalObject_Payload>>,
     _io: RefCell<BytesReader>,
+    padding_raw: RefCell<Vec<u8>>,
+    reserved_raw: RefCell<Vec<u8>>,
     payload_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
@@ -597,13 +651,13 @@ pub enum SystemdJournal_JournalObject_Payload {
     SystemdJournal_DataObject(OptRc<SystemdJournal_DataObject>),
     Bytes(Vec<u8>),
 }
-impl From<&SystemdJournal_JournalObject_Payload> for OptRc<SystemdJournal_DataObject> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SystemdJournal_JournalObject_Payload) -> Self {
+impl TryFrom<&SystemdJournal_JournalObject_Payload> for OptRc<SystemdJournal_DataObject> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal_JournalObject_Payload) -> Result<Self, Self::Error> {
         if let SystemdJournal_JournalObject_Payload::SystemdJournal_DataObject(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SystemdJournal_JournalObject_Payload::SystemdJournal_DataObject, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<SystemdJournal_DataObject>> for SystemdJournal_JournalObject_Payload {
@@ -611,13 +665,13 @@ impl From<OptRc<SystemdJournal_DataObject>> for SystemdJournal_JournalObject_Pay
         Self::SystemdJournal_DataObject(v)
     }
 }
-impl From<&SystemdJournal_JournalObject_Payload> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SystemdJournal_JournalObject_Payload) -> Self {
+impl TryFrom<&SystemdJournal_JournalObject_Payload> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &SystemdJournal_JournalObject_Payload) -> Result<Self, Self::Error> {
         if let SystemdJournal_JournalObject_Payload::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SystemdJournal_JournalObject_Payload::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for SystemdJournal_JournalObject_Payload {
@@ -629,6 +683,7 @@ impl KStruct for SystemdJournal_JournalObject {
     type Root = SystemdJournal;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -647,7 +702,7 @@ impl KStruct for SystemdJournal_JournalObject {
         *self_rc.len_object.borrow_mut() = _io.read_u8le()?;
         match *self_rc.object_type() {
             SystemdJournal_JournalObject_ObjectTypes::Data => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.len_object()).saturating_sub(16_u64))?)?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, SystemdJournal_DataObject>(&_t_payload_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -657,6 +712,7 @@ impl KStruct for SystemdJournal_JournalObject {
                 *self_rc.payload.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -698,11 +754,21 @@ impl SystemdJournal_JournalObject {
     }
 }
 impl SystemdJournal_JournalObject {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
+impl SystemdJournal_JournalObject {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
+impl SystemdJournal_JournalObject {
     pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
         self.payload_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SystemdJournal_JournalObject_ObjectTypes {
     Unused,
     Data,

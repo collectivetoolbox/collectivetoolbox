@@ -8,9 +8,8 @@ use std::cell::{Cell, Ref, RefCell};
 /**
  * The entries are used to synchronize the state of services instances and the
  * Publish/-Subscribe handling.
- * \sa https://www.autosar.org/fileadmin/standards/foundation/19-11/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf
-- section 4.1.2.3  Entry Format
-
+ * \sa <https://www.autosar.org/fileadmin/standards/foundation/19-11/AUTOSAR_PRS_SOMEIPServiceDiscoveryProtocol.pdf> Source
+ *   - section 4.1.2.3  Entry Format
  */
 
 #[derive(Default, Debug, Clone)]
@@ -25,6 +24,7 @@ impl KStruct for SomeIpSdEntries {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -45,6 +45,7 @@ impl KStruct for SomeIpSdEntries {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -69,20 +70,19 @@ pub struct SomeIpSdEntries_SdEntry {
     header: RefCell<OptRc<SomeIpSdEntries_SdEntry_SdEntryHeader>>,
     content: RefCell<Option<SomeIpSdEntries_SdEntry_Content>>,
     _io: RefCell<BytesReader>,
-    content_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum SomeIpSdEntries_SdEntry_Content {
     SomeIpSdEntries_SdEntry_SdServiceEntry(OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>),
     SomeIpSdEntries_SdEntry_SdEventgroupEntry(OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>),
 }
-impl From<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SomeIpSdEntries_SdEntry_Content) -> Self {
+impl TryFrom<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
         if let SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdServiceEntry(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdServiceEntry, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>> for SomeIpSdEntries_SdEntry_Content {
@@ -90,13 +90,13 @@ impl From<OptRc<SomeIpSdEntries_SdEntry_SdServiceEntry>> for SomeIpSdEntries_SdE
         Self::SomeIpSdEntries_SdEntry_SdServiceEntry(v)
     }
 }
-impl From<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &SomeIpSdEntries_SdEntry_Content) -> Self {
+impl TryFrom<&SomeIpSdEntries_SdEntry_Content> for OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry> {
+    type Error = KError;
+    fn try_from(v: &SomeIpSdEntries_SdEntry_Content) -> Result<Self, Self::Error> {
         if let SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdEventgroupEntry(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected SomeIpSdEntries_SdEntry_Content::SomeIpSdEntries_SdEntry_SdEventgroupEntry, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<SomeIpSdEntries_SdEntry_SdEventgroupEntry>> for SomeIpSdEntries_SdEntry_Content {
@@ -108,6 +108,7 @@ impl KStruct for SomeIpSdEntries_SdEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,35 +124,24 @@ impl KStruct for SomeIpSdEntries_SdEntry {
         *self_rc.header.borrow_mut() = t;
         match *self_rc.header().r#type() {
             SomeIpSdEntries_SdEntry_EntryTypes::Find => {
-                *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let content_raw = self_rc.content_raw.borrow();
-                let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, SomeIpSdEntries_SdEntry_SdServiceEntry>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdServiceEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::Offer => {
-                *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let content_raw = self_rc.content_raw.borrow();
-                let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, SomeIpSdEntries_SdEntry_SdServiceEntry>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdServiceEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::Subscribe => {
-                *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let content_raw = self_rc.content_raw.borrow();
-                let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             SomeIpSdEntries_SdEntry_EntryTypes::SubscribeAck => {
-                *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let content_raw = self_rc.content_raw.borrow();
-                let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SomeIpSdEntries_SdEntry_SdEventgroupEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -172,12 +162,7 @@ impl SomeIpSdEntries_SdEntry {
         self._io.borrow()
     }
 }
-impl SomeIpSdEntries_SdEntry {
-    pub fn content_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.content_raw.borrow()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum SomeIpSdEntries_SdEntry_EntryTypes {
     Find,
     Offer,
@@ -236,6 +221,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEntryHeader {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -257,6 +243,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEntryHeader {
         *self_rc.instance_id.borrow_mut() = _io.read_u2be()?;
         *self_rc.major_version.borrow_mut() = _io.read_u1()?;
         *self_rc.ttl.borrow_mut() = _io.read_bits_int_be(24)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -329,6 +316,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -346,6 +334,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdEventgroupEntry {
         *self_rc.counter.borrow_mut() = _io.read_bits_int_be(4)?;
         io.align_to_byte()?;
         *self_rc.event_group_id.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -394,6 +383,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdServiceEntry {
     type Root = SomeIpSdEntries;
     type Parent = SomeIpSdEntries_SdEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -406,6 +396,7 @@ impl KStruct for SomeIpSdEntries_SdEntry_SdServiceEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.minor_version.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

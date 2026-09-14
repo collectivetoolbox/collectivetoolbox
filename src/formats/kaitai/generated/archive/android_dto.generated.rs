@@ -30,6 +30,7 @@ impl KStruct for AndroidDto {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -49,6 +50,7 @@ impl KStruct for AndroidDto {
             let t = Self::read_into::<_, AndroidDto_DtTableEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -88,6 +90,7 @@ impl KStruct for AndroidDto_DtTableEntry {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -108,6 +111,7 @@ impl KStruct for AndroidDto_DtTableEntry {
         for _i in 0_usize..l_custom {
             self_rc.custom.borrow_mut().push(_io.read_u4be()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -116,6 +120,7 @@ impl AndroidDto_DtTableEntry {
     /**
      * DTB/DTBO file
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -202,6 +207,7 @@ impl KStruct for AndroidDto_DtTableHeader {
     type Root = AndroidDto;
     type Parent = AndroidDto;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,6 +230,7 @@ impl KStruct for AndroidDto_DtTableHeader {
         *self_rc.dt_entries_offset.borrow_mut() = _io.read_u4be()?;
         *self_rc.page_size.borrow_mut() = _io.read_u4be()?;
         *self_rc.version.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

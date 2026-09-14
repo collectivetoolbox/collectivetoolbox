@@ -25,6 +25,7 @@ pub struct Elf {
     pad: RefCell<Vec<u8>>,
     header: RefCell<OptRc<Elf_EndianElf>>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
     f_sh_idx_hi_os: Cell<bool>,
     sh_idx_hi_os: RefCell<i32>,
     f_sh_idx_hi_proc: Cell<bool>,
@@ -42,6 +43,7 @@ impl KStruct for Elf {
     type Root = Elf;
     type Parent = Elf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -72,10 +74,12 @@ impl KStruct for Elf {
         }
         let t = Self::read_into::<_, Elf_EndianElf>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Elf {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_hi_os(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -87,6 +91,7 @@ impl Elf {
         *self.sh_idx_hi_os.borrow_mut() = (65343).try_into()?;
         Ok(self.sh_idx_hi_os.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_hi_proc(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -98,6 +103,7 @@ impl Elf {
         *self.sh_idx_hi_proc.borrow_mut() = (65311).try_into()?;
         Ok(self.sh_idx_hi_proc.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_hi_reserved(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -109,6 +115,7 @@ impl Elf {
         *self.sh_idx_hi_reserved.borrow_mut() = (65535).try_into()?;
         Ok(self.sh_idx_hi_reserved.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_lo_os(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -120,6 +127,7 @@ impl Elf {
         *self.sh_idx_lo_os.borrow_mut() = (65312).try_into()?;
         Ok(self.sh_idx_lo_os.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_lo_proc(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -131,6 +139,7 @@ impl Elf {
         *self.sh_idx_lo_proc.borrow_mut() = (65280).try_into()?;
         Ok(self.sh_idx_lo_proc.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_lo_reserved(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -216,7 +225,12 @@ impl Elf {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Elf {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_Bits {
     B32,
     B64,
@@ -248,7 +262,7 @@ impl Default for Elf_Bits {
     fn default() -> Self { Elf_Bits::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_DynamicArrayTags {
 
     /**
@@ -626,7 +640,7 @@ impl Default for Elf_DynamicArrayTags {
     fn default() -> Self { Elf_DynamicArrayTags::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_Endian {
     Le,
     Be,
@@ -658,7 +672,7 @@ impl Default for Elf_Endian {
     fn default() -> Self { Elf_Endian::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_Machine {
 
     /**
@@ -2390,7 +2404,7 @@ impl Default for Elf_Machine {
     fn default() -> Self { Elf_Machine::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_ObjType {
     NoFileType,
     Relocatable,
@@ -2431,7 +2445,7 @@ impl Default for Elf_ObjType {
     fn default() -> Self { Elf_ObjType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_OsAbi {
 
     /**
@@ -2623,7 +2637,7 @@ impl Default for Elf_OsAbi {
     fn default() -> Self { Elf_OsAbi::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_PhType {
 
     /**
@@ -2877,7 +2891,7 @@ impl Default for Elf_PhType {
     fn default() -> Self { Elf_PhType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_SectionHeaderIdxSpecial {
     Undefined,
     Before,
@@ -2927,7 +2941,7 @@ impl Default for Elf_SectionHeaderIdxSpecial {
     fn default() -> Self { Elf_SectionHeaderIdxSpecial::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_ShType {
 
     /**
@@ -3370,7 +3384,7 @@ impl Default for Elf_ShType {
     fn default() -> Self { Elf_ShType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_SymbolBinding {
 
     /**
@@ -3462,7 +3476,7 @@ impl Default for Elf_SymbolBinding {
     fn default() -> Self { Elf_SymbolBinding::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_SymbolType {
     NoType,
 
@@ -3593,7 +3607,7 @@ impl Default for Elf_SymbolType {
     fn default() -> Self { Elf_SymbolType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_SymbolVisibility {
     Default,
     Internal,
@@ -3640,7 +3654,7 @@ impl Default for Elf_SymbolVisibility {
     fn default() -> Self { Elf_SymbolVisibility::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Elf_VersionIndexSpecial {
 
     /**
@@ -3776,6 +3790,7 @@ impl KStruct for Elf_DtFlag1Values {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3787,6 +3802,7 @@ impl KStruct for Elf_DtFlag1Values {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -3806,6 +3822,7 @@ impl Elf_DtFlag1Values {
      * Configuration alternative created.
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1023> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn conf_alt(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3814,13 +3831,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.conf_alt.borrow());
         }
         self.f_conf_alt.set(true);
-        *self.conf_alt.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
+        *self.conf_alt.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.conf_alt.borrow())
     }
 
     /**
      * Direct binding enabled.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn direct(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3829,13 +3847,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.direct.borrow());
         }
         self.f_direct.set(true);
-        *self.direct.borrow_mut() = (((*self.value()) & (256_u32)) != 0).try_into()?;
+        *self.direct.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.direct.borrow())
     }
 
     /**
      * Displacement relocation done (applied at build time).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn disp_rel_dne(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3844,13 +3863,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_dne.borrow());
         }
         self.f_disp_rel_dne.set(true);
-        *self.disp_rel_dne.borrow_mut() = (((*self.value()) & (32768_u32)) != 0).try_into()?;
+        *self.disp_rel_dne.borrow_mut() = (((to_i128(((*self.value()) & (32768_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_dne.borrow())
     }
 
     /**
      * Displacement relocation pending (applied at runtime).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn disp_rel_pnd(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3859,13 +3879,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.disp_rel_pnd.borrow());
         }
         self.f_disp_rel_pnd.set(true);
-        *self.disp_rel_pnd.borrow_mut() = (((*self.value()) & (65536_u32)) != 0).try_into()?;
+        *self.disp_rel_pnd.borrow_mut() = (((to_i128(((*self.value()) & (65536_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.disp_rel_pnd.borrow())
     }
 
     /**
      * Object is modified after built.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn edited(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3874,13 +3895,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.edited.borrow());
         }
         self.f_edited.set(true);
-        *self.edited.borrow_mut() = (((*self.value()) & (2097152_u32)) != 0).try_into()?;
+        *self.edited.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.edited.borrow())
     }
 
     /**
      * Filtee terminates filters search.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn end_filtee(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3889,13 +3911,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.end_filtee.borrow());
         }
         self.f_end_filtee.set(true);
-        *self.end_filtee.borrow_mut() = (((*self.value()) & (16384_u32)) != 0).try_into()?;
+        *self.end_filtee.borrow_mut() = (((to_i128(((*self.value()) & (16384_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.end_filtee.borrow())
     }
 
     /**
      * Global auditing required.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn glob_audit(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3904,13 +3927,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.glob_audit.borrow());
         }
         self.f_glob_audit.set(true);
-        *self.glob_audit.borrow_mut() = (((*self.value()) & (16777216_u32)) != 0).try_into()?;
+        *self.glob_audit.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.glob_audit.borrow())
     }
 
     /**
      * Set `RTLD_GROUP` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn group(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3919,9 +3943,10 @@ impl Elf_DtFlag1Values {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
+        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ign_mul_def(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3930,13 +3955,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.ign_mul_def.borrow());
         }
         self.f_ign_mul_def.set(true);
-        *self.ign_mul_def.borrow_mut() = (((*self.value()) & (262144_u32)) != 0).try_into()?;
+        *self.ign_mul_def.borrow_mut() = (((to_i128(((*self.value()) & (262144_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.ign_mul_def.borrow())
     }
 
     /**
      * Set `RTLD_INITFIRST` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn init_first(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3945,13 +3971,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.init_first.borrow());
         }
         self.f_init_first.set(true);
-        *self.init_first.borrow_mut() = (((*self.value()) & (32_u32)) != 0).try_into()?;
+        *self.init_first.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.init_first.borrow())
     }
 
     /**
      * Object is used to interpose.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn interpose(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3960,13 +3987,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.interpose.borrow());
         }
         self.f_interpose.set(true);
-        *self.interpose.borrow_mut() = (((*self.value()) & (1024_u32)) != 0).try_into()?;
+        *self.interpose.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.interpose.borrow())
     }
 
     /**
      * Object is a kernel module.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn kmod(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3975,13 +4003,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.kmod.borrow());
         }
         self.f_kmod.set(true);
-        *self.kmod.borrow_mut() = (((*self.value()) & (268435456_u32)) != 0).try_into()?;
+        *self.kmod.borrow_mut() = (((to_i128(((*self.value()) & (268435456_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.kmod.borrow())
     }
 
     /**
      * Trigger filtee loading at runtime.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn load_fltr(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -3990,7 +4019,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.load_fltr.borrow());
         }
         self.f_load_fltr.set(true);
-        *self.load_fltr.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
+        *self.load_fltr.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.load_fltr.borrow())
     }
 
@@ -3998,6 +4027,7 @@ impl Elf_DtFlag1Values {
      * No COMMON symbols exist.
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1040> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_common(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4006,13 +4036,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_common.borrow());
         }
         self.f_no_common.set(true);
-        *self.no_common.borrow_mut() = (((*self.value()) & (1073741824_u32)) != 0).try_into()?;
+        *self.no_common.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_common.borrow())
     }
 
     /**
      * Ignore the default library search path.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_def_lib(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4021,13 +4052,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_def_lib.borrow());
         }
         self.f_no_def_lib.set(true);
-        *self.no_def_lib.borrow_mut() = (((*self.value()) & (2048_u32)) != 0).try_into()?;
+        *self.no_def_lib.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_def_lib.borrow())
     }
 
     /**
      * Set `RTLD_NODELETE` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_delete(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4036,13 +4068,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_delete.borrow());
         }
         self.f_no_delete.set(true);
-        *self.no_delete.borrow_mut() = (((*self.value()) & (8_u32)) != 0).try_into()?;
+        *self.no_delete.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_delete.borrow())
     }
 
     /**
      * Object contains non-direct bindings.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_direct(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4051,13 +4084,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_direct.borrow());
         }
         self.f_no_direct.set(true);
-        *self.no_direct.borrow_mut() = (((*self.value()) & (131072_u32)) != 0).try_into()?;
+        *self.no_direct.borrow_mut() = (((to_i128(((*self.value()) & (131072_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_direct.borrow())
     }
 
     /**
      * Object can't be dldump'ed.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_dump(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4066,9 +4100,10 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_dump.borrow());
         }
         self.f_no_dump.set(true);
-        *self.no_dump.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
+        *self.no_dump.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_dump.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_hdr(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4077,9 +4112,10 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_hdr.borrow());
         }
         self.f_no_hdr.set(true);
-        *self.no_hdr.borrow_mut() = (((*self.value()) & (1048576_u32)) != 0).try_into()?;
+        *self.no_hdr.borrow_mut() = (((to_i128(((*self.value()) & (1048576_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_hdr.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_ksyms(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4088,13 +4124,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_ksyms.borrow());
         }
         self.f_no_ksyms.set(true);
-        *self.no_ksyms.borrow_mut() = (((*self.value()) & (524288_u32)) != 0).try_into()?;
+        *self.no_ksyms.borrow_mut() = (((to_i128(((*self.value()) & (524288_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_ksyms.borrow())
     }
 
     /**
      * Set `RTLD_NOOPEN` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_open(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4103,9 +4140,10 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_open.borrow());
         }
         self.f_no_open.set(true);
-        *self.no_open.borrow_mut() = (((*self.value()) & (64_u32)) != 0).try_into()?;
+        *self.no_open.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_open.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn no_reloc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4114,13 +4152,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.no_reloc.borrow());
         }
         self.f_no_reloc.set(true);
-        *self.no_reloc.borrow_mut() = (((*self.value()) & (4194304_u32)) != 0).try_into()?;
+        *self.no_reloc.borrow_mut() = (((to_i128(((*self.value()) & (4194304_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.no_reloc.borrow())
     }
 
     /**
      * Set `RTLD_NOW` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn now(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4129,13 +4168,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.now.borrow());
         }
         self.f_now.set(true);
-        *self.now.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
+        *self.now.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.now.borrow())
     }
 
     /**
      * `$ORIGIN` must be handled.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn origin(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4144,13 +4184,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((*self.value()) & (128_u32)) != 0).try_into()?;
+        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
     /**
      * Object is a Position Independent Executable (PIE).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn pie(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4159,13 +4200,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.pie.borrow());
         }
         self.f_pie.set(true);
-        *self.pie.borrow_mut() = (((*self.value()) & (134217728_u32)) != 0).try_into()?;
+        *self.pie.borrow_mut() = (((to_i128(((*self.value()) & (134217728_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.pie.borrow())
     }
 
     /**
      * Set `RTLD_GLOBAL` for this object.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn rtld_global(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4174,13 +4216,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.rtld_global.borrow());
         }
         self.f_rtld_global.set(true);
-        *self.rtld_global.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
+        *self.rtld_global.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.rtld_global.borrow())
     }
 
     /**
      * Singleton symbols are used.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn singleton(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4189,7 +4232,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.singleton.borrow());
         }
         self.f_singleton.set(true);
-        *self.singleton.borrow_mut() = (((*self.value()) & (33554432_u32)) != 0).try_into()?;
+        *self.singleton.borrow_mut() = (((to_i128(((*self.value()) & (33554432_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.singleton.borrow())
     }
 
@@ -4197,6 +4240,7 @@ impl Elf_DtFlag1Values {
      * Object is a stub.
      * See [Stub Objects](https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/stub-objects.html).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn stub(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4205,13 +4249,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.stub.borrow());
         }
         self.f_stub.set(true);
-        *self.stub.borrow_mut() = (((*self.value()) & (67108864_u32)) != 0).try_into()?;
+        *self.stub.borrow_mut() = (((to_i128(((*self.value()) & (67108864_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.stub.borrow())
     }
 
     /**
      * Object has individual symbol interposers.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sym_intpose(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4220,13 +4265,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.sym_intpose.borrow());
         }
         self.f_sym_intpose.set(true);
-        *self.sym_intpose.borrow_mut() = (((*self.value()) & (8388608_u32)) != 0).try_into()?;
+        *self.sym_intpose.borrow_mut() = (((to_i128(((*self.value()) & (8388608_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.sym_intpose.borrow())
     }
 
     /**
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L1019> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn trans(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4235,13 +4281,14 @@ impl Elf_DtFlag1Values {
             return Ok(self.trans.borrow());
         }
         self.f_trans.set(true);
-        *self.trans.borrow_mut() = (((*self.value()) & (512_u32)) != 0).try_into()?;
+        *self.trans.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.trans.borrow())
     }
 
     /**
      * Object is a weak standard filter.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn weak_filter(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4250,7 +4297,7 @@ impl Elf_DtFlag1Values {
             return Ok(self.weak_filter.borrow());
         }
         self.f_weak_filter.set(true);
-        *self.weak_filter.borrow_mut() = (((*self.value()) & (536870912_u32)) != 0).try_into()?;
+        *self.weak_filter.borrow_mut() = (((to_i128(((*self.value()) & (536870912_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.weak_filter.borrow())
     }
 }
@@ -4288,6 +4335,7 @@ impl KStruct for Elf_DtFlagValues {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4299,6 +4347,7 @@ impl KStruct for Elf_DtFlagValues {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4318,6 +4367,7 @@ impl Elf_DtFlagValues {
      * all relocations for this object must be processed before returning
      * control to the program
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bind_now(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4326,13 +4376,14 @@ impl Elf_DtFlagValues {
             return Ok(self.bind_now.borrow());
         }
         self.f_bind_now.set(true);
-        *self.bind_now.borrow_mut() = (((*self.value()) & (8_u32)) != 0).try_into()?;
+        *self.bind_now.borrow_mut() = (((to_i128(((*self.value()) & (8_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.bind_now.borrow())
     }
 
     /**
      * object may reference the $ORIGIN substitution string
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn origin(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4341,13 +4392,14 @@ impl Elf_DtFlagValues {
             return Ok(self.origin.borrow());
         }
         self.f_origin.set(true);
-        *self.origin.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
+        *self.origin.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.origin.borrow())
     }
 
     /**
      * object uses static thread-local storage scheme
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn static_tls(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4356,13 +4408,14 @@ impl Elf_DtFlagValues {
             return Ok(self.static_tls.borrow());
         }
         self.f_static_tls.set(true);
-        *self.static_tls.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
+        *self.static_tls.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.static_tls.borrow())
     }
 
     /**
      * symbolic linking
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn symbolic(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4371,13 +4424,14 @@ impl Elf_DtFlagValues {
             return Ok(self.symbolic.borrow());
         }
         self.f_symbolic.set(true);
-        *self.symbolic.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
+        *self.symbolic.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.symbolic.borrow())
     }
 
     /**
      * relocation entries might request modifications to a non-writable segment
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn textrel(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4386,7 +4440,7 @@ impl Elf_DtFlagValues {
             return Ok(self.textrel.borrow());
         }
         self.f_textrel.set(true);
-        *self.textrel.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
+        *self.textrel.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.textrel.borrow())
     }
 }
@@ -4420,6 +4474,7 @@ pub struct Elf_EndianElf {
     num_section_headers: RefCell<u16>,
     section_names_idx: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    flags_raw: RefCell<Vec<u8>>,
     program_headers_raw: RefCell<Vec<Vec<u8>>>,
     section_headers_raw: RefCell<Vec<Vec<u8>>>,
     section_names_raw: RefCell<Vec<u8>>,
@@ -4441,36 +4496,47 @@ impl From<u32> for Elf_EndianElf_EntryPoint {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_EntryPoint> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_EntryPoint) -> Self {
-        if let Elf_EndianElf_EntryPoint::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_EntryPoint::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_EntryPoint {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_EntryPoint> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_EntryPoint) -> Self {
-        if let Elf_EndianElf_EntryPoint::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_EntryPoint> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_EntryPoint::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_EntryPoint::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_EntryPoint::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_EntryPoint> for usize {
-    fn from(e: &Elf_EndianElf_EntryPoint) -> Self {
+impl TryFrom<&Elf_EndianElf_EntryPoint> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_EntryPoint::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_EntryPoint::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_EntryPoint::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_EntryPoint::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_EntryPoint> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_EntryPoint::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_EntryPoint::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_EntryPoint> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_EntryPoint) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_EntryPoint::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_EntryPoint::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -4485,36 +4551,47 @@ impl From<u32> for Elf_EndianElf_OfsProgramHeaders {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_OfsProgramHeaders> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_OfsProgramHeaders) -> Self {
-        if let Elf_EndianElf_OfsProgramHeaders::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_OfsProgramHeaders::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_OfsProgramHeaders {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_OfsProgramHeaders> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_OfsProgramHeaders) -> Self {
-        if let Elf_EndianElf_OfsProgramHeaders::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_OfsProgramHeaders::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_OfsProgramHeaders> for usize {
-    fn from(e: &Elf_EndianElf_OfsProgramHeaders) -> Self {
+impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_OfsProgramHeaders::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_OfsProgramHeaders::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_OfsProgramHeaders> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_OfsProgramHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsProgramHeaders::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_OfsProgramHeaders::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -4529,36 +4606,47 @@ impl From<u32> for Elf_EndianElf_OfsSectionHeaders {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_OfsSectionHeaders> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_OfsSectionHeaders) -> Self {
-        if let Elf_EndianElf_OfsSectionHeaders::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_OfsSectionHeaders::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_OfsSectionHeaders {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_OfsSectionHeaders> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_OfsSectionHeaders) -> Self {
-        if let Elf_EndianElf_OfsSectionHeaders::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_OfsSectionHeaders::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_OfsSectionHeaders> for usize {
-    fn from(e: &Elf_EndianElf_OfsSectionHeaders) -> Self {
+impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_OfsSectionHeaders::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_OfsSectionHeaders::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_OfsSectionHeaders> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_OfsSectionHeaders) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_OfsSectionHeaders::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_OfsSectionHeaders::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -4567,6 +4655,7 @@ impl KStruct for Elf_EndianElf {
     type Root = Elf;
     type Parent = Elf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4592,6 +4681,9 @@ impl KStruct for Elf_EndianElf {
         }
         *self_rc.e_type.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
         *self_rc.machine.borrow_mut() = i64::from(_io.read_u2()?).try_into()?;
+        if matches!(*self_rc.machine(), Elf_Machine::Unknown(_)) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/endian_elf/seq/1".to_string() }));
+        }
         *self_rc.e_version.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() {
             Elf_Bits::B32 => {
@@ -4627,6 +4719,7 @@ impl KStruct for Elf_EndianElf {
         *self_rc.section_header_size.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.num_section_headers.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.section_names_idx.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4636,6 +4729,7 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn program_headers(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Elf_EndianElf_ProgramHeader>>>> {
@@ -4660,6 +4754,7 @@ impl Elf_EndianElf {
         _io.seek(_pos)?;
         Ok(self.program_headers.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn section_headers(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Elf_EndianElf_SectionHeader>>>> {
@@ -4684,6 +4779,7 @@ impl Elf_EndianElf {
         _io.seek(_pos)?;
         Ok(self.section_headers.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn section_names(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_StringsStruct>>> {
@@ -4723,7 +4819,7 @@ impl Elf_EndianElf {
 impl Elf_EndianElf {
     pub fn entry_point(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.entry_point.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.entry_point.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn entry_point_enum(&self) -> Ref<'_, Option<Elf_EndianElf_EntryPoint>> {
         self.entry_point.borrow()
@@ -4732,7 +4828,7 @@ impl Elf_EndianElf {
 impl Elf_EndianElf {
     pub fn ofs_program_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_program_headers.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.ofs_program_headers.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn ofs_program_headers_enum(&self) -> Ref<'_, Option<Elf_EndianElf_OfsProgramHeaders>> {
         self.ofs_program_headers.borrow()
@@ -4741,7 +4837,7 @@ impl Elf_EndianElf {
 impl Elf_EndianElf {
     pub fn ofs_section_headers(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_section_headers.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.ofs_section_headers.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn ofs_section_headers_enum(&self) -> Ref<'_, Option<Elf_EndianElf_OfsSectionHeaders>> {
         self.ofs_section_headers.borrow()
@@ -4788,6 +4884,11 @@ impl Elf_EndianElf {
     }
 }
 impl Elf_EndianElf {
+    pub fn flags_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.flags_raw.borrow()
+    }
+}
+impl Elf_EndianElf {
     pub fn program_headers_raw(&self) -> Ref<'_, Vec<Vec<u8>>> {
         self.program_headers_raw.borrow()
     }
@@ -4818,6 +4919,7 @@ impl KStruct for Elf_EndianElf_DynsymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4839,6 +4941,7 @@ impl KStruct for Elf_EndianElf_DynsymSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4848,6 +4951,7 @@ impl Elf_EndianElf_DynsymSection {
     }
 }
 impl Elf_EndianElf_DynsymSection {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_string_table_linked(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4913,6 +5017,7 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_DynsymSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4942,6 +5047,7 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
         if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 {
             *self_rc.size_b64.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u8le()? } else { _io.read_u8be()? };
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4951,6 +5057,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
     }
 }
 impl Elf_EndianElf_DynsymSectionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_sh_idx_os(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4962,6 +5069,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         *self.is_sh_idx_os.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_os()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_os()?))))) ).try_into()?;
         Ok(self.is_sh_idx_os.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_sh_idx_proc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4973,6 +5081,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         *self.is_sh_idx_proc.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_proc()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_proc()?))))) ).try_into()?;
         Ok(self.is_sh_idx_proc.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_sh_idx_reserved(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -4984,6 +5093,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         *self.is_sh_idx_reserved.borrow_mut() = ( ((((to_i128(*self.sh_idx())) >= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_lo_reserved()?)))) && (((to_i128(*self.sh_idx())) <= (to_i128(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sh_idx_hi_reserved()?))))) ).try_into()?;
         Ok(self.is_sh_idx_reserved.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -4992,8 +5102,8 @@ impl Elf_EndianElf_DynsymSectionEntry {
             return Ok(self.name.borrow());
         }
         self.f_name.set(true);
-        if  ((*self.ofs_name() != 0) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
+        if  ((((to_i128(*self.ofs_name())) != (to_i128(0)))) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -5001,6 +5111,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         }
         Ok(self.name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sh_idx_special(
         &self
     ) -> KResult<Ref<'_, Elf_SectionHeaderIdxSpecial>> {
@@ -5012,6 +5123,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         *self.sh_idx_special.borrow_mut() = i64::from(*self.sh_idx()).try_into()?;
         Ok(self.sh_idx_special.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -5023,6 +5135,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
         *self.size.borrow_mut() = (if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B32 { u64::from(*self.size_b32()) } else { if *self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.bits() == Elf_Bits::B64 { *self.size_b64() } else { 0_u64 } }).try_into()?;
         Ok(self.size.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -5038,6 +5151,7 @@ impl Elf_EndianElf_DynsymSectionEntry {
     /**
      * \sa <https://github.com/xinuos/gabi/commit/acd5ebb2962cf243dca4983bc934442b42ef96f5> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn visibility(
         &self
     ) -> KResult<Ref<'_, Elf_SymbolVisibility>> {
@@ -5122,6 +5236,7 @@ impl KStruct for Elf_EndianElf_NoteSection {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5143,6 +5258,7 @@ impl KStruct for Elf_EndianElf_NoteSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5182,12 +5298,17 @@ pub struct Elf_EndianElf_NoteSectionEntry {
     descriptor: RefCell<Vec<u8>>,
     descriptor_padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
+    name_padding_raw: RefCell<Vec<u8>>,
+    descriptor_raw: RefCell<Vec<u8>>,
+    descriptor_padding_raw: RefCell<Vec<u8>>,
     _is_le: RefCell<i32>,
 }
 impl KStruct for Elf_EndianElf_NoteSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_NoteSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5202,10 +5323,11 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
         *self_rc.len_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.len_descriptor.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.r#type.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        *self_rc.name.borrow_mut() = bytes_terminate(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, 0, false);
+        *self_rc.name.borrow_mut() = bytes_terminate_pad(&_io.read_bytes(usize::try_from(*self_rc.len_name())?)?, Some(0), false, None);
         *self_rc.name_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_name()))), 4_i64))?)?;
         *self_rc.descriptor.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_descriptor())?)?;
         *self_rc.descriptor_padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_descriptor()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5263,6 +5385,26 @@ impl Elf_EndianElf_NoteSectionEntry {
         self._io.borrow()
     }
 }
+impl Elf_EndianElf_NoteSectionEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
+impl Elf_EndianElf_NoteSectionEntry {
+    pub fn name_padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_padding_raw.borrow()
+    }
+}
+impl Elf_EndianElf_NoteSectionEntry {
+    pub fn descriptor_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.descriptor_raw.borrow()
+    }
+}
+impl Elf_EndianElf_NoteSectionEntry {
+    pub fn descriptor_padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.descriptor_padding_raw.borrow()
+    }
+}
 
 /**
  * Same type as `sh_dynamic_section`, but it does not use
@@ -5307,6 +5449,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5331,6 +5474,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5388,36 +5532,47 @@ impl From<u32> for Elf_EndianElf_PhDynamicSectionEntry_Tag {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Self {
-        if let Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_Tag::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_Tag {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Self {
-        if let Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_Tag::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for usize {
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Self {
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_Tag> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_Tag::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5432,36 +5587,47 @@ impl From<u32> for Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Self {
-        if let Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Self {
-        if let Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for usize {
-    fn from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Self {
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5470,6 +5636,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_PhDynamicSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5499,6 +5666,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5508,6 +5676,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_PhDynamicSectionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flag_1_values(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
@@ -5522,6 +5691,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
         }
         Ok(self.flag_1_values.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flag_values(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
@@ -5536,6 +5706,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
         }
         Ok(self.flag_values.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_value_str(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -5544,9 +5715,10 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = ( ((self.value_or_ptr() != 0) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((((to_i128(self.value_or_ptr())) != (to_i128(0)))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_enum(
         &self
     ) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
@@ -5562,7 +5734,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
 impl Elf_EndianElf_PhDynamicSectionEntry {
     pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.tag.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.tag.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn tag_switch_enum(&self) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_Tag>> {
         self.tag.borrow()
@@ -5571,7 +5743,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
 impl Elf_EndianElf_PhDynamicSectionEntry {
     pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.value_or_ptr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.value_or_ptr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn value_or_ptr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_PhDynamicSectionEntry_ValueOrPtr>> {
         self.value_or_ptr.borrow()
@@ -5620,36 +5792,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_OfsBody {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_OfsBody> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Self {
-        if let Elf_EndianElf_ProgramHeader_OfsBody::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_OfsBody::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_OfsBody {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_OfsBody> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Self {
-        if let Elf_EndianElf_ProgramHeader_OfsBody::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_OfsBody::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_OfsBody> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_OfsBody> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_OfsBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_OfsBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5664,36 +5847,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_VirtAddr {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_VirtAddr> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Self {
-        if let Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_VirtAddr::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_VirtAddr {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_VirtAddr> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Self {
-        if let Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_VirtAddr::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_VirtAddr> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_VirtAddr> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_VirtAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_VirtAddr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_VirtAddr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5708,36 +5902,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_PhysAddr {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_PhysAddr> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Self {
-        if let Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_PhysAddr::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_PhysAddr {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_PhysAddr> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Self {
-        if let Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_PhysAddr::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_PhysAddr> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_PhysAddr> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_PhysAddr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_PhysAddr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_PhysAddr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5752,36 +5957,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_LenBody {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_LenBody> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Self {
-        if let Elf_EndianElf_ProgramHeader_LenBody::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_LenBody::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_LenBody {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_LenBody> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Self {
-        if let Elf_EndianElf_ProgramHeader_LenBody::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_LenBody::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_LenBody> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_LenBody> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_LenBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_LenBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5796,36 +6012,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_MemorySize {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_MemorySize> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Self {
-        if let Elf_EndianElf_ProgramHeader_MemorySize::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_MemorySize::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_MemorySize {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_MemorySize> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Self {
-        if let Elf_EndianElf_ProgramHeader_MemorySize::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_MemorySize::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_MemorySize> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_MemorySize> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_MemorySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_MemorySize::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_MemorySize::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5840,36 +6067,47 @@ impl From<u32> for Elf_EndianElf_ProgramHeader_Align {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Align> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_Align) -> Self {
-        if let Elf_EndianElf_ProgramHeader_Align::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_Align::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ProgramHeader_Align {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Align> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ProgramHeader_Align) -> Self {
-        if let Elf_EndianElf_ProgramHeader_Align::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ProgramHeader_Align::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Align> for usize {
-    fn from(e: &Elf_EndianElf_ProgramHeader_Align) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_Align::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ProgramHeader_Align::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Align> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ProgramHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ProgramHeader_Align::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ProgramHeader_Align::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -5881,13 +6119,13 @@ pub enum Elf_EndianElf_ProgramHeader_Body {
     Elf_EndianElf_NoteSection(OptRc<Elf_EndianElf_NoteSection>),
     Bytes(Vec<u8>),
 }
-impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_PhDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_PhDynamicSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_PhDynamicSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_PhDynamicSection>> for Elf_EndianElf_ProgramHeader_Body {
@@ -5895,13 +6133,13 @@ impl From<OptRc<Elf_EndianElf_PhDynamicSection>> for Elf_EndianElf_ProgramHeader
         Self::Elf_EndianElf_PhDynamicSection(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_ProgramHeader_PhInterpreter(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_ProgramHeader_PhInterpreter, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>> for Elf_EndianElf_ProgramHeader_Body {
@@ -5909,13 +6147,13 @@ impl From<OptRc<Elf_EndianElf_ProgramHeader_PhInterpreter>> for Elf_EndianElf_Pr
         Self::Elf_EndianElf_ProgramHeader_PhInterpreter(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_NoteSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_ProgramHeader_Body::Elf_EndianElf_NoteSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_ProgramHeader_Body {
@@ -5923,13 +6161,13 @@ impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_ProgramHeader_Body
         Self::Elf_EndianElf_NoteSection(v)
     }
 }
-impl From<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_ProgramHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_ProgramHeader_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_ProgramHeader_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_ProgramHeader_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Elf_EndianElf_ProgramHeader_Body {
@@ -5947,6 +6185,15 @@ impl From<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
         x.clone()
     }
 }
+impl TryFrom<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_ProgramHeader_FlagsObj) -> Result<Self, Self::Error> {
+        if let Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Elf_PhdrTypeFlags>> for Elf_EndianElf_ProgramHeader_FlagsObj {
     fn from(v: OptRc<Elf_PhdrTypeFlags>) -> Self {
         Self::Elf_PhdrTypeFlags(v)
@@ -5956,6 +6203,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6028,6 +6276,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6061,6 +6310,7 @@ impl Elf_EndianElf_ProgramHeader {
      * which zeroes `len_body` for segments whose contents were omitted
      * (which reliably tells us that there is no `body`).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_ProgramHeader_Body>>> {
@@ -6069,7 +6319,7 @@ impl Elf_EndianElf_ProgramHeader {
             return Ok(self.body.borrow());
         }
         self.f_body.set(true);
-        if self.len_body() != 0 {
+        if ((to_i128(self.len_body())) != (to_i128(0))) {
             let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.ofs_body())?)?;
@@ -6106,6 +6356,7 @@ impl Elf_EndianElf_ProgramHeader {
         }
         Ok(self.body.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
         &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_ProgramHeader_FlagsObj>>> {
@@ -6143,7 +6394,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.ofs_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn ofs_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_OfsBody>> {
         self.ofs_body.borrow()
@@ -6152,7 +6403,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn virt_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.virt_addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.virt_addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn virt_addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_VirtAddr>> {
         self.virt_addr.borrow()
@@ -6161,7 +6412,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn phys_addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.phys_addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.phys_addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn phys_addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_PhysAddr>> {
         self.phys_addr.borrow()
@@ -6170,7 +6421,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.len_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.len_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn len_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_LenBody>> {
         self.len_body.borrow()
@@ -6179,7 +6430,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn memory_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.memory_size.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.memory_size.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn memory_size_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_MemorySize>> {
         self.memory_size.borrow()
@@ -6193,7 +6444,7 @@ impl Elf_EndianElf_ProgramHeader {
 impl Elf_EndianElf_ProgramHeader {
     pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.align.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.align.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn align_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ProgramHeader_Align>> {
         self.align.borrow()
@@ -6228,6 +6479,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6240,6 +6492,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.path_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6280,6 +6533,7 @@ impl KStruct for Elf_EndianElf_RelocationSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6301,6 +6555,7 @@ impl KStruct for Elf_EndianElf_RelocationSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6353,36 +6608,47 @@ impl From<u32> for Elf_EndianElf_RelocationSectionEntry_Offset {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Offset> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Offset::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Offset {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Offset> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Offset::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Offset> for usize {
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Self {
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Offset> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Offset) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Offset::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Offset::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6397,36 +6663,47 @@ impl From<u32> for Elf_EndianElf_RelocationSectionEntry_Info {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Info> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Info::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Info::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_RelocationSectionEntry_Info {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Info> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Info::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Info::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Info> for usize {
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Self {
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Info> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Info) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Info::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Info::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6441,36 +6718,47 @@ impl From<i32> for Elf_EndianElf_RelocationSectionEntry_Addend {
         Self::S4(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Addend::S4 to i32, enum value {:?}", e)
-    }
-}
 impl From<i64> for Elf_EndianElf_RelocationSectionEntry_Addend {
     fn from(v: i64) -> Self {
         Self::S8(v)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
-        if let Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for i32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(i32::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(i32::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_RelocationSectionEntry_Addend::S8 to i64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_RelocationSectionEntry_Addend> for usize {
-    fn from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Self {
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(i64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_RelocationSectionEntry_Addend> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_RelocationSectionEntry_Addend) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_RelocationSectionEntry_Addend::S4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_RelocationSectionEntry_Addend::S8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6479,6 +6767,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_RelocationSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6519,6 +6808,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6532,7 +6822,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn offset(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.offset.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.offset.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn offset_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Offset>> {
         self.offset.borrow()
@@ -6541,7 +6831,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn info(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.info.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.info.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn info_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Info>> {
         self.info.borrow()
@@ -6550,7 +6840,7 @@ impl Elf_EndianElf_RelocationSectionEntry {
 impl Elf_EndianElf_RelocationSectionEntry {
     pub fn addend(&self) -> i64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.addend.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.addend.borrow().as_ref().and_then(|v| i64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn addend_enum(&self) -> Ref<'_, Option<Elf_EndianElf_RelocationSectionEntry_Addend>> {
         self.addend.borrow()
@@ -6604,36 +6894,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Flags {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Flags> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Flags) -> Self {
-        if let Elf_EndianElf_SectionHeader_Flags::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Flags::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_Flags {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Flags> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Flags) -> Self {
-        if let Elf_EndianElf_SectionHeader_Flags::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Flags::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Flags> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_Flags) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Flags::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Flags::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Flags> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Flags) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Flags::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Flags::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6648,36 +6949,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Addr {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Addr> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Addr) -> Self {
-        if let Elf_EndianElf_SectionHeader_Addr::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Addr::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_Addr {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Addr> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Addr) -> Self {
-        if let Elf_EndianElf_SectionHeader_Addr::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Addr::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Addr> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_Addr) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Addr::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Addr::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Addr> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Addr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Addr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Addr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6692,36 +7004,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_OfsBody {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_OfsBody> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Self {
-        if let Elf_EndianElf_SectionHeader_OfsBody::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_OfsBody::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_OfsBody {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_OfsBody> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Self {
-        if let Elf_EndianElf_SectionHeader_OfsBody::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_OfsBody::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_OfsBody> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_OfsBody> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_OfsBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_OfsBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_OfsBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6736,36 +7059,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_LenBody {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_LenBody> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Self {
-        if let Elf_EndianElf_SectionHeader_LenBody::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_LenBody::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_LenBody {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_LenBody> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Self {
-        if let Elf_EndianElf_SectionHeader_LenBody::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_LenBody::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_LenBody> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_LenBody::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_LenBody::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_LenBody> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_LenBody) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_LenBody::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_LenBody::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6780,36 +7114,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_Align {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Align> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Align) -> Self {
-        if let Elf_EndianElf_SectionHeader_Align::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Align::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_Align {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Align> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_Align) -> Self {
-        if let Elf_EndianElf_SectionHeader_Align::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_Align::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Align> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_Align) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Align::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_Align::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_Align> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_Align) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_Align::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_Align::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6824,36 +7169,47 @@ impl From<u32> for Elf_EndianElf_SectionHeader_EntrySize {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_EntrySize> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Self {
-        if let Elf_EndianElf_SectionHeader_EntrySize::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_EntrySize::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_SectionHeader_EntrySize {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_EntrySize> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Self {
-        if let Elf_EndianElf_SectionHeader_EntrySize::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_SectionHeader_EntrySize::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_EntrySize> for usize {
-    fn from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_SectionHeader_EntrySize> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_SectionHeader_EntrySize) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_SectionHeader_EntrySize::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_SectionHeader_EntrySize::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -6870,13 +7226,13 @@ pub enum Elf_EndianElf_SectionHeader_Body {
     Elf_EndianElf_ShDynamicSection(OptRc<Elf_EndianElf_ShDynamicSection>),
     Elf_EndianElf_VersymSection(OptRc<Elf_EndianElf_VersymSection>),
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_DynsymSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_DynsymSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_DynsymSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_DynsymSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6884,13 +7240,13 @@ impl From<OptRc<Elf_EndianElf_DynsymSection>> for Elf_EndianElf_SectionHeader_Bo
         Self::Elf_EndianElf_DynsymSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerneedSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerneedSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerneedSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_VerneedSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6898,13 +7254,13 @@ impl From<OptRc<Elf_EndianElf_VerneedSection>> for Elf_EndianElf_SectionHeader_B
         Self::Elf_EndianElf_VerneedSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_NoteSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_NoteSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_NoteSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6912,13 +7268,13 @@ impl From<OptRc<Elf_EndianElf_NoteSection>> for Elf_EndianElf_SectionHeader_Body
         Self::Elf_EndianElf_NoteSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Elf_EndianElf_SectionHeader_Body {
@@ -6926,13 +7282,13 @@ impl From<Vec<u8>> for Elf_EndianElf_SectionHeader_Body {
         Self::Bytes(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_StringsStruct> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_StringsStruct(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_StringsStruct, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_StringsStruct>> for Elf_EndianElf_SectionHeader_Body {
@@ -6940,13 +7296,13 @@ impl From<OptRc<Elf_EndianElf_StringsStruct>> for Elf_EndianElf_SectionHeader_Bo
         Self::Elf_EndianElf_StringsStruct(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VerdefSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerdefSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VerdefSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_VerdefSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6954,13 +7310,13 @@ impl From<OptRc<Elf_EndianElf_VerdefSection>> for Elf_EndianElf_SectionHeader_Bo
         Self::Elf_EndianElf_VerdefSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_RelocationSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_RelocationSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_RelocationSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_RelocationSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6968,13 +7324,13 @@ impl From<OptRc<Elf_EndianElf_RelocationSection>> for Elf_EndianElf_SectionHeade
         Self::Elf_EndianElf_RelocationSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_ShDynamicSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_ShDynamicSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_ShDynamicSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_ShDynamicSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -6982,13 +7338,13 @@ impl From<OptRc<Elf_EndianElf_ShDynamicSection>> for Elf_EndianElf_SectionHeader
         Self::Elf_EndianElf_ShDynamicSection(v)
     }
 }
-impl From<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Elf_EndianElf_SectionHeader_Body) -> Self {
+impl TryFrom<&Elf_EndianElf_SectionHeader_Body> for OptRc<Elf_EndianElf_VersymSection> {
+    type Error = KError;
+    fn try_from(v: &Elf_EndianElf_SectionHeader_Body) -> Result<Self, Self::Error> {
         if let Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VersymSection(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Elf_EndianElf_SectionHeader_Body::Elf_EndianElf_VersymSection, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Elf_EndianElf_VersymSection>> for Elf_EndianElf_SectionHeader_Body {
@@ -7000,6 +7356,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7069,6 +7426,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7078,6 +7436,7 @@ impl Elf_EndianElf_SectionHeader {
     }
 }
 impl Elf_EndianElf_SectionHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Option<Elf_EndianElf_SectionHeader_Body>>> {
@@ -7179,6 +7538,7 @@ impl Elf_EndianElf_SectionHeader {
         }
         Ok(self.body.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_SectionHeaderFlags>>> {
@@ -7196,6 +7556,7 @@ impl Elf_EndianElf_SectionHeader {
      * may reference a later section header, so don't try to access too early (use only lazy `instances`)
      * \sa <https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.sheader.html#sh_link> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn linked_section(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_SectionHeader>>> {
@@ -7208,6 +7569,7 @@ impl Elf_EndianElf_SectionHeader {
         }
         Ok(self.linked_section.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -7237,7 +7599,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn flags(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.flags.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.flags.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn flags_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Flags>> {
         self.flags.borrow()
@@ -7246,7 +7608,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn addr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.addr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.addr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn addr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Addr>> {
         self.addr.borrow()
@@ -7255,7 +7617,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn ofs_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.ofs_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.ofs_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn ofs_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_OfsBody>> {
         self.ofs_body.borrow()
@@ -7264,7 +7626,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn len_body(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.len_body.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.len_body.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn len_body_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_LenBody>> {
         self.len_body.borrow()
@@ -7283,7 +7645,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn align(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.align.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.align.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn align_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_Align>> {
         self.align.borrow()
@@ -7292,7 +7654,7 @@ impl Elf_EndianElf_SectionHeader {
 impl Elf_EndianElf_SectionHeader {
     pub fn entry_size(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.entry_size.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.entry_size.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn entry_size_enum(&self) -> Ref<'_, Option<Elf_EndianElf_SectionHeader_EntrySize>> {
         self.entry_size.borrow()
@@ -7333,6 +7695,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7357,6 +7720,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
                 if *_tmpa.tag_enum()? == Elf_DynamicArrayTags::Null { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7366,6 +7730,7 @@ impl Elf_EndianElf_ShDynamicSection {
     }
 }
 impl Elf_EndianElf_ShDynamicSection {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_string_table_linked(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -7427,36 +7792,47 @@ impl From<u32> for Elf_EndianElf_ShDynamicSectionEntry_Tag {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Self {
-        if let Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_Tag::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_Tag {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Self {
-        if let Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_Tag::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for usize {
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Self {
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_Tag> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_Tag) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_Tag::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7471,36 +7847,47 @@ impl From<u32> for Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr {
         Self::U4(v)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Self {
-        if let Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) = e {
-            return *v;
-        }
-        panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4 to u32, enum value {:?}", e)
-    }
-}
 impl From<u64> for Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr {
     fn from(v: u64) -> Self {
         Self::U8(v)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u64 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Self {
-        if let Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) = e {
-            return *v;
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for i64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(i64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(i64::try_from(*v)?),
         }
-        panic!("trying to convert from enum Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8 to u64, enum value {:?}", e)
     }
 }
-impl From<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for usize {
-    fn from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Self {
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u32 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
         match e {
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => usize::try_from(*v).unwrap_or(0),
-            // Reason for fallback: invalid enum conversion to usize defaults to 0
-            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => usize::try_from(*v).unwrap_or(0),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u32::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u32::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for u64 {
+    type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(u64::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(u64::try_from(*v)?),
+        }
+    }
+}
+impl TryFrom<&Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr> for usize {
+    type Error = KError;
+    fn try_from(e: &Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr) -> Result<Self, Self::Error> {
+        match e {
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U4(v) => Ok(usize::try_from(*v)?),
+            Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr::U8(v) => Ok(usize::try_from(*v)?),
         }
     }
 }
@@ -7509,6 +7896,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_ShDynamicSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7538,6 +7926,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7547,6 +7936,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
     }
 }
 impl Elf_EndianElf_ShDynamicSectionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flag_1_values(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_DtFlag1Values>>> {
@@ -7561,6 +7951,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         }
         Ok(self.flag_1_values.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flag_values(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_DtFlagValues>>> {
@@ -7575,6 +7966,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         }
         Ok(self.flag_values.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_value_str(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -7583,9 +7975,10 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
             return Ok(self.is_value_str.borrow());
         }
         self.f_is_value_str.set(true);
-        *self.is_value_str.borrow_mut() = ( ((self.value_or_ptr() != 0) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
+        *self.is_value_str.borrow_mut() = ( ((((to_i128(self.value_or_ptr())) != (to_i128(0)))) && ( ((*self.tag_enum()? == Elf_DynamicArrayTags::Needed) || (*self.tag_enum()? == Elf_DynamicArrayTags::Soname) || (*self.tag_enum()? == Elf_DynamicArrayTags::Rpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::Runpath) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwAuxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::SunwFilter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Auxiliary) || (*self.tag_enum()? == Elf_DynamicArrayTags::Filter) || (*self.tag_enum()? == Elf_DynamicArrayTags::Config) || (*self.tag_enum()? == Elf_DynamicArrayTags::Depaudit) || (*self.tag_enum()? == Elf_DynamicArrayTags::Audit)) )) ).try_into()?;
         Ok(self.is_value_str.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_enum(
         &self
     ) -> KResult<Ref<'_, Elf_DynamicArrayTags>> {
@@ -7597,6 +7990,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         *self.tag_enum.borrow_mut() = i64::try_from(self.tag())?.try_into()?;
         Ok(self.tag_enum.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -7606,7 +8000,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
         }
         self.f_value_str.set(true);
         if  ((*self.is_value_str()?) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()?))  {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(self.value_or_ptr())?)?;
             *self.value_str.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "ASCII")?;
@@ -7618,7 +8012,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
 impl Elf_EndianElf_ShDynamicSectionEntry {
     pub fn tag(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.tag.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.tag.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn tag_switch_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_Tag>> {
         self.tag.borrow()
@@ -7627,7 +8021,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
 impl Elf_EndianElf_ShDynamicSectionEntry {
     pub fn value_or_ptr(&self) -> u64 {
         // Reason for fallback: unwrap on parsed numeric switch option falls back to 0
-        self.value_or_ptr.borrow().as_ref().map(|v| v.into()).unwrap_or(0)
+        self.value_or_ptr.borrow().as_ref().and_then(|v| u64::try_from(v).ok()).unwrap_or(0)
     }
     pub fn value_or_ptr_enum(&self) -> Ref<'_, Option<Elf_EndianElf_ShDynamicSectionEntry_ValueOrPtr>> {
         self.value_or_ptr.borrow()
@@ -7652,6 +8046,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7671,6 +8066,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7707,6 +8103,7 @@ pub struct Elf_EndianElf_VerdauxEntry {
     ofs_name: RefCell<u32>,
     ofs_next: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    unnamed0_raw: RefCell<Vec<u8>>,
     f_name: Cell<bool>,
     name: RefCell<String>,
     f_next: Cell<bool>,
@@ -7719,6 +8116,7 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7735,10 +8133,12 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
         }
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        let _tmpa = *self_rc.ofs_next();
+        let _borrowed = self_rc.ofs_next();
+        let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 8_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdaux_entry/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7748,6 +8148,7 @@ impl Elf_EndianElf_VerdauxEntry {
     }
 }
 impl Elf_EndianElf_VerdauxEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -7757,7 +8158,7 @@ impl Elf_EndianElf_VerdauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -7765,6 +8166,7 @@ impl Elf_EndianElf_VerdauxEntry {
         }
         Ok(self.name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdauxEntry>>> {
@@ -7772,7 +8174,7 @@ impl Elf_EndianElf_VerdauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if *self.ofs_next() != 0 {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -7782,6 +8184,7 @@ impl Elf_EndianElf_VerdauxEntry {
         }
         Ok(self.next.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_start(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -7823,6 +8226,11 @@ impl Elf_EndianElf_VerdauxEntry {
 impl Elf_EndianElf_VerdauxEntry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Elf_EndianElf_VerdauxEntry {
+    pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0_raw.borrow()
     }
 }
 
@@ -7867,6 +8275,7 @@ impl KStruct for Elf_EndianElf_VerdefSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7881,6 +8290,7 @@ impl KStruct for Elf_EndianElf_VerdefSection {
         let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VerdefSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7896,6 +8306,7 @@ impl Elf_EndianElf_VerdefSection {
      * `true` in spec-compliant ELF files. If it is `false`, the string
      * offsets in this section will not be resolved to strings.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_string_table_linked(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -7912,6 +8323,7 @@ impl Elf_EndianElf_VerdefSection {
      * Number of entries (version definitions)
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-47976> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_entries(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -7955,6 +8367,7 @@ pub struct Elf_EndianElf_VerdefSectionEntry {
     ofs_first_aux: RefCell<u32>,
     ofs_next: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    unnamed0_raw: RefCell<Vec<u8>>,
     f_first_aux: Cell<bool>,
     first_aux: RefCell<OptRc<Elf_EndianElf_VerdauxEntry>>,
     f_flags_obj: Cell<bool>,
@@ -7971,6 +8384,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7992,7 +8406,8 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
         }
         *self_rc.flags.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
         *self_rc.version_index.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
-        let _tmpa = *self_rc.version_index();
+        let _borrowed = self_rc.version_index();
+        let _tmpa = *_borrowed;
         if !(((_tmpa & 32768_u16) == 0_u16)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/3".to_string() }));
         }
@@ -8008,10 +8423,12 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verdef_section_entry/seq/6".to_string() }));
         }
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        let _tmpa = *self_rc.ofs_next();
+        let _borrowed = self_rc.ofs_next();
+        let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 20_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verdef_section_entry/seq/7".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8026,6 +8443,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
      * First auxiliary entry of type `verdaux_entry` (`Elfxx_Verdaux`).
      * The rest follow its `next` instance.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_aux(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdauxEntry>>> {
@@ -8041,6 +8459,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         _io.seek(_pos)?;
         Ok(self.first_aux.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VersionFlags>>> {
@@ -8053,6 +8472,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         *self.flags_obj.borrow_mut() = t;
         Ok(self.flags_obj.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerdefSectionEntry>>> {
@@ -8060,7 +8480,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if *self.ofs_next() != 0 {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerdefSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -8070,6 +8490,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         }
         Ok(self.next.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_start(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -8081,6 +8502,7 @@ impl Elf_EndianElf_VerdefSectionEntry {
         *self.ofs_start.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.ofs_start.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn version_index_special(
         &self
     ) -> KResult<Ref<'_, Elf_VersionIndexSpecial>> {
@@ -8173,6 +8595,11 @@ impl Elf_EndianElf_VerdefSectionEntry {
         self._io.borrow()
     }
 }
+impl Elf_EndianElf_VerdefSectionEntry {
+    pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://refspecs.linuxfoundation.org/LSB_5.0.0/LSB-Core-generic/LSB-Core-generic/symversion.html#VERNEEDEXTFIG> Source
@@ -8192,6 +8619,7 @@ pub struct Elf_EndianElf_VernauxEntry {
     ofs_name: RefCell<u32>,
     ofs_next: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    unnamed0_raw: RefCell<Vec<u8>>,
     f_flags_obj: Cell<bool>,
     flags_obj: RefCell<OptRc<Elf_EndianElf_VersionFlags>>,
     f_name: Cell<bool>,
@@ -8206,6 +8634,7 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8227,10 +8656,12 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
         *self_rc.version_index.borrow_mut() = t;
         *self_rc.ofs_name.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        let _tmpa = *self_rc.ofs_next();
+        let _borrowed = self_rc.ofs_next();
+        let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/vernaux_entry/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8240,6 +8671,7 @@ impl Elf_EndianElf_VernauxEntry {
     }
 }
 impl Elf_EndianElf_VernauxEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn flags_obj(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VersionFlags>>> {
@@ -8252,6 +8684,7 @@ impl Elf_EndianElf_VernauxEntry {
         *self.flags_obj.borrow_mut() = t;
         Ok(self.flags_obj.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -8261,7 +8694,7 @@ impl Elf_EndianElf_VernauxEntry {
         }
         self.f_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_name())?)?;
             *self.name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8269,6 +8702,7 @@ impl Elf_EndianElf_VernauxEntry {
         }
         Ok(self.name.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VernauxEntry>>> {
@@ -8276,7 +8710,7 @@ impl Elf_EndianElf_VernauxEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if *self.ofs_next() != 0 {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VernauxEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -8286,6 +8720,7 @@ impl Elf_EndianElf_VernauxEntry {
         }
         Ok(self.next.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_start(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -8359,6 +8794,11 @@ impl Elf_EndianElf_VernauxEntry {
         self._io.borrow()
     }
 }
+impl Elf_EndianElf_VernauxEntry {
+    pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0_raw.borrow()
+    }
+}
 
 /**
  * Version Requirements, contained in the special section named
@@ -8403,6 +8843,7 @@ impl KStruct for Elf_EndianElf_VerneedSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8417,6 +8858,7 @@ impl KStruct for Elf_EndianElf_VerneedSection {
         let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self_rc._is_le.borrow()));
         let t = Self::read_into_with_init::<_, Elf_EndianElf_VerneedSectionEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.first_entry.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8432,6 +8874,7 @@ impl Elf_EndianElf_VerneedSection {
      * `true` in spec-compliant ELF files. If it is `false`, the string
      * offsets in this section will not be resolved to strings.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_string_table_linked(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -8448,6 +8891,7 @@ impl Elf_EndianElf_VerneedSection {
      * Number of entries (dependency versions)
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-47976> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_entries(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -8489,6 +8933,7 @@ pub struct Elf_EndianElf_VerneedSectionEntry {
     ofs_first_aux: RefCell<u32>,
     ofs_next: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    unnamed0_raw: RefCell<Vec<u8>>,
     f_file_name: Cell<bool>,
     file_name: RefCell<String>,
     f_first_aux: Cell<bool>,
@@ -8503,6 +8948,7 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8534,10 +8980,12 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/endian_elf/types/verneed_section_entry/seq/4".to_string() }));
         }
         *self_rc.ofs_next.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
-        let _tmpa = *self_rc.ofs_next();
+        let _borrowed = self_rc.ofs_next();
+        let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u32) || (_tmpa >= 16_u32)) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/endian_elf/types/verneed_section_entry/seq/5".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8547,6 +8995,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
     }
 }
 impl Elf_EndianElf_VerneedSectionEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn file_name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -8556,7 +9005,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         }
         self.f_file_name.set(true);
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.is_string_table_linked()? {
-            let io = KStream::clone(&*Into::<OptRc<Elf_EndianElf_StringsStruct>>::into(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)._io());
+            let io = KStream::clone(&*OptRc::<Elf_EndianElf_StringsStruct>::try_from(&*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.linked_section()?.body()?.as_ref().ok_or(KError::CastError)?)?._io());
             let _pos = io.pos();
             io.seek(usize::try_from(*self.ofs_file_name())?)?;
             *self.file_name.borrow_mut() = bytes_to_str(&io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
@@ -8569,6 +9018,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
      * First auxiliary entry of type `vernaux_entry` (`Elfxx_Vernaux`).
      * The rest follow its `next` instance.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn first_aux(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VernauxEntry>>> {
@@ -8584,6 +9034,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         _io.seek(_pos)?;
         Ok(self.first_aux.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn next(
         &self
     ) -> KResult<Ref<'_, OptRc<Elf_EndianElf_VerneedSectionEntry>>> {
@@ -8591,7 +9042,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         if self.f_next.get() {
             return Ok(self.next.borrow());
         }
-        if *self.ofs_next() != 0 {
+        if ((to_i128(*self.ofs_next())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from((u32::try_from(*self.ofs_start()?)?).saturating_add(*self.ofs_next()))?)?;
             let f = |t : &mut Elf_EndianElf_VerneedSectionEntry| Ok(t.set_endian(*self._is_le.borrow()));
@@ -8601,6 +9052,7 @@ impl Elf_EndianElf_VerneedSectionEntry {
         }
         Ok(self.next.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_start(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -8672,6 +9124,11 @@ impl Elf_EndianElf_VerneedSectionEntry {
         self._io.borrow()
     }
 }
+impl Elf_EndianElf_VerneedSectionEntry {
+    pub fn unnamed0_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed0_raw.borrow()
+    }
+}
 
 /**
  * Version information flag bitmask, shared by the `flags` (`vd_flags`)
@@ -8701,6 +9158,7 @@ impl KStruct for Elf_EndianElf_VersionFlags {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8712,6 +9170,7 @@ impl KStruct for Elf_EndianElf_VersionFlags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8735,6 +9194,7 @@ impl Elf_EndianElf_VersionFlags {
     /**
      * Version definition of the file itself (the base definition).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn base(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -8752,6 +9212,7 @@ impl Elf_EndianElf_VersionFlags {
      * need to be validated at runtime.
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/version-dependency-section.html> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn info(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -8771,6 +9232,7 @@ impl Elf_EndianElf_VersionFlags {
      * version. See [Creating a Weak Version
      * Definition](https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/creating-weak-version-definition.html).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn weak(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -8808,6 +9270,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
     type Root = Elf;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8820,6 +9283,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u2le()? } else { _io.read_u2be()? };
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8835,6 +9299,7 @@ impl Elf_EndianElf_VersionIndex {
      * an explicit version number. This is a GNU extension.
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L1379> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_hidden(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -8853,6 +9318,7 @@ impl Elf_EndianElf_VersionIndex {
      * The `version_index_special` value instance converts the integer
      * value to the `version_index_special` enum.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -8879,6 +9345,7 @@ impl Elf_EndianElf_VersionIndex {
      * be unreachable, because `value` contains only the lower 15 bits,
      * so its maximum possible value is `0x7fff`.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn version_index_special(
         &self
     ) -> KResult<Ref<'_, Elf_VersionIndexSpecial>> {
@@ -8934,6 +9401,7 @@ impl KStruct for Elf_EndianElf_VersymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8955,6 +9423,7 @@ impl KStruct for Elf_EndianElf_VersymSection {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9009,6 +9478,7 @@ impl KStruct for Elf_PhdrTypeFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9020,6 +9490,7 @@ impl KStruct for Elf_PhdrTypeFlags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9034,6 +9505,7 @@ impl Elf_PhdrTypeFlags {
     }
 }
 impl Elf_PhdrTypeFlags {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn execute(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9042,9 +9514,10 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.execute.borrow());
         }
         self.f_execute.set(true);
-        *self.execute.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
+        *self.execute.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.execute.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mask_proc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9053,9 +9526,10 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((*self.value()) & (4026531840_u32)) != 0).try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn read(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9064,9 +9538,10 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.read.borrow());
         }
         self.f_read.set(true);
-        *self.read.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
+        *self.read.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.read.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn write(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9075,7 +9550,7 @@ impl Elf_PhdrTypeFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
+        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }
@@ -9137,6 +9612,7 @@ impl KStruct for Elf_SectionHeaderFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9148,6 +9624,7 @@ impl KStruct for Elf_SectionHeaderFlags {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9166,6 +9643,7 @@ impl Elf_SectionHeaderFlags {
     /**
      * Occupies memory during execution
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn alloc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9174,13 +9652,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.alloc.borrow());
         }
         self.f_alloc.set(true);
-        *self.alloc.borrow_mut() = (((*self.value()) & (2_u32)) != 0).try_into()?;
+        *self.alloc.borrow_mut() = (((to_i128(((*self.value()) & (2_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.alloc.borrow())
     }
 
     /**
      * Section with compressed data
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn compressed(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9189,13 +9668,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.compressed.borrow());
         }
         self.f_compressed.set(true);
-        *self.compressed.borrow_mut() = (((*self.value()) & (2048_u32)) != 0).try_into()?;
+        *self.compressed.borrow_mut() = (((to_i128(((*self.value()) & (2048_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.compressed.borrow())
     }
 
     /**
      * Section is excluded unless referenced or allocated (Solaris)
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn exclude(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9204,13 +9684,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exclude.borrow());
         }
         self.f_exclude.set(true);
-        *self.exclude.borrow_mut() = (((*self.value()) & (2147483648_u32)) != 0).try_into()?;
+        *self.exclude.borrow_mut() = (((to_i128(((*self.value()) & (2147483648_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.exclude.borrow())
     }
 
     /**
      * Executable machine instructions
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn exec_instr(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9219,7 +9700,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.exec_instr.borrow());
         }
         self.f_exec_instr.set(true);
-        *self.exec_instr.borrow_mut() = (((*self.value()) & (4_u32)) != 0).try_into()?;
+        *self.exec_instr.borrow_mut() = (((to_i128(((*self.value()) & (4_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.exec_instr.borrow())
     }
 
@@ -9227,6 +9708,7 @@ impl Elf_SectionHeaderFlags {
      * Mbind section
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L631> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn gnu_mbind(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9235,13 +9717,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.gnu_mbind.borrow());
         }
         self.f_gnu_mbind.set(true);
-        *self.gnu_mbind.borrow_mut() = (((*self.value()) & (16777216_u32)) != 0).try_into()?;
+        *self.gnu_mbind.borrow_mut() = (((to_i128(((*self.value()) & (16777216_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.gnu_mbind.borrow())
     }
 
     /**
      * Member of a section group
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn group(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9250,13 +9733,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.group.borrow());
         }
         self.f_group.set(true);
-        *self.group.borrow_mut() = (((*self.value()) & (512_u32)) != 0).try_into()?;
+        *self.group.borrow_mut() = (((to_i128(((*self.value()) & (512_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.group.borrow())
     }
 
     /**
      * Section header's `sh_info` field holds a section header table index
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn info_link(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9265,13 +9749,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.info_link.borrow());
         }
         self.f_info_link.set(true);
-        *self.info_link.borrow_mut() = (((*self.value()) & (64_u32)) != 0).try_into()?;
+        *self.info_link.borrow_mut() = (((to_i128(((*self.value()) & (64_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.info_link.borrow())
     }
 
     /**
      * Preserve section ordering when linking
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn link_order(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9280,13 +9765,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.link_order.borrow());
         }
         self.f_link_order.set(true);
-        *self.link_order.borrow_mut() = (((*self.value()) & (128_u32)) != 0).try_into()?;
+        *self.link_order.borrow_mut() = (((to_i128(((*self.value()) & (128_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.link_order.borrow())
     }
 
     /**
      * OS-specific semantics
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mask_os(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9295,13 +9781,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_os.borrow());
         }
         self.f_mask_os.set(true);
-        *self.mask_os.borrow_mut() = (((*self.value()) & (267386880_u32)) != 0).try_into()?;
+        *self.mask_os.borrow_mut() = (((to_i128(((*self.value()) & (267386880_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_os.borrow())
     }
 
     /**
      * Processor-specific semantics
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mask_proc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9310,13 +9797,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.mask_proc.borrow());
         }
         self.f_mask_proc.set(true);
-        *self.mask_proc.borrow_mut() = (((*self.value()) & (4026531840_u32)) != 0).try_into()?;
+        *self.mask_proc.borrow_mut() = (((to_i128(((*self.value()) & (4026531840_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.mask_proc.borrow())
     }
 
     /**
      * Data in this section can be merged to eliminate duplication
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn merge(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9325,7 +9813,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.merge.borrow());
         }
         self.f_merge.set(true);
-        *self.merge.borrow_mut() = (((*self.value()) & (16_u32)) != 0).try_into()?;
+        *self.merge.borrow_mut() = (((to_i128(((*self.value()) & (16_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.merge.borrow())
     }
 
@@ -9340,6 +9828,7 @@ impl Elf_SectionHeaderFlags {
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L485> Source
      * \sa <https://docs.oracle.com/en/operating-systems/solaris/oracle-solaris/11.4/linkers-libraries/section-headers.html#GUID-2CBE4879-2E76-426E-BB7F-CF0CB1D87C52__CHAPTER6-10675> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ordered(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9348,13 +9837,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.ordered.borrow());
         }
         self.f_ordered.set(true);
-        *self.ordered.borrow_mut() = (((*self.value()) & (1073741824_u32)) != 0).try_into()?;
+        *self.ordered.borrow_mut() = (((to_i128(((*self.value()) & (1073741824_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.ordered.borrow())
     }
 
     /**
      * Special OS-specific handling required
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn os_nonconforming(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9363,7 +9853,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.os_nonconforming.borrow());
         }
         self.f_os_nonconforming.set(true);
-        *self.os_nonconforming.borrow_mut() = (((*self.value()) & (256_u32)) != 0).try_into()?;
+        *self.os_nonconforming.borrow_mut() = (((to_i128(((*self.value()) & (256_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.os_nonconforming.borrow())
     }
 
@@ -9372,6 +9862,7 @@ impl Elf_SectionHeaderFlags {
      * \sa <https://forge.sourceware.org/binutils-gdb/binutils-gdb-mirror/src/tag/binutils-2_46_1/include/elf/common.h#L630> Source
      * \sa <https://forge.sourceware.org/glibc/glibc-mirror/src/tag/glibc-2.43/elf/elf.h#L484> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn retain(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9380,13 +9871,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.retain.borrow());
         }
         self.f_retain.set(true);
-        *self.retain.borrow_mut() = (((*self.value()) & (2097152_u32)) != 0).try_into()?;
+        *self.retain.borrow_mut() = (((to_i128(((*self.value()) & (2097152_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.retain.borrow())
     }
 
     /**
      * Contains null-terminated character strings
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn strings(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9395,7 +9887,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.strings.borrow());
         }
         self.f_strings.set(true);
-        *self.strings.borrow_mut() = (((*self.value()) & (32_u32)) != 0).try_into()?;
+        *self.strings.borrow_mut() = (((to_i128(((*self.value()) & (32_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.strings.borrow())
     }
 
@@ -9404,6 +9896,7 @@ impl Elf_SectionHeaderFlags {
      * Handling For Thread-Local
      * Storage](https://www.akkadia.org/drepper/tls.pdf))
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tls(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9412,13 +9905,14 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.tls.borrow());
         }
         self.f_tls.set(true);
-        *self.tls.borrow_mut() = (((*self.value()) & (1024_u32)) != 0).try_into()?;
+        *self.tls.borrow_mut() = (((to_i128(((*self.value()) & (1024_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.tls.borrow())
     }
 
     /**
      * Writable during execution
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn write(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -9427,7 +9921,7 @@ impl Elf_SectionHeaderFlags {
             return Ok(self.write.borrow());
         }
         self.f_write.set(true);
-        *self.write.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
+        *self.write.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.write.borrow())
     }
 }

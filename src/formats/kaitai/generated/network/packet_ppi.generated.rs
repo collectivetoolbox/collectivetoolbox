@@ -26,6 +26,7 @@ pub struct PacketPpi {
     fields: RefCell<OptRc<PacketPpi_PacketPpiFields>>,
     body: RefCell<Option<PacketPpi_Body>>,
     _io: RefCell<BytesReader>,
+    fields_raw: RefCell<Vec<u8>>,
     body_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
@@ -34,13 +35,13 @@ pub enum PacketPpi_Body {
     PacketPpi(OptRc<PacketPpi>),
     Bytes(Vec<u8>),
 }
-impl From<&PacketPpi_Body> for OptRc<EthernetFrame> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_Body) -> Self {
+impl TryFrom<&PacketPpi_Body> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_Body::EthernetFrame(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_Body::EthernetFrame, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<EthernetFrame>> for PacketPpi_Body {
@@ -48,13 +49,13 @@ impl From<OptRc<EthernetFrame>> for PacketPpi_Body {
         Self::EthernetFrame(v)
     }
 }
-impl From<&PacketPpi_Body> for OptRc<PacketPpi> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_Body) -> Self {
+impl TryFrom<&PacketPpi_Body> for OptRc<PacketPpi> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_Body::PacketPpi(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_Body::PacketPpi, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PacketPpi>> for PacketPpi_Body {
@@ -62,13 +63,13 @@ impl From<OptRc<PacketPpi>> for PacketPpi_Body {
         Self::PacketPpi(v)
     }
 }
-impl From<&PacketPpi_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_Body) -> Self {
+impl TryFrom<&PacketPpi_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for PacketPpi_Body {
@@ -80,6 +81,7 @@ impl KStruct for PacketPpi {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -93,7 +95,10 @@ impl KStruct for PacketPpi {
         let _io = io;
         let t = Self::read_into::<_, PacketPpi_PacketPpiHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
-        let t = Self::read_into::<_, PacketPpi_PacketPpiFields>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_fields = _io.read_bytes(usize::try_from((i32::from(*self_rc.header().pph_len())).saturating_sub(8_i32))?)?;
+        *self_rc.fields_raw.borrow_mut() = _raw_fields.clone();
+        let _io_fields = BytesReader::from(_raw_fields);
+        let t = Self::read_into::<BytesReader, PacketPpi_PacketPpiFields>(&_io_fields, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.fields.borrow_mut() = t;
         match *self_rc.header().pph_dlt() {
             PacketPpi_Linktype::Ethernet => {
@@ -107,13 +112,14 @@ impl KStruct for PacketPpi {
                 *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, PacketPpi>(&_t_body_raw_io, None, None)?.into();
+                let t = Self::read_into::<BytesReader, PacketPpi>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -140,11 +146,16 @@ impl PacketPpi {
     }
 }
 impl PacketPpi {
+    pub fn fields_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.fields_raw.borrow()
+    }
+}
+impl PacketPpi {
     pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
         self.body_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PacketPpi_Linktype {
     NullLinktype,
     Ethernet,
@@ -482,7 +493,7 @@ impl Default for PacketPpi_Linktype {
     fn default() -> Self { PacketPpi_Linktype::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PacketPpi_PfhType {
     Radio80211Common,
     Radio80211nMacExt,
@@ -542,11 +553,13 @@ pub struct PacketPpi_MacFlags {
     greenfield: RefCell<bool>,
     unused2: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    unused2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PacketPpi_MacFlags {
     type Root = PacketPpi;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -568,6 +581,7 @@ impl KStruct for PacketPpi_MacFlags {
         *self_rc.greenfield.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         io.align_to_byte()?;
         *self_rc.unused2.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -651,6 +665,11 @@ impl PacketPpi_MacFlags {
         self._io.borrow()
     }
 }
+impl PacketPpi_MacFlags {
+    pub fn unused2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unused2_raw.borrow()
+    }
+}
 
 /**
  * \sa https://web.archive.org/web/20090206112419/https://www.cacetech.com/documents/PPI_Header_format_1.0.1.pdf PPI header format spec, section 3.1
@@ -674,13 +693,13 @@ pub enum PacketPpi_PacketPpiField_Body {
     PacketPpi_Radio80211nMacPhyExtBody(OptRc<PacketPpi_Radio80211nMacPhyExtBody>),
     Bytes(Vec<u8>),
 }
-impl From<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211CommonBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_PacketPpiField_Body) -> Self {
+impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211CommonBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211CommonBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211CommonBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PacketPpi_Radio80211CommonBody>> for PacketPpi_PacketPpiField_Body {
@@ -688,13 +707,13 @@ impl From<OptRc<PacketPpi_Radio80211CommonBody>> for PacketPpi_PacketPpiField_Bo
         Self::PacketPpi_Radio80211CommonBody(v)
     }
 }
-impl From<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacExtBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_PacketPpiField_Body) -> Self {
+impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacExtBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211nMacExtBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211nMacExtBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PacketPpi_Radio80211nMacExtBody>> for PacketPpi_PacketPpiField_Body {
@@ -702,13 +721,13 @@ impl From<OptRc<PacketPpi_Radio80211nMacExtBody>> for PacketPpi_PacketPpiField_B
         Self::PacketPpi_Radio80211nMacExtBody(v)
     }
 }
-impl From<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_PacketPpiField_Body) -> Self {
+impl TryFrom<&PacketPpi_PacketPpiField_Body> for OptRc<PacketPpi_Radio80211nMacPhyExtBody> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211nMacPhyExtBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_PacketPpiField_Body::PacketPpi_Radio80211nMacPhyExtBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<PacketPpi_Radio80211nMacPhyExtBody>> for PacketPpi_PacketPpiField_Body {
@@ -716,13 +735,13 @@ impl From<OptRc<PacketPpi_Radio80211nMacPhyExtBody>> for PacketPpi_PacketPpiFiel
         Self::PacketPpi_Radio80211nMacPhyExtBody(v)
     }
 }
-impl From<&PacketPpi_PacketPpiField_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &PacketPpi_PacketPpiField_Body) -> Self {
+impl TryFrom<&PacketPpi_PacketPpiField_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &PacketPpi_PacketPpiField_Body) -> Result<Self, Self::Error> {
         if let PacketPpi_PacketPpiField_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected PacketPpi_PacketPpiField_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for PacketPpi_PacketPpiField_Body {
@@ -734,6 +753,7 @@ impl KStruct for PacketPpi_PacketPpiField {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiFields;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -749,21 +769,21 @@ impl KStruct for PacketPpi_PacketPpiField {
         *self_rc.pfh_datalen.borrow_mut() = _io.read_u2le()?;
         match *self_rc.pfh_type() {
             PacketPpi_PfhType::Radio80211Common => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.pfh_datalen()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, PacketPpi_Radio80211CommonBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             PacketPpi_PfhType::Radio80211nMacExt => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.pfh_datalen()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, PacketPpi_Radio80211nMacExtBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             PacketPpi_PfhType::Radio80211nMacPhyExt => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::from(*self_rc.pfh_datalen()))?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, PacketPpi_Radio80211nMacPhyExtBody>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -773,6 +793,7 @@ impl KStruct for PacketPpi_PacketPpiField {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -816,6 +837,7 @@ impl KStruct for PacketPpi_PacketPpiFields {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -836,6 +858,7 @@ impl KStruct for PacketPpi_PacketPpiFields {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -871,6 +894,7 @@ impl KStruct for PacketPpi_PacketPpiHeader {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -886,6 +910,7 @@ impl KStruct for PacketPpi_PacketPpiHeader {
         *self_rc.pph_flags.borrow_mut() = _io.read_u1()?;
         *self_rc.pph_len.borrow_mut() = _io.read_u2le()?;
         *self_rc.pph_dlt.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -941,6 +966,7 @@ impl KStruct for PacketPpi_Radio80211CommonBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -961,6 +987,7 @@ impl KStruct for PacketPpi_Radio80211CommonBody {
         *self_rc.fhss_pattern.borrow_mut() = _io.read_u1()?;
         *self_rc.dbm_antsignal.borrow_mut() = _io.read_s1()?;
         *self_rc.dbm_antnoise.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1031,11 +1058,13 @@ pub struct PacketPpi_Radio80211nMacExtBody {
     num_delimiters: RefCell<u8>,
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PacketPpi_Radio80211nMacExtBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1052,6 +1081,7 @@ impl KStruct for PacketPpi_Radio80211nMacExtBody {
         *self_rc.a_mpdu_id.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_delimiters.borrow_mut() = _io.read_u1()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(3_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1082,6 +1112,11 @@ impl PacketPpi_Radio80211nMacExtBody {
         self._io.borrow()
     }
 }
+impl PacketPpi_Radio80211nMacExtBody {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
 
 /**
  * \sa https://web.archive.org/web/20090206112419/https://www.cacetech.com/documents/PPI_Header_format_1.0.1.pdf PPI header format spec, section 4.1.4
@@ -1110,6 +1145,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1152,6 +1188,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
         for _i in 0_usize..l_evm {
             self_rc.evm.borrow_mut().push(_io.read_u4le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1279,6 +1316,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
     type Root = PacketPpi;
     type Parent = PacketPpi_Radio80211nMacPhyExtBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1299,6 +1337,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
         *self_rc.dyn_cck_ofdm.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.only_passive_scan.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.spectrum_5ghz.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1400,6 +1439,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
     type Root = PacketPpi;
     type Parent = PacketPpi_Radio80211nMacPhyExtBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1413,6 +1453,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
         let _io = io;
         *self_rc.signal.borrow_mut() = _io.read_s1()?;
         *self_rc.noise.borrow_mut() = _io.read_s1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

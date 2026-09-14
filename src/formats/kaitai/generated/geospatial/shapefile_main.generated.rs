@@ -18,6 +18,7 @@ impl KStruct for ShapefileMain {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -40,6 +41,7 @@ impl KStruct for ShapefileMain {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -64,7 +66,7 @@ impl ShapefileMain {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShapefileMain_PartType {
     TriangleStrip,
     TriangleFan,
@@ -108,7 +110,7 @@ impl Default for ShapefileMain_PartType {
     fn default() -> Self { ShapefileMain_PartType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum ShapefileMain_ShapeType {
     NullShape,
     Point,
@@ -190,6 +192,7 @@ impl KStruct for ShapefileMain_BoundingBoxXY {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -205,6 +208,7 @@ impl KStruct for ShapefileMain_BoundingBoxXY {
         *self_rc.x.borrow_mut() = t;
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.y.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -241,6 +245,7 @@ impl KStruct for ShapefileMain_BoundingBoxXYZM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_FileHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -260,6 +265,7 @@ impl KStruct for ShapefileMain_BoundingBoxXYZM {
         *self_rc.z.borrow_mut() = t;
         let t = Self::read_into::<_, ShapefileMain_BoundsMinMax>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.m.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -304,6 +310,7 @@ impl KStruct for ShapefileMain_BoundsMinMax {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -317,6 +324,7 @@ impl KStruct for ShapefileMain_BoundsMinMax {
         let _io = io;
         *self_rc.min.borrow_mut() = _io.read_f8le()?;
         *self_rc.max.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -359,6 +367,7 @@ impl KStruct for ShapefileMain_FileHeader {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -402,6 +411,7 @@ impl KStruct for ShapefileMain_FileHeader {
         *self_rc.shape_type.borrow_mut() = i64::from(_io.read_s4le()?).try_into()?;
         let t = Self::read_into::<_, ShapefileMain_BoundingBoxXYZM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.bounding_box.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -492,6 +502,7 @@ impl KStruct for ShapefileMain_MultiPatch {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -537,6 +548,7 @@ impl KStruct for ShapefileMain_MultiPatch {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -612,6 +624,7 @@ impl KStruct for ShapefileMain_MultiPoint {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -632,6 +645,7 @@ impl KStruct for ShapefileMain_MultiPoint {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -674,6 +688,7 @@ impl KStruct for ShapefileMain_MultiPointM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -701,6 +716,7 @@ impl KStruct for ShapefileMain_MultiPointM {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -755,6 +771,7 @@ impl KStruct for ShapefileMain_MultiPointZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -789,6 +806,7 @@ impl KStruct for ShapefileMain_MultiPointZ {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -848,6 +866,7 @@ impl KStruct for ShapefileMain_Point {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -861,6 +880,7 @@ impl KStruct for ShapefileMain_Point {
         let _io = io;
         *self_rc.x.borrow_mut() = _io.read_f8le()?;
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -896,6 +916,7 @@ impl KStruct for ShapefileMain_PointM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -910,6 +931,7 @@ impl KStruct for ShapefileMain_PointM {
         *self_rc.x.borrow_mut() = _io.read_f8le()?;
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
         *self_rc.m.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -951,6 +973,7 @@ impl KStruct for ShapefileMain_PointZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -966,6 +989,7 @@ impl KStruct for ShapefileMain_PointZ {
         *self_rc.y.borrow_mut() = _io.read_f8le()?;
         *self_rc.z.borrow_mut() = _io.read_f8le()?;
         *self_rc.m.borrow_mut() = _io.read_f8le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1013,6 +1037,7 @@ impl KStruct for ShapefileMain_PolyLine {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1039,6 +1064,7 @@ impl KStruct for ShapefileMain_PolyLine {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1093,6 +1119,7 @@ impl KStruct for ShapefileMain_PolyLineM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1126,6 +1153,7 @@ impl KStruct for ShapefileMain_PolyLineM {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1192,6 +1220,7 @@ impl KStruct for ShapefileMain_PolyLineZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1232,6 +1261,7 @@ impl KStruct for ShapefileMain_PolyLineZ {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1304,6 +1334,7 @@ impl KStruct for ShapefileMain_Polygon {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1330,6 +1361,7 @@ impl KStruct for ShapefileMain_Polygon {
             let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
             self_rc.points.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1384,6 +1416,7 @@ impl KStruct for ShapefileMain_PolygonM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1417,6 +1450,7 @@ impl KStruct for ShapefileMain_PolygonM {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1483,6 +1517,7 @@ impl KStruct for ShapefileMain_PolygonZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1523,6 +1558,7 @@ impl KStruct for ShapefileMain_PolygonZ {
         for _i in 0_usize..l_m_values {
             self_rc.m_values.borrow_mut().push(_io.read_f8le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1592,6 +1628,7 @@ impl KStruct for ShapefileMain_Record {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1607,6 +1644,7 @@ impl KStruct for ShapefileMain_Record {
         *self_rc.header.borrow_mut() = t;
         let t = Self::read_into::<_, ShapefileMain_RecordContents>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.contents.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1640,7 +1678,6 @@ pub struct ShapefileMain_RecordContents {
     shape_type: RefCell<ShapefileMain_ShapeType>,
     shape_parameters: RefCell<Option<ShapefileMain_RecordContents_ShapeParameters>>,
     _io: RefCell<BytesReader>,
-    shape_parameters_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum ShapefileMain_RecordContents_ShapeParameters {
@@ -1658,13 +1695,13 @@ pub enum ShapefileMain_RecordContents_ShapeParameters {
     ShapefileMain_PolygonM(OptRc<ShapefileMain_PolygonM>),
     ShapefileMain_PolygonZ(OptRc<ShapefileMain_PolygonZ>),
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPatch> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPatch> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPatch(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPatch, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_MultiPatch>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1672,13 +1709,13 @@ impl From<OptRc<ShapefileMain_MultiPatch>> for ShapefileMain_RecordContents_Shap
         Self::ShapefileMain_MultiPatch(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPoint> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPoint> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPoint(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPoint, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_MultiPoint>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1686,13 +1723,13 @@ impl From<OptRc<ShapefileMain_MultiPoint>> for ShapefileMain_RecordContents_Shap
         Self::ShapefileMain_MultiPoint(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointM> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointM(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointM, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_MultiPointM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1700,13 +1737,13 @@ impl From<OptRc<ShapefileMain_MultiPointM>> for ShapefileMain_RecordContents_Sha
         Self::ShapefileMain_MultiPointM(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointZ> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_MultiPointZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointZ(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_MultiPointZ, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_MultiPointZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1714,13 +1751,13 @@ impl From<OptRc<ShapefileMain_MultiPointZ>> for ShapefileMain_RecordContents_Sha
         Self::ShapefileMain_MultiPointZ(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Point> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Point> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Point(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Point, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_Point>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1728,13 +1765,13 @@ impl From<OptRc<ShapefileMain_Point>> for ShapefileMain_RecordContents_ShapePara
         Self::ShapefileMain_Point(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointM> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointM(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointM, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PointM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1742,13 +1779,13 @@ impl From<OptRc<ShapefileMain_PointM>> for ShapefileMain_RecordContents_ShapePar
         Self::ShapefileMain_PointM(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointZ> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PointZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointZ(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PointZ, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PointZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1756,13 +1793,13 @@ impl From<OptRc<ShapefileMain_PointZ>> for ShapefileMain_RecordContents_ShapePar
         Self::ShapefileMain_PointZ(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLine> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLine> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLine(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLine, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PolyLine>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1770,13 +1807,13 @@ impl From<OptRc<ShapefileMain_PolyLine>> for ShapefileMain_RecordContents_ShapeP
         Self::ShapefileMain_PolyLine(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineM> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineM(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineM, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PolyLineM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1784,13 +1821,13 @@ impl From<OptRc<ShapefileMain_PolyLineM>> for ShapefileMain_RecordContents_Shape
         Self::ShapefileMain_PolyLineM(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineZ> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolyLineZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineZ(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolyLineZ, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PolyLineZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1798,13 +1835,13 @@ impl From<OptRc<ShapefileMain_PolyLineZ>> for ShapefileMain_RecordContents_Shape
         Self::ShapefileMain_PolyLineZ(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Polygon> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_Polygon> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Polygon(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_Polygon, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_Polygon>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1812,13 +1849,13 @@ impl From<OptRc<ShapefileMain_Polygon>> for ShapefileMain_RecordContents_ShapePa
         Self::ShapefileMain_Polygon(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonM> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonM> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonM(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonM, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PolygonM>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1826,13 +1863,13 @@ impl From<OptRc<ShapefileMain_PolygonM>> for ShapefileMain_RecordContents_ShapeP
         Self::ShapefileMain_PolygonM(v)
     }
 }
-impl From<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonZ> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Self {
+impl TryFrom<&ShapefileMain_RecordContents_ShapeParameters> for OptRc<ShapefileMain_PolygonZ> {
+    type Error = KError;
+    fn try_from(v: &ShapefileMain_RecordContents_ShapeParameters) -> Result<Self, Self::Error> {
         if let ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonZ(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected ShapefileMain_RecordContents_ShapeParameters::ShapefileMain_PolygonZ, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<ShapefileMain_PolygonZ>> for ShapefileMain_RecordContents_ShapeParameters {
@@ -1844,6 +1881,7 @@ impl KStruct for ShapefileMain_RecordContents {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1859,99 +1897,61 @@ impl KStruct for ShapefileMain_RecordContents {
         if *self_rc.shape_type() != ShapefileMain_ShapeType::NullShape {
             match *self_rc.shape_type() {
                 ShapefileMain_ShapeType::MultiPatch => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_MultiPatch>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_MultiPatch>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::MultiPoint => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_MultiPoint>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_MultiPoint>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::MultiPointM => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_MultiPointM>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_MultiPointM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::MultiPointZ => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_MultiPointZ>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_MultiPointZ>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::Point => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_Point>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), None)?.into();
+                    let t = Self::read_into::<_, ShapefileMain_Point>(&*_io, Some(self_rc._root.clone()), None)?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PointM => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PointM>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PointM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PointZ => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PointZ>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PointZ>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PolyLine => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PolyLine>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PolyLine>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PolyLineM => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PolyLineM>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PolyLineM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PolyLineZ => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PolyLineZ>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PolyLineZ>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::Polygon => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_Polygon>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_Polygon>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PolygonM => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PolygonM>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PolygonM>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 ShapefileMain_ShapeType::PolygonZ => {
-                    *self_rc.shape_parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                    let shape_parameters_raw = self_rc.shape_parameters_raw.borrow();
-                    let _t_shape_parameters_raw_io = BytesReader::from(shape_parameters_raw.clone());
-                    let t = Self::read_into::<BytesReader, ShapefileMain_PolygonZ>(&_t_shape_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, ShapefileMain_PolygonZ>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.shape_parameters.borrow_mut() = Some(t);
                 }
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1972,11 +1972,6 @@ impl ShapefileMain_RecordContents {
         self._io.borrow()
     }
 }
-impl ShapefileMain_RecordContents {
-    pub fn shape_parameters_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.shape_parameters_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct ShapefileMain_RecordHeader {
@@ -1991,6 +1986,7 @@ impl KStruct for ShapefileMain_RecordHeader {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2004,6 +2000,7 @@ impl KStruct for ShapefileMain_RecordHeader {
         let _io = io;
         *self_rc.record_number.borrow_mut() = _io.read_s4be()?;
         *self_rc.content_length.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

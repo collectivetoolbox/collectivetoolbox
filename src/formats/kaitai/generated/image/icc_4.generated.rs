@@ -18,6 +18,7 @@ impl KStruct for Icc4 {
     type Root = Icc4;
     type Parent = Icc4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -33,6 +34,7 @@ impl KStruct for Icc4 {
         *self_rc.header.borrow_mut() = t;
         let t = Self::read_into::<_, Icc4_TagTable>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.tag_table.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -71,6 +73,7 @@ impl KStruct for Icc4_DateTimeNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -88,6 +91,7 @@ impl KStruct for Icc4_DateTimeNumber {
         *self_rc.hour.borrow_mut() = _io.read_u2be()?;
         *self_rc.minute.borrow_mut() = _io.read_u2be()?;
         *self_rc.second.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -146,6 +150,7 @@ impl KStruct for Icc4_DeviceAttributes {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -163,6 +168,7 @@ impl KStruct for Icc4_DeviceAttributes {
         *self_rc.colour_or_black_and_white_media.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(28)?;
         *self_rc.vendor_specific.borrow_mut() = _io.read_bits_int_be(32)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -203,7 +209,7 @@ impl Icc4_DeviceAttributes {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia {
     ColourMedia,
     BlackAndWhiteMedia,
@@ -235,7 +241,7 @@ impl Default for Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedi
     fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesColourOrBlackAndWhiteMedia::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte {
     Glossy,
     Matte,
@@ -267,7 +273,7 @@ impl Default for Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte {
     fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesGlossyOrMatte::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity {
     PositiveMediaPolarity,
     NegativeMediaPolarity,
@@ -299,7 +305,7 @@ impl Default for Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPo
     fn default() -> Self { Icc4_DeviceAttributes_DeviceAttributesPositiveOrNegativeMediaPolarity::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_DeviceAttributes_DeviceAttributesReflectiveOrTransparency {
     Reflective,
     Transparency,
@@ -344,6 +350,7 @@ impl KStruct for Icc4_DeviceManufacturer {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -356,6 +363,7 @@ impl KStruct for Icc4_DeviceManufacturer {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.device_manufacturer.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -371,7 +379,7 @@ impl Icc4_DeviceManufacturer {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_DeviceManufacturer_DeviceManufacturers {
     ErdtSystemsGmbhAndCoKg,
     AamazingTechnologiesInc,
@@ -1200,6 +1208,7 @@ impl KStruct for Icc4_PositionNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1213,6 +1222,7 @@ impl KStruct for Icc4_PositionNumber {
         let _io = io;
         *self_rc.offset_to_data_element.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_of_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1258,11 +1268,16 @@ pub struct Icc4_ProfileHeader {
     identifier: RefCell<Vec<u8>>,
     reserved_data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    pcs_raw: RefCell<Vec<u8>>,
+    device_model_raw: RefCell<Vec<u8>>,
+    identifier_raw: RefCell<Vec<u8>>,
+    reserved_data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_ProfileHeader {
     type Root = Icc4;
     type Parent = Icc4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1280,7 +1295,7 @@ impl KStruct for Icc4_ProfileHeader {
         *self_rc.version.borrow_mut() = t;
         *self_rc.device_class.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.color_space.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
-        *self_rc.pcs.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.pcs.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.creation_date_time.borrow_mut() = t;
         *self_rc.file_signature.borrow_mut() = _io.read_bytes(4_usize)?;
@@ -1292,7 +1307,7 @@ impl KStruct for Icc4_ProfileHeader {
         *self_rc.profile_flags.borrow_mut() = t;
         let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
-        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
         *self_rc.rendering_intent.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
@@ -1302,6 +1317,7 @@ impl KStruct for Icc4_ProfileHeader {
         *self_rc.creator.borrow_mut() = t;
         *self_rc.identifier.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.reserved_data.borrow_mut() = _io.read_bytes(28_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1402,7 +1418,27 @@ impl Icc4_ProfileHeader {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Icc4_ProfileHeader {
+    pub fn pcs_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.pcs_raw.borrow()
+    }
+}
+impl Icc4_ProfileHeader {
+    pub fn device_model_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.device_model_raw.borrow()
+    }
+}
+impl Icc4_ProfileHeader {
+    pub fn identifier_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.identifier_raw.borrow()
+    }
+}
+impl Icc4_ProfileHeader {
+    pub fn reserved_data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_data_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_ProfileHeader_CmmSignatures {
     TheImagingFactoryCmm,
     AgfaCmm,
@@ -1512,7 +1548,7 @@ impl Default for Icc4_ProfileHeader_CmmSignatures {
     fn default() -> Self { Icc4_ProfileHeader_CmmSignatures::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_ProfileHeader_DataColourSpaces {
     TwoColour,
     ThreeColour,
@@ -1613,7 +1649,7 @@ impl Default for Icc4_ProfileHeader_DataColourSpaces {
     fn default() -> Self { Icc4_ProfileHeader_DataColourSpaces::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_ProfileHeader_PrimaryPlatforms {
     AppleComputerInc,
     MicrosoftCorporation,
@@ -1651,7 +1687,7 @@ impl Default for Icc4_ProfileHeader_PrimaryPlatforms {
     fn default() -> Self { Icc4_ProfileHeader_PrimaryPlatforms::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_ProfileHeader_ProfileClasses {
     AbstractProfile,
     DeviceLinkProfile,
@@ -1698,7 +1734,7 @@ impl Default for Icc4_ProfileHeader_ProfileClasses {
     fn default() -> Self { Icc4_ProfileHeader_ProfileClasses::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_ProfileHeader_RenderingIntents {
     Perceptual,
     MediaRelativeColorimetric,
@@ -1751,6 +1787,7 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1765,6 +1802,7 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
         *self_rc.embedded_profile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.profile_can_be_used_independently_of_embedded_colour_data.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.other_flags.borrow_mut() = _io.read_bits_int_be(30)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1806,6 +1844,7 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1828,6 +1867,7 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/profile_header/types/version_field/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1873,6 +1913,7 @@ impl KStruct for Icc4_Response16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1891,6 +1932,7 @@ impl KStruct for Icc4_Response16Number {
         }
         let t = Self::read_into::<_, Icc4_S15Fixed16Number>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.measurement_value.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1924,11 +1966,13 @@ pub struct Icc4_S15Fixed16Number {
     pub(crate) _self_shared: SharedType<Self>,
     number: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    number_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_S15Fixed16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1941,6 +1985,7 @@ impl KStruct for Icc4_S15Fixed16Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1956,6 +2001,11 @@ impl Icc4_S15Fixed16Number {
         self._io.borrow()
     }
 }
+impl Icc4_S15Fixed16Number {
+    pub fn number_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.number_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_StandardIlluminantEncoding {
@@ -1969,6 +2019,7 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1981,6 +2032,7 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.standard_illuminant_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1996,7 +2048,7 @@ impl Icc4_StandardIlluminantEncoding {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_StandardIlluminantEncoding_StandardIlluminantEncodings {
     Unknown,
     D50,
@@ -2063,6 +2115,7 @@ impl KStruct for Icc4_TagTable {
     type Root = Icc4;
     type Parent = Icc4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2081,6 +2134,7 @@ impl KStruct for Icc4_TagTable {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.tags.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2168,13 +2222,13 @@ pub enum Icc4_TagTable_TagDefinition_TagDataElement {
     Icc4_TagTable_TagDefinition_ViewingConditionsTag(OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>),
     Bytes(Vec<u8>),
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB0Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB0Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB0Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2182,13 +2236,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_AToB0Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_AToB0Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB1Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB1Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB1Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2196,13 +2250,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_AToB1Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_AToB1Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_AToB2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_AToB2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2210,13 +2264,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_AToB2Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_AToB2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA0Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA0Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA0Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2224,13 +2278,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToA0Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToA0Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA1Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA1Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA1Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2238,13 +2292,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToA1Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToA1Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToA2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToA2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2252,13 +2306,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToA2Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToA2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD0Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD0Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD0Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2266,13 +2320,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToD0Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToD0Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD1Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD1Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD1Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2280,13 +2334,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToD1Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToD1Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2294,13 +2348,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToD2Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToD2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BToD3Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD3Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BToD3Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2308,13 +2362,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BToD3Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_BToD3Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueMatrixColumnTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2322,13 +2376,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag>> for Icc4_TagTa
         Self::Icc4_TagTable_TagDefinition_BlueMatrixColumnTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueTrcTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_BlueTrcTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2336,13 +2390,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_BlueTrcTag>> for Icc4_TagTable_TagDe
         Self::Icc4_TagTable_TagDefinition_BlueTrcTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CalibrationDateTimeTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2350,13 +2404,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag>> for Icc4_Ta
         Self::Icc4_TagTable_TagDefinition_CalibrationDateTimeTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CharTargetTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CharTargetTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CharTargetTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2364,13 +2418,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CharTargetTag>> for Icc4_TagTable_Ta
         Self::Icc4_TagTable_TagDefinition_CharTargetTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticAdaptationTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2378,13 +2432,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag>> for Icc4_Ta
         Self::Icc4_TagTable_TagDefinition_ChromaticAdaptationTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticityTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ChromaticityTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2392,13 +2446,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityTag>> for Icc4_TagTable_
         Self::Icc4_TagTable_TagDefinition_ChromaticityTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantOrderTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantOrderTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2406,13 +2460,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderTag>> for Icc4_TagTable
         Self::Icc4_TagTable_TagDefinition_ColorantOrderTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2420,13 +2474,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableTag>> for Icc4_TagTable
         Self::Icc4_TagTable_TagDefinition_ColorantTableTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableOutTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorantTableOutTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2434,13 +2488,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableOutTag>> for Icc4_TagTa
         Self::Icc4_TagTable_TagDefinition_ColorantTableOutTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2448,13 +2502,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag>> fo
         Self::Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_CopyrightTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CopyrightTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_CopyrightTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2462,13 +2516,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CopyrightTag>> for Icc4_TagTable_Tag
         Self::Icc4_TagTable_TagDefinition_CopyrightTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB0Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB0Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB0Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2476,13 +2530,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DToB0Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_DToB0Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB1Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB1Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB1Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2490,13 +2544,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DToB1Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_DToB1Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2504,13 +2558,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DToB2Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_DToB2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DToB3Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB3Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DToB3Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2518,13 +2572,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DToB3Tag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_DToB3Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceMfgDescTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceMfgDescTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2532,13 +2586,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>> for Icc4_TagTable
         Self::Icc4_TagTable_TagDefinition_DeviceMfgDescTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceModelDescTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_DeviceModelDescTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2546,13 +2600,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>> for Icc4_TagTab
         Self::Icc4_TagTable_TagDefinition_DeviceModelDescTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GamutTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GamutTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GamutTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_GamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2560,13 +2614,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_GamutTag>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_GamutTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GrayTrcTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GrayTrcTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2574,13 +2628,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_GrayTrcTag>> for Icc4_TagTable_TagDe
         Self::Icc4_TagTable_TagDefinition_GrayTrcTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenMatrixColumnTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2588,13 +2642,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag>> for Icc4_TagT
         Self::Icc4_TagTable_TagDefinition_GreenMatrixColumnTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenTrcTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_GreenTrcTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2602,13 +2656,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_GreenTrcTag>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_GreenTrcTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_LuminanceTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_LuminanceTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_LuminanceTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2616,13 +2670,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LuminanceTag>> for Icc4_TagTable_Tag
         Self::Icc4_TagTable_TagDefinition_LuminanceTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MeasurementTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MeasurementTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MeasurementTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2630,13 +2684,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementTag>> for Icc4_TagTable_T
         Self::Icc4_TagTable_TagDefinition_MeasurementTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MediaWhitePointTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_MediaWhitePointTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2644,13 +2698,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_MediaWhitePointTag>> for Icc4_TagTab
         Self::Icc4_TagTable_TagDefinition_MediaWhitePointTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_NamedColor2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_NamedColor2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2658,13 +2712,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Tag>> for Icc4_TagTable_T
         Self::Icc4_TagTable_TagDefinition_NamedColor2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_OutputResponseTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_OutputResponseTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2672,13 +2726,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_OutputResponseTag>> for Icc4_TagTabl
         Self::Icc4_TagTable_TagDefinition_OutputResponseTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2686,13 +2740,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag>> 
         Self::Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview0Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview0Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview0Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2700,13 +2754,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Preview0Tag>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_Preview0Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview1Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview1Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview1Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2714,13 +2768,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Preview1Tag>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_Preview1Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_Preview2Tag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview2Tag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_Preview2Tag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2728,13 +2782,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Preview2Tag>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_Preview2Tag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileDescriptionTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileDescriptionTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2742,13 +2796,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileDescriptionTag>> for Icc4_Tag
         Self::Icc4_TagTable_TagDefinition_ProfileDescriptionTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2756,13 +2810,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceTag>> for Icc4_TagTab
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2770,13 +2824,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag>> for I
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedMatrixColumnTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedMatrixColumnTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2784,13 +2838,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_RedMatrixColumnTag>> for Icc4_TagTab
         Self::Icc4_TagTable_TagDefinition_RedMatrixColumnTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_RedTrcTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedTrcTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_RedTrcTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2798,13 +2852,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_RedTrcTag>> for Icc4_TagTable_TagDef
         Self::Icc4_TagTable_TagDefinition_RedTrcTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2812,13 +2866,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag>> 
         Self::Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_TechnologyTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_TechnologyTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_TechnologyTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2826,13 +2880,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_TechnologyTag>> for Icc4_TagTable_Ta
         Self::Icc4_TagTable_TagDefinition_TechnologyTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingCondDescTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingCondDescTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2840,13 +2894,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingCondDescTag>> for Icc4_TagTab
         Self::Icc4_TagTable_TagDefinition_ViewingCondDescTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingConditionsTag(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Icc4_TagTable_TagDefinition_ViewingConditionsTag, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2854,13 +2908,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsTag>> for Icc4_TagT
         Self::Icc4_TagTable_TagDefinition_ViewingConditionsTag(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_TagDataElement> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_TagDataElement> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TagDataElement) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_TagDataElement::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_TagDataElement::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Icc4_TagTable_TagDefinition_TagDataElement {
@@ -2872,6 +2926,7 @@ impl KStruct for Icc4_TagTable_TagDefinition {
     type Root = Icc4;
     type Parent = Icc4_TagTable;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2886,10 +2941,12 @@ impl KStruct for Icc4_TagTable_TagDefinition {
         *self_rc.tag_signature.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.offset_to_data_element.borrow_mut() = _io.read_u4be()?;
         *self_rc.size_of_data_element.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Icc4_TagTable_TagDefinition {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_data_element(
         &self
     ) -> KResult<Ref<'_, Option<Icc4_TagTable_TagDefinition_TagDataElement>>> {
@@ -3277,7 +3334,7 @@ impl Icc4_TagTable_TagDefinition {
         self.tag_data_element_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MultiProcessElementsTypes {
     BacsElementType,
     ClutElementType,
@@ -3327,7 +3384,7 @@ impl Default for Icc4_TagTable_TagDefinition_MultiProcessElementsTypes {
     fn default() -> Self { Icc4_TagTable_TagDefinition_MultiProcessElementsTypes::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_TagSignatures {
     AToB0,
     AToB1,
@@ -3500,7 +3557,7 @@ impl Default for Icc4_TagTable_TagDefinition_TagSignatures {
     fn default() -> Self { Icc4_TagTable_TagDefinition_TagSignatures::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_TagTypeSignatures {
     XyzType,
     ChromaticityType,
@@ -3619,7 +3676,6 @@ pub struct Icc4_TagTable_TagDefinition_AToB0Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_AToB0Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
@@ -3627,13 +3683,13 @@ pub enum Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
@@ -3641,13 +3697,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
@@ -3655,13 +3711,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB0Tag_TagData {
@@ -3673,6 +3729,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3687,28 +3744,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutAToBType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -3729,11 +3778,6 @@ impl Icc4_TagTable_TagDefinition_AToB0Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB0Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_AToB1Tag {
@@ -3743,7 +3787,6 @@ pub struct Icc4_TagTable_TagDefinition_AToB1Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_AToB1Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
@@ -3751,13 +3794,13 @@ pub enum Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
@@ -3765,13 +3808,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
@@ -3779,13 +3822,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB1Tag_TagData {
@@ -3797,6 +3840,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3811,28 +3855,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutAToBType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -3853,11 +3889,6 @@ impl Icc4_TagTable_TagDefinition_AToB1Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB1Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_AToB2Tag {
@@ -3867,7 +3898,6 @@ pub struct Icc4_TagTable_TagDefinition_AToB2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_AToB2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
@@ -3875,13 +3905,13 @@ pub enum Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
@@ -3889,13 +3919,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
@@ -3903,13 +3933,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_AToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_AToB2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_AToB2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_AToB2Tag_TagData {
@@ -3921,6 +3951,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3935,28 +3966,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutAToBType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -3977,11 +4000,6 @@ impl Icc4_TagTable_TagDefinition_AToB2Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_AToB2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToA0Tag {
@@ -3991,7 +4009,6 @@ pub struct Icc4_TagTable_TagDefinition_BToA0Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToA0Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
@@ -3999,13 +4016,13 @@ pub enum Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
@@ -4013,13 +4030,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
@@ -4027,13 +4044,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA0Tag_TagData {
@@ -4045,6 +4062,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4059,28 +4077,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4101,11 +4111,6 @@ impl Icc4_TagTable_TagDefinition_BToA0Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA0Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToA1Tag {
@@ -4115,7 +4120,6 @@ pub struct Icc4_TagTable_TagDefinition_BToA1Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToA1Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
@@ -4123,13 +4127,13 @@ pub enum Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
@@ -4137,13 +4141,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
@@ -4151,13 +4155,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA1Tag_TagData {
@@ -4169,6 +4173,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4183,28 +4188,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4225,11 +4222,6 @@ impl Icc4_TagTable_TagDefinition_BToA1Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA1Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToA2Tag {
@@ -4239,7 +4231,6 @@ pub struct Icc4_TagTable_TagDefinition_BToA2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToA2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
@@ -4247,13 +4238,13 @@ pub enum Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
@@ -4261,13 +4252,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
@@ -4275,13 +4266,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToA2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToA2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BToA2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_BToA2Tag_TagData {
@@ -4293,6 +4284,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4307,28 +4299,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4349,11 +4333,6 @@ impl Icc4_TagTable_TagDefinition_BToA2Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToA2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToD0Tag {
@@ -4363,7 +4342,6 @@ pub struct Icc4_TagTable_TagDefinition_BToD0Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToD0Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
@@ -4375,6 +4353,15 @@ impl From<&Icc4_TagTable_TagDefinition_BToD0Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD0Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_BToD0Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -4384,6 +4371,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4398,14 +4386,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4426,11 +4412,6 @@ impl Icc4_TagTable_TagDefinition_BToD0Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD0Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToD1Tag {
@@ -4440,7 +4421,6 @@ pub struct Icc4_TagTable_TagDefinition_BToD1Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToD1Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
@@ -4452,6 +4432,15 @@ impl From<&Icc4_TagTable_TagDefinition_BToD1Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD1Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_BToD1Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -4461,6 +4450,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4475,14 +4465,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4503,11 +4491,6 @@ impl Icc4_TagTable_TagDefinition_BToD1Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD1Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToD2Tag {
@@ -4517,7 +4500,6 @@ pub struct Icc4_TagTable_TagDefinition_BToD2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToD2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
@@ -4529,6 +4511,15 @@ impl From<&Icc4_TagTable_TagDefinition_BToD2Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD2Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_BToD2Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -4538,6 +4529,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4552,14 +4544,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4580,11 +4570,6 @@ impl Icc4_TagTable_TagDefinition_BToD2Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BToD3Tag {
@@ -4594,7 +4579,6 @@ pub struct Icc4_TagTable_TagDefinition_BToD3Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BToD3Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
@@ -4606,6 +4590,15 @@ impl From<&Icc4_TagTable_TagDefinition_BToD3Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_BToD3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BToD3Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_BToD3Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_BToD3Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -4615,6 +4608,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4629,14 +4623,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4657,11 +4649,6 @@ impl Icc4_TagTable_TagDefinition_BToD3Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BToD3Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
@@ -4671,7 +4658,6 @@ pub struct Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
@@ -4683,6 +4669,15 @@ impl From<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData> for OptRc<Ic
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
@@ -4692,6 +4687,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4706,14 +4702,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_XyzType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4734,11 +4728,6 @@ impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_BlueTrcTag {
@@ -4748,20 +4737,19 @@ pub struct Icc4_TagTable_TagDefinition_BlueTrcTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_BlueTrcTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
     Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
     Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl From<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
@@ -4769,13 +4757,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDef
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_BlueTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_BlueTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_BlueTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_BlueTrcTag_TagData {
@@ -4787,6 +4775,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4801,21 +4790,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_CurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ParametricCurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4836,11 +4820,6 @@ impl Icc4_TagTable_TagDefinition_BlueTrcTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_BlueTrcTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
@@ -4850,7 +4829,6 @@ pub struct Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
@@ -4862,6 +4840,15 @@ impl From<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData> for OptRc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_DateTimeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData::Icc4_TagTable_TagDefinition_DateTimeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_DateTimeType>> for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_DateTimeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_DateTimeType(v)
@@ -4871,6 +4858,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4885,14 +4873,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::DateTimeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_DateTimeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DateTimeType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4913,11 +4899,6 @@ impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_CharTargetTag {
@@ -4927,7 +4908,6 @@ pub struct Icc4_TagTable_TagDefinition_CharTargetTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_CharTargetTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
@@ -4939,6 +4919,15 @@ impl From<&Icc4_TagTable_TagDefinition_CharTargetTag_TagData> for OptRc<Icc4_Tag
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_CharTargetTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_TextType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CharTargetTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_CharTargetTag_TagData::Icc4_TagTable_TagDefinition_TextType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_TextType>> for Icc4_TagTable_TagDefinition_CharTargetTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_TextType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_TextType(v)
@@ -4948,6 +4937,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4962,14 +4952,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::TextType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_TextType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TextType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -4990,11 +4978,6 @@ impl Icc4_TagTable_TagDefinition_CharTargetTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_CharTargetTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
@@ -5004,7 +4987,6 @@ pub struct Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
@@ -5016,6 +4998,15 @@ impl From<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData> for OptRc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData::Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>> for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_S15Fixed16ArrayType(v)
@@ -5025,6 +5016,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5039,14 +5031,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::S15Fixed16ArrayType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_S15Fixed16ArrayType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5067,11 +5057,6 @@ impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ChromaticityTag {
@@ -5081,7 +5066,6 @@ pub struct Icc4_TagTable_TagDefinition_ChromaticityTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ChromaticityTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
@@ -5093,6 +5077,15 @@ impl From<&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData> for OptRc<Icc4_T
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ChromaticityTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ChromaticityType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ChromaticityTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ChromaticityTag_TagData::Icc4_TagTable_TagDefinition_ChromaticityType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>> for Icc4_TagTable_TagDefinition_ChromaticityTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ChromaticityType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ChromaticityType(v)
@@ -5102,6 +5095,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5116,14 +5110,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ChromaticityType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ChromaticityType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5144,11 +5136,6 @@ impl Icc4_TagTable_TagDefinition_ChromaticityTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ChromaticityTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ChromaticityType {
@@ -5165,6 +5152,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5188,6 +5176,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateValues>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.ciexy_coordinates_per_channel.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5218,7 +5207,7 @@ impl Icc4_TagTable_TagDefinition_ChromaticityType {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ChromaticityType_ColorantAndPhosphorEncodings {
     Unknown,
     ItuRBt7092,
@@ -5273,6 +5262,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateVal
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5286,6 +5276,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateVal
         let _io = io;
         *self_rc.x_coordinate.borrow_mut() = _io.read_u2be()?;
         *self_rc.y_coordinate.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5315,7 +5306,6 @@ pub struct Icc4_TagTable_TagDefinition_ColorantOrderTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
@@ -5327,6 +5317,15 @@ impl From<&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData> for OptRc<Icc4_
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData::Icc4_TagTable_TagDefinition_ColorantOrderType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>> for Icc4_TagTable_TagDefinition_ColorantOrderTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantOrderType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantOrderType(v)
@@ -5336,6 +5335,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5350,14 +5350,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantOrderType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ColorantOrderType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantOrderType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5378,11 +5376,6 @@ impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantOrderTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorantOrderType {
@@ -5398,6 +5391,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantOrderTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5419,6 +5413,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
         for _i in 0_usize..l_numbers_of_colorants_in_order_of_printing {
             self_rc.numbers_of_colorants_in_order_of_printing.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5453,7 +5448,6 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableOutTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
@@ -5465,6 +5459,15 @@ impl From<&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData> for OptRc<Ic
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData::Icc4_TagTable_TagDefinition_ColorantTableType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>> for Icc4_TagTable_TagDefinition_ColorantTableOutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableType(v)
@@ -5474,6 +5477,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5488,14 +5492,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ColorantTableType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5516,11 +5518,6 @@ impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableOutTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorantTableTag {
@@ -5530,7 +5527,6 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorantTableTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
@@ -5542,6 +5538,15 @@ impl From<&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData> for OptRc<Icc4_
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorantTableTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ColorantTableType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorantTableTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ColorantTableTag_TagData::Icc4_TagTable_TagDefinition_ColorantTableType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>> for Icc4_TagTable_TagDefinition_ColorantTableTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ColorantTableType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ColorantTableType(v)
@@ -5551,6 +5556,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5565,14 +5571,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ColorantTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ColorantTableType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5593,11 +5597,6 @@ impl Icc4_TagTable_TagDefinition_ColorantTableTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorantTableTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorantTableType {
@@ -5613,6 +5612,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5635,6 +5635,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ColorantTableType_Colorant>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.colorants.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5670,11 +5671,13 @@ pub struct Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     padding: RefCell<Vec<Vec<u8>>>,
     pcs_values: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    pcs_values_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantTableType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5686,7 +5689,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.padding.borrow_mut() = Vec::new();
         let l_padding = usize::try_from((32_usize).saturating_sub(self_rc.name().len()))?;
         for _i in 0_usize..l_padding {
@@ -5696,6 +5699,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/colorant_table_type/types/colorant/seq/1".to_string() }));
         }
         *self_rc.pcs_values.borrow_mut() = _io.read_bytes(6_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5721,6 +5725,11 @@ impl Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
+    pub fn pcs_values_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.pcs_values_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
@@ -5730,7 +5739,6 @@ pub struct Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
@@ -5742,6 +5750,15 @@ impl From<&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData> 
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
@@ -5751,6 +5768,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5765,14 +5783,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_SignatureType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5793,11 +5809,6 @@ impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_CopyrightTag {
@@ -5807,7 +5818,6 @@ pub struct Icc4_TagTable_TagDefinition_CopyrightTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_CopyrightTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
@@ -5819,6 +5829,15 @@ impl From<&Icc4_TagTable_TagDefinition_CopyrightTag_TagData> for OptRc<Icc4_TagT
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_CopyrightTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_CopyrightTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_CopyrightTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_CopyrightTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
@@ -5828,6 +5847,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5842,14 +5862,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5870,11 +5888,6 @@ impl Icc4_TagTable_TagDefinition_CopyrightTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_CopyrightTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_CurveType {
@@ -5891,6 +5904,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5907,16 +5921,17 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/curve_type/seq/0".to_string() }));
         }
         *self_rc.number_of_entries.borrow_mut() = _io.read_u4be()?;
-        if *self_rc.number_of_entries() > 1 {
+        if ((to_i128(*self_rc.number_of_entries())) > (to_i128(1))) {
             *self_rc.curve_values.borrow_mut() = Vec::new();
             let l_curve_values = usize::try_from(*self_rc.number_of_entries())?;
             for _i in 0_usize..l_curve_values {
                 self_rc.curve_values.borrow_mut().push(_io.read_u2be()?);
             }
         }
-        if *self_rc.number_of_entries() == 1 {
+        if ((to_i128(*self_rc.number_of_entries())) == (to_i128(1))) {
             *self_rc.curve_value.borrow_mut() = _io.read_u1()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -5956,7 +5971,6 @@ pub struct Icc4_TagTable_TagDefinition_DToB0Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DToB0Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
@@ -5968,6 +5982,15 @@ impl From<&Icc4_TagTable_TagDefinition_DToB0Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB0Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DToB0Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB0Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -5977,6 +6000,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5991,14 +6015,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6019,11 +6041,6 @@ impl Icc4_TagTable_TagDefinition_DToB0Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB0Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DToB1Tag {
@@ -6033,7 +6050,6 @@ pub struct Icc4_TagTable_TagDefinition_DToB1Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DToB1Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
@@ -6045,6 +6061,15 @@ impl From<&Icc4_TagTable_TagDefinition_DToB1Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB1Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DToB1Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB1Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -6054,6 +6079,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6068,14 +6094,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6096,11 +6120,6 @@ impl Icc4_TagTable_TagDefinition_DToB1Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB1Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DToB2Tag {
@@ -6110,7 +6129,6 @@ pub struct Icc4_TagTable_TagDefinition_DToB2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DToB2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
@@ -6122,6 +6140,15 @@ impl From<&Icc4_TagTable_TagDefinition_DToB2Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB2Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DToB2Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -6131,6 +6158,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6145,14 +6173,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6173,11 +6199,6 @@ impl Icc4_TagTable_TagDefinition_DToB2Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DToB3Tag {
@@ -6187,7 +6208,6 @@ pub struct Icc4_TagTable_TagDefinition_DToB3Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DToB3Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
@@ -6199,6 +6219,15 @@ impl From<&Icc4_TagTable_TagDefinition_DToB3Tag_TagData> for OptRc<Icc4_TagTable
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DToB3Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DToB3Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DToB3Tag_TagData::Icc4_TagTable_TagDefinition_MultiProcessElementsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>> for Icc4_TagTable_TagDefinition_DToB3Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiProcessElementsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiProcessElementsType(v)
@@ -6208,6 +6237,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6222,14 +6252,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiProcessElementsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiProcessElementsType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6250,11 +6278,6 @@ impl Icc4_TagTable_TagDefinition_DToB3Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DToB3Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DataType {
@@ -6268,6 +6291,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6280,6 +6304,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.data_flag.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6295,7 +6320,7 @@ impl Icc4_TagTable_TagDefinition_DataType {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DataType_DataTypes {
     AsciiData,
     BinaryData,
@@ -6341,6 +6366,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CalibrationDateTimeTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6358,6 +6384,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
         }
         let t = Self::read_into::<_, Icc4_DateTimeNumber>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.date_and_time.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6387,7 +6414,6 @@ pub struct Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
@@ -6399,6 +6425,15 @@ impl From<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData> for OptRc<Icc4_
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_DeviceMfgDescTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
@@ -6408,6 +6443,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6422,14 +6458,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6450,11 +6484,6 @@ impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_DeviceModelDescTag {
@@ -6464,7 +6493,6 @@ pub struct Icc4_TagTable_TagDefinition_DeviceModelDescTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
@@ -6476,6 +6504,15 @@ impl From<&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData> for OptRc<Icc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_DeviceModelDescTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
@@ -6485,6 +6522,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6499,14 +6537,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6527,11 +6563,6 @@ impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_DeviceModelDescTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_GamutTag {
@@ -6541,7 +6572,6 @@ pub struct Icc4_TagTable_TagDefinition_GamutTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_GamutTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GamutTag_TagData {
@@ -6549,13 +6579,13 @@ pub enum Icc4_TagTable_TagDefinition_GamutTag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
@@ -6563,13 +6593,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
@@ -6577,13 +6607,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GamutTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GamutTag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_GamutTag_TagData {
@@ -6595,6 +6625,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6609,28 +6640,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6651,11 +6674,6 @@ impl Icc4_TagTable_TagDefinition_GamutTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_GamutTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_GrayTrcTag {
@@ -6665,20 +6683,19 @@ pub struct Icc4_TagTable_TagDefinition_GrayTrcTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_GrayTrcTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
     Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
     Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl From<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
@@ -6686,13 +6703,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDef
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GrayTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GrayTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GrayTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_GrayTrcTag_TagData {
@@ -6704,6 +6721,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6718,21 +6736,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_CurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ParametricCurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6753,11 +6766,6 @@ impl Icc4_TagTable_TagDefinition_GrayTrcTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_GrayTrcTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
@@ -6767,7 +6775,6 @@ pub struct Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
@@ -6779,6 +6786,15 @@ impl From<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData> for OptRc<I
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
@@ -6788,6 +6804,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6802,14 +6819,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_XyzType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6830,11 +6845,6 @@ impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_GreenTrcTag {
@@ -6844,20 +6854,19 @@ pub struct Icc4_TagTable_TagDefinition_GreenTrcTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_GreenTrcTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
     Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
     Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl From<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
@@ -6865,13 +6874,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDef
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_GreenTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_GreenTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_GreenTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_GreenTrcTag_TagData {
@@ -6883,6 +6892,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6897,21 +6907,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_CurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ParametricCurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -6932,11 +6937,6 @@ impl Icc4_TagTable_TagDefinition_GreenTrcTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_GreenTrcTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_LuminanceTag {
@@ -6946,7 +6946,6 @@ pub struct Icc4_TagTable_TagDefinition_LuminanceTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_LuminanceTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
@@ -6958,6 +6957,15 @@ impl From<&Icc4_TagTable_TagDefinition_LuminanceTag_TagData> for OptRc<Icc4_TagT
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_LuminanceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_LuminanceTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_LuminanceTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_LuminanceTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
@@ -6967,6 +6975,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6981,14 +6990,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_XyzType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7009,11 +7016,6 @@ impl Icc4_TagTable_TagDefinition_LuminanceTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_LuminanceTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_Lut16Type {
@@ -7032,11 +7034,15 @@ pub struct Icc4_TagTable_TagDefinition_Lut16Type {
     clut_values: RefCell<Vec<u8>>,
     output_tables: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    input_tables_raw: RefCell<Vec<u8>>,
+    clut_values_raw: RefCell<Vec<u8>>,
+    output_tables_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7069,6 +7075,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
         *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels()))).saturating_mul(i32::from(*self_rc.number_of_input_table_entries())))?)?;
         *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))))).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
         *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from(((2_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels()))).saturating_mul(i32::from(*self_rc.number_of_output_table_entries())))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7134,6 +7141,21 @@ impl Icc4_TagTable_TagDefinition_Lut16Type {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_Lut16Type {
+    pub fn input_tables_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.input_tables_raw.borrow()
+    }
+}
+impl Icc4_TagTable_TagDefinition_Lut16Type {
+    pub fn clut_values_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.clut_values_raw.borrow()
+    }
+}
+impl Icc4_TagTable_TagDefinition_Lut16Type {
+    pub fn output_tables_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.output_tables_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_Lut8Type {
@@ -7152,11 +7174,15 @@ pub struct Icc4_TagTable_TagDefinition_Lut8Type {
     clut_values: RefCell<Vec<u8>>,
     output_tables: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    input_tables_raw: RefCell<Vec<u8>>,
+    clut_values_raw: RefCell<Vec<u8>>,
+    output_tables_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7189,6 +7215,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
         *self_rc.input_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_input_channels())))?)?;
         *self_rc.clut_values.borrow_mut() = _io.read_bytes(usize::from((((*self_rc.number_of_clut_grid_points()) ^ (*self_rc.number_of_input_channels()))).saturating_mul(*self_rc.number_of_output_channels())))?;
         *self_rc.output_tables.borrow_mut() = _io.read_bytes(usize::try_from((256_i32).saturating_mul(i32::from(*self_rc.number_of_output_channels())))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7254,6 +7281,21 @@ impl Icc4_TagTable_TagDefinition_Lut8Type {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_Lut8Type {
+    pub fn input_tables_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.input_tables_raw.borrow()
+    }
+}
+impl Icc4_TagTable_TagDefinition_Lut8Type {
+    pub fn clut_values_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.clut_values_raw.borrow()
+    }
+}
+impl Icc4_TagTable_TagDefinition_Lut8Type {
+    pub fn output_tables_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.output_tables_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_LutAToBType {
@@ -7276,6 +7318,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7303,6 +7346,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
         *self_rc.offset_to_clut.borrow_mut() = _io.read_u4be()?;
         *self_rc.offset_to_first_a_curve.borrow_mut() = _io.read_u4be()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7385,6 +7429,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7412,6 +7457,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
         *self_rc.offset_to_clut.borrow_mut() = _io.read_u4be()?;
         *self_rc.offset_to_first_a_curve.borrow_mut() = _io.read_u4be()?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7481,7 +7527,6 @@ pub struct Icc4_TagTable_TagDefinition_MeasurementTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_MeasurementTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
@@ -7493,6 +7538,15 @@ impl From<&Icc4_TagTable_TagDefinition_MeasurementTag_TagData> for OptRc<Icc4_Ta
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_MeasurementTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MeasurementType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MeasurementTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_MeasurementTag_TagData::Icc4_TagTable_TagDefinition_MeasurementType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MeasurementType>> for Icc4_TagTable_TagDefinition_MeasurementTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MeasurementType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MeasurementType(v)
@@ -7502,6 +7556,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7516,14 +7571,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MeasurementType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MeasurementType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MeasurementType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7544,11 +7597,6 @@ impl Icc4_TagTable_TagDefinition_MeasurementTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_MeasurementTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_MeasurementType {
@@ -7567,6 +7615,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MeasurementTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7589,6 +7638,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
         *self_rc.measurement_flare_encoding.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.standard_illuminant_encoding.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7629,7 +7679,7 @@ impl Icc4_TagTable_TagDefinition_MeasurementType {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings {
     ZeroPercent,
     OneHundredPercent,
@@ -7661,7 +7711,7 @@ impl Default for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEnc
     fn default() -> Self { Icc4_TagTable_TagDefinition_MeasurementType_MeasurementFlareEncodings::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings {
     Unknown,
     ZeroDegreesTo45DegreesOr45DegreesToZeroDegrees,
@@ -7696,7 +7746,7 @@ impl Default for Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometry
     fn default() -> Self { Icc4_TagTable_TagDefinition_MeasurementType_MeasurementGeometryEncodings::UnknownVariant(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MeasurementType_StandardObserverEncodings {
     Unknown,
     Cie1931StandardColorimetricObserver,
@@ -7740,7 +7790,6 @@ pub struct Icc4_TagTable_TagDefinition_MediaWhitePointTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
@@ -7752,6 +7801,15 @@ impl From<&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData> for OptRc<Icc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_MediaWhitePointTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
@@ -7761,6 +7819,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7775,14 +7834,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_XyzType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7803,11 +7860,6 @@ impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_MediaWhitePointTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
@@ -7824,6 +7876,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7847,6 +7900,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.records.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -7895,6 +7949,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7910,10 +7965,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
         *self_rc.country_code.borrow_mut() = _io.read_u2be()?;
         *self_rc.string_length.borrow_mut() = _io.read_u4be()?;
         *self_rc.string_offset.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn string_data(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -7972,6 +8029,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7997,6 +8055,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
             self_rc.process_element_positions_table.borrow_mut().push(t);
         }
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8046,7 +8105,6 @@ pub struct Icc4_TagTable_TagDefinition_NamedColor2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
@@ -8058,6 +8116,15 @@ impl From<&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData> for OptRc<Icc4_Ta
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData::Icc4_TagTable_TagDefinition_NamedColor2Type(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>> for Icc4_TagTable_TagDefinition_NamedColor2Tag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_NamedColor2Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_NamedColor2Type(v)
@@ -8067,6 +8134,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8081,14 +8149,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::NamedColor2Type => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_NamedColor2Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8107,11 +8173,6 @@ impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
 impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl Icc4_TagTable_TagDefinition_NamedColor2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
     }
 }
 
@@ -8135,6 +8196,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8153,7 +8215,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         *self_rc.vendor_specific_flag.borrow_mut() = _io.read_u4be()?;
         *self_rc.count_of_named_colours.borrow_mut() = _io.read_u4be()?;
         *self_rc.number_of_device_coordinates_for_each_named_colour.borrow_mut() = _io.read_u4be()?;
-        *self_rc.prefix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.prefix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.prefix_for_each_colour_name_padding.borrow_mut() = Vec::new();
         let l_prefix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.prefix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_prefix_for_each_colour_name_padding {
@@ -8162,7 +8224,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
         if !self_rc.prefix_for_each_colour_name_padding().iter().all(|_x| *_x == vec![0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/seq/5".to_string() }));
         }
-        *self_rc.suffix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.suffix_for_each_colour_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.suffix_for_each_colour_name_padding.borrow_mut() = Vec::new();
         let l_suffix_for_each_colour_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.suffix_for_each_colour_name().len()))?;
         for _i in 0_usize..l_suffix_for_each_colour_name_padding {
@@ -8177,6 +8239,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.named_colour_definitions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8243,11 +8306,13 @@ pub struct Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
     pcs_coordinates: RefCell<Vec<u8>>,
     device_coordinates: RefCell<Vec<u16>>,
     _io: RefCell<BytesReader>,
+    pcs_coordinates_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Type;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8259,7 +8324,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.root_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc.root_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.root_name_padding.borrow_mut() = Vec::new();
         let l_root_name_padding = usize::try_from((32_usize).saturating_sub(self_rc.root_name().len()))?;
         for _i in 0_usize..l_root_name_padding {
@@ -8269,13 +8334,14 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/named_color_2_type/types/named_colour_definition/seq/1".to_string() }));
         }
         *self_rc.pcs_coordinates.borrow_mut() = _io.read_bytes(6_usize)?;
-        if *self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour() > 0 {
+        if ((to_i128(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())) > (to_i128(0))) {
             *self_rc.device_coordinates.borrow_mut() = Vec::new();
             let l_device_coordinates = usize::try_from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.number_of_device_coordinates_for_each_named_colour())?;
             for _i in 0_usize..l_device_coordinates {
                 self_rc.device_coordinates.borrow_mut().push(_io.read_u2be()?);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8306,6 +8372,11 @@ impl Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefinition {
+    pub fn pcs_coordinates_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.pcs_coordinates_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_OutputResponseTag {
@@ -8315,7 +8386,6 @@ pub struct Icc4_TagTable_TagDefinition_OutputResponseTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_OutputResponseTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
@@ -8327,6 +8397,15 @@ impl From<&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData> for OptRc<Icc4
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_OutputResponseTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_OutputResponseTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_OutputResponseTag_TagData::Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>> for Icc4_TagTable_TagDefinition_OutputResponseTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ResponseCurveSet16Type(v)
@@ -8336,6 +8415,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8350,14 +8430,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ResponseCurveSet16Type => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ResponseCurveSet16Type>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8378,11 +8456,6 @@ impl Icc4_TagTable_TagDefinition_OutputResponseTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_OutputResponseTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ParametricCurveType {
@@ -8394,7 +8467,6 @@ pub struct Icc4_TagTable_TagDefinition_ParametricCurveType {
     reserved_2: RefCell<Vec<u8>>,
     parameters: RefCell<Option<Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters>>,
     _io: RefCell<BytesReader>,
-    parameters_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8404,13 +8476,13 @@ pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
     Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC>),
     Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG>),
 }
-impl From<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8418,13 +8490,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8432,13 +8504,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8446,13 +8518,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8460,13 +8532,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObA
         Self::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters::Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG>> for Icc4_TagTable_TagDefinition_ParametricCurveType_Parameters {
@@ -8478,6 +8550,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8500,42 +8573,28 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
         }
         match *self_rc.function_type() {
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::Cie1221996 => {
-                *self_rc.parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let parameters_raw = self_rc.parameters_raw.borrow();
-                let _t_parameters_raw_io = BytesReader::from(parameters_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>(&_t_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie1221996>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.parameters.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::Iec6196621 => {
-                *self_rc.parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let parameters_raw = self_rc.parameters_raw.borrow();
-                let _t_parameters_raw_io = BytesReader::from(parameters_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>(&_t_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec6196621>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.parameters.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::Iec619663 => {
-                *self_rc.parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let parameters_raw = self_rc.parameters_raw.borrow();
-                let _t_parameters_raw_io = BytesReader::from(parameters_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>(&_t_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.parameters.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::YEqualsObAxPlusBCbToPowerOfGPlusC => {
-                *self_rc.parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let parameters_raw = self_rc.parameters_raw.borrow();
-                let _t_parameters_raw_io = BytesReader::from(parameters_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC>(&_t_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsObAxPlusBCbToPowerOfGPlusC>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.parameters.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions::YEqualsXToPowerOfG => {
-                *self_rc.parameters_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let parameters_raw = self_rc.parameters_raw.borrow();
-                let _t_parameters_raw_io = BytesReader::from(parameters_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG>(&_t_parameters_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXToPowerOfG>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.parameters.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8566,12 +8625,7 @@ impl Icc4_TagTable_TagDefinition_ParametricCurveType {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ParametricCurveType {
-    pub fn parameters_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.parameters_raw.borrow()
-    }
-}
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ParametricCurveType_ParametricCurveTypeFunctions {
     YEqualsXToPowerOfG,
     Cie1221996,
@@ -8627,6 +8681,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie122199
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8641,6 +8696,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie122199
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8683,6 +8739,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619662
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8699,6 +8756,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619662
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
         *self_rc.c.borrow_mut() = _io.read_s4be()?;
         *self_rc.d.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8750,6 +8808,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8765,6 +8824,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
         *self_rc.a.borrow_mut() = _io.read_s4be()?;
         *self_rc.b.borrow_mut() = _io.read_s4be()?;
         *self_rc.c.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8814,6 +8874,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsOb
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8832,6 +8893,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsOb
         *self_rc.d.borrow_mut() = _io.read_s4be()?;
         *self_rc.e.borrow_mut() = _io.read_s4be()?;
         *self_rc.f.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8890,6 +8952,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXT
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8902,6 +8965,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXT
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.g.borrow_mut() = _io.read_s4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8926,7 +8990,6 @@ pub struct Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
@@ -8938,6 +9001,15 @@ impl From<&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
@@ -8947,6 +9019,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8961,14 +9034,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_SignatureType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -8989,11 +9060,6 @@ impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_Preview0Tag {
@@ -9003,7 +9069,6 @@ pub struct Icc4_TagTable_TagDefinition_Preview0Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_Preview0Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
@@ -9012,13 +9077,13 @@ pub enum Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutAToBType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutAToBType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
@@ -9026,13 +9091,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutAToBType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutAToBType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
@@ -9040,13 +9105,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
@@ -9054,13 +9119,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview0Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview0Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview0Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview0Tag_TagData {
@@ -9072,6 +9137,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9086,35 +9152,24 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionAToBTableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutAToBType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutAToBType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9135,11 +9190,6 @@ impl Icc4_TagTable_TagDefinition_Preview0Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview0Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_Preview1Tag {
@@ -9149,7 +9199,6 @@ pub struct Icc4_TagTable_TagDefinition_Preview1Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_Preview1Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
@@ -9157,13 +9206,13 @@ pub enum Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
@@ -9171,13 +9220,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
@@ -9185,13 +9234,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview1Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview1Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview1Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview1Tag_TagData {
@@ -9203,6 +9252,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9217,28 +9267,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9259,11 +9301,6 @@ impl Icc4_TagTable_TagDefinition_Preview1Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview1Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_Preview2Tag {
@@ -9273,7 +9310,6 @@ pub struct Icc4_TagTable_TagDefinition_Preview2Tag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_Preview2Tag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
@@ -9281,13 +9317,13 @@ pub enum Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
     Icc4_TagTable_TagDefinition_Lut8Type(OptRc<Icc4_TagTable_TagDefinition_Lut8Type>),
     Icc4_TagTable_TagDefinition_Lut16Type(OptRc<Icc4_TagTable_TagDefinition_Lut16Type>),
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_LutBToAType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_LutBToAType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
@@ -9295,13 +9331,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_LutBToAType>> for Icc4_TagTable_TagD
         Self::Icc4_TagTable_TagDefinition_LutBToAType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut8Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut8Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
@@ -9309,13 +9345,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_Lut8Type>> for Icc4_TagTable_TagDefi
         Self::Icc4_TagTable_TagDefinition_Lut8Type(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_Preview2Tag_TagData> for OptRc<Icc4_TagTable_TagDefinition_Lut16Type> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_Preview2Tag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_Preview2Tag_TagData::Icc4_TagTable_TagDefinition_Lut16Type, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_Lut16Type>> for Icc4_TagTable_TagDefinition_Preview2Tag_TagData {
@@ -9327,6 +9363,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9341,28 +9378,20 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionBToATableType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_LutBToAType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_LutBToAType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithOneBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut8Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut8Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiFunctionTableWithTwoBytePrecisionType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_Lut16Type>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_Lut16Type>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9383,11 +9412,6 @@ impl Icc4_TagTable_TagDefinition_Preview2Tag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_Preview2Tag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
@@ -9397,7 +9421,6 @@ pub struct Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
@@ -9409,6 +9432,15 @@ impl From<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData> for OptRc<
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_ProfileDescriptionTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
@@ -9418,6 +9450,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9432,14 +9465,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9460,11 +9491,6 @@ impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
@@ -9480,6 +9506,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9502,6 +9529,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_descriptions.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9540,11 +9568,13 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescriptio
     description_of_device_manufacturer: RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceMfgDescTag>>,
     description_of_device_model: RefCell<OptRc<Icc4_TagTable_TagDefinition_DeviceModelDescTag>>,
     _io: RefCell<BytesReader>,
+    device_model_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceDescType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9558,7 +9588,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDesc
         let _io = io;
         let t = Self::read_into::<_, Icc4_DeviceManufacturer>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_manufacturer.borrow_mut() = t;
-        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.device_model.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         let t = Self::read_into::<_, Icc4_DeviceAttributes>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.device_attributes.borrow_mut() = t;
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_TechnologyTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
@@ -9567,6 +9597,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDesc
         *self_rc.description_of_device_manufacturer.borrow_mut() = t;
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_DeviceModelDescTag>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.description_of_device_model.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9607,6 +9638,11 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDescription {
+    pub fn device_model_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.device_model_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
@@ -9616,7 +9652,6 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
@@ -9628,6 +9663,15 @@ impl From<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData> for
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>> for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType(v)
@@ -9637,6 +9681,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9651,14 +9696,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceIdentifierType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9679,11 +9722,6 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
@@ -9700,6 +9738,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9728,6 +9767,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
             let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.profile_identifiers.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9767,11 +9807,13 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIden
     profile_id: RefCell<Vec<u8>>,
     profile_description: RefCell<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>>,
     _io: RefCell<BytesReader>,
+    profile_id_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9786,6 +9828,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_Profi
         *self_rc.profile_id.borrow_mut() = _io.read_bytes(16_usize)?;
         let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.profile_description.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9806,6 +9849,11 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_ProfileIdentifier {
+    pub fn profile_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.profile_id_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ProfileSequenceTag {
@@ -9815,7 +9863,6 @@ pub struct Icc4_TagTable_TagDefinition_ProfileSequenceTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
@@ -9827,6 +9874,15 @@ impl From<&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData> for OptRc<Icc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData::Icc4_TagTable_TagDefinition_ProfileSequenceDescType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>> for Icc4_TagTable_TagDefinition_ProfileSequenceTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ProfileSequenceDescType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ProfileSequenceDescType(v)
@@ -9836,6 +9892,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9850,14 +9907,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ProfileSequenceDescType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ProfileSequenceDescType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ProfileSequenceDescType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9878,11 +9933,6 @@ impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ProfileSequenceTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
@@ -9892,7 +9942,6 @@ pub struct Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
@@ -9904,6 +9953,15 @@ impl From<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData> for OptRc<Icc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_XyzType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData::Icc4_TagTable_TagDefinition_XyzType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_XyzType>> for Icc4_TagTable_TagDefinition_RedMatrixColumnTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_XyzType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_XyzType(v)
@@ -9913,6 +9971,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9927,14 +9986,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::XyzType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_XyzType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_XyzType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -9955,11 +10012,6 @@ impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_RedTrcTag {
@@ -9969,20 +10021,19 @@ pub struct Icc4_TagTable_TagDefinition_RedTrcTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_RedTrcTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
     Icc4_TagTable_TagDefinition_CurveType(OptRc<Icc4_TagTable_TagDefinition_CurveType>),
     Icc4_TagTable_TagDefinition_ParametricCurveType(OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>),
 }
-impl From<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_CurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_CurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
@@ -9990,13 +10041,13 @@ impl From<OptRc<Icc4_TagTable_TagDefinition_CurveType>> for Icc4_TagTable_TagDef
         Self::Icc4_TagTable_TagDefinition_CurveType(v)
     }
 }
-impl From<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Self {
+impl TryFrom<&Icc4_TagTable_TagDefinition_RedTrcTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_RedTrcTag_TagData) -> Result<Self, Self::Error> {
         if let Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Icc4_TagTable_TagDefinition_RedTrcTag_TagData::Icc4_TagTable_TagDefinition_ParametricCurveType, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Icc4_TagTable_TagDefinition_ParametricCurveType>> for Icc4_TagTable_TagDefinition_RedTrcTag_TagData {
@@ -10008,6 +10059,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10022,21 +10074,16 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::CurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_CurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_CurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ParametricCurveType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ParametricCurveType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ParametricCurveType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10057,11 +10104,6 @@ impl Icc4_TagTable_TagDefinition_RedTrcTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_RedTrcTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
@@ -10079,6 +10121,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_OutputResponseTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10102,6 +10145,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
             self_rc.response_curve_structure_offsets.borrow_mut().push(_io.read_u4be()?);
         }
         *self_rc.response_curve_structures.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10151,6 +10195,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticAdaptationTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10175,6 +10220,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10204,7 +10250,6 @@ pub struct Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
@@ -10216,6 +10261,15 @@ impl From<&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
@@ -10225,6 +10279,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10239,14 +10294,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_SignatureType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10267,11 +10320,6 @@ impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_SignatureType {
@@ -10281,11 +10329,13 @@ pub struct Icc4_TagTable_TagDefinition_SignatureType {
     reserved: RefCell<Vec<u8>>,
     signature: RefCell<String>,
     _io: RefCell<BytesReader>,
+    signature_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10301,7 +10351,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/signature_type/seq/0".to_string() }));
         }
-        *self_rc.signature.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "UTF-8")?;
+        *self_rc.signature.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10322,6 +10373,11 @@ impl Icc4_TagTable_TagDefinition_SignatureType {
         self._io.borrow()
     }
 }
+impl Icc4_TagTable_TagDefinition_SignatureType {
+    pub fn signature_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signature_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_TechnologyTag {
@@ -10331,7 +10387,6 @@ pub struct Icc4_TagTable_TagDefinition_TechnologyTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_TechnologyTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
@@ -10343,6 +10398,15 @@ impl From<&Icc4_TagTable_TagDefinition_TechnologyTag_TagData> for OptRc<Icc4_Tag
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_TechnologyTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_SignatureType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_TechnologyTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_TechnologyTag_TagData::Icc4_TagTable_TagDefinition_SignatureType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_SignatureType>> for Icc4_TagTable_TagDefinition_TechnologyTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_SignatureType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_SignatureType(v)
@@ -10352,6 +10416,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10366,14 +10431,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::SignatureType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_SignatureType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_SignatureType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10394,11 +10457,6 @@ impl Icc4_TagTable_TagDefinition_TechnologyTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_TechnologyTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_TextType {
@@ -10413,6 +10471,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CharTargetTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10428,7 +10487,8 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/tag_table/types/tag_definition/types/text_type/seq/0".to_string() }));
         }
-        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes_full()?, 0, false), "UTF-8")?;
+        *self_rc.value.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10463,6 +10523,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10487,6 +10548,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10521,6 +10583,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10544,6 +10607,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10578,6 +10642,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10601,6 +10666,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10635,6 +10701,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10658,6 +10725,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10692,6 +10760,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10715,6 +10784,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10744,7 +10814,6 @@ pub struct Icc4_TagTable_TagDefinition_ViewingCondDescTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
@@ -10756,6 +10825,15 @@ impl From<&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData> for OptRc<Icc
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>> for Icc4_TagTable_TagDefinition_ViewingCondDescTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType(v)
@@ -10765,6 +10843,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10779,14 +10858,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::MultiLocalizedUnicodeType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), None)?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType>(&*_io, Some(self_rc._root.clone()), None)?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10807,11 +10884,6 @@ impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ViewingCondDescTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ViewingConditionsTag {
@@ -10821,7 +10893,6 @@ pub struct Icc4_TagTable_TagDefinition_ViewingConditionsTag {
     tag_type: RefCell<Icc4_TagTable_TagDefinition_TagTypeSignatures>,
     tag_data: RefCell<Option<Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData>>,
     _io: RefCell<BytesReader>,
-    tag_data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
@@ -10833,6 +10904,15 @@ impl From<&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData> for OptRc<I
         x.clone()
     }
 }
+impl TryFrom<&Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData> for OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType> {
+    type Error = KError;
+    fn try_from(v: &Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData) -> Result<Self, Self::Error> {
+        if let Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData::Icc4_TagTable_TagDefinition_ViewingConditionsType(x) = v {
+            return Ok(x.clone());
+        }
+        Err(KError::CastError)
+    }
+}
 impl From<OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>> for Icc4_TagTable_TagDefinition_ViewingConditionsTag_TagData {
     fn from(v: OptRc<Icc4_TagTable_TagDefinition_ViewingConditionsType>) -> Self {
         Self::Icc4_TagTable_TagDefinition_ViewingConditionsType(v)
@@ -10842,6 +10922,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10856,14 +10937,12 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
         *self_rc.tag_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.tag_type() {
             Icc4_TagTable_TagDefinition_TagTypeSignatures::ViewingConditionsType => {
-                *self_rc.tag_data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let tag_data_raw = self_rc.tag_data_raw.borrow();
-                let _t_tag_data_raw_io = BytesReader::from(tag_data_raw.clone());
-                let t = Self::read_into::<BytesReader, Icc4_TagTable_TagDefinition_ViewingConditionsType>(&_t_tag_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Icc4_TagTable_TagDefinition_ViewingConditionsType>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_data.borrow_mut() = Some(t);
             }
             _ => {}
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10884,11 +10963,6 @@ impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
         self._io.borrow()
     }
 }
-impl Icc4_TagTable_TagDefinition_ViewingConditionsTag {
-    pub fn tag_data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.tag_data_raw.borrow()
-    }
-}
 
 #[derive(Default, Debug, Clone)]
 pub struct Icc4_TagTable_TagDefinition_ViewingConditionsType {
@@ -10905,6 +10979,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ViewingConditionsTag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10926,6 +11001,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
         *self_rc.un_normalized_ciexyz_values_for_surround.borrow_mut() = t;
         let t = Self::read_into::<_, Icc4_StandardIlluminantEncoding>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.illuminant_type.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -10970,6 +11046,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10994,6 +11071,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -11022,11 +11100,13 @@ pub struct Icc4_U16Fixed16Number {
     pub(crate) _self_shared: SharedType<Self>,
     number: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    number_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_U16Fixed16Number {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_U16Fixed16ArrayType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11039,6 +11119,7 @@ impl KStruct for Icc4_U16Fixed16Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -11052,6 +11133,11 @@ impl Icc4_U16Fixed16Number {
 impl Icc4_U16Fixed16Number {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Icc4_U16Fixed16Number {
+    pub fn number_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.number_raw.borrow()
     }
 }
 
@@ -11062,11 +11148,13 @@ pub struct Icc4_U1Fixed15Number {
     pub(crate) _self_shared: SharedType<Self>,
     number: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    number_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_U1Fixed15Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11079,6 +11167,7 @@ impl KStruct for Icc4_U1Fixed15Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -11092,6 +11181,11 @@ impl Icc4_U1Fixed15Number {
 impl Icc4_U1Fixed15Number {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Icc4_U1Fixed15Number {
+    pub fn number_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.number_raw.borrow()
     }
 }
 
@@ -11102,11 +11196,13 @@ pub struct Icc4_U8Fixed8Number {
     pub(crate) _self_shared: SharedType<Self>,
     number: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    number_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_U8Fixed8Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11119,6 +11215,7 @@ impl KStruct for Icc4_U8Fixed8Number {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.number.borrow_mut() = _io.read_bytes(2_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -11132,6 +11229,11 @@ impl Icc4_U8Fixed8Number {
 impl Icc4_U8Fixed8Number {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Icc4_U8Fixed8Number {
+    pub fn number_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.number_raw.borrow()
     }
 }
 
@@ -11144,11 +11246,15 @@ pub struct Icc4_XyzNumber {
     y: RefCell<Vec<u8>>,
     z: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    x_raw: RefCell<Vec<u8>>,
+    y_raw: RefCell<Vec<u8>>,
+    z_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Icc4_XyzNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11163,6 +11269,7 @@ impl KStruct for Icc4_XyzNumber {
         *self_rc.x.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.y.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.z.borrow_mut() = _io.read_bytes(4_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -11186,5 +11293,20 @@ impl Icc4_XyzNumber {
 impl Icc4_XyzNumber {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Icc4_XyzNumber {
+    pub fn x_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.x_raw.borrow()
+    }
+}
+impl Icc4_XyzNumber {
+    pub fn y_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.y_raw.borrow()
+    }
+}
+impl Icc4_XyzNumber {
+    pub fn z_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.z_raw.borrow()
     }
 }

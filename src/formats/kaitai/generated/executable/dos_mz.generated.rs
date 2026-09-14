@@ -25,6 +25,7 @@ pub struct DosMz {
     header: RefCell<OptRc<DosMz_ExeHeader>>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
     f_relocations: Cell<bool>,
     relocations: RefCell<Vec<OptRc<DosMz_Relocation>>>,
 }
@@ -32,6 +33,7 @@ impl KStruct for DosMz {
     type Root = DosMz;
     type Parent = DosMz;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -46,10 +48,12 @@ impl KStruct for DosMz {
         let t = Self::read_into::<_, DosMz_ExeHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.header().len_body()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DosMz {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn relocations(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<DosMz_Relocation>>>> {
@@ -58,7 +62,7 @@ impl DosMz {
             return Ok(self.relocations.borrow());
         }
         self.f_relocations.set(true);
-        if *self.header().mz().ofs_relocations() != 0 {
+        if ((to_i128(*self.header().mz().ofs_relocations())) != (to_i128(0))) {
             let io = KStream::clone(&*self.header()._io());
             let _pos = io.pos();
             io.seek(usize::from(*self.header().mz().ofs_relocations()))?;
@@ -88,6 +92,11 @@ impl DosMz {
         self._io.borrow()
     }
 }
+impl DosMz {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DosMz_ExeHeader {
@@ -97,6 +106,7 @@ pub struct DosMz_ExeHeader {
     mz: RefCell<OptRc<DosMz_MzHeader>>,
     rest_of_header: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    rest_of_header_raw: RefCell<Vec<u8>>,
     f_len_body: Cell<bool>,
     len_body: RefCell<i32>,
 }
@@ -104,6 +114,7 @@ impl KStruct for DosMz_ExeHeader {
     type Root = DosMz;
     type Parent = DosMz;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,11 +128,13 @@ impl KStruct for DosMz_ExeHeader {
         let _io = io;
         let t = Self::read_into::<_, DosMz_MzHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.mz.borrow_mut() = t;
-        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.mz().len_header()?).saturating_sub(0_i32))?)?;
+        *self_rc.rest_of_header.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.mz().len_header()?).saturating_sub(28_i32))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DosMz_ExeHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_body(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -130,7 +143,7 @@ impl DosMz_ExeHeader {
             return Ok(self.len_body.borrow());
         }
         self.f_len_body.set(true);
-        *self.len_body.borrow_mut() = ((if *self.mz().last_page_extra_bytes() == 0 { (i32::from(*self.mz().num_pages())).saturating_mul(512_i32) } else { (((i32::from(*self.mz().num_pages())).saturating_sub(1_i32)).saturating_mul(512_i32)).saturating_add(i32::from(*self.mz().last_page_extra_bytes())) }).saturating_sub(*self.mz().len_header()?)).try_into()?;
+        *self.len_body.borrow_mut() = ((if ((to_i128(*self.mz().last_page_extra_bytes())) == (to_i128(0))) { (i32::from(*self.mz().num_pages())).saturating_mul(512_i32) } else { (((i32::from(*self.mz().num_pages())).saturating_sub(1_i32)).saturating_mul(512_i32)).saturating_add(i32::from(*self.mz().last_page_extra_bytes())) }).saturating_sub(*self.mz().len_header()?)).try_into()?;
         Ok(self.len_body.borrow())
     }
 }
@@ -147,6 +160,11 @@ impl DosMz_ExeHeader {
 impl DosMz_ExeHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DosMz_ExeHeader {
+    pub fn rest_of_header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.rest_of_header_raw.borrow()
     }
 }
 
@@ -170,6 +188,7 @@ pub struct DosMz_MzHeader {
     ofs_relocations: RefCell<u16>,
     overlay_id: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
     f_len_header: Cell<bool>,
     len_header: RefCell<i32>,
 }
@@ -177,6 +196,7 @@ impl KStruct for DosMz_MzHeader {
     type Root = DosMz;
     type Parent = DosMz_ExeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -188,7 +208,11 @@ impl KStruct for DosMz_MzHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "UTF-8")?;
+        *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
+        let _item = &*self_rc.magic();
+        if !(_item == "MZ" || _item == "ZM") {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/mz_header/seq/0".to_string() }));
+        }
         *self_rc.last_page_extra_bytes.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_pages.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_relocations.borrow_mut() = _io.read_u2le()?;
@@ -202,10 +226,12 @@ impl KStruct for DosMz_MzHeader {
         *self_rc.initial_cs.borrow_mut() = _io.read_u2le()?;
         *self_rc.ofs_relocations.borrow_mut() = _io.read_u2le()?;
         *self_rc.overlay_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl DosMz_MzHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_header(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -293,6 +319,11 @@ impl DosMz_MzHeader {
         self._io.borrow()
     }
 }
+impl DosMz_MzHeader {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct DosMz_Relocation {
@@ -307,6 +338,7 @@ impl KStruct for DosMz_Relocation {
     type Root = DosMz;
     type Parent = DosMz;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -320,6 +352,7 @@ impl KStruct for DosMz_Relocation {
         let _io = io;
         *self_rc.ofs.borrow_mut() = _io.read_u2le()?;
         *self_rc.seg.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -33,6 +33,7 @@ impl KStruct for MozillaMar {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -64,10 +65,12 @@ impl KStruct for MozillaMar {
             let t = Self::read_into::<_, MozillaMar_AdditionalSection>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.additional_sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MozillaMar {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<MozillaMar_MarIndex>>> {
@@ -123,7 +126,7 @@ impl MozillaMar {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MozillaMar_BlockIdentifiers {
     ProductInformation,
     Unknown(i64),
@@ -152,7 +155,7 @@ impl Default for MozillaMar_BlockIdentifiers {
     fn default() -> Self { MozillaMar_BlockIdentifiers::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MozillaMar_SignatureAlgorithms {
     RsaPkcs1Sha1,
     RsaPkcs1Sha384,
@@ -201,13 +204,13 @@ pub enum MozillaMar_AdditionalSection_Bytes {
     MozillaMar_ProductInformationBlock(OptRc<MozillaMar_ProductInformationBlock>),
     Bytes(Vec<u8>),
 }
-impl From<&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &MozillaMar_AdditionalSection_Bytes) -> Self {
+impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for OptRc<MozillaMar_ProductInformationBlock> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
         if let MozillaMar_AdditionalSection_Bytes::MozillaMar_ProductInformationBlock(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected MozillaMar_AdditionalSection_Bytes::MozillaMar_ProductInformationBlock, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<MozillaMar_ProductInformationBlock>> for MozillaMar_AdditionalSection_Bytes {
@@ -215,13 +218,13 @@ impl From<OptRc<MozillaMar_ProductInformationBlock>> for MozillaMar_AdditionalSe
         Self::MozillaMar_ProductInformationBlock(v)
     }
 }
-impl From<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &MozillaMar_AdditionalSection_Bytes) -> Self {
+impl TryFrom<&MozillaMar_AdditionalSection_Bytes> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &MozillaMar_AdditionalSection_Bytes) -> Result<Self, Self::Error> {
         if let MozillaMar_AdditionalSection_Bytes::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected MozillaMar_AdditionalSection_Bytes::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for MozillaMar_AdditionalSection_Bytes {
@@ -233,6 +236,7 @@ impl KStruct for MozillaMar_AdditionalSection {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -248,7 +252,7 @@ impl KStruct for MozillaMar_AdditionalSection {
         *self_rc.block_identifier.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         match *self_rc.block_identifier() {
             MozillaMar_BlockIdentifiers::ProductInformation => {
-                *self_rc.bytes_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.bytes_raw.borrow_mut() = _io.read_bytes(usize::try_from(((*self_rc.len_block()).saturating_sub(u32::try_from(4_i32)?)).saturating_sub(u32::try_from(4_i32)?))?)?.into();
                 let bytes_raw = self_rc.bytes_raw.borrow();
                 let _t_bytes_raw_io = BytesReader::from(bytes_raw.clone());
                 let t = Self::read_into::<BytesReader, MozillaMar_ProductInformationBlock>(&_t_bytes_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -258,6 +262,7 @@ impl KStruct for MozillaMar_AdditionalSection {
                 *self_rc.bytes.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -301,6 +306,7 @@ impl KStruct for MozillaMar_IndexEntries {
     type Root = MozillaMar;
     type Parent = MozillaMar_MarIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,6 +327,7 @@ impl KStruct for MozillaMar_IndexEntries {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -354,6 +361,7 @@ impl KStruct for MozillaMar_IndexEntry {
     type Root = MozillaMar;
     type Parent = MozillaMar_IndexEntries;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -369,10 +377,12 @@ impl KStruct for MozillaMar_IndexEntry {
         *self_rc.len_content.borrow_mut() = _io.read_u4be()?;
         *self_rc.flags.borrow_mut() = _io.read_u4be()?;
         *self_rc.file_name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl MozillaMar_IndexEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -427,11 +437,13 @@ pub struct MozillaMar_MarIndex {
     len_index: RefCell<u32>,
     index_entries: RefCell<OptRc<MozillaMar_IndexEntries>>,
     _io: RefCell<BytesReader>,
+    index_entries_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MozillaMar_MarIndex {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -444,8 +456,12 @@ impl KStruct for MozillaMar_MarIndex {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_index.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, MozillaMar_IndexEntries>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_index_entries = _io.read_bytes(usize::try_from(*self_rc.len_index())?)?;
+        *self_rc.index_entries_raw.borrow_mut() = _raw_index_entries.clone();
+        let _io_index_entries = BytesReader::from(_raw_index_entries);
+        let t = Self::read_into::<BytesReader, MozillaMar_IndexEntries>(&_io_index_entries, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.index_entries.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -466,6 +482,11 @@ impl MozillaMar_MarIndex {
         self._io.borrow()
     }
 }
+impl MozillaMar_MarIndex {
+    pub fn index_entries_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.index_entries_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MozillaMar_ProductInformationBlock {
@@ -475,11 +496,14 @@ pub struct MozillaMar_ProductInformationBlock {
     mar_channel_name: RefCell<String>,
     product_version: RefCell<String>,
     _io: RefCell<BytesReader>,
+    mar_channel_name_raw: RefCell<Vec<u8>>,
+    product_version_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MozillaMar_ProductInformationBlock {
     type Root = MozillaMar;
     type Parent = MozillaMar_AdditionalSection;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -491,8 +515,9 @@ impl KStruct for MozillaMar_ProductInformationBlock {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
-        *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(32_usize)?, 0, false), "UTF-8")?;
+        *self_rc.mar_channel_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc.product_version.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -513,6 +538,16 @@ impl MozillaMar_ProductInformationBlock {
         self._io.borrow()
     }
 }
+impl MozillaMar_ProductInformationBlock {
+    pub fn mar_channel_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.mar_channel_name_raw.borrow()
+    }
+}
+impl MozillaMar_ProductInformationBlock {
+    pub fn product_version_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.product_version_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MozillaMar_Signature {
@@ -523,11 +558,13 @@ pub struct MozillaMar_Signature {
     len_signature: RefCell<u32>,
     signature: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    signature_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MozillaMar_Signature {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -542,6 +579,7 @@ impl KStruct for MozillaMar_Signature {
         *self_rc.algorithm.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.len_signature.borrow_mut() = _io.read_u4be()?;
         *self_rc.signature.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -565,5 +603,10 @@ impl MozillaMar_Signature {
 impl MozillaMar_Signature {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl MozillaMar_Signature {
+    pub fn signature_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signature_raw.borrow()
     }
 }

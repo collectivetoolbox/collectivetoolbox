@@ -27,6 +27,7 @@ pub struct GimpBrush {
     len_header: RefCell<u32>,
     header: RefCell<OptRc<GimpBrush_Header>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
     f_len_body: Cell<bool>,
@@ -36,6 +37,7 @@ impl KStruct for GimpBrush {
     type Root = GimpBrush;
     type Parent = GimpBrush;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -48,12 +50,17 @@ impl KStruct for GimpBrush {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_header.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, GimpBrush_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(usize::try_from((*self_rc.len_header()).saturating_sub(u32::try_from(4_i32)?))?)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, GimpBrush_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GimpBrush {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -68,6 +75,7 @@ impl GimpBrush {
         _io.seek(_pos)?;
         Ok(self.body.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_body(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -95,7 +103,12 @@ impl GimpBrush {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl GimpBrush {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum GimpBrush_ColorDepth {
     Grayscale,
     Rgba,
@@ -140,6 +153,7 @@ impl KStruct for GimpBrush_Bitmap {
     type Root = GimpBrush;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -157,6 +171,7 @@ impl KStruct for GimpBrush_Bitmap {
             let t = Self::read_into::<_, GimpBrush_Row>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.rows.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -191,6 +206,7 @@ impl KStruct for GimpBrush_Header {
     type Root = GimpBrush;
     type Parent = GimpBrush;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -208,14 +224,31 @@ impl KStruct for GimpBrush_Header {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/0".to_string() }));
         }
         *self_rc.width.borrow_mut() = _io.read_u4be()?;
+        let min_val: u32 = (1).try_into()?;
+        let max_val: u32 = (10000).try_into()?;
+        if !(*self_rc.width() >= min_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/header/seq/1".to_string() }));
+        }
+        if !(*self_rc.width() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/header/seq/1".to_string() }));
+        }
         *self_rc.height.borrow_mut() = _io.read_u4be()?;
+        let min_val: u32 = (1).try_into()?;
+        let max_val: u32 = (10000).try_into()?;
+        if !(*self_rc.height() >= min_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/header/seq/2".to_string() }));
+        }
+        if !(*self_rc.height() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/header/seq/2".to_string() }));
+        }
         *self_rc.bytes_per_pixel.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x49u8, 0x4du8, 0x50u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/4".to_string() }));
         }
         *self_rc.spacing.borrow_mut() = _io.read_u4be()?;
-        *self_rc.brush_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes_full()?, 0, false), "UTF-8")?;
+        *self_rc.brush_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes_full()?, Some(0), false, None), "UTF-8")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -289,13 +322,13 @@ pub enum GimpBrush_Row_Pixels {
     GimpBrush_Row_PixelGray(OptRc<GimpBrush_Row_PixelGray>),
     GimpBrush_Row_PixelRgba(OptRc<GimpBrush_Row_PixelRgba>),
 }
-impl From<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelGray> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &GimpBrush_Row_Pixels) -> Self {
+impl TryFrom<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelGray> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Row_Pixels) -> Result<Self, Self::Error> {
         if let GimpBrush_Row_Pixels::GimpBrush_Row_PixelGray(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected GimpBrush_Row_Pixels::GimpBrush_Row_PixelGray, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<GimpBrush_Row_PixelGray>> for GimpBrush_Row_Pixels {
@@ -303,13 +336,13 @@ impl From<OptRc<GimpBrush_Row_PixelGray>> for GimpBrush_Row_Pixels {
         Self::GimpBrush_Row_PixelGray(v)
     }
 }
-impl From<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelRgba> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &GimpBrush_Row_Pixels) -> Self {
+impl TryFrom<&GimpBrush_Row_Pixels> for OptRc<GimpBrush_Row_PixelRgba> {
+    type Error = KError;
+    fn try_from(v: &GimpBrush_Row_Pixels) -> Result<Self, Self::Error> {
         if let GimpBrush_Row_Pixels::GimpBrush_Row_PixelRgba(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected GimpBrush_Row_Pixels::GimpBrush_Row_PixelRgba, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<GimpBrush_Row_PixelRgba>> for GimpBrush_Row_Pixels {
@@ -321,6 +354,7 @@ impl KStruct for GimpBrush_Row {
     type Root = GimpBrush;
     type Parent = GimpBrush_Bitmap;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -337,20 +371,17 @@ impl KStruct for GimpBrush_Row {
         for _i in 0_usize..l_pixels {
             match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().bytes_per_pixel() {
                 GimpBrush_ColorDepth::Grayscale => {
-                    let _t_pixels_raw = _io.read_bytes_full()?;
-                    let _t_pixels_raw_io = BytesReader::from(_t_pixels_raw);
-                    let t = Self::read_into::<BytesReader, GimpBrush_Row_PixelGray>(&_t_pixels_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, GimpBrush_Row_PixelGray>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.pixels.borrow_mut().push(t);
                 }
                 GimpBrush_ColorDepth::Rgba => {
-                    let _t_pixels_raw = _io.read_bytes_full()?;
-                    let _t_pixels_raw_io = BytesReader::from(_t_pixels_raw);
-                    let t = Self::read_into::<BytesReader, GimpBrush_Row_PixelRgba>(&_t_pixels_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, GimpBrush_Row_PixelRgba>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.pixels.borrow_mut().push(t);
                 }
                 _ => {}
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -387,6 +418,7 @@ impl KStruct for GimpBrush_Row_PixelGray {
     type Root = GimpBrush;
     type Parent = GimpBrush_Row;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -399,10 +431,12 @@ impl KStruct for GimpBrush_Row_PixelGray {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.gray.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl GimpBrush_Row_PixelGray {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn alpha(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -414,6 +448,7 @@ impl GimpBrush_Row_PixelGray {
         *self.alpha.borrow_mut() = (*self.gray()).try_into()?;
         Ok(self.alpha.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn blue(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -425,6 +460,7 @@ impl GimpBrush_Row_PixelGray {
         *self.blue.borrow_mut() = (0).try_into()?;
         Ok(self.blue.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn green(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -436,6 +472,7 @@ impl GimpBrush_Row_PixelGray {
         *self.green.borrow_mut() = (0).try_into()?;
         Ok(self.green.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn red(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -474,6 +511,7 @@ impl KStruct for GimpBrush_Row_PixelRgba {
     type Root = GimpBrush;
     type Parent = GimpBrush_Row;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -489,6 +527,7 @@ impl KStruct for GimpBrush_Row_PixelRgba {
         *self_rc.green.borrow_mut() = _io.read_u1()?;
         *self_rc.blue.borrow_mut() = _io.read_u1()?;
         *self_rc.alpha.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

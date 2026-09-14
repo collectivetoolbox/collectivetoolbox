@@ -30,6 +30,8 @@ pub struct Tga {
     image_id: RefCell<Vec<u8>>,
     color_map: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    image_id_raw: RefCell<Vec<u8>>,
+    color_map_raw: RefCell<Vec<u8>>,
     f_footer: Cell<bool>,
     footer: RefCell<OptRc<Tga_TgaFooter>>,
 }
@@ -37,6 +39,7 @@ impl KStruct for Tga {
     type Root = Tga;
     type Parent = Tga;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -65,13 +68,15 @@ impl KStruct for Tga {
             *self_rc.color_map.borrow_mut() = Vec::new();
             let l_color_map = usize::from(*self_rc.num_color_map());
             for _i in 0_usize..l_color_map {
-                self_rc.color_map.borrow_mut().push(_io.read_bytes(usize::try_from(((i32::from(*self_rc.color_map_depth())).saturating_add(7_i32)).checked_div(8_i32).ok_or(KError::CastError)?)?)?);
+                self_rc.color_map.borrow_mut().push(_io.read_bytes(usize::try_from(div_floor(i64::from((i32::from(*self_rc.color_map_depth())).saturating_add(7_i32)), 8_i64)?)?)?);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Tga {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn footer(
         &self
     ) -> KResult<Ref<'_, OptRc<Tga_TgaFooter>>> {
@@ -80,7 +85,7 @@ impl Tga {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((_io.size()).saturating_sub(26_usize))?)?;
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(26_i32))?)?;
         let t = Self::read_into::<_, Tga_TgaFooter>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -187,7 +192,17 @@ impl Tga {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Tga {
+    pub fn image_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.image_id_raw.borrow()
+    }
+}
+impl Tga {
+    pub fn color_map_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.color_map_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Tga_ColorMapEnum {
     NoColorMap,
     HasColorMap,
@@ -219,7 +234,7 @@ impl Default for Tga_ColorMapEnum {
     fn default() -> Self { Tga_ColorMapEnum::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Tga_ImageTypeEnum {
     NoImageData,
     UncompColorMapped,
@@ -288,11 +303,19 @@ pub struct Tga_TgaExtArea {
     scan_line_ofs: RefCell<u32>,
     attributes: RefCell<u8>,
     _io: RefCell<BytesReader>,
+    author_name_raw: RefCell<Vec<u8>>,
+    comments_raw: RefCell<Vec<u8>>,
+    timestamp_raw: RefCell<Vec<u8>>,
+    job_id_raw: RefCell<Vec<u8>>,
+    job_time_raw: RefCell<Vec<u8>>,
+    software_id_raw: RefCell<Vec<u8>>,
+    software_version_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Tga_TgaExtArea {
     type Root = Tga;
     type Parent = Tga_TgaFooter;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -305,16 +328,16 @@ impl KStruct for Tga_TgaExtArea {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ext_area_size.borrow_mut() = _io.read_u2le()?;
-        *self_rc.author_name.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "UTF-8")?;
+        *self_rc.author_name.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
         *self_rc.comments.borrow_mut() = Vec::new();
         let l_comments = 4_usize;
         for _i in 0_usize..l_comments {
-            self_rc.comments.borrow_mut().push(bytes_to_str(&_io.read_bytes(81_usize)?, "UTF-8")?);
+            self_rc.comments.borrow_mut().push(bytes_to_str(&_io.read_bytes(81_usize)?, "ASCII")?);
         }
         *self_rc.timestamp.borrow_mut() = _io.read_bytes(12_usize)?;
-        *self_rc.job_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "UTF-8")?;
-        *self_rc.job_time.borrow_mut() = bytes_to_str(&_io.read_bytes(6_usize)?, "UTF-8")?;
-        *self_rc.software_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "UTF-8")?;
+        *self_rc.job_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
+        *self_rc.job_time.borrow_mut() = bytes_to_str(&_io.read_bytes(6_usize)?, "ASCII")?;
+        *self_rc.software_id.borrow_mut() = bytes_to_str(&_io.read_bytes(41_usize)?, "ASCII")?;
         *self_rc.software_version.borrow_mut() = _io.read_bytes(3_usize)?;
         *self_rc.key_color.borrow_mut() = _io.read_u4le()?;
         *self_rc.pixel_aspect_ratio.borrow_mut() = _io.read_u4le()?;
@@ -323,6 +346,7 @@ impl KStruct for Tga_TgaExtArea {
         *self_rc.postage_stamp_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.scan_line_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.attributes.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -448,6 +472,41 @@ impl Tga_TgaExtArea {
         self._io.borrow()
     }
 }
+impl Tga_TgaExtArea {
+    pub fn author_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.author_name_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn comments_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.comments_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn timestamp_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.timestamp_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn job_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.job_id_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn job_time_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.job_time_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn software_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.software_id_raw.borrow()
+    }
+}
+impl Tga_TgaExtArea {
+    pub fn software_version_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.software_version_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Tga_TgaFooter {
@@ -458,6 +517,7 @@ pub struct Tga_TgaFooter {
     dev_dir_ofs: RefCell<u32>,
     version_magic: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    version_magic_raw: RefCell<Vec<u8>>,
     f_ext_area: Cell<bool>,
     ext_area: RefCell<OptRc<Tga_TgaExtArea>>,
     f_is_valid: Cell<bool>,
@@ -467,6 +527,7 @@ impl KStruct for Tga_TgaFooter {
     type Root = Tga;
     type Parent = Tga;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -481,10 +542,12 @@ impl KStruct for Tga_TgaFooter {
         *self_rc.ext_area_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.dev_dir_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.version_magic.borrow_mut() = _io.read_bytes(18_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Tga_TgaFooter {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ext_area(
         &self
     ) -> KResult<Ref<'_, OptRc<Tga_TgaExtArea>>> {
@@ -501,6 +564,7 @@ impl Tga_TgaFooter {
         }
         Ok(self.ext_area.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_valid(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -539,5 +603,10 @@ impl Tga_TgaFooter {
 impl Tga_TgaFooter {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Tga_TgaFooter {
+    pub fn version_magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.version_magic_raw.borrow()
     }
 }

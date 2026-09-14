@@ -29,11 +29,13 @@ pub struct GenmidiOp2 {
     instruments: RefCell<Vec<OptRc<GenmidiOp2_InstrumentEntry>>>,
     instrument_names: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+    instrument_names_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for GenmidiOp2 {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -58,8 +60,9 @@ impl KStruct for GenmidiOp2 {
         *self_rc.instrument_names.borrow_mut() = Vec::new();
         let l_instrument_names = 175_usize;
         for _i in 0_usize..l_instrument_names {
-            self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(32_usize)?, 0), 0, false), "UTF-8")?);
+            self_rc.instrument_names.borrow_mut().push(bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(32_usize)?, Some(0), false, Some(0)), "ASCII")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -85,6 +88,11 @@ impl GenmidiOp2 {
         self._io.borrow()
     }
 }
+impl GenmidiOp2 {
+    pub fn instrument_names_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.instrument_names_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct GenmidiOp2_Instrument {
@@ -102,6 +110,7 @@ impl KStruct for GenmidiOp2_Instrument {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2_InstrumentEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,6 +129,7 @@ impl KStruct for GenmidiOp2_Instrument {
         *self_rc.op2.borrow_mut() = t;
         *self_rc.unused.borrow_mut() = _io.read_u1()?;
         *self_rc.base_note.borrow_mut() = _io.read_s2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -179,6 +189,7 @@ impl KStruct for GenmidiOp2_InstrumentEntry {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -199,6 +210,7 @@ impl KStruct for GenmidiOp2_InstrumentEntry {
             let t = Self::read_into::<_, GenmidiOp2_Instrument>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.instruments.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -255,6 +267,7 @@ impl KStruct for GenmidiOp2_OpSettings {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2_Instrument;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -272,6 +285,7 @@ impl KStruct for GenmidiOp2_OpSettings {
         *self_rc.wave.borrow_mut() = _io.read_u1()?;
         *self_rc.scale.borrow_mut() = _io.read_u1()?;
         *self_rc.level.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

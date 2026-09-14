@@ -28,11 +28,13 @@ pub struct AndroidSparse {
     header: RefCell<OptRc<AndroidSparse_FileHeader>>,
     chunks: RefCell<Vec<OptRc<AndroidSparse_Chunk>>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidSparse {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -46,7 +48,10 @@ impl KStruct for AndroidSparse {
         let _io = io;
         let t = Self::read_into::<_, AndroidSparse_FileHeaderPrefix>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header_prefix.borrow_mut() = t;
-        let t = Self::read_into::<_, AndroidSparse_FileHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(usize::try_from((i32::from(*self_rc.header_prefix().len_header())).saturating_sub(10_i32))?)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, AndroidSparse_FileHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         *self_rc.chunks.borrow_mut() = Vec::new();
         let l_chunks = usize::try_from(*self_rc.header().num_chunks())?;
@@ -54,6 +59,7 @@ impl KStruct for AndroidSparse {
             let t = Self::read_into::<_, AndroidSparse_Chunk>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.chunks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -83,7 +89,12 @@ impl AndroidSparse {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl AndroidSparse {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum AndroidSparse_ChunkTypes {
     Raw,
     Fill,
@@ -130,6 +141,7 @@ pub struct AndroidSparse_Chunk {
     header: RefCell<OptRc<AndroidSparse_Chunk_ChunkHeader>>,
     body: RefCell<Option<AndroidSparse_Chunk_Body>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
     body_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
@@ -137,13 +149,13 @@ pub enum AndroidSparse_Chunk_Body {
     U4(u32),
     Bytes(Vec<u8>),
 }
-impl From<&AndroidSparse_Chunk_Body> for u32 {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSparse_Chunk_Body) -> Self {
+impl TryFrom<&AndroidSparse_Chunk_Body> for u32 {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_Chunk_Body) -> Result<Self, Self::Error> {
         if let AndroidSparse_Chunk_Body::U4(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSparse_Chunk_Body::U4, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<u32> for AndroidSparse_Chunk_Body {
@@ -151,13 +163,13 @@ impl From<u32> for AndroidSparse_Chunk_Body {
         Self::U4(v)
     }
 }
-impl From<&AndroidSparse_Chunk_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &AndroidSparse_Chunk_Body) -> Self {
+impl TryFrom<&AndroidSparse_Chunk_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &AndroidSparse_Chunk_Body) -> Result<Self, Self::Error> {
         if let AndroidSparse_Chunk_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected AndroidSparse_Chunk_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for AndroidSparse_Chunk_Body {
@@ -169,6 +181,7 @@ impl KStruct for AndroidSparse_Chunk {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -180,7 +193,10 @@ impl KStruct for AndroidSparse_Chunk {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, AndroidSparse_Chunk_ChunkHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header()))?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, AndroidSparse_Chunk_ChunkHeader>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         match *self_rc.header().chunk_type() {
             AndroidSparse_ChunkTypes::Crc32 => {
@@ -190,6 +206,7 @@ impl KStruct for AndroidSparse_Chunk {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -208,6 +225,11 @@ impl AndroidSparse_Chunk {
 impl AndroidSparse_Chunk {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AndroidSparse_Chunk {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
     }
 }
 impl AndroidSparse_Chunk {
@@ -235,6 +257,7 @@ impl KStruct for AndroidSparse_Chunk_ChunkHeader {
     type Root = AndroidSparse;
     type Parent = AndroidSparse_Chunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -250,14 +273,16 @@ impl KStruct for AndroidSparse_Chunk_ChunkHeader {
         *self_rc.reserved1.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_body_blocks.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_chunk.borrow_mut() = _io.read_u4le()?;
-        let expected: u32 = (if *self_rc.len_body_expected()? != (0_i32).saturating_sub(1) { u32::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header())).saturating_add(*self_rc.len_body_expected()?))? } else { *self_rc.len_chunk() }).try_into()?;
+        let expected: u32 = (if *self_rc.len_body_expected()? != (0_i32).saturating_sub(to_i32(1)) { u32::try_from((i32::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().len_chunk_header())).saturating_add(*self_rc.len_body_expected()?))? } else { *self_rc.len_chunk() }).try_into()?;
         if !(*self_rc.len_chunk() == expected) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/chunk/types/chunk_header/seq/3".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidSparse_Chunk_ChunkHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_body(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -276,6 +301,7 @@ impl AndroidSparse_Chunk_ChunkHeader {
      * \sa <https://android.googlesource.com/platform/system/core/+/e8d02c50d7/libsparse/sparse_read.cpp#249> Source
      * \sa <https://android.googlesource.com/platform/system/core/+/e8d02c50d7/libsparse/sparse_read.cpp#270> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_body_expected(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -284,7 +310,7 @@ impl AndroidSparse_Chunk_ChunkHeader {
             return Ok(self.len_body_expected.borrow());
         }
         self.f_len_body_expected.set(true);
-        *self.len_body_expected.borrow_mut() = (if *self.chunk_type() == AndroidSparse_ChunkTypes::Raw { (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().block_size()).saturating_mul(*self.num_body_blocks()) } else { u32::try_from(if *self.chunk_type() == AndroidSparse_ChunkTypes::Fill { 4_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::DontCare { 0_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::Crc32 { 4_i32 } else { (0_i32).saturating_sub(1) } } })? }).try_into()?;
+        *self.len_body_expected.borrow_mut() = (if *self.chunk_type() == AndroidSparse_ChunkTypes::Raw { (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header().block_size()).saturating_mul(*self.num_body_blocks()) } else { u32::try_from(if *self.chunk_type() == AndroidSparse_ChunkTypes::Fill { 4_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::DontCare { 0_i32 } else { if *self.chunk_type() == AndroidSparse_ChunkTypes::Crc32 { 4_i32 } else { (0_i32).saturating_sub(to_i32(1)) } } })? }).try_into()?;
         Ok(self.len_body_expected.borrow())
     }
 }
@@ -342,6 +368,7 @@ impl KStruct for AndroidSparse_FileHeader {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -355,13 +382,15 @@ impl KStruct for AndroidSparse_FileHeader {
         let _io = io;
         *self_rc.len_chunk_header.borrow_mut() = _io.read_u2le()?;
         *self_rc.block_size.borrow_mut() = _io.read_u4le()?;
-        let _tmpa = *self_rc.block_size();
+        let _borrowed = self_rc.block_size();
+        let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/file_header/seq/1".to_string() }));
         }
         *self_rc.num_blocks.borrow_mut() = _io.read_u4le()?;
         *self_rc.num_chunks.borrow_mut() = _io.read_u4le()?;
         *self_rc.checksum.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -370,6 +399,7 @@ impl AndroidSparse_FileHeader {
     /**
      * size of file header, should be 28
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_header(
         &self
     ) -> KResult<Ref<'_, u16>> {
@@ -381,6 +411,7 @@ impl AndroidSparse_FileHeader {
         *self.len_header.borrow_mut() = (*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header_prefix().len_header()).try_into()?;
         Ok(self.len_header.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn version(
         &self
     ) -> KResult<Ref<'_, OptRc<AndroidSparse_Version>>> {
@@ -458,6 +489,7 @@ impl KStruct for AndroidSparse_FileHeaderPrefix {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -476,6 +508,7 @@ impl KStruct for AndroidSparse_FileHeaderPrefix {
         let t = Self::read_into::<_, AndroidSparse_Version>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.version.borrow_mut() = t;
         *self_rc.len_header.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -523,6 +556,7 @@ impl KStruct for AndroidSparse_Version {
     type Root = AndroidSparse;
     type Parent = AndroidSparse_FileHeaderPrefix;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -540,6 +574,7 @@ impl KStruct for AndroidSparse_Version {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/version/seq/0".to_string() }));
         }
         *self_rc.minor.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -30,6 +30,9 @@ pub struct Rpm {
     unnamed5: RefCell<Vec<u8>>,
     signature_tags_steps: RefCell<Vec<OptRc<Rpm_SignatureTagsStep>>>,
     _io: RefCell<BytesReader>,
+    signature_padding_raw: RefCell<Vec<u8>>,
+    unnamed3_raw: RefCell<Vec<u8>>,
+    unnamed5_raw: RefCell<Vec<u8>>,
     f_has_signature_size_tag: Cell<bool>,
     has_signature_size_tag: RefCell<bool>,
     f_len_header: Cell<bool>,
@@ -49,6 +52,7 @@ impl KStruct for Rpm {
     type Root = Rpm;
     type Parent = Rpm;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -78,14 +82,16 @@ impl KStruct for Rpm {
         *self_rc.signature_tags_steps.borrow_mut() = Vec::new();
         let l_signature_tags_steps = usize::try_from(*self_rc.signature().header_record().num_index_records())?;
         for _i in 0_usize..l_signature_tags_steps {
-            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if _i < 1 { (0_i32).saturating_sub(1) } else { *self_rc.signature_tags_steps().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
+            let f = |t : &mut Rpm_SignatureTagsStep| Ok(t.set_params((_i).try_into().map_err(|_| KError::CastError)?, (if ((to_i128(_i)) < (to_i128(1))) { (0_i32).saturating_sub(to_i32(1)) } else { *self_rc.signature_tags_steps().get((_i).saturating_sub(1_usize)).ok_or(KError::CastError)?.size_tag_idx()? }).try_into().map_err(|_| KError::CastError)?));
             let t = Self::read_into_with_init::<_, Rpm_SignatureTagsStep>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
             self_rc.signature_tags_steps.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Rpm {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_signature_size_tag(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -94,9 +100,10 @@ impl Rpm {
             return Ok(self.has_signature_size_tag.borrow());
         }
         self.f_has_signature_size_tag.set(true);
-        *self.has_signature_size_tag.borrow_mut() = (*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()? != (0_i32).saturating_sub(1)).try_into()?;
+        *self.has_signature_size_tag.borrow_mut() = (*self.signature_tags_steps().last().ok_or(KError::EmptyIterator)?.size_tag_idx()? != (0_i32).saturating_sub(to_i32(1))).try_into()?;
         Ok(self.has_signature_size_tag.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_header(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -108,6 +115,7 @@ impl Rpm {
         *self.len_header.borrow_mut() = ((*self.ofs_payload()?).saturating_sub(*self.ofs_header()?)).try_into()?;
         Ok(self.len_header.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_payload(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -117,10 +125,11 @@ impl Rpm {
         }
         self.f_len_payload.set(true);
         if *self.has_signature_size_tag()? {
-            *self.len_payload.borrow_mut() = ((*(Into::<OptRc<Rpm_RecordTypeUint32>>::into(&*self.signature_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?).values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u32::try_from(*self.len_header()?)?)).try_into()?;
+            *self.len_payload.borrow_mut() = ((*(OptRc::<Rpm_RecordTypeUint32>::try_from(&*self.signature_size_tag()?.body()?.as_ref().ok_or(KError::CastError)?)?.values().get(0_usize).ok_or(KError::CastError)?)).saturating_sub(u32::try_from(*self.len_header()?)?)).try_into()?;
         }
         Ok(self.len_payload.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_header(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -132,6 +141,7 @@ impl Rpm {
         *self.ofs_header.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.ofs_header.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ofs_payload(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -143,6 +153,7 @@ impl Rpm {
         *self.ofs_payload.borrow_mut() = (_io.pos()).try_into()?;
         Ok(self.ofs_payload.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn payload(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -159,6 +170,7 @@ impl Rpm {
         }
         Ok(self.payload.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn signature_size_tag(
         &self
     ) -> KResult<Ref<'_, OptRc<Rpm_HeaderIndexRecord>>> {
@@ -212,7 +224,22 @@ impl Rpm {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Rpm {
+    pub fn signature_padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signature_padding_raw.borrow()
+    }
+}
+impl Rpm {
+    pub fn unnamed3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed3_raw.borrow()
+    }
+}
+impl Rpm {
+    pub fn unnamed5_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed5_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_Architectures {
 
     /**
@@ -333,7 +360,7 @@ impl Default for Rpm_Architectures {
     fn default() -> Self { Rpm_Architectures::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_HeaderTags {
     Signatures,
     HeaderImmutable,
@@ -1516,7 +1543,7 @@ impl Default for Rpm_HeaderTags {
     fn default() -> Self { Rpm_HeaderTags::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_OperatingSystems {
     Linux,
     Irix,
@@ -1565,7 +1592,7 @@ impl Default for Rpm_OperatingSystems {
     fn default() -> Self { Rpm_OperatingSystems::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_RecordTypes {
     NotImplemented,
     Char,
@@ -1621,7 +1648,7 @@ impl Default for Rpm_RecordTypes {
     fn default() -> Self { Rpm_RecordTypes::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_RpmTypes {
     Binary,
     Source,
@@ -1653,7 +1680,7 @@ impl Default for Rpm_RpmTypes {
     fn default() -> Self { Rpm_RpmTypes::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Rpm_SignatureTags {
     Signatures,
     HeaderImmutable,
@@ -1795,6 +1822,7 @@ impl KStruct for Rpm_Dummy {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1806,6 +1834,7 @@ impl KStruct for Rpm_Dummy {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1833,6 +1862,7 @@ pub struct Rpm_Header {
     index_records: RefCell<Vec<OptRc<Rpm_HeaderIndexRecord>>>,
     storage_section: RefCell<OptRc<Rpm_Dummy>>,
     _io: RefCell<BytesReader>,
+    storage_section_raw: RefCell<Vec<u8>>,
     f_is_header: Cell<bool>,
     is_header: RefCell<bool>,
 }
@@ -1840,6 +1870,7 @@ impl KStruct for Rpm_Header {
     type Root = Rpm;
     type Parent = Rpm;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1859,8 +1890,12 @@ impl KStruct for Rpm_Header {
             let t = Self::read_into::<_, Rpm_HeaderIndexRecord>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.index_records.borrow_mut().push(t);
         }
-        let t = Self::read_into::<_, Rpm_Dummy>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_storage_section = _io.read_bytes(usize::try_from(*self_rc.header_record().len_storage_section())?)?;
+        *self_rc.storage_section_raw.borrow_mut() = _raw_storage_section.clone();
+        let _io_storage_section = BytesReader::from(_raw_storage_section);
+        let t = Self::read_into::<BytesReader, Rpm_Dummy>(&_io_storage_section, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.storage_section.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1875,6 +1910,7 @@ impl Rpm_Header {
     }
 }
 impl Rpm_Header {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_header(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1905,6 +1941,11 @@ impl Rpm_Header {
 impl Rpm_Header {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Rpm_Header {
+    pub fn storage_section_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.storage_section_raw.borrow()
     }
 }
 
@@ -1939,13 +1980,13 @@ pub enum Rpm_HeaderIndexRecord_Body {
     Rpm_RecordTypeUint32(OptRc<Rpm_RecordTypeUint32>),
     Rpm_RecordTypeUint64(OptRc<Rpm_RecordTypeUint64>),
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeBin> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeBin> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeBin(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeBin, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeBin>> for Rpm_HeaderIndexRecord_Body {
@@ -1953,13 +1994,13 @@ impl From<OptRc<Rpm_RecordTypeBin>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeBin(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint8> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint8(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint8, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint8>> for Rpm_HeaderIndexRecord_Body {
@@ -1967,13 +2008,13 @@ impl From<OptRc<Rpm_RecordTypeUint8>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeUint8(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeStringArray> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeStringArray> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeStringArray(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeStringArray, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeStringArray>> for Rpm_HeaderIndexRecord_Body {
@@ -1981,13 +2022,13 @@ impl From<OptRc<Rpm_RecordTypeStringArray>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeStringArray(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeString> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeString> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeString(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeString, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeString>> for Rpm_HeaderIndexRecord_Body {
@@ -1995,13 +2036,13 @@ impl From<OptRc<Rpm_RecordTypeString>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeString(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint16> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint16> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint16(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint16, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint16>> for Rpm_HeaderIndexRecord_Body {
@@ -2009,13 +2050,13 @@ impl From<OptRc<Rpm_RecordTypeUint16>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeUint16(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint32> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint32> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint32(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint32, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint32>> for Rpm_HeaderIndexRecord_Body {
@@ -2023,13 +2064,13 @@ impl From<OptRc<Rpm_RecordTypeUint32>> for Rpm_HeaderIndexRecord_Body {
         Self::Rpm_RecordTypeUint32(v)
     }
 }
-impl From<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint64> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Rpm_HeaderIndexRecord_Body) -> Self {
+impl TryFrom<&Rpm_HeaderIndexRecord_Body> for OptRc<Rpm_RecordTypeUint64> {
+    type Error = KError;
+    fn try_from(v: &Rpm_HeaderIndexRecord_Body) -> Result<Self, Self::Error> {
         if let Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint64(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Rpm_HeaderIndexRecord_Body::Rpm_RecordTypeUint64, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Rpm_RecordTypeUint64>> for Rpm_HeaderIndexRecord_Body {
@@ -2041,6 +2082,7 @@ impl KStruct for Rpm_HeaderIndexRecord {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2056,10 +2098,12 @@ impl KStruct for Rpm_HeaderIndexRecord {
         *self_rc.record_type.borrow_mut() = i64::from(_io.read_u4be()?).try_into()?;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4be()?;
         *self_rc.count.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Rpm_HeaderIndexRecord {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Option<Rpm_HeaderIndexRecord_Body>>> {
@@ -2121,6 +2165,7 @@ impl Rpm_HeaderIndexRecord {
         io.seek(_pos)?;
         Ok(self.body.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn header_tag(
         &self
     ) -> KResult<Ref<'_, Rpm_HeaderTags>> {
@@ -2134,6 +2179,7 @@ impl Rpm_HeaderIndexRecord {
         }
         Ok(self.header_tag.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_value(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -2147,6 +2193,7 @@ impl Rpm_HeaderIndexRecord {
         }
         Ok(self.len_value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_values(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -2160,6 +2207,7 @@ impl Rpm_HeaderIndexRecord {
         }
         Ok(self.num_values.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn signature_tag(
         &self
     ) -> KResult<Ref<'_, Rpm_SignatureTags>> {
@@ -2223,6 +2271,7 @@ impl KStruct for Rpm_HeaderRecord {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2248,6 +2297,7 @@ impl KStruct for Rpm_HeaderRecord {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/header_record/seq/2".to_string() }));
         }
         *self_rc.len_storage_section.borrow_mut() = _io.read_u4be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2314,11 +2364,14 @@ pub struct Rpm_Lead {
     signature_type: RefCell<u16>,
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    package_name_raw: RefCell<Vec<u8>>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Rpm_Lead {
     type Root = Rpm;
     type Parent = Rpm;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2338,7 +2391,7 @@ impl KStruct for Rpm_Lead {
         *self_rc.version.borrow_mut() = t;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.architecture.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
-        *self_rc.package_name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(66_usize)?, 0, false), "UTF-8")?;
+        *self_rc.package_name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(66_usize)?, Some(0), false, None), "UTF-8")?;
         *self_rc.os.borrow_mut() = i64::from(_io.read_u2be()?).try_into()?;
         *self_rc.signature_type.borrow_mut() = _io.read_u2be()?;
         let expected: u16 = (5).try_into()?;
@@ -2346,6 +2399,7 @@ impl KStruct for Rpm_Lead {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/lead/seq/6".to_string() }));
         }
         *self_rc.reserved.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2396,6 +2450,16 @@ impl Rpm_Lead {
         self._io.borrow()
     }
 }
+impl Rpm_Lead {
+    pub fn package_name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.package_name_raw.borrow()
+    }
+}
+impl Rpm_Lead {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Rpm_RecordTypeBin {
@@ -2405,11 +2469,13 @@ pub struct Rpm_RecordTypeBin {
     len_value: RefCell<u32>,
     values: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    values_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Rpm_RecordTypeBin {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2426,6 +2492,7 @@ impl KStruct for Rpm_RecordTypeBin {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.len_value())?)?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2451,6 +2518,11 @@ impl Rpm_RecordTypeBin {
         self._io.borrow()
     }
 }
+impl Rpm_RecordTypeBin {
+    pub fn values_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.values_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Rpm_RecordTypeString {
@@ -2464,6 +2536,7 @@ impl KStruct for Rpm_RecordTypeString {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2480,6 +2553,7 @@ impl KStruct for Rpm_RecordTypeString {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2509,6 +2583,7 @@ impl KStruct for Rpm_RecordTypeStringArray {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2525,6 +2600,7 @@ impl KStruct for Rpm_RecordTypeStringArray {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "UTF-8")?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2564,6 +2640,7 @@ impl KStruct for Rpm_RecordTypeUint16 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2580,6 +2657,7 @@ impl KStruct for Rpm_RecordTypeUint16 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u2be()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2619,6 +2697,7 @@ impl KStruct for Rpm_RecordTypeUint32 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2635,6 +2714,7 @@ impl KStruct for Rpm_RecordTypeUint32 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u4be()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2674,6 +2754,7 @@ impl KStruct for Rpm_RecordTypeUint64 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2690,6 +2771,7 @@ impl KStruct for Rpm_RecordTypeUint64 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u8be()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2729,6 +2811,7 @@ impl KStruct for Rpm_RecordTypeUint8 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2745,6 +2828,7 @@ impl KStruct for Rpm_RecordTypeUint8 {
         for _i in 0_usize..l_values {
             self_rc.values.borrow_mut().push(_io.read_u1()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2784,6 +2868,7 @@ impl KStruct for Rpm_RpmVersion {
     type Root = Rpm;
     type Parent = Rpm_Lead;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2796,7 +2881,16 @@ impl KStruct for Rpm_RpmVersion {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.major.borrow_mut() = _io.read_u1()?;
+        let min_val: u8 = (3).try_into()?;
+        let max_val: u8 = (4).try_into()?;
+        if !(*self_rc.major() >= min_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::LessThan, src_path: "/types/rpm_version/seq/0".to_string() }));
+        }
+        if !(*self_rc.major() <= max_val) {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::GreaterThan, src_path: "/types/rpm_version/seq/0".to_string() }));
+        }
         *self_rc.minor.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2837,6 +2931,7 @@ impl KStruct for Rpm_SignatureTagsStep {
     type Root = Rpm;
     type Parent = Rpm;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2848,6 +2943,7 @@ impl KStruct for Rpm_SignatureTagsStep {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -2868,6 +2964,7 @@ impl Rpm_SignatureTagsStep {
     }
 }
 impl Rpm_SignatureTagsStep {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn size_tag_idx(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -2876,7 +2973,7 @@ impl Rpm_SignatureTagsStep {
             return Ok(self.size_tag_idx.borrow());
         }
         self.f_size_tag_idx.set(true);
-        *self.size_tag_idx.borrow_mut() = (if ((to_i128(*self.prev_size_tag_idx())) != (to_i128((0_i32).saturating_sub(1)))) { *self.prev_size_tag_idx() } else { if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.record_type() == Rpm_RecordTypes::Uint32) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.num_values()? >= 1))  { *self.idx() } else { (0_i32).saturating_sub(1) } }).try_into()?;
+        *self.size_tag_idx.borrow_mut() = (if ((to_i128(*self.prev_size_tag_idx())) != (to_i128((0_i32).saturating_sub(to_i32(1))))) { *self.prev_size_tag_idx() } else { if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.signature_tag()? == Rpm_SignatureTags::Size) && (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.record_type() == Rpm_RecordTypes::Uint32) && (((to_i128(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.signature().index_records().get(usize::try_from(*self.idx())?).ok_or(KError::CastError)?.num_values()?)) >= (to_i128(1)))))  { *self.idx() } else { (0_i32).saturating_sub(to_i32(1)) } }).try_into()?;
         Ok(self.size_tag_idx.borrow())
     }
 }

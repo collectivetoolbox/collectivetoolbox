@@ -130,6 +130,7 @@ impl KStruct for AndroidBootldrQcom {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -154,10 +155,12 @@ impl KStruct for AndroidBootldrQcom {
             let t = Self::read_into::<_, AndroidBootldrQcom_ImgHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.img_headers.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidBootldrQcom {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn img_bodies(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<AndroidBootldrQcom_ImgBody>>>> {
@@ -241,6 +244,7 @@ pub struct AndroidBootldrQcom_ImgBody {
     idx: RefCell<i32>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
     f_img_header: Cell<bool>,
     img_header: RefCell<OptRc<AndroidBootldrQcom_ImgHeader>>,
 }
@@ -248,6 +252,7 @@ impl KStruct for AndroidBootldrQcom_ImgBody {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -260,6 +265,7 @@ impl KStruct for AndroidBootldrQcom_ImgBody {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.img_header()?.len_body())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -274,6 +280,7 @@ impl AndroidBootldrQcom_ImgBody {
     }
 }
 impl AndroidBootldrQcom_ImgBody {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn img_header(
         &self
     ) -> KResult<Ref<'_, OptRc<AndroidBootldrQcom_ImgHeader>>> {
@@ -295,6 +302,11 @@ impl AndroidBootldrQcom_ImgBody {
         self._io.borrow()
     }
 }
+impl AndroidBootldrQcom_ImgBody {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct AndroidBootldrQcom_ImgHeader {
@@ -304,11 +316,13 @@ pub struct AndroidBootldrQcom_ImgHeader {
     name: RefCell<String>,
     len_body: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for AndroidBootldrQcom_ImgHeader {
     type Root = AndroidBootldrQcom;
     type Parent = AndroidBootldrQcom;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -320,8 +334,9 @@ impl KStruct for AndroidBootldrQcom_ImgHeader {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(64_usize)?, 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(64_usize)?, Some(0), false, None), "ASCII")?;
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -340,5 +355,10 @@ impl AndroidBootldrQcom_ImgHeader {
 impl AndroidBootldrQcom_ImgHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AndroidBootldrQcom_ImgHeader {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
     }
 }

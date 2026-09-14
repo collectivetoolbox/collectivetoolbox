@@ -25,6 +25,7 @@ impl KStruct for Rtpdump {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -47,6 +48,7 @@ impl KStruct for Rtpdump {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -88,6 +90,7 @@ impl KStruct for Rtpdump_HeaderT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,6 +117,7 @@ impl KStruct for Rtpdump_HeaderT {
         *self_rc.ip2.borrow_mut() = _io.read_u4be()?;
         *self_rc.port2.borrow_mut() = _io.read_u2be()?;
         *self_rc.padding.borrow_mut() = _io.read_u2be()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -200,11 +204,13 @@ pub struct Rtpdump_PacketT {
     packet_usec: RefCell<u32>,
     body: RefCell<OptRc<RtpPacket>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Rtpdump_PacketT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -219,8 +225,12 @@ impl KStruct for Rtpdump_PacketT {
         *self_rc.length.borrow_mut() = _io.read_u2be()?;
         *self_rc.len_body.borrow_mut() = _io.read_u2be()?;
         *self_rc.packet_usec.borrow_mut() = _io.read_u4be()?;
-        let t = Self::read_into::<_, RtpPacket>(&*_io, None, None)?.into();
+        let _raw_body = _io.read_bytes(usize::from(*self_rc.len_body()))?;
+        *self_rc.body_raw.borrow_mut() = _raw_body.clone();
+        let _io_body = BytesReader::from(_raw_body);
+        let t = Self::read_into::<BytesReader, RtpPacket>(&_io_body, None, None)?.into();
         *self_rc.body.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -261,5 +271,10 @@ impl Rtpdump_PacketT {
 impl Rtpdump_PacketT {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Rtpdump_PacketT {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

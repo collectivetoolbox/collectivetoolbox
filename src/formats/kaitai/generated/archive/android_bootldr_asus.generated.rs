@@ -31,6 +31,7 @@ impl KStruct for AndroidBootldrAsus {
     type Root = AndroidBootldrAsus;
     type Parent = AndroidBootldrAsus;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -59,6 +60,7 @@ impl KStruct for AndroidBootldrAsus {
             let t = Self::read_into::<_, AndroidBootldrAsus_Image>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.images.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -113,6 +115,8 @@ pub struct AndroidBootldrAsus_Image {
     reserved3: RefCell<u8>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    chunk_id_raw: RefCell<Vec<u8>>,
+    body_raw: RefCell<Vec<u8>>,
     f_file_name: Cell<bool>,
     file_name: RefCell<String>,
 }
@@ -120,6 +124,7 @@ impl KStruct for AndroidBootldrAsus_Image {
     type Root = AndroidBootldrAsus;
     type Parent = AndroidBootldrAsus;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,10 +136,15 @@ impl KStruct for AndroidBootldrAsus_Image {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "UTF-8")?;
+        *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
+        let _item = &*self_rc.chunk_id();
+        if !(_item == "IFWI!!!!" || _item == "DROIDBT!" || _item == "SPLASHS!") {
+            return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/image/seq/0".to_string() }));
+        }
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;
         *self_rc.flags.borrow_mut() = _io.read_u1()?;
-        let _tmpa = *self_rc.flags();
+        let _borrowed = self_rc.flags();
+        let _tmpa = *_borrowed;
         if !(((_tmpa & 1_u8) != 0_u8)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/image/seq/2".to_string() }));
         }
@@ -142,10 +152,12 @@ impl KStruct for AndroidBootldrAsus_Image {
         *self_rc.reserved2.borrow_mut() = _io.read_u1()?;
         *self_rc.reserved3.borrow_mut() = _io.read_u1()?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_body())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl AndroidBootldrAsus_Image {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn file_name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -154,7 +166,7 @@ impl AndroidBootldrAsus_Image {
             return Ok(self.file_name.borrow());
         }
         self.f_file_name.set(true);
-        *self.file_name.borrow_mut() = if *self.chunk_id() == "IFWI!!!!" { "ifwi.bin".to_string() } else { if *self.chunk_id() == "DROIDBT!" { "droidboot.img".to_string() } else { if *self.chunk_id() == "SPLASHS!" { "splashscreen.img".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string();
+        *self.file_name.borrow_mut() = if (self.chunk_id().as_str() == "IFWI!!!!") { "ifwi.bin".to_string() } else { if (self.chunk_id().as_str() == "DROIDBT!") { "droidboot.img".to_string() } else { if (self.chunk_id().as_str() == "SPLASHS!") { "splashscreen.img".to_string() } else { "".to_string() }.to_string() }.to_string() }.to_string();
         Ok(self.file_name.borrow())
     }
 }
@@ -196,5 +208,15 @@ impl AndroidBootldrAsus_Image {
 impl AndroidBootldrAsus_Image {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl AndroidBootldrAsus_Image {
+    pub fn chunk_id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chunk_id_raw.borrow()
+    }
+}
+impl AndroidBootldrAsus_Image {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

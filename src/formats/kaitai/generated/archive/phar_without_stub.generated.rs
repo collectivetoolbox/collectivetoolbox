@@ -61,11 +61,14 @@ pub struct PharWithoutStub {
     files: RefCell<Vec<Vec<u8>>>,
     signature: RefCell<OptRc<PharWithoutStub_Signature>>,
     _io: RefCell<BytesReader>,
+    files_raw: RefCell<Vec<u8>>,
+    signature_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PharWithoutStub {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,9 +88,13 @@ impl KStruct for PharWithoutStub {
             self_rc.files.borrow_mut().push(_io.read_bytes(usize::try_from(*self_rc.manifest().file_entries().get(_i).ok_or(KError::CastError)?.len_data_compressed())?)?);
         }
         if *self_rc.manifest().flags().has_signature()? {
-            let t = Self::read_into::<_, PharWithoutStub_Signature>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_signature = _io.read_bytes_full()?;
+            *self_rc.signature_raw.borrow_mut() = _raw_signature.clone();
+            let _io_signature = BytesReader::from(_raw_signature);
+            let t = Self::read_into::<BytesReader, PharWithoutStub_Signature>(&_io_signature, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.signature.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -134,7 +141,17 @@ impl PharWithoutStub {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl PharWithoutStub {
+    pub fn files_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.files_raw.borrow()
+    }
+}
+impl PharWithoutStub {
+    pub fn signature_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signature_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PharWithoutStub_SignatureType {
 
     /**
@@ -255,6 +272,7 @@ impl KStruct for PharWithoutStub_ApiVersion {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -270,6 +288,7 @@ impl KStruct for PharWithoutStub_ApiVersion {
         *self_rc.major.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc.minor.borrow_mut() = _io.read_bits_int_be(4)?;
         *self_rc.unused.borrow_mut() = _io.read_bits_int_be(4)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -316,11 +335,14 @@ pub struct PharWithoutStub_FileEntry {
     len_metadata: RefCell<u32>,
     metadata: RefCell<OptRc<PharWithoutStub_SerializedValue>>,
     _io: RefCell<BytesReader>,
+    filename_raw: RefCell<Vec<u8>>,
+    metadata_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PharWithoutStub_FileEntry {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -341,10 +363,14 @@ impl KStruct for PharWithoutStub_FileEntry {
         let t = Self::read_into::<_, PharWithoutStub_FileFlags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
-        if *self_rc.len_metadata() != 0 {
-            let t = Self::read_into::<_, PharWithoutStub_SerializedValue>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
+            let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
+            *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
+            let _io_metadata = BytesReader::from(_raw_metadata);
+            let t = Self::read_into::<BytesReader, PharWithoutStub_SerializedValue>(&_io_metadata, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -444,6 +470,16 @@ impl PharWithoutStub_FileEntry {
         self._io.borrow()
     }
 }
+impl PharWithoutStub_FileEntry {
+    pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.filename_raw.borrow()
+    }
+}
+impl PharWithoutStub_FileEntry {
+    pub fn metadata_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.metadata_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct PharWithoutStub_FileFlags {
@@ -463,6 +499,7 @@ impl KStruct for PharWithoutStub_FileFlags {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_FileEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -475,6 +512,7 @@ impl KStruct for PharWithoutStub_FileFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -483,6 +521,7 @@ impl PharWithoutStub_FileFlags {
     /**
      * Whether this file's data is stored using bzip2 compression.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn bzip2_compressed(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -491,13 +530,14 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.bzip2_compressed.borrow());
         }
         self.f_bzip2_compressed.set(true);
-        *self.bzip2_compressed.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
+        *self.bzip2_compressed.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.bzip2_compressed.borrow())
     }
 
     /**
      * The file's permission bits.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn permissions(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -513,6 +553,7 @@ impl PharWithoutStub_FileFlags {
     /**
      * Whether this file's data is stored using zlib compression.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn zlib_compressed(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -521,7 +562,7 @@ impl PharWithoutStub_FileFlags {
             return Ok(self.zlib_compressed.borrow());
         }
         self.f_zlib_compressed.set(true);
-        *self.zlib_compressed.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
+        *self.zlib_compressed.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.zlib_compressed.borrow())
     }
 }
@@ -558,6 +599,7 @@ impl KStruct for PharWithoutStub_GlobalFlags {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -570,6 +612,7 @@ impl KStruct for PharWithoutStub_GlobalFlags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -579,6 +622,7 @@ impl PharWithoutStub_GlobalFlags {
      * Whether any of the files in this phar are stored using
      * bzip2 compression.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn any_bzip2_compressed(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -587,7 +631,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_bzip2_compressed.borrow());
         }
         self.f_any_bzip2_compressed.set(true);
-        *self.any_bzip2_compressed.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
+        *self.any_bzip2_compressed.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.any_bzip2_compressed.borrow())
     }
 
@@ -595,6 +639,7 @@ impl PharWithoutStub_GlobalFlags {
      * Whether any of the files in this phar are stored using
      * zlib compression.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn any_zlib_compressed(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -603,13 +648,14 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.any_zlib_compressed.borrow());
         }
         self.f_any_zlib_compressed.set(true);
-        *self.any_zlib_compressed.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
+        *self.any_zlib_compressed.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.any_zlib_compressed.borrow())
     }
 
     /**
      * Whether this phar contains a signature.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_signature(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -618,7 +664,7 @@ impl PharWithoutStub_GlobalFlags {
             return Ok(self.has_signature.borrow());
         }
         self.f_has_signature.set(true);
-        *self.has_signature.borrow_mut() = (((*self.value()) & (65536_u32)) != 0).try_into()?;
+        *self.has_signature.borrow_mut() = (((to_i128(((*self.value()) & (65536_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_signature.borrow())
     }
 }
@@ -652,11 +698,14 @@ pub struct PharWithoutStub_Manifest {
     metadata: RefCell<OptRc<PharWithoutStub_SerializedValue>>,
     file_entries: RefCell<Vec<OptRc<PharWithoutStub_FileEntry>>>,
     _io: RefCell<BytesReader>,
+    alias_raw: RefCell<Vec<u8>>,
+    metadata_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PharWithoutStub_Manifest {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -677,8 +726,11 @@ impl KStruct for PharWithoutStub_Manifest {
         *self_rc.len_alias.borrow_mut() = _io.read_u4le()?;
         *self_rc.alias.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_alias())?)?;
         *self_rc.len_metadata.borrow_mut() = _io.read_u4le()?;
-        if *self_rc.len_metadata() != 0 {
-            let t = Self::read_into::<_, PharWithoutStub_SerializedValue>(&*_io, Some(self_rc._root.clone()), None)?.into();
+        if ((to_i128(*self_rc.len_metadata())) != (to_i128(0))) {
+            let _raw_metadata = _io.read_bytes(usize::try_from(*self_rc.len_metadata())?)?;
+            *self_rc.metadata_raw.borrow_mut() = _raw_metadata.clone();
+            let _io_metadata = BytesReader::from(_raw_metadata);
+            let t = Self::read_into::<BytesReader, PharWithoutStub_SerializedValue>(&_io_metadata, Some(self_rc._root.clone()), None)?.into();
             *self_rc.metadata.borrow_mut() = t;
         }
         *self_rc.file_entries.borrow_mut() = Vec::new();
@@ -687,6 +739,7 @@ impl KStruct for PharWithoutStub_Manifest {
             let t = Self::read_into::<_, PharWithoutStub_FileEntry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.file_entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -784,6 +837,16 @@ impl PharWithoutStub_Manifest {
         self._io.borrow()
     }
 }
+impl PharWithoutStub_Manifest {
+    pub fn alias_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.alias_raw.borrow()
+    }
+}
+impl PharWithoutStub_Manifest {
+    pub fn metadata_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.metadata_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct PharWithoutStub_SerializedValue {
@@ -799,6 +862,7 @@ impl KStruct for PharWithoutStub_SerializedValue {
     type Root = PharWithoutStub;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -811,6 +875,7 @@ impl KStruct for PharWithoutStub_SerializedValue {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.raw.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -819,6 +884,7 @@ impl PharWithoutStub_SerializedValue {
     /**
      * The serialized value, parsed as a structure.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn parsed(
         &self
     ) -> KResult<Ref<'_, OptRc<PhpSerializedValue>>> {
@@ -858,11 +924,13 @@ pub struct PharWithoutStub_Signature {
     r#type: RefCell<PharWithoutStub_SignatureType>,
     magic: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for PharWithoutStub_Signature {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -874,12 +942,13 @@ impl KStruct for PharWithoutStub_Signature {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((_io.size()).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
+        *self_rc.data.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_i32))?)?;
         *self_rc.r#type.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         *self_rc.magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.magic() == vec![0x47u8, 0x42u8, 0x4du8, 0x42u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/signature/seq/2".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -912,5 +981,10 @@ impl PharWithoutStub_Signature {
 impl PharWithoutStub_Signature {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl PharWithoutStub_Signature {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
     }
 }

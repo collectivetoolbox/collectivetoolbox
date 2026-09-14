@@ -33,11 +33,14 @@ pub struct Swf {
     plain_body: RefCell<OptRc<Swf_SwfBody>>,
     zlib_body: RefCell<OptRc<Swf_SwfBody>>,
     _io: RefCell<BytesReader>,
+    plain_body_raw: RefCell<Vec<u8>>,
+    zlib_body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Swf {
     type Root = Swf;
     type Parent = Swf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -57,13 +60,21 @@ impl KStruct for Swf {
         *self_rc.version.borrow_mut() = _io.read_u1()?;
         *self_rc.len_file.borrow_mut() = _io.read_u4le()?;
         if *self_rc.compression() == Swf_Compressions::None {
-            let t = Self::read_into::<_, Swf_SwfBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_plain_body = _io.read_bytes_full()?;
+            *self_rc.plain_body_raw.borrow_mut() = _raw_plain_body.clone();
+            let _io_plain_body = BytesReader::from(_raw_plain_body);
+            let t = Self::read_into::<BytesReader, Swf_SwfBody>(&_io_plain_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.plain_body.borrow_mut() = t;
         }
         if *self_rc.compression() == Swf_Compressions::Zlib {
-            let t = Self::read_into::<_, Swf_SwfBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let _raw_zlib_body = _io.read_bytes_full()?;
+            *self_rc.zlib_body_raw.borrow_mut() = _raw_zlib_body.clone();
+            let _processed_zlib_body = process_zlib(&_raw_zlib_body)?;
+            let _io_zlib_body = BytesReader::from(_processed_zlib_body);
+            let t = Self::read_into::<BytesReader, Swf_SwfBody>(&_io_zlib_body, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.zlib_body.borrow_mut() = t;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -104,7 +115,17 @@ impl Swf {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Swf {
+    pub fn plain_body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.plain_body_raw.borrow()
+    }
+}
+impl Swf {
+    pub fn zlib_body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.zlib_body_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Swf_Compressions {
     Zlib,
     None,
@@ -139,7 +160,7 @@ impl Default for Swf_Compressions {
     fn default() -> Self { Swf_Compressions::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Swf_TagType {
     EndOfFile,
     PlaceObject,
@@ -234,6 +255,7 @@ impl KStruct for Swf_DefineSoundBody {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -252,6 +274,7 @@ impl KStruct for Swf_DefineSoundBody {
         *self_rc.num_channels.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
         io.align_to_byte()?;
         *self_rc.num_samples.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -296,7 +319,7 @@ impl Swf_DefineSoundBody {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Swf_DefineSoundBody_Bps {
     Sound8Bit,
     Sound16Bit,
@@ -328,7 +351,7 @@ impl Default for Swf_DefineSoundBody_Bps {
     fn default() -> Self { Swf_DefineSoundBody_Bps::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Swf_DefineSoundBody_Channels {
     Mono,
     Stereo,
@@ -360,7 +383,7 @@ impl Default for Swf_DefineSoundBody_Channels {
     fn default() -> Self { Swf_DefineSoundBody_Channels::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Swf_DefineSoundBody_SamplingRates {
     Rate55Khz,
     Rate11Khz,
@@ -413,6 +436,7 @@ impl KStruct for Swf_DoAbcBody {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -427,6 +451,7 @@ impl KStruct for Swf_DoAbcBody {
         *self_rc.flags.borrow_mut() = _io.read_u4le()?;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
         *self_rc.abcdata.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -472,6 +497,7 @@ impl KStruct for Swf_RecordHeader {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -487,10 +513,12 @@ impl KStruct for Swf_RecordHeader {
         if *self_rc.small_len()? == 63 {
             *self_rc.big_len.borrow_mut() = _io.read_s4le()?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Swf_RecordHeader {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -502,6 +530,7 @@ impl Swf_RecordHeader {
         *self.len.borrow_mut() = (if *self.small_len()? == 63 { *self.big_len() } else { *self.small_len()? }).try_into()?;
         Ok(self.len.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn small_len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -513,6 +542,7 @@ impl Swf_RecordHeader {
         *self.small_len.borrow_mut() = (((i32::from(*self.tag_code_and_length())) & (63_i32))).try_into()?;
         Ok(self.small_len.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tag_type(
         &self
     ) -> KResult<Ref<'_, Swf_TagType>> {
@@ -549,6 +579,7 @@ pub struct Swf_Rect {
     b1: RefCell<u8>,
     skip: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    skip_raw: RefCell<Vec<u8>>,
     f_num_bits: Cell<bool>,
     num_bits: RefCell<i32>,
     f_num_bytes: Cell<bool>,
@@ -558,6 +589,7 @@ impl KStruct for Swf_Rect {
     type Root = Swf;
     type Parent = Swf_SwfBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -571,10 +603,12 @@ impl KStruct for Swf_Rect {
         let _io = io;
         *self_rc.b1.borrow_mut() = _io.read_u1()?;
         *self_rc.skip.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.num_bytes()?)?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Swf_Rect {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_bits(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -586,6 +620,7 @@ impl Swf_Rect {
         *self.num_bits.borrow_mut() = ((i32::from(*self.b1())).wrapping_shr(3_u32)).try_into()?;
         Ok(self.num_bits.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_bytes(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -594,7 +629,7 @@ impl Swf_Rect {
             return Ok(self.num_bytes.borrow());
         }
         self.f_num_bytes.set(true);
-        *self.num_bytes.borrow_mut() = (((((*self.num_bits()?).saturating_mul(4_i32)).saturating_sub(3_i32)).saturating_add(7_i32)).checked_div(8_i32).ok_or(KError::CastError)?).try_into()?;
+        *self.num_bytes.borrow_mut() = (div_floor(i64::from((((*self.num_bits()?).saturating_mul(4_i32)).saturating_sub(3_i32)).saturating_add(7_i32)), 8_i64)?).try_into()?;
         Ok(self.num_bytes.borrow())
     }
 }
@@ -613,6 +648,11 @@ impl Swf_Rect {
         self._io.borrow()
     }
 }
+impl Swf_Rect {
+    pub fn skip_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.skip_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Swf_Rgb {
@@ -628,6 +668,7 @@ impl KStruct for Swf_Rgb {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -642,6 +683,7 @@ impl KStruct for Swf_Rgb {
         *self_rc.r.borrow_mut() = _io.read_u1()?;
         *self_rc.g.borrow_mut() = _io.read_u1()?;
         *self_rc.b.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -681,6 +723,7 @@ impl KStruct for Swf_ScriptLimitsBody {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -694,6 +737,7 @@ impl KStruct for Swf_ScriptLimitsBody {
         let _io = io;
         *self_rc.max_recursion_depth.borrow_mut() = _io.read_u2le()?;
         *self_rc.script_timeout_seconds.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -731,6 +775,7 @@ impl KStruct for Swf_SwfBody {
     type Root = Swf;
     type Parent = Swf;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -746,7 +791,7 @@ impl KStruct for Swf_SwfBody {
         *self_rc.rect.borrow_mut() = t;
         *self_rc.frame_rate.borrow_mut() = _io.read_u2le()?;
         *self_rc.frame_count.borrow_mut() = _io.read_u2le()?;
-        if *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version() >= 8 {
+        if ((to_i128(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.version())) >= (to_i128(8))) {
             let t = Self::read_into::<_, Swf_Tag>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             *self_rc.file_attributes_tag.borrow_mut() = t;
         }
@@ -759,6 +804,7 @@ impl KStruct for Swf_SwfBody {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -808,6 +854,7 @@ impl KStruct for Swf_SymbolClassBody {
     type Root = Swf;
     type Parent = Swf_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -826,6 +873,7 @@ impl KStruct for Swf_SymbolClassBody {
             let t = Self::read_into::<_, Swf_SymbolClassBody_Symbol>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.symbols.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -860,6 +908,7 @@ impl KStruct for Swf_SymbolClassBody_Symbol {
     type Root = Swf;
     type Parent = Swf_SymbolClassBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -873,6 +922,7 @@ impl KStruct for Swf_SymbolClassBody_Symbol {
         let _io = io;
         *self_rc.tag.borrow_mut() = _io.read_u2le()?;
         *self_rc.name.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -913,13 +963,13 @@ pub enum Swf_Tag_TagBody {
     Swf_Rgb(OptRc<Swf_Rgb>),
     Bytes(Vec<u8>),
 }
-impl From<&Swf_Tag_TagBody> for OptRc<Swf_DefineSoundBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_DefineSoundBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Swf_DefineSoundBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Swf_DefineSoundBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Swf_DefineSoundBody>> for Swf_Tag_TagBody {
@@ -927,13 +977,13 @@ impl From<OptRc<Swf_DefineSoundBody>> for Swf_Tag_TagBody {
         Self::Swf_DefineSoundBody(v)
     }
 }
-impl From<&Swf_Tag_TagBody> for OptRc<Swf_DoAbcBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_DoAbcBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Swf_DoAbcBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Swf_DoAbcBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Swf_DoAbcBody>> for Swf_Tag_TagBody {
@@ -941,13 +991,13 @@ impl From<OptRc<Swf_DoAbcBody>> for Swf_Tag_TagBody {
         Self::Swf_DoAbcBody(v)
     }
 }
-impl From<&Swf_Tag_TagBody> for OptRc<Swf_SymbolClassBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_SymbolClassBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Swf_SymbolClassBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Swf_SymbolClassBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Swf_SymbolClassBody>> for Swf_Tag_TagBody {
@@ -955,13 +1005,13 @@ impl From<OptRc<Swf_SymbolClassBody>> for Swf_Tag_TagBody {
         Self::Swf_SymbolClassBody(v)
     }
 }
-impl From<&Swf_Tag_TagBody> for OptRc<Swf_ScriptLimitsBody> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_ScriptLimitsBody> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Swf_ScriptLimitsBody(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Swf_ScriptLimitsBody, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Swf_ScriptLimitsBody>> for Swf_Tag_TagBody {
@@ -969,13 +1019,13 @@ impl From<OptRc<Swf_ScriptLimitsBody>> for Swf_Tag_TagBody {
         Self::Swf_ScriptLimitsBody(v)
     }
 }
-impl From<&Swf_Tag_TagBody> for OptRc<Swf_Rgb> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for OptRc<Swf_Rgb> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Swf_Rgb(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Swf_Rgb, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<Swf_Rgb>> for Swf_Tag_TagBody {
@@ -983,13 +1033,13 @@ impl From<OptRc<Swf_Rgb>> for Swf_Tag_TagBody {
         Self::Swf_Rgb(v)
     }
 }
-impl From<&Swf_Tag_TagBody> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &Swf_Tag_TagBody) -> Self {
+impl TryFrom<&Swf_Tag_TagBody> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &Swf_Tag_TagBody) -> Result<Self, Self::Error> {
         if let Swf_Tag_TagBody::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected Swf_Tag_TagBody::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for Swf_Tag_TagBody {
@@ -1001,6 +1051,7 @@ impl KStruct for Swf_Tag {
     type Root = Swf;
     type Parent = Swf_SwfBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1016,42 +1067,42 @@ impl KStruct for Swf_Tag {
         *self_rc.record_header.borrow_mut() = t;
         match *self_rc.record_header().tag_type()? {
             Swf_TagType::DefineSound => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_DefineSoundBody>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             Swf_TagType::DoAbc => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_DoAbcBody>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             Swf_TagType::ExportAssets => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_SymbolClassBody>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             Swf_TagType::ScriptLimits => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_ScriptLimitsBody>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             Swf_TagType::SetBackgroundColor => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_Rgb>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.tag_body.borrow_mut() = Some(t);
             }
             Swf_TagType::SymbolClass => {
-                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.tag_body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.record_header().len()?)?)?.into();
                 let tag_body_raw = self_rc.tag_body_raw.borrow();
                 let _t_tag_body_raw_io = BytesReader::from(tag_body_raw.clone());
                 let t = Self::read_into::<BytesReader, Swf_SymbolClassBody>(&_t_tag_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -1061,6 +1112,7 @@ impl KStruct for Swf_Tag {
                 *self_rc.tag_body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

@@ -21,11 +21,16 @@ pub struct Ines {
     playchoice10: RefCell<OptRc<Ines_Playchoice10>>,
     title: RefCell<String>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
+    trainer_raw: RefCell<Vec<u8>>,
+    prg_rom_raw: RefCell<Vec<u8>>,
+    chr_rom_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Ines {
     type Root = Ines;
     type Parent = Ines;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -37,7 +42,10 @@ impl KStruct for Ines {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, Ines_Header>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_header = _io.read_bytes(16_usize)?;
+        *self_rc.header_raw.borrow_mut() = _raw_header.clone();
+        let _io_header = BytesReader::from(_raw_header);
+        let t = Self::read_into::<BytesReader, Ines_Header>(&_io_header, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.header.borrow_mut() = t;
         if *self_rc.header().f6().trainer() {
             *self_rc.trainer.borrow_mut() = _io.read_bytes(512_usize)?;
@@ -49,8 +57,9 @@ impl KStruct for Ines {
             *self_rc.playchoice10.borrow_mut() = t;
         }
         if !(_io.is_eof()) {
-            *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "UTF-8")?;
+            *self_rc.title.borrow_mut() = bytes_to_str(&_io.read_bytes_full()?, "ASCII")?;
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -91,6 +100,26 @@ impl Ines {
         self._io.borrow()
     }
 }
+impl Ines {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+impl Ines {
+    pub fn trainer_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.trainer_raw.borrow()
+    }
+}
+impl Ines {
+    pub fn prg_rom_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.prg_rom_raw.borrow()
+    }
+}
+impl Ines {
+    pub fn chr_rom_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.chr_rom_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Ines_Header {
@@ -107,6 +136,10 @@ pub struct Ines_Header {
     f10: RefCell<OptRc<Ines_Header_F10>>,
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    f6_raw: RefCell<Vec<u8>>,
+    f7_raw: RefCell<Vec<u8>>,
+    f9_raw: RefCell<Vec<u8>>,
+    f10_raw: RefCell<Vec<u8>>,
     f_mapper: Cell<bool>,
     mapper: RefCell<u64>,
 }
@@ -114,6 +147,7 @@ impl KStruct for Ines_Header {
     type Root = Ines;
     type Parent = Ines;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,19 +165,32 @@ impl KStruct for Ines_Header {
         }
         *self_rc.len_prg_rom.borrow_mut() = _io.read_u1()?;
         *self_rc.len_chr_rom.borrow_mut() = _io.read_u1()?;
-        let t = Self::read_into::<_, Ines_Header_F6>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_f6 = _io.read_bytes(1_usize)?;
+        *self_rc.f6_raw.borrow_mut() = _raw_f6.clone();
+        let _io_f6 = BytesReader::from(_raw_f6);
+        let t = Self::read_into::<BytesReader, Ines_Header_F6>(&_io_f6, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.f6.borrow_mut() = t;
-        let t = Self::read_into::<_, Ines_Header_F7>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_f7 = _io.read_bytes(1_usize)?;
+        *self_rc.f7_raw.borrow_mut() = _raw_f7.clone();
+        let _io_f7 = BytesReader::from(_raw_f7);
+        let t = Self::read_into::<BytesReader, Ines_Header_F7>(&_io_f7, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.f7.borrow_mut() = t;
         *self_rc.len_prg_ram.borrow_mut() = _io.read_u1()?;
-        let t = Self::read_into::<_, Ines_Header_F9>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_f9 = _io.read_bytes(1_usize)?;
+        *self_rc.f9_raw.borrow_mut() = _raw_f9.clone();
+        let _io_f9 = BytesReader::from(_raw_f9);
+        let t = Self::read_into::<BytesReader, Ines_Header_F9>(&_io_f9, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.f9.borrow_mut() = t;
-        let t = Self::read_into::<_, Ines_Header_F10>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_f10 = _io.read_bytes(1_usize)?;
+        *self_rc.f10_raw.borrow_mut() = _raw_f10.clone();
+        let _io_f10 = BytesReader::from(_raw_f10);
+        let t = Self::read_into::<BytesReader, Ines_Header_F10>(&_io_f10, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.f10.borrow_mut() = t;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(5_usize)?;
         if !(*self_rc.reserved() == vec![0x0u8, 0x0u8, 0x0u8, 0x0u8, 0x0u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/header/seq/8".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -152,6 +199,7 @@ impl Ines_Header {
     /**
      * \sa <https://www.nesdev.org/wiki/Mapper> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn mapper(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -230,6 +278,26 @@ impl Ines_Header {
         self._io.borrow()
     }
 }
+impl Ines_Header {
+    pub fn f6_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.f6_raw.borrow()
+    }
+}
+impl Ines_Header {
+    pub fn f7_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.f7_raw.borrow()
+    }
+}
+impl Ines_Header {
+    pub fn f9_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.f9_raw.borrow()
+    }
+}
+impl Ines_Header {
+    pub fn f10_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.f10_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://www.nesdev.org/wiki/INES#Flags_10> Source
@@ -251,6 +319,7 @@ impl KStruct for Ines_Header_F10 {
     type Root = Ines;
     type Parent = Ines_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -267,6 +336,7 @@ impl KStruct for Ines_Header_F10 {
         *self_rc.prg_ram.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc.tv_system.borrow_mut() = i64::try_from(_io.read_bits_int_be(2)?)?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -314,7 +384,7 @@ impl Ines_Header_F10 {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Ines_Header_F10_TvSystem {
     Ntsc,
     Dual1,
@@ -373,6 +443,7 @@ impl KStruct for Ines_Header_F6 {
     type Root = Ines;
     type Parent = Ines_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -389,6 +460,7 @@ impl KStruct for Ines_Header_F6 {
         *self_rc.trainer.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.has_battery_ram.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.mirroring.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -444,7 +516,7 @@ impl Ines_Header_F6 {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Ines_Header_F6_Mirroring {
     Horizontal,
     Vertical,
@@ -496,6 +568,7 @@ impl KStruct for Ines_Header_F7 {
     type Root = Ines;
     type Parent = Ines_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -511,6 +584,7 @@ impl KStruct for Ines_Header_F7 {
         *self_rc.format.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc.playchoice10.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.vs_unisystem.borrow_mut() = _io.read_bits_int_be(1)? != 0;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -575,6 +649,7 @@ impl KStruct for Ines_Header_F9 {
     type Root = Ines;
     type Parent = Ines_Header;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -588,6 +663,7 @@ impl KStruct for Ines_Header_F9 {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
         *self_rc.tv_system.borrow_mut() = i64::try_from(_io.read_bits_int_be(1)?)?.try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -612,7 +688,7 @@ impl Ines_Header_F9 {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Ines_Header_F9_TvSystem {
     Ntsc,
     Pal,
@@ -657,11 +733,13 @@ pub struct Ines_Playchoice10 {
     inst_rom: RefCell<Vec<u8>>,
     prom: RefCell<OptRc<Ines_Playchoice10_Prom>>,
     _io: RefCell<BytesReader>,
+    inst_rom_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Ines_Playchoice10 {
     type Root = Ines;
     type Parent = Ines;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -676,6 +754,7 @@ impl KStruct for Ines_Playchoice10 {
         *self_rc.inst_rom.borrow_mut() = _io.read_bytes(8192_usize)?;
         let t = Self::read_into::<_, Ines_Playchoice10_Prom>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.prom.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -696,6 +775,11 @@ impl Ines_Playchoice10 {
         self._io.borrow()
     }
 }
+impl Ines_Playchoice10 {
+    pub fn inst_rom_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.inst_rom_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Ines_Playchoice10_Prom {
@@ -705,11 +789,14 @@ pub struct Ines_Playchoice10_Prom {
     data: RefCell<Vec<u8>>,
     counter_out: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
+    counter_out_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Ines_Playchoice10_Prom {
     type Root = Ines;
     type Parent = Ines_Playchoice10;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -723,6 +810,7 @@ impl KStruct for Ines_Playchoice10_Prom {
         let _io = io;
         *self_rc.data.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.counter_out.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -741,5 +829,15 @@ impl Ines_Playchoice10_Prom {
 impl Ines_Playchoice10_Prom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Ines_Playchoice10_Prom {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
+impl Ines_Playchoice10_Prom {
+    pub fn counter_out_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.counter_out_raw.borrow()
     }
 }

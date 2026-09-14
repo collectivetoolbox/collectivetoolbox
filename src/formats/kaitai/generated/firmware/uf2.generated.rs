@@ -75,6 +75,7 @@ impl KStruct for Uf2 {
     type Root = Uf2;
     type Parent = Uf2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -94,6 +95,7 @@ impl KStruct for Uf2 {
             let t = Self::read_into::<_, Uf2_Block>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.blocks.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -114,7 +116,7 @@ impl Uf2 {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uf2_ExtensionTagType {
 
     /**
@@ -197,7 +199,7 @@ impl Default for Uf2_ExtensionTagType {
     fn default() -> Self { Uf2_ExtensionTagType::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Uf2_FamilyId {
 
     /**
@@ -787,6 +789,7 @@ pub struct Uf2_Block {
     data: RefCell<OptRc<Uf2_BlockData>>,
     final_magic: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
     f_is_rp2350_e10_block: Cell<bool>,
     is_rp2350_e10_block: RefCell<bool>,
     f_num_blocks: Cell<bool>,
@@ -796,6 +799,7 @@ impl KStruct for Uf2_Block {
     type Root = Uf2;
     type Parent = Uf2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -818,12 +822,14 @@ impl KStruct for Uf2_Block {
         let t = Self::read_into::<_, Uf2_Flags>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.flags.borrow_mut() = t;
         *self_rc.target_address.borrow_mut() = _io.read_u4le()?;
-        let _tmpa = *self_rc.target_address();
+        let _borrowed = self_rc.target_address();
+        let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/3".to_string() }));
         }
         *self_rc.len_payload.borrow_mut() = _io.read_u4le()?;
-        let _tmpa = *self_rc.len_payload();
+        let _borrowed = self_rc.len_payload();
+        let _tmpa = *_borrowed;
         if !(((_tmpa).checked_rem(4_u32).ok_or(KError::CastError)? == 0_u32)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/block/seq/4".to_string() }));
         }
@@ -839,12 +845,16 @@ impl KStruct for Uf2_Block {
         if *self_rc.flags().has_family_id()? {
             *self_rc.family_id.borrow_mut() = i64::from(_io.read_u4le()?).try_into()?;
         }
-        let t = Self::read_into::<_, Uf2_BlockData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_data = _io.read_bytes(476_usize)?;
+        *self_rc.data_raw.borrow_mut() = _raw_data.clone();
+        let _io_data = BytesReader::from(_raw_data);
+        let t = Self::read_into::<BytesReader, Uf2_BlockData>(&_io_data, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data.borrow_mut() = t;
         *self_rc.final_magic.borrow_mut() = _io.read_bytes(4_usize)?;
         if !(*self_rc.final_magic() == vec![0x30u8, 0x6fu8, 0xb1u8, 0xau8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotEqual, src_path: "/types/block/seq/10".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -893,6 +903,7 @@ impl Uf2_Block {
      * \sa https://github.com/raspberrypi/picotool/blob/6f6458d792b93685a11423b244a585eaa99eafcf/elf2uf2/elf2uf2.cpp#L147 Git tag "2.3.0"
      * \sa <https://github.com/raspberrypi/picotool/commit/78c9bd121b09399823b67ee7ea89003ca0d3315f> Source
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_rp2350_e10_block(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -901,9 +912,10 @@ impl Uf2_Block {
             return Ok(self.is_rp2350_e10_block.borrow());
         }
         self.f_is_rp2350_e10_block.set(true);
-        *self.is_rp2350_e10_block.borrow_mut() = ( (( ((*self.flags().value() == 8192) || (*self.flags().value() == 40960)) ) && (*self.family_id() == Uf2_FamilyId::Rp2xxxAbsolute) && (*self.num_blocks_raw() == 2) && (*self.block_number() == 0) && (*self.len_payload() == 256) && (*self.data().payload().first().ok_or(KError::EmptyIterator)? == 239) && (*self.data().payload().last().ok_or(KError::EmptyIterator)? == 239) && ( ((!(*self.flags().has_extension_tags()?)) || (*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag() == 0) || ( ((*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag() == 4) && (*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.tag_type() == Uf2_ExtensionTagType::Rp2IgnoreBlock)) )) )) ).try_into()?;
+        *self.is_rp2350_e10_block.borrow_mut() = ( (( ((((to_i128(*self.flags().value())) == (to_i128(8192)))) || (((to_i128(*self.flags().value())) == (to_i128(40960))))) ) && (*self.family_id() == Uf2_FamilyId::Rp2xxxAbsolute) && (((to_i128(*self.num_blocks_raw())) == (to_i128(2)))) && (((to_i128(*self.block_number())) == (to_i128(0)))) && (((to_i128(*self.len_payload())) == (to_i128(256)))) && (*self.data().payload().first().ok_or(KError::EmptyIterator)? == 239) && (*self.data().payload().last().ok_or(KError::EmptyIterator)? == 239) && ( ((!(*self.flags().has_extension_tags()?)) || (((to_i128(*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag())) == (to_i128(0)))) || ( ((((to_i128(*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.len_tag())) == (to_i128(4)))) && (*self.data().extension_tags().get(0_usize).ok_or(KError::CastError)?.tag_type() == Uf2_ExtensionTagType::Rp2IgnoreBlock)) )) )) ).try_into()?;
         Ok(self.is_rp2350_e10_block.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_blocks(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1012,6 +1024,11 @@ impl Uf2_Block {
         self._io.borrow()
     }
 }
+impl Uf2_Block {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Uf2_BlockData {
@@ -1022,6 +1039,7 @@ pub struct Uf2_BlockData {
     file_name: RefCell<String>,
     extension_tags: RefCell<Vec<OptRc<Uf2_ExtensionTag>>>,
     _io: RefCell<BytesReader>,
+    payload_raw: RefCell<Vec<u8>>,
     f_md5_checksum: Cell<bool>,
     md5_checksum: RefCell<OptRc<Uf2_Md5Checksum>>,
 }
@@ -1029,6 +1047,7 @@ impl KStruct for Uf2_BlockData {
     type Root = Uf2;
     type Parent = Uf2_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1054,10 +1073,11 @@ impl KStruct for Uf2_BlockData {
                     let _t_extension_tags = self_rc.extension_tags.borrow();
                     let Some(_tmpa) = _t_extension_tags.last() else { break; };
                     _i = _i.saturating_add(1);
-                    if *_tmpa.len_tag() == 0 { break; }
+                    if ((to_i128(*_tmpa.len_tag())) == (to_i128(0))) { break; }
                 }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1077,6 +1097,7 @@ impl Uf2_BlockData {
      * was found only in some synthetic test files, e.g.
      * <https://github.com/umi-eng/uftwo/blob/35bccf75b4f81c43f088696a8c4a9912f1f4104e/uftwo/tests/checksum_256.uf2>.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn md5_checksum(
         &self
     ) -> KResult<Ref<'_, OptRc<Uf2_Md5Checksum>>> {
@@ -1086,7 +1107,7 @@ impl Uf2_BlockData {
         }
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_md5_checksum()? {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((_io.size()).saturating_sub(24_usize))?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(24_i32))?)?;
             let t = Self::read_into::<_, Uf2_Md5Checksum>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.md5_checksum.borrow_mut() = t;
             _io.seek(_pos)?;
@@ -1120,6 +1141,11 @@ impl Uf2_BlockData {
         self._io.borrow()
     }
 }
+impl Uf2_BlockData {
+    pub fn payload_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.payload_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://github.com/microsoft/uf2/blob/90e9741f217f5a40c98ba74d663e408041037578/README.md#extension-tags> Source
@@ -1135,6 +1161,8 @@ pub struct Uf2_ExtensionTag {
     value: RefCell<Vec<u8>>,
     padding: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
+    padding_raw: RefCell<Vec<u8>>,
     f_len_value: Cell<bool>,
     len_value: RefCell<i32>,
     f_min_len_tag: Cell<bool>,
@@ -1144,6 +1172,7 @@ impl KStruct for Uf2_ExtensionTag {
     type Root = Uf2;
     type Parent = Uf2_BlockData;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1156,20 +1185,23 @@ impl KStruct for Uf2_ExtensionTag {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.len_tag.borrow_mut() = _io.read_u1()?;
-        let _tmpa = *self_rc.len_tag();
+        let _borrowed = self_rc.len_tag();
+        let _tmpa = *_borrowed;
         if !( ((_tmpa == 0_u8) || ((to_i128(_tmpa)) >= (to_i128(*self_rc.min_len_tag()?)))) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/extension_tag/seq/0".to_string() }));
         }
         *self_rc.tag_type.borrow_mut() = i64::try_from(_io.read_bits_int_le(24)?)?.try_into()?;
         io.align_to_byte()?;
-        if *self_rc.len_tag() != 0 {
+        if ((to_i128(*self_rc.len_tag())) != (to_i128(0))) {
             *self_rc.value.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_value()?)?)?;
         }
         *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from(modulo(i64::from((0_i32).saturating_sub(to_i32(*self_rc.len_tag()))), 4_i64))?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Uf2_ExtensionTag {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn len_value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1181,6 +1213,7 @@ impl Uf2_ExtensionTag {
         *self.len_value.borrow_mut() = (if ((to_i128(*self.len_tag())) >= (to_i128(*self.min_len_tag()?))) { (i32::from(*self.len_tag())).saturating_sub(*self.min_len_tag()?) } else { 0_i32 }).try_into()?;
         Ok(self.len_value.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn min_len_tag(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -1229,6 +1262,16 @@ impl Uf2_ExtensionTag {
         self._io.borrow()
     }
 }
+impl Uf2_ExtensionTag {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
+    }
+}
+impl Uf2_ExtensionTag {
+    pub fn padding_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.padding_raw.borrow()
+    }
+}
 
 /**
  * \sa <https://github.com/microsoft/uf2/blob/90e9741f217f5a40c98ba74d663e408041037578/uf2.h#L43-L47> Source
@@ -1257,6 +1300,7 @@ impl KStruct for Uf2_Flags {
     type Root = Uf2;
     type Parent = Uf2_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1269,10 +1313,12 @@ impl KStruct for Uf2_Flags {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.value.borrow_mut() = _io.read_u4le()?;
-        let _tmpa = *self_rc.value();
+        let _borrowed = self_rc.value();
+        let _tmpa = *_borrowed;
         if !( (((_tmpa & !(61441_u32)) == 0_u32) && !( (*self_rc.is_file_container()? && *self_rc.has_extension_tags()?) )) ) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/flags/seq/0".to_string() }));
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1281,6 +1327,7 @@ impl Uf2_Flags {
     /**
      * Indicates whether extension tags are present after the payload.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_extension_tags(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1289,7 +1336,7 @@ impl Uf2_Flags {
             return Ok(self.has_extension_tags.borrow());
         }
         self.f_has_extension_tags.set(true);
-        *self.has_extension_tags.borrow_mut() = (((*self.value()) & (32768_u32)) != 0).try_into()?;
+        *self.has_extension_tags.borrow_mut() = (((to_i128(((*self.value()) & (32768_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_extension_tags.borrow())
     }
 
@@ -1297,6 +1344,7 @@ impl Uf2_Flags {
      * The field at offset 28 in the block is `family_id` instead of
      * `file_size`.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_family_id(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1305,13 +1353,14 @@ impl Uf2_Flags {
             return Ok(self.has_family_id.borrow());
         }
         self.f_has_family_id.set(true);
-        *self.has_family_id.borrow_mut() = (((*self.value()) & (8192_u32)) != 0).try_into()?;
+        *self.has_family_id.borrow_mut() = (((to_i128(((*self.value()) & (8192_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_family_id.borrow())
     }
 
     /**
      * Indicates whether `md5_checksum` is present at the end of `data`.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn has_md5_checksum(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1320,7 +1369,7 @@ impl Uf2_Flags {
             return Ok(self.has_md5_checksum.borrow());
         }
         self.f_has_md5_checksum.set(true);
-        *self.has_md5_checksum.borrow_mut() = (((*self.value()) & (16384_u32)) != 0).try_into()?;
+        *self.has_md5_checksum.borrow_mut() = (((to_i128(((*self.value()) & (16384_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.has_md5_checksum.borrow())
     }
 
@@ -1332,6 +1381,7 @@ impl Uf2_Flags {
      * written, and `file_size` is the size of that file. The name of the
      * destination file is stored in `data.file_name`.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_file_container(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1340,7 +1390,7 @@ impl Uf2_Flags {
             return Ok(self.is_file_container.borrow());
         }
         self.f_is_file_container.set(true);
-        *self.is_file_container.borrow_mut() = (((*self.value()) & (4096_u32)) != 0).try_into()?;
+        *self.is_file_container.borrow_mut() = (((to_i128(((*self.value()) & (4096_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.is_file_container.borrow())
     }
 
@@ -1349,6 +1399,7 @@ impl Uf2_Flags {
      * flash. It can be used to store data that does not fit on the device,
      * typically embedded source code or debug info.
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn not_main_flash(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -1357,7 +1408,7 @@ impl Uf2_Flags {
             return Ok(self.not_main_flash.borrow());
         }
         self.f_not_main_flash.set(true);
-        *self.not_main_flash.borrow_mut() = (((*self.value()) & (1_u32)) != 0).try_into()?;
+        *self.not_main_flash.borrow_mut() = (((to_i128(((*self.value()) & (1_u32)))) != (to_i128(0)))).try_into()?;
         Ok(self.not_main_flash.borrow())
     }
 }
@@ -1400,11 +1451,13 @@ pub struct Uf2_Md5Checksum {
     len_region: RefCell<u32>,
     md5: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    md5_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Uf2_Md5Checksum {
     type Root = Uf2;
     type Parent = Uf2_BlockData;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1419,6 +1472,7 @@ impl KStruct for Uf2_Md5Checksum {
         *self_rc.start_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_region.borrow_mut() = _io.read_u4le()?;
         *self_rc.md5.borrow_mut() = _io.read_bytes(16_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1442,5 +1496,10 @@ impl Uf2_Md5Checksum {
 impl Uf2_Md5Checksum {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Uf2_Md5Checksum {
+    pub fn md5_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.md5_raw.borrow()
     }
 }

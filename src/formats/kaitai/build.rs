@@ -83,21 +83,62 @@ fn write_if_changed(path: &Path, content: &str) -> Result<()> {
     Ok(())
 }
 
+fn emit_cargo_rerun_directives(manifest_dir: &Path) -> Result<()> {
+    for entry in WalkDir::new(manifest_dir) {
+        let entry = entry?;
+        let path = entry.path();
+        let rel_path = match path.strip_prefix(manifest_dir) {
+            Ok(p) => p,
+            Err(_) => continue,
+        };
+        if rel_path.as_os_str().is_empty() {
+            continue;
+        }
+
+        // Skip hidden files/directories (like .git, .build_cache)
+        let is_hidden = rel_path.components().any(|c| {
+            c.as_os_str().to_string_lossy().starts_with('.')
+        });
+        if is_hidden {
+            continue;
+        }
+
+        // Skip target directory
+        if rel_path.components().any(|c| c.as_os_str() == "target") {
+            continue;
+        }
+
+        // Skip generated files and generated directories
+        let first_comp = rel_path
+            .components()
+            .next()
+            .map(|c| c.as_os_str().to_string_lossy());
+        if first_comp.as_deref() == Some("generated") {
+            continue;
+        }
+        if rel_path.starts_with("tests/generated") {
+            continue;
+        }
+        if rel_path == Path::new("generated.generated.rs") {
+            continue;
+        }
+        if let Some(file_name) = rel_path.file_name().and_then(|s| s.to_str()) {
+            if file_name.ends_with(".generated.rs") {
+                continue;
+            }
+        }
+
+        println!("cargo:rerun-if-changed={}", rel_path.display());
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
     let definitions_dir = manifest_dir.join("data/definitions");
     let generated_dir = manifest_dir.join("generated");
 
-    println!("cargo:rerun-if-changed=data/definitions");
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=spec.rs");
-    println!("cargo:rerun-if-changed=parser.rs");
-    println!("cargo:rerun-if-changed=expr.rs");
-    println!("cargo:rerun-if-changed=expr");
-    println!("cargo:rerun-if-changed=precompile.rs");
-    println!("cargo:rerun-if-changed=precompile");
-    println!("cargo:rerun-if-changed=codegen.rs");
-    println!("cargo:rerun-if-changed=codegen");
+    emit_cargo_rerun_directives(&manifest_dir)?;
 
     if !definitions_dir.exists() {
         return Ok(());
@@ -105,15 +146,22 @@ fn main() -> Result<()> {
 
     fs::create_dir_all(&generated_dir)?;
 
+    let source_hash = codegen::test_generator::compute_source_hash(&manifest_dir)?;
+    let header_prefix = format!("# source_hash\t{source_hash}");
+
     // 1. Load build cache (rel_path -> (mtime_nanos, size_bytes))
     let cache_file = generated_dir.join(".build_cache");
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if let Ok(cache_str) = fs::read_to_string(&cache_file) {
-        for line in cache_str.lines() {
-            let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() == 3 {
-                if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                    cache.insert(parts[0].to_string(), (mtime, size));
+        let mut lines = cache_str.lines();
+        let first_line = lines.next().unwrap_or_default();
+        if first_line == header_prefix {
+            for line in lines {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() == 3 {
+                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                        cache.insert(parts[0].to_string(), (mtime, size));
+                    }
                 }
             }
         }
@@ -216,7 +264,7 @@ fn main() -> Result<()> {
     generate_module_files(&manifest_dir, &generated_dir)?;
 
     // 6. Write updated cache
-    let mut cache_content = String::new();
+    let mut cache_content = format!("# source_hash\t{source_hash}\n");
     let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
     sorted_keys.sort();
     for key in sorted_keys {
@@ -227,7 +275,7 @@ fn main() -> Result<()> {
     write_if_changed(&cache_file, &cache_content)?;
 
     // 7. Compile test suite if available
-    compile_test_suite(&manifest_dir, &generated_dir)?;
+    compile_test_suite(&manifest_dir, &generated_dir, source_hash)?;
 
     Ok(())
 }
@@ -316,7 +364,11 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
     Ok(())
 }
 
-fn compile_test_suite(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
+fn compile_test_suite(
+    manifest_dir: &Path,
+    generated_dir: &Path,
+    source_hash: u64,
+) -> Result<()> {
     let kaitai_tests_dir = manifest_dir.join("kaitai_struct_tests");
     if !kaitai_tests_dir.exists() {
         return Ok(());
@@ -328,10 +380,6 @@ fn compile_test_suite(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
     let test_formats_dir = generated_dir.join("test_formats");
     fs::create_dir_all(&test_formats_dir)?;
     fs::create_dir_all(&test_rs_dir)?;
-
-    println!("cargo:rerun-if-changed=kaitai_struct_tests/spec/ks");
-    println!("cargo:rerun-if-changed=kaitai_struct_tests/formats");
-    println!("cargo:rerun-if-changed=kaitai_struct_tests/spec/rust/src");
 
     // 1. Regenerate test files from KST specs if needed
     let kst_cache_file = test_rs_dir.join(".build_cache");
@@ -345,13 +393,18 @@ fn compile_test_suite(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
 
     // 2. Load test format build cache
     let cache_file = test_formats_dir.join(".build_cache");
+    let header_prefix = format!("# source_hash\t{source_hash}");
     let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
     if let Ok(cache_str) = fs::read_to_string(&cache_file) {
-        for line in cache_str.lines() {
-            let parts: Vec<&str> = line.split('\t').collect();
-            if parts.len() == 3 {
-                if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                    cache.insert(parts[0].to_string(), (mtime, size));
+        let mut lines = cache_str.lines();
+        let first_line = lines.next().unwrap_or_default();
+        if first_line == header_prefix {
+            for line in lines {
+                let parts: Vec<&str> = line.split('\t').collect();
+                if parts.len() == 3 {
+                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
+                        cache.insert(parts[0].to_string(), (mtime, size));
+                    }
                 }
             }
         }
@@ -530,7 +583,7 @@ const PENDING_TRANSPILER_FIX_FORMATS: &[&str] = &[
     write_if_changed(&test_formats_root, &test_formats_rs)?;
 
     // 7. Write updated cache for test formats
-    let mut cache_content = String::new();
+    let mut cache_content = format!("# source_hash\t{source_hash}\n");
     let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
     sorted_keys.sort();
     for key in sorted_keys {

@@ -28,6 +28,7 @@ impl KStruct for Id3v11 {
     type Root = Id3v11;
     type Parent = Id3v11;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -39,10 +40,12 @@ impl KStruct for Id3v11 {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Id3v11 {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn id3v1_tag(
         &self
     ) -> KResult<Ref<'_, OptRc<Id3v11_Id3V11Tag>>> {
@@ -51,7 +54,7 @@ impl Id3v11 {
             return Ok(self.id3v1_tag.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((_io.size()).saturating_sub(128_usize))?)?;
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(128_i32))?)?;
         let t = Self::read_into::<_, Id3v11_Id3V11Tag>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.id3v1_tag.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -89,11 +92,17 @@ pub struct Id3v11_Id3V11Tag {
     comment: RefCell<Vec<u8>>,
     genre: RefCell<Id3v11_Id3V11Tag_GenreEnum>,
     _io: RefCell<BytesReader>,
+    title_raw: RefCell<Vec<u8>>,
+    artist_raw: RefCell<Vec<u8>>,
+    album_raw: RefCell<Vec<u8>>,
+    year_raw: RefCell<Vec<u8>>,
+    comment_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Id3v11_Id3V11Tag {
     type Root = Id3v11;
     type Parent = Id3v11;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,6 +124,7 @@ impl KStruct for Id3v11_Id3V11Tag {
         *self_rc.year.borrow_mut() = bytes_to_str(&_io.read_bytes(4_usize)?, "ASCII")?;
         *self_rc.comment.borrow_mut() = _io.read_bytes(30_usize)?;
         *self_rc.genre.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -180,7 +190,32 @@ impl Id3v11_Id3V11Tag {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl Id3v11_Id3V11Tag {
+    pub fn title_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.title_raw.borrow()
+    }
+}
+impl Id3v11_Id3V11Tag {
+    pub fn artist_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.artist_raw.borrow()
+    }
+}
+impl Id3v11_Id3V11Tag {
+    pub fn album_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.album_raw.borrow()
+    }
+}
+impl Id3v11_Id3V11Tag {
+    pub fn year_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.year_raw.borrow()
+    }
+}
+impl Id3v11_Id3V11Tag {
+    pub fn comment_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.comment_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Id3v11_Id3V11Tag_GenreEnum {
     Blues,
     ClassicRock,

@@ -25,6 +25,7 @@ impl KStruct for HeroesOfMightAndMagicAgg {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -43,10 +44,12 @@ impl KStruct for HeroesOfMightAndMagicAgg {
             let t = Self::read_into::<_, HeroesOfMightAndMagicAgg_Entry>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.entries.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl HeroesOfMightAndMagicAgg {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn filenames(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<HeroesOfMightAndMagicAgg_Filename>>>> {
@@ -56,7 +59,7 @@ impl HeroesOfMightAndMagicAgg {
         }
         self.f_filenames.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add(*self.entries().last().ok_or(KError::EmptyIterator)?.size()))?)?;
+        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add((i64::try_from(self.entries().last().ok_or(KError::EmptyIterator)?.len())?)))?)?;
         *self.filenames_raw.borrow_mut() = Vec::new();
         *self.filenames.borrow_mut() = Vec::new();
         let l_filenames = usize::from(*self.num_files());
@@ -109,6 +112,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -124,10 +128,12 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
         *self_rc.offset.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
         *self_rc.size2.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl HeroesOfMightAndMagicAgg_Entry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -181,6 +187,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -193,6 +200,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.str.borrow_mut() = bytes_to_str(&_io.read_bytes_term(0, false, true, true)?, "ASCII")?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

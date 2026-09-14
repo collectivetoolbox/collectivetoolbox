@@ -35,6 +35,7 @@ impl KStruct for CreativeVoiceFile {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -62,6 +63,7 @@ impl KStruct for CreativeVoiceFile {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -109,7 +111,7 @@ impl CreativeVoiceFile {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum CreativeVoiceFile_BlockTypes {
     Terminator,
     SoundData,
@@ -165,7 +167,7 @@ impl Default for CreativeVoiceFile_BlockTypes {
     fn default() -> Self { CreativeVoiceFile_BlockTypes::Unknown(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum CreativeVoiceFile_Codecs {
     Pcm8bitUnsigned,
     Adpcm4bit,
@@ -240,13 +242,13 @@ pub enum CreativeVoiceFile_Block_Body {
     CreativeVoiceFile_BlockSoundDataNew(OptRc<CreativeVoiceFile_BlockSoundDataNew>),
     Bytes(Vec<u8>),
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockExtraInfo> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockExtraInfo(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockExtraInfo, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockExtraInfo>> for CreativeVoiceFile_Block_Body {
@@ -254,13 +256,13 @@ impl From<OptRc<CreativeVoiceFile_BlockExtraInfo>> for CreativeVoiceFile_Block_B
         Self::CreativeVoiceFile_BlockExtraInfo(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockMarker> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockMarker> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockMarker(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockMarker, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockMarker>> for CreativeVoiceFile_Block_Body {
@@ -268,13 +270,13 @@ impl From<OptRc<CreativeVoiceFile_BlockMarker>> for CreativeVoiceFile_Block_Body
         Self::CreativeVoiceFile_BlockMarker(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockRepeatStart> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockRepeatStart(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockRepeatStart, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockRepeatStart>> for CreativeVoiceFile_Block_Body {
@@ -282,13 +284,13 @@ impl From<OptRc<CreativeVoiceFile_BlockRepeatStart>> for CreativeVoiceFile_Block
         Self::CreativeVoiceFile_BlockRepeatStart(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSilence> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSilence> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSilence(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSilence, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockSilence>> for CreativeVoiceFile_Block_Body {
@@ -296,13 +298,13 @@ impl From<OptRc<CreativeVoiceFile_BlockSilence>> for CreativeVoiceFile_Block_Bod
         Self::CreativeVoiceFile_BlockSilence(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundData> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundData> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundData(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundData, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockSoundData>> for CreativeVoiceFile_Block_Body {
@@ -310,13 +312,13 @@ impl From<OptRc<CreativeVoiceFile_BlockSoundData>> for CreativeVoiceFile_Block_B
         Self::CreativeVoiceFile_BlockSoundData(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for OptRc<CreativeVoiceFile_BlockSoundDataNew> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundDataNew(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::CreativeVoiceFile_BlockSoundDataNew, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<CreativeVoiceFile_BlockSoundDataNew>> for CreativeVoiceFile_Block_Body {
@@ -324,13 +326,13 @@ impl From<OptRc<CreativeVoiceFile_BlockSoundDataNew>> for CreativeVoiceFile_Bloc
         Self::CreativeVoiceFile_BlockSoundDataNew(v)
     }
 }
-impl From<&CreativeVoiceFile_Block_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &CreativeVoiceFile_Block_Body) -> Self {
+impl TryFrom<&CreativeVoiceFile_Block_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &CreativeVoiceFile_Block_Body) -> Result<Self, Self::Error> {
         if let CreativeVoiceFile_Block_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected CreativeVoiceFile_Block_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for CreativeVoiceFile_Block_Body {
@@ -342,6 +344,7 @@ impl KStruct for CreativeVoiceFile_Block {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -363,42 +366,42 @@ impl KStruct for CreativeVoiceFile_Block {
         if *self_rc.block_type() != CreativeVoiceFile_BlockTypes::Terminator {
             match *self_rc.block_type() {
                 CreativeVoiceFile_BlockTypes::ExtraInfo => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockExtraInfo>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 CreativeVoiceFile_BlockTypes::Marker => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockMarker>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 CreativeVoiceFile_BlockTypes::RepeatStart => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockRepeatStart>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 CreativeVoiceFile_BlockTypes::Silence => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockSilence>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 CreativeVoiceFile_BlockTypes::SoundData => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockSoundData>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     *self_rc.body.borrow_mut() = Some(t);
                 }
                 CreativeVoiceFile_BlockTypes::SoundDataNew => {
-                    *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                    *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.body_size()?)?)?.into();
                     let body_raw = self_rc.body_raw.borrow();
                     let _t_body_raw_io = BytesReader::from(body_raw.clone());
                     let t = Self::read_into::<BytesReader, CreativeVoiceFile_BlockSoundDataNew>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
@@ -409,6 +412,7 @@ impl KStruct for CreativeVoiceFile_Block {
                 }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -419,6 +423,7 @@ impl CreativeVoiceFile_Block {
      * emulating that by adding two standard-sized integers
      * (body_size1 and body_size2).
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body_size(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -494,6 +499,7 @@ impl KStruct for CreativeVoiceFile_BlockExtraInfo {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -508,6 +514,7 @@ impl KStruct for CreativeVoiceFile_BlockExtraInfo {
         *self_rc.freq_div.borrow_mut() = _io.read_u2le()?;
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.num_channels_1.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -516,6 +523,7 @@ impl CreativeVoiceFile_BlockExtraInfo {
     /**
      * Number of channels (1 = mono, 2 = stereo)
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_channels(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -527,6 +535,7 @@ impl CreativeVoiceFile_BlockExtraInfo {
         *self.num_channels.borrow_mut() = ((i32::from(*self.num_channels_1())).saturating_add(1_i32)).try_into()?;
         Ok(self.num_channels.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sample_rate(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -584,6 +593,7 @@ impl KStruct for CreativeVoiceFile_BlockMarker {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -596,6 +606,7 @@ impl KStruct for CreativeVoiceFile_BlockMarker {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.marker_id.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -632,6 +643,7 @@ impl KStruct for CreativeVoiceFile_BlockRepeatStart {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -644,6 +656,7 @@ impl KStruct for CreativeVoiceFile_BlockRepeatStart {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.repeat_count_1.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -685,6 +698,7 @@ impl KStruct for CreativeVoiceFile_BlockSilence {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -698,6 +712,7 @@ impl KStruct for CreativeVoiceFile_BlockSilence {
         let _io = io;
         *self_rc.duration_samples.borrow_mut() = _io.read_u2le()?;
         *self_rc.freq_div.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -706,6 +721,7 @@ impl CreativeVoiceFile_BlockSilence {
     /**
      * Duration of silence, in seconds
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn duration_sec(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -717,6 +733,7 @@ impl CreativeVoiceFile_BlockSilence {
         *self.duration_sec.borrow_mut() = (((to_f64(*self.duration_samples())) / (*self.sample_rate()?))).try_into()?;
         Ok(self.duration_sec.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sample_rate(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -773,6 +790,7 @@ impl KStruct for CreativeVoiceFile_BlockSoundData {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -787,10 +805,12 @@ impl KStruct for CreativeVoiceFile_BlockSoundData {
         *self_rc.freq_div.borrow_mut() = _io.read_u1()?;
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl CreativeVoiceFile_BlockSoundData {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn sample_rate(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -844,11 +864,13 @@ pub struct CreativeVoiceFile_BlockSoundDataNew {
     reserved: RefCell<Vec<u8>>,
     wave: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -866,6 +888,7 @@ impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
         *self_rc.codec.borrow_mut() = i64::from(_io.read_u2le()?).try_into()?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(4_usize)?;
         *self_rc.wave.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -904,5 +927,10 @@ impl CreativeVoiceFile_BlockSoundDataNew {
 impl CreativeVoiceFile_BlockSoundDataNew {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl CreativeVoiceFile_BlockSoundDataNew {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
     }
 }

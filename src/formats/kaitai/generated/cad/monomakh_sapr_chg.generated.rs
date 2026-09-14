@@ -25,11 +25,13 @@ pub struct MonomakhSaprChg {
     title: RefCell<String>,
     ent: RefCell<Vec<OptRc<MonomakhSaprChg_Block>>>,
     _io: RefCell<BytesReader>,
+    title_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MonomakhSaprChg {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,6 +53,7 @@ impl KStruct for MonomakhSaprChg {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -71,6 +74,11 @@ impl MonomakhSaprChg {
         self._io.borrow()
     }
 }
+impl MonomakhSaprChg {
+    pub fn title_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.title_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct MonomakhSaprChg_Block {
@@ -81,11 +89,14 @@ pub struct MonomakhSaprChg_Block {
     file_size: RefCell<u64>,
     file: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    header_raw: RefCell<Vec<u8>>,
+    file_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for MonomakhSaprChg_Block {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -100,6 +111,7 @@ impl KStruct for MonomakhSaprChg_Block {
         *self_rc.header.borrow_mut() = bytes_to_str(&_io.read_bytes(13_usize)?, "ascii")?;
         *self_rc.file_size.borrow_mut() = _io.read_u8le()?;
         *self_rc.file.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.file_size())?)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -123,5 +135,15 @@ impl MonomakhSaprChg_Block {
 impl MonomakhSaprChg_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl MonomakhSaprChg_Block {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+impl MonomakhSaprChg_Block {
+    pub fn file_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.file_raw.borrow()
     }
 }

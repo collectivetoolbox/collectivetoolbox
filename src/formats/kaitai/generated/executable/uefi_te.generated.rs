@@ -35,11 +35,13 @@ pub struct UefiTe {
     te_hdr: RefCell<OptRc<UefiTe_TeHeader>>,
     sections: RefCell<Vec<OptRc<UefiTe_Section>>>,
     _io: RefCell<BytesReader>,
+    te_hdr_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for UefiTe {
     type Root = UefiTe;
     type Parent = UefiTe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -51,7 +53,10 @@ impl KStruct for UefiTe {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, UefiTe_TeHeader>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let _raw_te_hdr = _io.read_bytes(40_usize)?;
+        *self_rc.te_hdr_raw.borrow_mut() = _raw_te_hdr.clone();
+        let _io_te_hdr = BytesReader::from(_raw_te_hdr);
+        let t = Self::read_into::<BytesReader, UefiTe_TeHeader>(&_io_te_hdr, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.te_hdr.borrow_mut() = t;
         *self_rc.sections.borrow_mut() = Vec::new();
         let l_sections = usize::from(*self_rc.te_hdr().num_sections());
@@ -59,6 +64,7 @@ impl KStruct for UefiTe {
             let t = Self::read_into::<_, UefiTe_Section>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.sections.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -79,6 +85,11 @@ impl UefiTe {
         self._io.borrow()
     }
 }
+impl UefiTe {
+    pub fn te_hdr_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.te_hdr_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct UefiTe_DataDir {
@@ -93,6 +104,7 @@ impl KStruct for UefiTe_DataDir {
     type Root = UefiTe;
     type Parent = UefiTe_HeaderDataDirs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -106,6 +118,7 @@ impl KStruct for UefiTe_DataDir {
         let _io = io;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -140,6 +153,7 @@ impl KStruct for UefiTe_HeaderDataDirs {
     type Root = UefiTe;
     type Parent = UefiTe_TeHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -155,6 +169,7 @@ impl KStruct for UefiTe_HeaderDataDirs {
         *self_rc.base_relocation_table.borrow_mut() = t;
         let t = Self::read_into::<_, UefiTe_DataDir>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.debug.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -192,6 +207,7 @@ pub struct UefiTe_Section {
     num_linenumbers: RefCell<u16>,
     characteristics: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
 }
@@ -199,6 +215,7 @@ impl KStruct for UefiTe_Section {
     type Root = UefiTe;
     type Parent = UefiTe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,7 +227,7 @@ impl KStruct for UefiTe_Section {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_strip_right(&_io.read_bytes(8_usize)?, 0), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(8_usize)?, None, false, Some(0)), "UTF-8")?;
         *self_rc.virtual_size.borrow_mut() = _io.read_u4le()?;
         *self_rc.virtual_address.borrow_mut() = _io.read_u4le()?;
         *self_rc.size_of_raw_data.borrow_mut() = _io.read_u4le()?;
@@ -220,10 +237,12 @@ impl KStruct for UefiTe_Section {
         *self_rc.num_relocations.borrow_mut() = _io.read_u2le()?;
         *self_rc.num_linenumbers.borrow_mut() = _io.read_u2le()?;
         *self_rc.characteristics.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl UefiTe_Section {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -233,7 +252,7 @@ impl UefiTe_Section {
         }
         self.f_body.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((usize::try_from((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size())))?).saturating_add(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size()))?)?;
+        _io.seek(usize::try_from(((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size()))).saturating_add(u32::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size())?))?))?)?;
         *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size_of_raw_data())?)?;
         _io.seek(_pos)?;
         Ok(self.body.borrow())
@@ -294,6 +313,11 @@ impl UefiTe_Section {
         self._io.borrow()
     }
 }
+impl UefiTe_Section {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct UefiTe_TeHeader {
@@ -315,6 +339,7 @@ impl KStruct for UefiTe_TeHeader {
     type Root = UefiTe;
     type Parent = UefiTe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -339,6 +364,7 @@ impl KStruct for UefiTe_TeHeader {
         *self_rc.image_base.borrow_mut() = _io.read_u8le()?;
         let t = Self::read_into::<_, UefiTe_HeaderDataDirs>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.data_dirs.borrow_mut() = t;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -394,7 +420,7 @@ impl UefiTe_TeHeader {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum UefiTe_TeHeader_MachineType {
 
     /**
@@ -625,7 +651,7 @@ impl Default for UefiTe_TeHeader_MachineType {
     fn default() -> Self { UefiTe_TeHeader_MachineType::UnknownVariant(0) }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum UefiTe_TeHeader_SubsystemEnum {
     Unknown,
     Native,

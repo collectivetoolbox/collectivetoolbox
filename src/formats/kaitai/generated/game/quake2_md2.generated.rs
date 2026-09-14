@@ -123,6 +123,7 @@ impl KStruct for Quake2Md2 {
     type Root = Quake2Md2;
     type Parent = Quake2Md2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -158,10 +159,12 @@ impl KStruct for Quake2Md2 {
         *self_rc.ofs_frames.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_gl_cmds.borrow_mut() = _io.read_u4le()?;
         *self_rc.ofs_eof.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Quake2Md2 {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anim_names(
         &self
     ) -> KResult<Ref<'_, Vec<String>>> {
@@ -173,6 +176,7 @@ impl Quake2Md2 {
         *self.anim_names.borrow_mut() = vec!["stand".to_string(), "run".to_string(), "attack".to_string(), "pain1".to_string(), "pain2".to_string(), "pain3".to_string(), "jump".to_string(), "flip".to_string(), "salute".to_string(), "taunt".to_string(), "wave".to_string(), "point".to_string(), "crstnd".to_string(), "crwalk".to_string(), "crattak".to_string(), "crpain".to_string(), "crdeath".to_string(), "death1".to_string(), "death2".to_string(), "death3".to_string()];
         Ok(self.anim_names.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anim_num_frames(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -184,6 +188,7 @@ impl Quake2Md2 {
         *self.anim_num_frames.borrow_mut() = vec![40_i32, 6_i32, 8_i32, 4_i32, 4_i32, 4_i32, 6_i32, 12_i32, 11_i32, 17_i32, 11_i32, 12_i32, 19_i32, 6_i32, 9_i32, 4_i32, 5_i32, 6_i32, 6_i32, 8_i32];
         Ok(self.anim_num_frames.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anim_start_indices(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -197,9 +202,10 @@ impl Quake2Md2 {
     }
 
     /**
-     * \sa https://github.com/skullernet/q2pro/blob/f4faabd/src/common/math.c#L80
+     * \sa <https://github.com/skullernet/q2pro/blob/f4faabd/src/common/math.c#L80> Source
      *   from Quake anorms.h
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn anorms_table(
         &self
     ) -> KResult<Ref<'_, Vec<Vec<f64>>>> {
@@ -211,6 +217,7 @@ impl Quake2Md2 {
         *self.anorms_table.borrow_mut() = vec![vec![-(0.525731), 0.0, 0.850651], vec![-(0.442863), 0.238856, 0.864188], vec![-(0.295242), 0.0, 0.955423], vec![-(0.309017), 0.5, 0.809017], vec![-(0.16246), 0.262866, 0.951056], vec![0.0, 0.0, 1.0], vec![0.0, 0.850651, 0.525731], vec![-(0.147621), 0.716567, 0.681718], vec![0.147621, 0.716567, 0.681718], vec![0.0, 0.525731, 0.850651], vec![0.309017, 0.5, 0.809017], vec![0.525731, 0.0, 0.850651], vec![0.295242, 0.0, 0.955423], vec![0.442863, 0.238856, 0.864188], vec![0.16246, 0.262866, 0.951056], vec![-(0.681718), 0.147621, 0.716567], vec![-(0.809017), 0.309017, 0.5], vec![-(0.587785), 0.425325, 0.688191], vec![-(0.850651), 0.525731, 0.0], vec![-(0.864188), 0.442863, 0.238856], vec![-(0.716567), 0.681718, 0.147621], vec![-(0.688191), 0.587785, 0.425325], vec![-(0.5), 0.809017, 0.309017], vec![-(0.238856), 0.864188, 0.442863], vec![-(0.425325), 0.688191, 0.587785], vec![-(0.716567), 0.681718, -(0.147621)], vec![-(0.5), 0.809017, -(0.309017)], vec![-(0.525731), 0.850651, 0.0], vec![0.0, 0.850651, -(0.525731)], vec![-(0.238856), 0.864188, -(0.442863)], vec![0.0, 0.955423, -(0.295242)], vec![-(0.262866), 0.951056, -(0.16246)], vec![0.0, 1.0, 0.0], vec![0.0, 0.955423, 0.295242], vec![-(0.262866), 0.951056, 0.16246], vec![0.238856, 0.864188, 0.442863], vec![0.262866, 0.951056, 0.16246], vec![0.5, 0.809017, 0.309017], vec![0.238856, 0.864188, -(0.442863)], vec![0.262866, 0.951056, -(0.16246)], vec![0.5, 0.809017, -(0.309017)], vec![0.850651, 0.525731, 0.0], vec![0.716567, 0.681718, 0.147621], vec![0.716567, 0.681718, -(0.147621)], vec![0.525731, 0.850651, 0.0], vec![0.425325, 0.688191, 0.587785], vec![0.864188, 0.442863, 0.238856], vec![0.688191, 0.587785, 0.425325], vec![0.809017, 0.309017, 0.5], vec![0.681718, 0.147621, 0.716567], vec![0.587785, 0.425325, 0.688191], vec![0.955423, 0.295242, 0.0], vec![1.0, 0.0, 0.0], vec![0.951056, 0.16246, 0.262866], vec![0.850651, -(0.525731), 0.0], vec![0.955423, -(0.295242), 0.0], vec![0.864188, -(0.442863), 0.238856], vec![0.951056, -(0.16246), 0.262866], vec![0.809017, -(0.309017), 0.5], vec![0.681718, -(0.147621), 0.716567], vec![0.850651, 0.0, 0.525731], vec![0.864188, 0.442863, -(0.238856)], vec![0.809017, 0.309017, -(0.5)], vec![0.951056, 0.16246, -(0.262866)], vec![0.525731, 0.0, -(0.850651)], vec![0.681718, 0.147621, -(0.716567)], vec![0.681718, -(0.147621), -(0.716567)], vec![0.850651, 0.0, -(0.525731)], vec![0.809017, -(0.309017), -(0.5)], vec![0.864188, -(0.442863), -(0.238856)], vec![0.951056, -(0.16246), -(0.262866)], vec![0.147621, 0.716567, -(0.681718)], vec![0.309017, 0.5, -(0.809017)], vec![0.425325, 0.688191, -(0.587785)], vec![0.442863, 0.238856, -(0.864188)], vec![0.587785, 0.425325, -(0.688191)], vec![0.688191, 0.587785, -(0.425325)], vec![-(0.147621), 0.716567, -(0.681718)], vec![-(0.309017), 0.5, -(0.809017)], vec![0.0, 0.525731, -(0.850651)], vec![-(0.525731), 0.0, -(0.850651)], vec![-(0.442863), 0.238856, -(0.864188)], vec![-(0.295242), 0.0, -(0.955423)], vec![-(0.16246), 0.262866, -(0.951056)], vec![0.0, 0.0, -(1.0)], vec![0.295242, 0.0, -(0.955423)], vec![0.16246, 0.262866, -(0.951056)], vec![-(0.442863), -(0.238856), -(0.864188)], vec![-(0.309017), -(0.5), -(0.809017)], vec![-(0.16246), -(0.262866), -(0.951056)], vec![0.0, -(0.850651), -(0.525731)], vec![-(0.147621), -(0.716567), -(0.681718)], vec![0.147621, -(0.716567), -(0.681718)], vec![0.0, -(0.525731), -(0.850651)], vec![0.309017, -(0.5), -(0.809017)], vec![0.442863, -(0.238856), -(0.864188)], vec![0.16246, -(0.262866), -(0.951056)], vec![0.238856, -(0.864188), -(0.442863)], vec![0.5, -(0.809017), -(0.309017)], vec![0.425325, -(0.688191), -(0.587785)], vec![0.716567, -(0.681718), -(0.147621)], vec![0.688191, -(0.587785), -(0.425325)], vec![0.587785, -(0.425325), -(0.688191)], vec![0.0, -(0.955423), -(0.295242)], vec![0.0, -(1.0), 0.0], vec![0.262866, -(0.951056), -(0.16246)], vec![0.0, -(0.850651), 0.525731], vec![0.0, -(0.955423), 0.295242], vec![0.238856, -(0.864188), 0.442863], vec![0.262866, -(0.951056), 0.16246], vec![0.5, -(0.809017), 0.309017], vec![0.716567, -(0.681718), 0.147621], vec![0.525731, -(0.850651), 0.0], vec![-(0.238856), -(0.864188), -(0.442863)], vec![-(0.5), -(0.809017), -(0.309017)], vec![-(0.262866), -(0.951056), -(0.16246)], vec![-(0.850651), -(0.525731), 0.0], vec![-(0.716567), -(0.681718), -(0.147621)], vec![-(0.716567), -(0.681718), 0.147621], vec![-(0.525731), -(0.850651), 0.0], vec![-(0.5), -(0.809017), 0.309017], vec![-(0.238856), -(0.864188), 0.442863], vec![-(0.262866), -(0.951056), 0.16246], vec![-(0.864188), -(0.442863), 0.238856], vec![-(0.809017), -(0.309017), 0.5], vec![-(0.688191), -(0.587785), 0.425325], vec![-(0.681718), -(0.147621), 0.716567], vec![-(0.442863), -(0.238856), 0.864188], vec![-(0.587785), -(0.425325), 0.688191], vec![-(0.309017), -(0.5), 0.809017], vec![-(0.147621), -(0.716567), 0.681718], vec![-(0.425325), -(0.688191), 0.587785], vec![-(0.16246), -(0.262866), 0.951056], vec![0.442863, -(0.238856), 0.864188], vec![0.16246, -(0.262866), 0.951056], vec![0.309017, -(0.5), 0.809017], vec![0.147621, -(0.716567), 0.681718], vec![0.0, -(0.525731), 0.850651], vec![0.425325, -(0.688191), 0.587785], vec![0.587785, -(0.425325), 0.688191], vec![0.688191, -(0.587785), 0.425325], vec![-(0.955423), 0.295242, 0.0], vec![-(0.951056), 0.16246, 0.262866], vec![-(1.0), 0.0, 0.0], vec![-(0.850651), 0.0, 0.525731], vec![-(0.955423), -(0.295242), 0.0], vec![-(0.951056), -(0.16246), 0.262866], vec![-(0.864188), 0.442863, -(0.238856)], vec![-(0.951056), 0.16246, -(0.262866)], vec![-(0.809017), 0.309017, -(0.5)], vec![-(0.864188), -(0.442863), -(0.238856)], vec![-(0.951056), -(0.16246), -(0.262866)], vec![-(0.809017), -(0.309017), -(0.5)], vec![-(0.681718), 0.147621, -(0.716567)], vec![-(0.681718), -(0.147621), -(0.716567)], vec![-(0.850651), 0.0, -(0.525731)], vec![-(0.688191), 0.587785, -(0.425325)], vec![-(0.587785), 0.425325, -(0.688191)], vec![-(0.425325), 0.688191, -(0.587785)], vec![-(0.425325), -(0.688191), -(0.587785)], vec![-(0.587785), -(0.425325), -(0.688191)], vec![-(0.688191), -(0.587785), -(0.425325)]];
         Ok(self.anorms_table.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn frames(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Quake2Md2_Frame>>>> {
@@ -234,6 +241,7 @@ impl Quake2Md2 {
         _io.seek(_pos)?;
         Ok(self.frames.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn gl_cmds(
         &self
     ) -> KResult<Ref<'_, OptRc<Quake2Md2_GlCmdsList>>> {
@@ -251,6 +259,7 @@ impl Quake2Md2 {
         _io.seek(_pos)?;
         Ok(self.gl_cmds.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn skins(
         &self
     ) -> KResult<Ref<'_, Vec<String>>> {
@@ -268,10 +277,12 @@ impl Quake2Md2 {
             self.skins_raw.borrow_mut().push(_io.read_bytes(64_usize)?.into());
             let skins_raw = self.skins_raw.borrow();
             let _io_skins_raw = BytesReader::from(skins_raw.last().ok_or(KError::EmptyIterator)?.clone());
+            self.skins.borrow_mut().push(bytes_to_str(&bytes_terminate_pad(&_io_skins_raw.read_bytes(64_usize)?, Some(0), false, None), "ascii")?);
         }
         _io.seek(_pos)?;
         Ok(self.skins.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn tex_coords(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Quake2Md2_TexPoint>>>> {
@@ -291,6 +302,7 @@ impl Quake2Md2 {
         _io.seek(_pos)?;
         Ok(self.tex_coords.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn triangles(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Quake2Md2_Triangle>>>> {
@@ -416,7 +428,7 @@ impl Quake2Md2 {
         self.skins_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Quake2Md2_GlPrimitive {
     TriangleStrip,
     TriangleFan,
@@ -469,6 +481,7 @@ impl KStruct for Quake2Md2_CompressedVec {
     type Root = Quake2Md2;
     type Parent = Quake2Md2_Vertex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -483,10 +496,12 @@ impl KStruct for Quake2Md2_CompressedVec {
         *self_rc.x_compressed.borrow_mut() = _io.read_u1()?;
         *self_rc.y_compressed.borrow_mut() = _io.read_u1()?;
         *self_rc.z_compressed.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Quake2Md2_CompressedVec {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn x(
         &self
     ) -> KResult<Ref<'_, f32>> {
@@ -498,6 +513,7 @@ impl Quake2Md2_CompressedVec {
         *self.x.borrow_mut() = (((((to_f32(*self.x_compressed())) * (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().x()))) + (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().x()))).try_into()?;
         Ok(self.x.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn y(
         &self
     ) -> KResult<Ref<'_, f32>> {
@@ -509,6 +525,7 @@ impl Quake2Md2_CompressedVec {
         *self.y.borrow_mut() = (((((to_f32(*self.y_compressed())) * (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.scale().y()))) + (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.translate().y()))).try_into()?;
         Ok(self.y.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn z(
         &self
     ) -> KResult<Ref<'_, f32>> {
@@ -552,11 +569,13 @@ pub struct Quake2Md2_Frame {
     name: RefCell<String>,
     vertices: RefCell<Vec<OptRc<Quake2Md2_Vertex>>>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for Quake2Md2_Frame {
     type Root = Quake2Md2;
     type Parent = Quake2Md2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -572,13 +591,14 @@ impl KStruct for Quake2Md2_Frame {
         *self_rc.scale.borrow_mut() = t;
         let t = Self::read_into::<_, Quake2Md2_Vec3f>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.translate.borrow_mut() = t;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&_io.read_bytes(16_usize)?, 0, false), "ascii")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(16_usize)?, Some(0), false, None), "ascii")?;
         *self_rc.vertices.borrow_mut() = Vec::new();
         let l_vertices = usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.vertices_per_frame())?;
         for _i in 0_usize..l_vertices {
             let t = Self::read_into::<_, Quake2Md2_Vertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -609,6 +629,11 @@ impl Quake2Md2_Frame {
         self._io.borrow()
     }
 }
+impl Quake2Md2_Frame {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct Quake2Md2_GlCmd {
@@ -627,6 +652,7 @@ impl KStruct for Quake2Md2_GlCmd {
     type Root = Quake2Md2;
     type Parent = Quake2Md2_GlCmdsList;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -645,10 +671,12 @@ impl KStruct for Quake2Md2_GlCmd {
             let t = Self::read_into::<_, Quake2Md2_GlVertex>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
             self_rc.vertices.borrow_mut().push(t);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Quake2Md2_GlCmd {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn num_vertices(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -657,9 +685,10 @@ impl Quake2Md2_GlCmd {
             return Ok(self.num_vertices.borrow());
         }
         self.f_num_vertices.set(true);
-        *self.num_vertices.borrow_mut() = (if *self.cmd_num_vertices() < 0 { (0_i32).saturating_sub(*self.cmd_num_vertices()) } else { *self.cmd_num_vertices() }).try_into()?;
+        *self.num_vertices.borrow_mut() = (if ((to_i128(*self.cmd_num_vertices())) < (to_i128(0))) { (0_i32).saturating_sub(to_i32(*self.cmd_num_vertices())) } else { *self.cmd_num_vertices() }).try_into()?;
         Ok(self.num_vertices.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn primitive(
         &self
     ) -> KResult<Ref<'_, Quake2Md2_GlPrimitive>> {
@@ -668,7 +697,7 @@ impl Quake2Md2_GlCmd {
             return Ok(self.primitive.borrow());
         }
         self.f_primitive.set(true);
-        *self.primitive.borrow_mut() = if *self.cmd_num_vertices() < 0 { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
+        *self.primitive.borrow_mut() = if ((to_i128(*self.cmd_num_vertices())) < (to_i128(0))) { Quake2Md2_GlPrimitive::TriangleFan.clone() } else { Quake2Md2_GlPrimitive::TriangleStrip.clone() };
         Ok(self.primitive.borrow())
     }
 }
@@ -700,6 +729,7 @@ impl KStruct for Quake2Md2_GlCmdsList {
     type Root = Quake2Md2;
     type Parent = Quake2Md2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -721,10 +751,11 @@ impl KStruct for Quake2Md2_GlCmdsList {
                     let _t_items = self_rc.items.borrow();
                     let Some(_tmpa) = _t_items.last() else { break; };
                     _i = _i.saturating_add(1);
-                    if *_tmpa.cmd_num_vertices() == 0 { break; }
+                    if ((to_i128(*_tmpa.cmd_num_vertices())) == (to_i128(0))) { break; }
                 }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -754,6 +785,7 @@ impl KStruct for Quake2Md2_GlVertex {
     type Root = Quake2Md2;
     type Parent = Quake2Md2_GlCmd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -771,6 +803,7 @@ impl KStruct for Quake2Md2_GlVertex {
             self_rc.tex_coords_normalized.borrow_mut().push(_io.read_f4le()?);
         }
         *self_rc.vertex_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -813,6 +846,7 @@ impl KStruct for Quake2Md2_TexPoint {
     type Root = Quake2Md2;
     type Parent = Quake2Md2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -826,10 +860,12 @@ impl KStruct for Quake2Md2_TexPoint {
         let _io = io;
         *self_rc.s_px.borrow_mut() = _io.read_u2le()?;
         *self_rc.t_px.borrow_mut() = _io.read_u2le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Quake2Md2_TexPoint {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn s_normalized(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -841,6 +877,7 @@ impl Quake2Md2_TexPoint {
         *self.s_normalized.borrow_mut() = (((((to_f64(*self.s_px())) + (0.0))) / (to_f64(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.skin_width_px())))).try_into()?;
         Ok(self.s_normalized.borrow())
     }
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn t_normalized(
         &self
     ) -> KResult<Ref<'_, f64>> {
@@ -882,6 +919,7 @@ impl KStruct for Quake2Md2_Triangle {
     type Root = Quake2Md2;
     type Parent = Quake2Md2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -903,6 +941,7 @@ impl KStruct for Quake2Md2_Triangle {
         for _i in 0_usize..l_tex_point_indices {
             self_rc.tex_point_indices.borrow_mut().push(_io.read_u2le()?);
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -946,6 +985,7 @@ impl KStruct for Quake2Md2_Vec3f {
     type Root = Quake2Md2;
     type Parent = Quake2Md2_Frame;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -960,6 +1000,7 @@ impl KStruct for Quake2Md2_Vec3f {
         *self_rc.x.borrow_mut() = _io.read_f4le()?;
         *self_rc.y.borrow_mut() = _io.read_f4le()?;
         *self_rc.z.borrow_mut() = _io.read_f4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -1001,6 +1042,7 @@ impl KStruct for Quake2Md2_Vertex {
     type Root = Quake2Md2;
     type Parent = Quake2Md2_Frame;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1015,10 +1057,12 @@ impl KStruct for Quake2Md2_Vertex {
         let t = Self::read_into::<_, Quake2Md2_CompressedVec>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
         *self_rc.position.borrow_mut() = t;
         *self_rc.normal_index.borrow_mut() = _io.read_u1()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl Quake2Md2_Vertex {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn normal(
         &self
     ) -> KResult<Ref<'_, Vec<f64>>> {

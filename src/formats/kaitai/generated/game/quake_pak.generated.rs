@@ -26,6 +26,7 @@ impl KStruct for QuakePak {
     type Root = QuakePak;
     type Parent = QuakePak;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -43,10 +44,12 @@ impl KStruct for QuakePak {
         }
         *self_rc.ofs_index.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_index.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl QuakePak {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<QuakePak_IndexStruct>>> {
@@ -100,6 +103,7 @@ pub struct QuakePak_IndexEntry {
     ofs: RefCell<u32>,
     size: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_body: Cell<bool>,
     body: RefCell<Vec<u8>>,
 }
@@ -107,6 +111,7 @@ impl KStruct for QuakePak_IndexEntry {
     type Root = QuakePak;
     type Parent = QuakePak_IndexStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,13 +123,15 @@ impl KStruct for QuakePak_IndexEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate(&bytes_strip_right(&_io.read_bytes(56_usize)?, 0), 0, false), "UTF-8")?;
+        *self_rc.name.borrow_mut() = bytes_to_str(&bytes_terminate_pad(&_io.read_bytes(56_usize)?, Some(0), false, Some(0)), "UTF-8")?;
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.size.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl QuakePak_IndexEntry {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -161,6 +168,11 @@ impl QuakePak_IndexEntry {
         self._io.borrow()
     }
 }
+impl QuakePak_IndexEntry {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct QuakePak_IndexStruct {
@@ -174,6 +186,7 @@ impl KStruct for QuakePak_IndexStruct {
     type Root = QuakePak;
     type Parent = QuakePak;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,6 +207,7 @@ impl KStruct for QuakePak_IndexStruct {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

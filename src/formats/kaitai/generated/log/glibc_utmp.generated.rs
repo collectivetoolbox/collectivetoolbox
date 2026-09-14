@@ -12,11 +12,13 @@ pub struct GlibcUtmp {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<OptRc<GlibcUtmp_Record>>>,
     _io: RefCell<BytesReader>,
+    records_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for GlibcUtmp {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -32,11 +34,14 @@ impl KStruct for GlibcUtmp {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, GlibcUtmp_Record>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let _raw_records = _io.read_bytes(384_usize)?;
+                let _io_records = BytesReader::from(_raw_records);
+                let t = Self::read_into::<BytesReader, GlibcUtmp_Record>(&_io_records, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.records.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -52,7 +57,12 @@ impl GlibcUtmp {
         self._io.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+impl GlibcUtmp {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
+    }
+}
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum GlibcUtmp_EntryType {
     Empty,
     RunLvl,
@@ -126,11 +136,18 @@ pub struct GlibcUtmp_Record {
     addr_v6: RefCell<Vec<u8>>,
     reserved: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    line_raw: RefCell<Vec<u8>>,
+    id_raw: RefCell<Vec<u8>>,
+    user_raw: RefCell<Vec<u8>>,
+    host_raw: RefCell<Vec<u8>>,
+    addr_v6_raw: RefCell<Vec<u8>>,
+    reserved_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for GlibcUtmp_Record {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -154,6 +171,7 @@ impl KStruct for GlibcUtmp_Record {
         *self_rc.tv.borrow_mut() = t;
         *self_rc.addr_v6.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.reserved.borrow_mut() = _io.read_bytes(20_usize)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -259,6 +277,36 @@ impl GlibcUtmp_Record {
         self._io.borrow()
     }
 }
+impl GlibcUtmp_Record {
+    pub fn line_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.line_raw.borrow()
+    }
+}
+impl GlibcUtmp_Record {
+    pub fn id_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.id_raw.borrow()
+    }
+}
+impl GlibcUtmp_Record {
+    pub fn user_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.user_raw.borrow()
+    }
+}
+impl GlibcUtmp_Record {
+    pub fn host_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.host_raw.borrow()
+    }
+}
+impl GlibcUtmp_Record {
+    pub fn addr_v6_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.addr_v6_raw.borrow()
+    }
+}
+impl GlibcUtmp_Record {
+    pub fn reserved_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.reserved_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct GlibcUtmp_Timeval {
@@ -273,6 +321,7 @@ impl KStruct for GlibcUtmp_Timeval {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp_Record;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -286,6 +335,7 @@ impl KStruct for GlibcUtmp_Timeval {
         let _io = io;
         *self_rc.sec.borrow_mut() = _io.read_u4le()?;
         *self_rc.usec.borrow_mut() = _io.read_s4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }

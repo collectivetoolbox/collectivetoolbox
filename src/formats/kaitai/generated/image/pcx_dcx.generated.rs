@@ -26,6 +26,7 @@ impl KStruct for PcxDcx {
     type Root = PcxDcx;
     type Parent = PcxDcx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -50,9 +51,10 @@ impl KStruct for PcxDcx {
                 let _t_files = self_rc.files.borrow();
                 let Some(_tmpa) = _t_files.last() else { break; };
                 _i = _i.saturating_add(1);
-                if *_tmpa.ofs_body() == 0 { break; }
+                if ((to_i128(*_tmpa.ofs_body())) == (to_i128(0))) { break; }
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -88,6 +90,7 @@ impl KStruct for PcxDcx_PcxOffset {
     type Root = PcxDcx;
     type Parent = PcxDcx;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -100,10 +103,12 @@ impl KStruct for PcxDcx_PcxOffset {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs_body.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
 impl PcxDcx_PcxOffset {
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, OptRc<Pcx>>> {
@@ -111,7 +116,7 @@ impl PcxDcx_PcxOffset {
         if self.f_body.get() {
             return Ok(self.body.borrow());
         }
-        if *self.ofs_body() != 0 {
+        if ((to_i128(*self.ofs_body())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.ofs_body())?)?;
             let t = Self::read_into::<_, Pcx>(&*_io, None, None)?.into();

@@ -39,6 +39,7 @@ impl KStruct for EfivarSignatureList {
     type Root = EfivarSignatureList;
     type Parent = EfivarSignatureList;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -61,6 +62,7 @@ impl KStruct for EfivarSignatureList {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -110,6 +112,7 @@ impl KStruct for EfivarSignatureList_EfiVarAttr {
     type Root = EfivarSignatureList;
     type Parent = EfivarSignatureList;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,6 +133,7 @@ impl KStruct for EfivarSignatureList_EfiVarAttr {
         *self_rc.bootservice_access.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.non_volatile.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc.reserved1.borrow_mut() = _io.read_bits_int_be(24)?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -202,11 +206,13 @@ pub struct EfivarSignatureList_SignatureData {
     owner: RefCell<Vec<u8>>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    owner_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EfivarSignatureList_SignatureData {
     type Root = EfivarSignatureList;
     type Parent = EfivarSignatureList_SignatureList;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,6 +226,7 @@ impl KStruct for EfivarSignatureList_SignatureData {
         let _io = io;
         *self_rc.owner.borrow_mut() = _io.read_bytes(16_usize)?;
         *self_rc.data.borrow_mut() = _io.read_bytes_full()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -248,6 +255,11 @@ impl EfivarSignatureList_SignatureData {
         self._io.borrow()
     }
 }
+impl EfivarSignatureList_SignatureData {
+    pub fn owner_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.owner_raw.borrow()
+    }
+}
 
 /**
  * \sa EFI_SIGNATURE_LIST
@@ -265,6 +277,9 @@ pub struct EfivarSignatureList_SignatureList {
     header: RefCell<Vec<u8>>,
     signatures: RefCell<Vec<OptRc<EfivarSignatureList_SignatureData>>>,
     _io: RefCell<BytesReader>,
+    signature_type_raw: RefCell<Vec<u8>>,
+    header_raw: RefCell<Vec<u8>>,
+    signatures_raw: RefCell<Vec<u8>>,
     f_is_cert_der_pkcs7: Cell<bool>,
     is_cert_der_pkcs7: RefCell<bool>,
     f_is_cert_rsa2048_key: Cell<bool>,
@@ -296,6 +311,7 @@ impl KStruct for EfivarSignatureList_SignatureList {
     type Root = EfivarSignatureList;
     type Parent = EfivarSignatureList;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,14 +328,17 @@ impl KStruct for EfivarSignatureList_SignatureList {
         *self_rc.len_signature_header.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_signature.borrow_mut() = _io.read_u4le()?;
         *self_rc.header.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.len_signature_header())?)?;
-        if *self_rc.len_signature() > 0 {
+        if ((to_i128(*self_rc.len_signature())) > (to_i128(0))) {
             *self_rc.signatures.borrow_mut() = Vec::new();
             let l_signatures = usize::try_from((((*self_rc.len_signature_list()).saturating_sub(*self_rc.len_signature_header())).saturating_sub(28_u32)).checked_div(*self_rc.len_signature()).ok_or(KError::CastError)?)?;
             for _i in 0_usize..l_signatures {
-                let t = Self::read_into::<_, EfivarSignatureList_SignatureData>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let _raw_signatures = _io.read_bytes(usize::try_from(*self_rc.len_signature())?)?;
+                let _io_signatures = BytesReader::from(_raw_signatures);
+                let t = Self::read_into::<BytesReader, EfivarSignatureList_SignatureData>(&_io_signatures, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 self_rc.signatures.borrow_mut().push(t);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -329,6 +348,7 @@ impl EfivarSignatureList_SignatureList {
      * DER-encoded PKCS #7 version 1.5 [RFC2315]
      * \sa EFI_CERT_TYPE_PKCS7_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_der_pkcs7(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -345,6 +365,7 @@ impl EfivarSignatureList_SignatureList {
      * RSA-2048 key (only the modulus since the public key exponent is known to be 0x10001)
      * \sa EFI_CERT_RSA2048_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_rsa2048_key(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -361,6 +382,7 @@ impl EfivarSignatureList_SignatureList {
      * RSA-2048 signature of a SHA-1 hash
      * \sa EFI_CERT_RSA2048_SHA1_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_rsa2048_sha1(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -377,6 +399,7 @@ impl EfivarSignatureList_SignatureList {
      * RSA-2048 signature of a SHA-256 hash
      * \sa EFI_CERT_RSA2048_SHA256_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_rsa2048_sha256(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -393,6 +416,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA-1 hash
      * \sa EFI_CERT_SHA1_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha1(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -409,6 +433,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA-224 hash
      * \sa EFI_CERT_SHA224_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha224(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -425,6 +450,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA-256 hash
      * \sa EFI_CERT_SHA256_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha256(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -441,6 +467,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA256 hash of an X.509 certificate's To-Be-Signed contents, and a time of revocation
      * \sa EFI_CERT_X509_SHA256_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha256_x509(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -457,6 +484,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA-384 hash
      * \sa EFI_CERT_SHA384_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha384(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -473,6 +501,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA384 hash of an X.509 certificate's To-Be-Signed contents, and a time of revocation
      * \sa EFI_CERT_X509_SHA384_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha384_x509(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -489,6 +518,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA-512 hash
      * \sa EFI_CERT_SHA512_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha512(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -505,6 +535,7 @@ impl EfivarSignatureList_SignatureList {
      * SHA512 hash of an X.509 certificate's To-Be-Signed contents, and a time of revocation
      * \sa EFI_CERT_X509_SHA512_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_sha512_x509(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -521,6 +552,7 @@ impl EfivarSignatureList_SignatureList {
      * X.509 certificate
      * \sa EFI_CERT_X509_GUID
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn is_cert_x509(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -590,5 +622,20 @@ impl EfivarSignatureList_SignatureList {
 impl EfivarSignatureList_SignatureList {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EfivarSignatureList_SignatureList {
+    pub fn signature_type_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signature_type_raw.borrow()
+    }
+}
+impl EfivarSignatureList_SignatureList {
+    pub fn header_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.header_raw.borrow()
+    }
+}
+impl EfivarSignatureList_SignatureList {
+    pub fn signatures_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.signatures_raw.borrow()
     }
 }

@@ -50,6 +50,7 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -82,6 +83,7 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
         *self_rc.network_info_len.borrow_mut() = _io.read_u4le()?;
         *self_rc.conversation_stats_ofs.borrow_mut() = _io.read_u4le()?;
         *self_rc.conversation_stats_len.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -90,6 +92,7 @@ impl MicrosoftNetworkMonitorV2 {
     /**
      * Index that is used to access individual captured frames
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn frame_table(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftNetworkMonitorV2_FrameIndex>>> {
@@ -219,7 +222,7 @@ impl MicrosoftNetworkMonitorV2 {
         self.frame_table_raw.borrow()
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum MicrosoftNetworkMonitorV2_Linktype {
     NullLinktype,
     Ethernet,
@@ -582,13 +585,13 @@ pub enum MicrosoftNetworkMonitorV2_Frame_Body {
     EthernetFrame(OptRc<EthernetFrame>),
     Bytes(Vec<u8>),
 }
-impl From<&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Self {
+impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for OptRc<EthernetFrame> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         if let MicrosoftNetworkMonitorV2_Frame_Body::EthernetFrame(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected MicrosoftNetworkMonitorV2_Frame_Body::EthernetFrame, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<OptRc<EthernetFrame>> for MicrosoftNetworkMonitorV2_Frame_Body {
@@ -596,13 +599,13 @@ impl From<OptRc<EthernetFrame>> for MicrosoftNetworkMonitorV2_Frame_Body {
         Self::EthernetFrame(v)
     }
 }
-impl From<&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
-    #[allow(clippy::panic, reason = "Fallible Kaitai switch-type variant conversion")]
-    fn from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Self {
+impl TryFrom<&MicrosoftNetworkMonitorV2_Frame_Body> for Vec<u8> {
+    type Error = KError;
+    fn try_from(v: &MicrosoftNetworkMonitorV2_Frame_Body) -> Result<Self, Self::Error> {
         if let MicrosoftNetworkMonitorV2_Frame_Body::Bytes(x) = v {
-            return x.clone();
+            return Ok(x.clone());
         }
-        panic!("expected MicrosoftNetworkMonitorV2_Frame_Body::Bytes, got {:?}", v)
+        Err(KError::CastError)
     }
 }
 impl From<Vec<u8>> for MicrosoftNetworkMonitorV2_Frame_Body {
@@ -614,6 +617,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndexEntry;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -630,7 +634,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
         *self_rc.inc_len.borrow_mut() = _io.read_u4le()?;
         match *self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.mac_type() {
             MicrosoftNetworkMonitorV2_Linktype::Ethernet => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
+                *self_rc.body_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.inc_len())?)?.into();
                 let body_raw = self_rc.body_raw.borrow();
                 let _t_body_raw_io = BytesReader::from(body_raw.clone());
                 let t = Self::read_into::<BytesReader, EthernetFrame>(&_t_body_raw_io, None, None)?.into();
@@ -640,6 +644,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
                 *self_rc.body.borrow_mut() = Some(_io.read_bytes_full()?.into());
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -704,6 +709,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -724,6 +730,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
                 _i = _i.saturating_add(1);
             }
         }
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -759,6 +766,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndexEntry {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -771,6 +779,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndexEntry {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.ofs.borrow_mut() = _io.read_u4le()?;
+        *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
 }
@@ -779,6 +788,7 @@ impl MicrosoftNetworkMonitorV2_FrameIndexEntry {
     /**
      * Frame body itself
      */
+    #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn body(
         &self
     ) -> KResult<Ref<'_, OptRc<MicrosoftNetworkMonitorV2_Frame>>> {
