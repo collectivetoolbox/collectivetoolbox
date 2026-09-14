@@ -1575,7 +1575,13 @@ fn get_target_args(
             if let Some(tc) = target_class {
                 if tc.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"]) {
                     "None".to_string()
-                } else if tc.name == ctx.root.name || tc.parent_name.as_ref() == Some(&ctx.current_class.name) {
+                } else if tc.name == ctx.root.name {
+                    if ctx.current_class.name == ctx.root.name {
+                        format!("Some({self_name}._self_shared.clone())")
+                    } else {
+                        format!("Some({self_name}._root.clone())")
+                    }
+                } else if tc.parent_name.as_ref() == Some(&ctx.current_class.name) {
                     format!("Some({self_name}._self_shared.clone())")
                 } else if tc.parent_name.as_ref() == Some(&ctx.root.name) {
                     format!("Some({self_name}._root.clone())")

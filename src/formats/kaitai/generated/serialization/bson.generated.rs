@@ -330,7 +330,7 @@ impl KStruct for Bson_CodeWithScope {
         *self_rc.id.borrow_mut() = _io.read_s4le()?;
         let t = Self::read_into::<_, Bson_String>(&*_io, Some(self_rc._root.clone()), None)?.into();
         *self_rc.source.borrow_mut() = t;
-        let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.scope.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -689,7 +689,7 @@ impl KStruct for Bson_Element {
         *self_rc.name.borrow_mut() = t;
         match *self_rc.type_byte() {
             Bson_Element_BsonType::Array => {
-                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::BinData => {
@@ -708,7 +708,7 @@ impl KStruct for Bson_Element {
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Document => {
-                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Bson>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             Bson_Element_BsonType::Javascript => {

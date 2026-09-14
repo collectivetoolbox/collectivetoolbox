@@ -760,7 +760,7 @@ impl KStruct for ProtocolBody_OptionHopByHop {
         *self_rc.hdr_ext_len.borrow_mut() = _io.read_u1()?;
         *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(if ((to_i128(*self_rc.hdr_ext_len())) > (to_i128(0))) { (i32::from(*self_rc.hdr_ext_len())).saturating_sub(1_i32) } else { 1_i32 })?)?;
         let f = |t : &mut ProtocolBody| Ok(t.set_params((*self_rc.next_header_type()).try_into().map_err(|_| KError::CastError)?));
-        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
+        let t = Self::read_into_with_init::<_, ProtocolBody>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()), &f)?.into();
         *self_rc.next_header.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

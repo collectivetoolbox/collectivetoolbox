@@ -453,7 +453,7 @@ impl KStruct for Asn1Der_BodySequence {
         {
             let mut _i = 0_usize;
             while !_io.is_eof() {
-                let t = Self::read_into::<_, Asn1Der>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, Asn1Der>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
                 self_rc.entries.borrow_mut().push(t);
                 _i = _i.saturating_add(1);
             }

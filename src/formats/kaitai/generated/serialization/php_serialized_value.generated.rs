@@ -1116,9 +1116,9 @@ impl KStruct for PhpSerializedValue_MappingEntry {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.key.borrow_mut() = t;
-        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+        let t = Self::read_into::<_, PhpSerializedValue>(&*_io, Some(self_rc._root.clone()), Some(self_rc._root.clone()))?.into();
         *self_rc.value.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
