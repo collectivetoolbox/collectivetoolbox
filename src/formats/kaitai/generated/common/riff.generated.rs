@@ -305,12 +305,6 @@ pub struct Riff_ChunkType {
 pub enum Riff_ChunkType_ChunkData {
     Riff_ListChunkData(OptRc<Riff_ListChunkData>),
 }
-impl From<&Riff_ChunkType_ChunkData> for OptRc<Riff_ListChunkData> {
-    fn from(v: &Riff_ChunkType_ChunkData) -> Self {
-        let Riff_ChunkType_ChunkData::Riff_ListChunkData(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&Riff_ChunkType_ChunkData> for OptRc<Riff_ListChunkData> {
     type Error = KError;
     fn try_from(v: &Riff_ChunkType_ChunkData) -> Result<Self, Self::Error> {
@@ -467,12 +461,6 @@ pub struct Riff_InfoSubchunk {
 #[derive(Debug, Clone)]
 pub enum Riff_InfoSubchunk_ChunkData {
     String(String),
-}
-impl From<&Riff_InfoSubchunk_ChunkData> for String {
-    fn from(v: &Riff_InfoSubchunk_ChunkData) -> Self {
-        let Riff_InfoSubchunk_ChunkData::String(x) = v;
-        x.clone()
-    }
 }
 impl TryFrom<&Riff_InfoSubchunk_ChunkData> for String {
     type Error = KError;

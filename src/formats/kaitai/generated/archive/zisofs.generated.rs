@@ -238,7 +238,7 @@ impl KStruct for Zisofs_Header {
         let expected_0: u8 = (15).try_into()?;
         let expected_1: u8 = (16).try_into()?;
         let expected_2: u8 = (17).try_into()?;
-        let _item = *self_rc.block_size_log2();
+        let _item: u8 = (*self_rc.block_size_log2()).try_into()?;
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header/seq/3".to_string() }));
         }

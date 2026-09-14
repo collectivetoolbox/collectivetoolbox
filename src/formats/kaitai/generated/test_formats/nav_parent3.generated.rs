@@ -144,12 +144,6 @@ pub struct NavParent3_Tag {
 pub enum NavParent3_Tag_TagContent {
     NavParent3_Tag_TagChar(OptRc<NavParent3_Tag_TagChar>),
 }
-impl From<&NavParent3_Tag_TagContent> for OptRc<NavParent3_Tag_TagChar> {
-    fn from(v: &NavParent3_Tag_TagContent) -> Self {
-        let NavParent3_Tag_TagContent::NavParent3_Tag_TagChar(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&NavParent3_Tag_TagContent> for OptRc<NavParent3_Tag_TagChar> {
     type Error = KError;
     fn try_from(v: &NavParent3_Tag_TagContent) -> Result<Self, Self::Error> {

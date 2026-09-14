@@ -663,7 +663,7 @@ impl KStruct for Dbf_Record {
         *self_rc.record_fields.borrow_mut() = Vec::new();
         let l_record_fields = usize::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().len())?;
         for _i in 0_usize..l_record_fields {
-            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from((i64::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(_i).ok_or(KError::CastError)?.len())?)))?);
+            self_rc.record_fields.borrow_mut().push(_io.read_bytes(usize::from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.header2().fields().get(_i).ok_or(KError::CastError)?.length()))?);
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

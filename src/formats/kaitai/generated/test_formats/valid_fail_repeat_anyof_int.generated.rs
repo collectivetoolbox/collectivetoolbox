@@ -91,7 +91,8 @@ impl KStruct for ValidFailRepeatAnyofInt {
         let expected_0: u8 = (0).try_into()?;
         let expected_1: u8 = (1).try_into()?;
         let expected_2: u8 = (65).try_into()?;
-        for &_item in self_rc.foo().iter() {
+        for _elem in self_rc.foo().iter() {
+            let _item: u8 = (*_elem).try_into()?;
             if !(_item == expected_0 || _item == expected_1 || _item == expected_2) {
                 return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
             }

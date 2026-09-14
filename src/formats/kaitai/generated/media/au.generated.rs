@@ -75,7 +75,7 @@ impl Au {
             return Ok(self.len_data.borrow());
         }
         self.f_len_data.set(true);
-        *self.len_data.borrow_mut() = (if ((to_i128(*self.header().data_size())) == (to_i128(4294967295_i64))) { (u32::try_from((i64::try_from(_io.size())?))?).saturating_sub(*self.ofs_data()) } else { *self.header().data_size() }).try_into()?;
+        *self.len_data.borrow_mut() = (if ((to_i128(*self.header().data_size())) == (to_i128(4294967295_i64))) { (u64::try_from((i64::try_from(_io.size())?))?).saturating_sub(u64::from(*self.ofs_data())) } else { u64::from(*self.header().data_size()) }).try_into()?;
         Ok(self.len_data.borrow())
     }
 }

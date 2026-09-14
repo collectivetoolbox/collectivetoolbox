@@ -74,7 +74,7 @@ impl Pcx {
         }
         if  ((*self.hdr().version() == Pcx_Versions::V30) && (((to_i128(*self.hdr().bits_per_pixel())) == (to_i128(8)))) && (((to_i128(*self.hdr().num_planes())) == (to_i128(1)))))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(769_i32))?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(769_i64))?)?;
             let t = Self::read_into::<_, Pcx_TPalette256>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.palette_256.borrow_mut() = t;
             _io.seek(_pos)?;

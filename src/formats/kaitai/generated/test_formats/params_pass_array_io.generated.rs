@@ -185,7 +185,7 @@ impl KStruct for ParamsPassArrayIo_ParamType {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self_rc.arg_streams().get(0_usize).ok_or(KError::CastError)?.len())?))?)?;
+        *self_rc.buf.borrow_mut() = _io.read_bytes(usize::try_from(*self_rc.arg_streams().get(0_usize).ok_or(KError::CastError)?.size())?)?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }

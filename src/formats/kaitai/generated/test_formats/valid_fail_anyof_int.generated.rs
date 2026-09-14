@@ -89,7 +89,7 @@ impl KStruct for ValidFailAnyofInt {
         let expected_5: u8 = (11).try_into()?;
         let expected_6: u8 = (12).try_into()?;
         let expected_7: u8 = (47).try_into()?;
-        let _item = *self_rc.foo();
+        let _item: u8 = (*self_rc.foo()).try_into()?;
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4 || _item == expected_5 || _item == expected_6 || _item == expected_7) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }

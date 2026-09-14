@@ -676,12 +676,6 @@ pub struct Jpeg_SegmentApp1 {
 pub enum Jpeg_SegmentApp1_Body {
     Jpeg_ExifInJpeg(OptRc<Jpeg_ExifInJpeg>),
 }
-impl From<&Jpeg_SegmentApp1_Body> for OptRc<Jpeg_ExifInJpeg> {
-    fn from(v: &Jpeg_SegmentApp1_Body) -> Self {
-        let Jpeg_SegmentApp1_Body::Jpeg_ExifInJpeg(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&Jpeg_SegmentApp1_Body> for OptRc<Jpeg_ExifInJpeg> {
     type Error = KError;
     fn try_from(v: &Jpeg_SegmentApp1_Body) -> Result<Self, Self::Error> {

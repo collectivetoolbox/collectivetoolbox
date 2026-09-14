@@ -458,19 +458,6 @@ fn emit_switch_enum(
                 w.dec();
                 w.puts("}");
             }
-
-            if variants.len() == 1 {
-                w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-                w.inc();
-                w.puts(&format!("fn from(e: &{enum_name}) -> Self {{"));
-                w.inc();
-                w.puts(&format!("let {enum_name}::{v_name}(v) = e;"));
-                w.puts("*v");
-                w.dec();
-                w.puts("}");
-                w.dec();
-                w.puts("}");
-            }
         }
 
         let mut combined: Option<DataType> = None;
@@ -539,18 +526,6 @@ fn emit_switch_enum(
         let mut seen_from_into = BTreeSet::new();
         for (v_name, inner_type) in &variants {
             if seen_from_from.insert(inner_type.clone()) {
-                if variants.len() == 1 {
-                    w.puts(&format!("impl From<&{enum_name}> for {inner_type} {{"));
-                    w.inc();
-                    w.puts(&format!("fn from(v: &{enum_name}) -> Self {{"));
-                    w.inc();
-                    w.puts(&format!("let {enum_name}::{v_name}(x) = v;"));
-                    w.puts("x.clone()");
-                    w.dec();
-                    w.puts("}");
-                    w.dec();
-                    w.puts("}");
-                }
                 w.puts(&format!("impl TryFrom<&{enum_name}> for {inner_type} {{"));
                 w.inc();
                 w.puts("type Error = KError;");
@@ -678,6 +653,7 @@ fn emit_read_array_element(
     id: &str,
     self_name: &str,
     io: &str,
+    parent_expr: Option<&crate::spec::ValueOrExpr>,
 ) {
     let stream_type = if io == "_io" {
         "_"
@@ -694,7 +670,7 @@ fn emit_read_array_element(
 
     if let DataType::UserType { names, is_external, args } = element {
         let type_name = types_to_class_name(names);
-        let target_args = get_target_args(names, *is_external, self_name, ctx, None);
+        let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
 
         if current.ks_debug {
             w.puts(&format!("let t: OptRc<{type_name}> = OptRc::from({type_name}::default());"));
@@ -778,7 +754,7 @@ fn emit_read_array_element(
 
             if let DataType::UserType { names, is_external, args } = case_type {
                 let type_name = types_to_class_name(names);
-                let target_args = get_target_args(names, *is_external, self_name, ctx, None);
+                let target_args = get_target_args(names, *is_external, self_name, ctx, parent_expr);
                 if args.is_empty() {
                     w.puts(&format!(
                         "let t = Self::read_into::<{stream_type}, {type_name}>({io_expr}, {target_args})?.into();"
@@ -794,7 +770,7 @@ fn emit_read_array_element(
                 }
                 w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
             } else {
-                let val = read_expr_for_type(case_type, current, ctx, "_io");
+                let val = read_expr_for_type(case_type, current, ctx, io);
                 let push_val = if val.ends_with(".into()") { val } else { format!("{val}.into()") };
                 w.puts(&format!("{self_name}.{id}.borrow_mut().push({push_val});"));
             }
@@ -905,7 +881,7 @@ fn emit_attr_read(
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
                 w.dec();
                 w.puts("}");
             }
@@ -963,7 +939,7 @@ fn emit_attr_read(
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
                 w.puts("_i = _i.saturating_add(1);");
                 w.dec();
                 w.puts("}");
@@ -1024,7 +1000,7 @@ fn emit_attr_read(
                 } else {
                     "_io".to_string()
                 };
-                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var);
+                emit_read_array_element(w, element, current, ctx, id, self_name, &io_var, None);
                 w.puts(&format!("let _t_{id} = {self_name}.{id}.borrow();"));
                 w.puts(&format!("let Some(_tmpa) = _t_{id}.last() else {{ break; }};"));
                 if super::translator::needs_deref(element) {
@@ -1464,7 +1440,7 @@ fn emit_validation_check(
             );
             if is_bytes_or_str {
                 let trans_exprs: Vec<String> = exprs.iter().map(|e| translate_expr(e, ctx)).collect();
-                let check = trans_exprs.iter().map(|s| format!("_item == {s}")).collect::<Vec<_>>().join(" || ");
+                let check = trans_exprs.iter().map(|s| format!("*_item == {s}")).collect::<Vec<_>>().join(" || ");
                 if is_repeated {
                     w.puts(&format!("for _item in {access_expr}.iter() {{"));
                     w.inc();
@@ -1490,7 +1466,6 @@ fn emit_validation_check(
                 } else {
                     false
                 };
-                let deref = if is_numeric_switch { "" } else { "*" };
                 let mut expected_vars = Vec::new();
                 for (idx, e) in exprs.iter().enumerate() {
                     let trans = translate_expr(e, ctx);
@@ -1500,8 +1475,9 @@ fn emit_validation_check(
                 }
                 let check = expected_vars.iter().map(|v| format!("_item == {v}")).collect::<Vec<_>>().join(" || ");
                 if is_repeated {
-                    w.puts(&format!("for &_item in {access_expr}.iter() {{"));
+                    w.puts(&format!("for _elem in {access_expr}.iter() {{"));
                     w.inc();
+                    w.puts(&format!("let _item: {ty_cast} = (*_elem).try_into()?;"));
                     w.puts(&format!("if !({check}) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
@@ -1510,7 +1486,8 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("let _item = {deref}{access_expr};"));
+                    let deref = if is_numeric_switch { "" } else { "*" };
+                    w.puts(&format!("let _item: {ty_cast} = ({deref}{access_expr}).try_into()?;"));
                     w.puts(&format!("if !({check}) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotAnyOf, src_path: \"{src_path}\".to_string() }}));"));
@@ -1526,10 +1503,11 @@ fn emit_validation_check(
                 let mut parts = owner.clone();
                 parts.push(name.clone());
                 let enum_type_name = types_to_class_name(&parts);
+                let catchall = get_enum_catchall(ctx, owner, name);
                 if is_repeated {
                     w.puts(&format!("for _item in {access_expr}.iter() {{"));
                     w.inc();
-                    w.puts(&format!("if matches!(_item, {enum_type_name}::Unknown(_)) {{"));
+                    w.puts(&format!("if matches!(_item, {enum_type_name}::{catchall}(_)) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotInEnum, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1537,7 +1515,7 @@ fn emit_validation_check(
                     w.dec();
                     w.puts("}");
                 } else {
-                    w.puts(&format!("if matches!(*{access_expr}, {enum_type_name}::Unknown(_)) {{"));
+                    w.puts(&format!("if matches!(*{access_expr}, {enum_type_name}::{catchall}(_)) {{"));
                     w.inc();
                     w.puts(&format!("return Err(KError::ValidationFailed(ValidationFailedError {{ kind: ValidationKind::NotInEnum, src_path: \"{src_path}\".to_string() }}));"));
                     w.dec();
@@ -1546,6 +1524,18 @@ fn emit_validation_check(
             }
         }
     }
+}
+
+fn get_enum_catchall(ctx: &TranslationContext<'_>, owner: &[String], name: &str) -> &'static str {
+    let target_class = super::translator::find_class_spec(ctx.root, owner);
+    if let Some(tc) = target_class {
+        if let Some(re) = tc.enums.get(name) {
+            if re.values.values().any(|l| to_upper_camel_case(l) == "Unknown") {
+                return "UnknownVariant";
+            }
+        }
+    }
+    "Unknown"
 }
 
 fn emit_attr_validation(
@@ -1571,6 +1561,11 @@ fn get_target_args(
         return "None, None".to_string();
     }
     let target_class = super::translator::find_class_spec(ctx.root, names);
+    if let Some(tc) = target_class {
+        if tc.name != ctx.root.name && (tc.is_top_level || tc.parent_name.is_none()) {
+            return "None, None".to_string();
+        }
+    }
     let parent = match parent_expr {
         Some(crate::spec::ValueOrExpr::Bool(false)) => "None".to_string(),
         Some(crate::spec::ValueOrExpr::Expr(p)) if p == "_parent" => {
@@ -1580,8 +1575,12 @@ fn get_target_args(
             if let Some(tc) = target_class {
                 if tc.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"]) {
                     "None".to_string()
-                } else {
+                } else if tc.name == ctx.root.name || tc.parent_name.as_ref() == Some(&ctx.current_class.name) {
                     format!("Some({self_name}._self_shared.clone())")
+                } else if tc.parent_name.as_ref() == Some(&ctx.root.name) {
+                    format!("Some({self_name}._root.clone())")
+                } else {
+                    "None".to_string()
                 }
             } else {
                 format!("Some({self_name}._self_shared.clone())")
@@ -2229,11 +2228,7 @@ fn read_expr_for_type(
         }
         DataType::UserType { names, is_external, args } => {
             let type_name = types_to_class_name(names);
-            let target_args = if *is_external {
-                "None, None".to_string()
-            } else {
-                format!("Some({}._root.clone()), Some({}._self_shared.clone())", ctx.self_name(), ctx.self_name())
-            };
+            let target_args = get_target_args(names, *is_external, ctx.self_name(), ctx, None);
             let io_ref = if io == "_io" { "&*_io".to_string() } else { format!("&{io}") };
             if args.is_empty() {
                 format!("Self::read_into::<_, {type_name}>({io_ref}, {target_args})?.into()")
@@ -2582,20 +2577,8 @@ fn emit_parse_instance_body(
                         w.puts(&format!("self.{inst_id}_raw.borrow_mut().push(_io.read_bytes({size_str})?.into());"));
                         w.puts(&format!("let {inst_id}_raw = self.{inst_id}_raw.borrow();"));
                         w.puts(&format!("let _io_{inst_id}_raw = BytesReader::from({inst_id}_raw.last().ok_or(KError::EmptyIterator)?.clone());"));
-                        if let DataType::UserType { names, is_external, args: _ } = element.as_ref() {
-                            let type_name = types_to_class_name(names);
-                            let target_args = get_target_args(names, *is_external, "self", ctx, inst.parent_expr.as_ref());
-                            if current.has_dynamic_endian() {
-                                w.puts(&format!("let f = |t : &mut {type_name}| Ok(t.set_endian(*self._is_le.borrow()));"));
-                                w.puts(&format!("let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_io_{inst_id}_raw, {target_args}, &f)?.into();"));
-                            } else {
-                                w.puts(&format!("let t = Self::read_into::<BytesReader, {type_name}>(&_io_{inst_id}_raw, {target_args})?.into();"));
-                            }
-                            w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push(t);"));
-                        } else {
-                            let elem_val = read_expr_for_type(element, current, ctx, &format!("_io_{inst_id}_raw"));
-                            w.puts(&format!("self.{escaped_inst_id}.borrow_mut().push({elem_val});"));
-                        }
+                        let raw_io = format!("_io_{inst_id}_raw");
+                        emit_read_array_element(w, element, current, ctx, &escaped_inst_id, "self", &raw_io, inst.parent_expr.as_ref());
                         w.dec();
                         w.puts("}");
                     } else {
@@ -2604,7 +2587,7 @@ fn emit_parse_instance_body(
                         w.puts(&format!("let l_{inst_id} = {count_str};"));
                         w.puts(&format!("for _i in 0_usize..l_{inst_id} {{"));
                         w.inc();
-                        emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
+                        emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
                         w.dec();
                         w.puts("}");
                     }
@@ -2616,7 +2599,7 @@ fn emit_parse_instance_body(
                     w.puts("let mut _i = 0_usize;");
                     w.puts("while !_io.is_eof() {");
                     w.inc();
-                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
+                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
                     w.puts("_i = _i.saturating_add(1);");
                     w.dec();
                     w.puts("}");
@@ -2630,7 +2613,7 @@ fn emit_parse_instance_body(
                     w.puts("let mut _i = 0_usize;");
                     w.puts("loop {");
                     w.inc();
-                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io");
+                    emit_read_array_element(w, element, current, ctx, inst_id, "self", "_io", inst.parent_expr.as_ref());
                     w.puts(&format!("let _t_{inst_id} = self.{escaped_inst_id}.borrow();"));
                     w.puts(&format!("let Some(_tmpa) = _t_{inst_id}.last() else {{ break; }};"));
                     if super::translator::needs_deref(element) {

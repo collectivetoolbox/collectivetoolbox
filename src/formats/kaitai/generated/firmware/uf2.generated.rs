@@ -1107,7 +1107,7 @@ impl Uf2_BlockData {
         }
         if *self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.flags().has_md5_checksum()? {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(24_i32))?)?;
+            _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(24_i64))?)?;
             let t = Self::read_into::<_, Uf2_Md5Checksum>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
             *self.md5_checksum.borrow_mut() = t;
             _io.seek(_pos)?;

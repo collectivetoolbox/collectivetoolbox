@@ -69,12 +69,6 @@ pub struct NavParentSwitch {
 pub enum NavParentSwitch_Content {
     NavParentSwitch_Element1(OptRc<NavParentSwitch_Element1>),
 }
-impl From<&NavParentSwitch_Content> for OptRc<NavParentSwitch_Element1> {
-    fn from(v: &NavParentSwitch_Content) -> Self {
-        let NavParentSwitch_Content::NavParentSwitch_Element1(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&NavParentSwitch_Content> for OptRc<NavParentSwitch_Element1> {
     type Error = KError;
     fn try_from(v: &NavParentSwitch_Content) -> Result<Self, Self::Error> {

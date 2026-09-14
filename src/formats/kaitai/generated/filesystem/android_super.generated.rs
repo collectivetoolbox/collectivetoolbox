@@ -844,7 +844,27 @@ impl AndroidSuper_Metadata_TableDescriptor {
             self.table_raw.borrow_mut().push(_io.read_bytes(usize::try_from(*self.entry_size())?)?.into());
             let table_raw = self.table_raw.borrow();
             let _io_table_raw = BytesReader::from(table_raw.last().ok_or(KError::EmptyIterator)?.clone());
-            self.table.borrow_mut().push(None);
+            match *self.kind() {
+                AndroidSuper_Metadata_TableKind::BlockDevices => {
+                    let t = Self::read_into::<BytesReader, AndroidSuper_Metadata_BlockDevice>(&_io_table_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                    self.table.borrow_mut().push(t);
+                }
+                AndroidSuper_Metadata_TableKind::Extents => {
+                    let t = Self::read_into::<BytesReader, AndroidSuper_Metadata_Extent>(&_io_table_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                    self.table.borrow_mut().push(t);
+                }
+                AndroidSuper_Metadata_TableKind::Groups => {
+                    let t = Self::read_into::<BytesReader, AndroidSuper_Metadata_Group>(&_io_table_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                    self.table.borrow_mut().push(t);
+                }
+                AndroidSuper_Metadata_TableKind::Partitions => {
+                    let t = Self::read_into::<BytesReader, AndroidSuper_Metadata_Partition>(&_io_table_raw, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
+                    self.table.borrow_mut().push(t);
+                }
+                _ => {
+                    self.table.borrow_mut().push(_io_table_raw.read_bytes_full()?.into());
+                }
+            }
         }
         _io.seek(_pos)?;
         Ok(self.table.borrow())

@@ -93,6 +93,7 @@ use walkdir::WalkDir;
 use crate::precompile::hierarchy::to_upper_camel_case;
 use crate::spec::kst::{parse_kst_file, KstException};
 use crate::spec::KsyFile;
+use ctb_build_support::fnv::{fnv1a64_update, FNV1A_64_INIT};
 use ctb_build_support::standard_boilerplate::get_test_header;
 
 /// Statistics reporting the results of test generation.
@@ -716,12 +717,9 @@ pub fn compute_source_hash(manifest_dir: &Path) -> Result<u64> {
     // Sort files by relative path for deterministic hash ordering
     files.sort_by(|a, b| a.1.cmp(&b.1));
 
-    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+    let mut hash = FNV1A_64_INIT;
     for (abs_path, rel_path) in files {
-        for byte in rel_path.to_string_lossy().as_bytes() {
-            hash ^= u64::from(*byte);
-            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
-        }
+        hash = fnv1a64_update(hash, rel_path.to_string_lossy().as_bytes());
 
         let metadata = fs::metadata(&abs_path)?;
         let size = metadata.len();
@@ -732,22 +730,13 @@ pub fn compute_source_hash(manifest_dir: &Path) -> Result<u64> {
             .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
             .map_or(0_u128, |d| d.as_nanos());
 
-        for byte in size.to_le_bytes() {
-            hash ^= u64::from(byte);
-            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
-        }
-        for byte in mtime.to_le_bytes() {
-            hash ^= u64::from(byte);
-            hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
-        }
+        hash = fnv1a64_update(hash, &size.to_le_bytes());
+        hash = fnv1a64_update(hash, &mtime.to_le_bytes());
 
         // For small files (< 1MB), also incorporate file content
         if size < 1_000_000 {
             if let Ok(bytes) = fs::read(&abs_path) {
-                for byte in bytes {
-                    hash ^= u64::from(byte);
-                    hash = hash.wrapping_mul(0x0100_0000_01b3_u64);
-                }
+                hash = fnv1a64_update(hash, &bytes);
             }
         }
     }

@@ -157,7 +157,7 @@ impl Dune2Pak_File {
         }
         self.f_next_ofs.set(true);
         if ((to_i128(*self.ofs())) != (to_i128(0))) {
-            *self.next_ofs.borrow_mut() = (if ((to_i128(*self.next_ofs0()?)) == (to_i128(0))) { u32::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())?))? } else { *self.next_ofs0()? }).try_into()?;
+            *self.next_ofs.borrow_mut() = (if ((to_i128(*self.next_ofs0()?)) == (to_i128(0))) { u64::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io().size())?))? } else { u64::from(*self.next_ofs0()?) }).try_into()?;
         }
         Ok(self.next_ofs.borrow())
     }

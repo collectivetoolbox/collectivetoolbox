@@ -603,7 +603,7 @@ impl KStruct for Zchunk_HeaderLead {
         let _io = io;
         *self_rc.magic.borrow_mut() = _io.read_bytes(5_usize)?;
         let _item = &*self_rc.magic();
-        if !(_item == vec![0x0u8, 0x5au8, 0x43u8, 0x4bu8, 0x31u8] || _item == vec![0x0u8, 0x5au8, 0x48u8, 0x52u8, 0x31u8]) {
+        if !(*_item == vec![0x0u8, 0x5au8, 0x43u8, 0x4bu8, 0x31u8] || *_item == vec![0x0u8, 0x5au8, 0x48u8, 0x52u8, 0x31u8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/header_lead/seq/0".to_string() }));
         }
         let t = Self::read_into::<_, Zchunk_ChecksumType>(&*_io, Some(self_rc._root.clone()), None)?.into();

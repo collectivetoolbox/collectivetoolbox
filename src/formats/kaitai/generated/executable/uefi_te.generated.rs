@@ -252,7 +252,7 @@ impl UefiTe_Section {
         }
         self.f_body.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size()))).saturating_add(u32::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size())?))?))?)?;
+        _io.seek(usize::try_from((u64::from((*self.pointer_to_raw_data()).saturating_sub(u32::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr().stripped_size())))).saturating_add(u64::try_from((i64::try_from(self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.te_hdr()._io().size())?))?))?)?;
         *self.body.borrow_mut() = _io.read_bytes(usize::try_from(*self.size_of_raw_data())?)?;
         _io.seek(_pos)?;
         Ok(self.body.borrow())

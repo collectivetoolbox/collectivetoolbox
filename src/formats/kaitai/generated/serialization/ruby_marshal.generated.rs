@@ -432,12 +432,6 @@ impl From<u8> for RubyMarshal_PackedInt_Encoded2 {
         Self::U1(v)
     }
 }
-impl From<&RubyMarshal_PackedInt_Encoded2> for u8 {
-    fn from(e: &RubyMarshal_PackedInt_Encoded2) -> Self {
-        let RubyMarshal_PackedInt_Encoded2::U1(v) = e;
-        *v
-    }
-}
 impl TryFrom<&RubyMarshal_PackedInt_Encoded2> for i64 {
     type Error = KError;
     #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]

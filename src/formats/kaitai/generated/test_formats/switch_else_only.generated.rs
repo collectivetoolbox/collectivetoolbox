@@ -77,12 +77,6 @@ impl From<i8> for SwitchElseOnly_PrimByte {
         Self::S1(v)
     }
 }
-impl From<&SwitchElseOnly_PrimByte> for i8 {
-    fn from(e: &SwitchElseOnly_PrimByte) -> Self {
-        let SwitchElseOnly_PrimByte::S1(v) = e;
-        *v
-    }
-}
 impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
     type Error = KError;
     #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
@@ -122,12 +116,6 @@ impl TryFrom<&SwitchElseOnly_PrimByte> for usize {
 #[derive(Debug, Clone)]
 pub enum SwitchElseOnly_Ut {
     SwitchElseOnly_Data(OptRc<SwitchElseOnly_Data>),
-}
-impl From<&SwitchElseOnly_Ut> for OptRc<SwitchElseOnly_Data> {
-    fn from(v: &SwitchElseOnly_Ut) -> Self {
-        let SwitchElseOnly_Ut::SwitchElseOnly_Data(x) = v;
-        x.clone()
-    }
 }
 impl TryFrom<&SwitchElseOnly_Ut> for OptRc<SwitchElseOnly_Data> {
     type Error = KError;

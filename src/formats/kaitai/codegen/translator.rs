@@ -264,11 +264,16 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             let val_str = translate_expr(value, ctx);
             let t = remove_deref(&val_str);
             let val_type = detect_type_approx(value, ctx);
-            let is_numeric_switch_array = match &val_type {
+            let numeric_switch_type = match &val_type {
                 Some(DataType::ArrayType { element, .. }) => {
-                    matches!(**element, DataType::SwitchType { ref cases, .. } if !cases.is_empty() && cases.values().all(is_numeric_type))
+                    if matches!(**element, DataType::SwitchType { ref cases, .. } if !cases.is_empty() && cases.values().all(is_numeric_type)) {
+                        let resolved = resolve_switch_type(element);
+                        Some(kaitai_primitive_to_native(&resolved))
+                    } else {
+                        None
+                    }
                 }
-                _ => false,
+                _ => None,
             };
             let deref = match &val_type {
                 Some(DataType::ArrayType { element, .. }) => needs_deref(element),
@@ -294,8 +299,8 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     }
                 }
             };
-            if is_numeric_switch_array {
-                format!("usize::from({t}.get({idx_str}).ok_or(KError::CastError)?)")
+            if let Some(num_type) = numeric_switch_type {
+                format!("{num_type}::try_from({t}.get({idx_str}).ok_or(KError::CastError)?)?")
             } else if deref {
                 format!("*({t}.get({idx_str}).ok_or(KError::CastError)?)")
             } else {
@@ -771,10 +776,6 @@ fn translate_attribute(value: &Expr, attr: &str, ctx: &TranslationContext<'_>) -
         let stripped = remove_deref(&t);
         return format!("*{stripped}.last().ok_or(KError::EmptyIterator)?");
     }
-    if attr == "size" || attr == "length" {
-        let stripped = remove_deref(&t);
-        return format!("(i64::try_from({stripped}.len())?)");
-    }
     let escaped_attr = super::escape_rust_keyword(attr);
     let target_class: Option<&ClassSpec> = match detect_type_approx(value, ctx) {
         Some(DataType::UserType { names, .. }) => find_class_spec(ctx.root, &names),
@@ -981,6 +982,20 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
         } else if c == ')' {
             depth = depth.saturating_sub(1);
         } else if depth == 0 {
+            if c == '.' {
+                // Reason for fallback: slice indexing beyond length defaults to empty string
+                let rest = trimmed.get(i..).unwrap_or("");
+                if rest.starts_with(".saturating_")
+                    || rest.starts_with(".wrapping_")
+                    || rest.starts_with(".checked_")
+                {
+                    // Reason for fallback: slice indexing before split point defaults to empty string
+                    let prefix = trimmed.get(..i).unwrap_or("").trim();
+                    // Reason for fallback: prefix without a trailing try operator remains unchanged
+                    let receiver = strip_matched_parens(prefix.strip_suffix('?').unwrap_or(prefix));
+                    return is_usize_expr_str(receiver);
+                }
+            }
             let prev_is_op = idx > 0 && chars.get(idx.saturating_sub(1)).is_some_and(|&(_, p)| p == '|' || p == '&');
             let next_is_op = chars.get(idx.saturating_add(1)).is_some_and(|&(_, n)| n == '|' || n == '&');
             if (c == '|' || c == '&' || c == '^') && !prev_is_op && !next_is_op {
@@ -1006,11 +1021,7 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
     if (trimmed.contains("._io().pos()")
         || trimmed.contains("._io.pos()")
         || trimmed.contains("_io.pos()")
-        || trimmed.contains("io.pos()")
-        || trimmed.contains("._io().size()")
-        || trimmed.contains("._io.size()")
-        || trimmed.contains("_io.size()")
-        || trimmed.contains("io.size()"))
+        || trimmed.contains("io.pos()"))
         && !trimmed.contains(".value()")
     {
         return true;
@@ -1020,17 +1031,6 @@ pub(crate) fn is_usize_expr_str(s: &str) -> bool {
         && !trimmed.ends_with("self_rc.len()")
     {
         return true;
-    }
-    if let Some(idx) = trimmed
-        .find(".saturating_")
-        .or_else(|| trimmed.find(".wrapping_"))
-        .or_else(|| trimmed.find(".checked_"))
-    {
-        let Some(prefix) = trimmed.get(..idx) else { return false; };
-        let prefix = prefix.trim();
-        // Reason for fallback: prefix without a trailing try operator remains unchanged
-        let receiver = strip_matched_parens(prefix.strip_suffix('?').unwrap_or(prefix));
-        return is_usize_expr_str(receiver);
     }
     false
 }
@@ -1230,12 +1230,18 @@ fn translate_bin_op(
         }
     }
 
+    let is_l_i64 = l.contains("i64::") || l.ends_with("_i64");
+    let is_r_i64 = r.contains("i64::") || r.ends_with("_i64");
     let l_w = match left {
+        Expr::IntNum(n) if is_r_i64 => format!("{n}_i64"),
         Expr::IntNum(n) => format!("{n}_i32"),
+        _ if is_r_i64 && !is_l_i64 => format!("i64::try_from({l})?"),
         _ => l,
     };
     let r_w = match right {
+        Expr::IntNum(n) if is_l_i64 => format!("{n}_i64"),
         Expr::IntNum(n) => format!("{n}_i32"),
+        _ if is_l_i64 && !is_r_i64 => format!("i64::try_from({r})?"),
         _ => r,
     };
     match op {
@@ -1950,6 +1956,12 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                 }
                 return Some(DataType::CalcIntType);
             }
+            let is_stream = matches!(&**value, Expr::Name(n) if n == "_io" || n == "io")
+                || matches!(&**value, Expr::Attribute { attr: a, .. } if a == "_io" || a == "io")
+                || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
+            if is_stream && (attr == "length" || attr == "size") {
+                return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
+            }
             if attr == "length" || attr == "size" || attr == "pos" {
                 return Some(DataType::CalcIntType);
             }
@@ -1980,6 +1992,12 @@ pub(crate) fn detect_type_approx(expr: &Expr, ctx: &TranslationContext<'_>) -> O
                         }
                     }
                     return Some(DataType::CalcIntType);
+                }
+                let is_stream = matches!(&**value, Expr::Name(n) if n == "_io" || n == "io")
+                    || matches!(&**value, Expr::Attribute { attr: a, .. } if a == "_io" || a == "io")
+                    || matches!(detect_type_approx(value, ctx), Some(DataType::KaitaiStreamType));
+                if is_stream && (attr == "length" || attr == "size") {
+                    return Some(DataType::IntMulti { signed: true, width: 8, endian: None });
                 }
                 if attr == "length" || attr == "size" || attr == "pos" {
                     return Some(DataType::CalcIntType);

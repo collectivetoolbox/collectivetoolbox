@@ -1705,7 +1705,7 @@ impl Bmp_ColorTable {
             return Ok(self.num_colors_present.borrow());
         }
         self.f_num_colors_present.set(true);
-        *self.num_colors_present.borrow_mut() = (div_floor(i64::from((i64::try_from(_io.size())?)), i64::from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }))?).try_into()?;
+        *self.num_colors_present.borrow_mut() = (div_floor((i64::try_from(_io.size())?), i64::from(if *self.has_reserved_field() { 4_i32 } else { 3_i32 }))?).try_into()?;
         Ok(self.num_colors_present.borrow())
     }
 }

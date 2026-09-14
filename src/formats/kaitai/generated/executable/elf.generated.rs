@@ -6179,12 +6179,6 @@ impl From<Vec<u8>> for Elf_EndianElf_ProgramHeader_Body {
 pub enum Elf_EndianElf_ProgramHeader_FlagsObj {
     Elf_PhdrTypeFlags(OptRc<Elf_PhdrTypeFlags>),
 }
-impl From<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
-    fn from(v: &Elf_EndianElf_ProgramHeader_FlagsObj) -> Self {
-        let Elf_EndianElf_ProgramHeader_FlagsObj::Elf_PhdrTypeFlags(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&Elf_EndianElf_ProgramHeader_FlagsObj> for OptRc<Elf_PhdrTypeFlags> {
     type Error = KError;
     fn try_from(v: &Elf_EndianElf_ProgramHeader_FlagsObj) -> Result<Self, Self::Error> {

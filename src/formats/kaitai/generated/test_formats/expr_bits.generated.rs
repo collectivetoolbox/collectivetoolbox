@@ -83,12 +83,6 @@ impl From<i8> for ExprBits_SwitchOnType {
         Self::S1(v)
     }
 }
-impl From<&ExprBits_SwitchOnType> for i8 {
-    fn from(e: &ExprBits_SwitchOnType) -> Self {
-        let ExprBits_SwitchOnType::S1(v) = e;
-        *v
-    }
-}
 impl TryFrom<&ExprBits_SwitchOnType> for i64 {
     type Error = KError;
     #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]

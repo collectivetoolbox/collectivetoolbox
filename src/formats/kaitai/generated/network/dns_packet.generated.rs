@@ -786,7 +786,7 @@ impl KStruct for DnsPacket_DomainName {
                 let _t_name = self_rc.name.borrow();
                 let Some(_tmpa) = _t_name.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((((to_i128((i64::try_from(_tmpa.len())?))) == (to_i128(0)))) || (((to_i128((i64::try_from(_tmpa.len())?))) >= (to_i128(192)))))  { break; }
+                if  ((((to_i128(*_tmpa.length())) == (to_i128(0)))) || (((to_i128(*_tmpa.length())) >= (to_i128(192)))))  { break; }
             }
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -1187,7 +1187,7 @@ impl DnsPacket_PointerStruct {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from((i64::try_from(self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.len())?))).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
+        io.seek(usize::try_from((i32::from(*self.value())).saturating_add(((i32::from(*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.length())).saturating_sub(192_i32)).wrapping_shl(8_u32)))?)?;
         let t = Self::read_into::<_, DnsPacket_DomainName>(&io, Some(self._root.clone()), None)?.into();
         *self.contents.borrow_mut() = t;
         io.seek(_pos)?;

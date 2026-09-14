@@ -74,12 +74,6 @@ impl From<u16> for ValidSwitch_B {
         Self::U2(v)
     }
 }
-impl From<&ValidSwitch_B> for u16 {
-    fn from(e: &ValidSwitch_B) -> Self {
-        let ValidSwitch_B::U2(v) = e;
-        *v
-    }
-}
 impl TryFrom<&ValidSwitch_B> for i64 {
     type Error = KError;
     #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]

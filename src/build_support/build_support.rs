@@ -20,6 +20,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Build support library for ctoolbox build process.
 
 pub mod asset_packer;
+pub mod fnv;
 pub mod ipc_codegen;
 pub mod license_consts;
 pub mod seabios_builder;

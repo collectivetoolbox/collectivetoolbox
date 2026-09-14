@@ -7,6 +7,7 @@ path="checksum.rs"
 crate-type = ["lib"]
 
 [dependencies]
+ctb-build-support = { path = "../../build_support" }
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 

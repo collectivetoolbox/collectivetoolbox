@@ -2740,6 +2740,7 @@ dependencies = [
 name = "ctb-formats-checksum"
 version = "0.0.0"
 dependencies = [
+ "ctb-build-support",
  "ctb-formats-utilities",
  "ctb-utilities",
  "sha2 0.10.9",

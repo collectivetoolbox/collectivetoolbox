@@ -1949,7 +1949,7 @@ impl KStruct for Png_CicpChunk {
         *self_rc.video_full_range_flag.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (0).try_into()?;
         let expected_1: u8 = (1).try_into()?;
-        let _item = *self_rc.video_full_range_flag();
+        let _item: u8 = (*self_rc.video_full_range_flag()).try_into()?;
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/cicp_chunk/seq/3".to_string() }));
         }
@@ -3038,7 +3038,7 @@ impl KStruct for Png_IhdrChunk {
         let expected_2: u8 = (4).try_into()?;
         let expected_3: u8 = (8).try_into()?;
         let expected_4: u8 = (16).try_into()?;
-        let _item = *self_rc.bit_depth();
+        let _item: u8 = (*self_rc.bit_depth()).try_into()?;
         if !(_item == expected_0 || _item == expected_1 || _item == expected_2 || _item == expected_3 || _item == expected_4) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/ihdr_chunk/seq/2".to_string() }));
         }
@@ -3208,7 +3208,7 @@ impl KStruct for Png_InternationalTextChunk {
         *self_rc.compression_flag.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (0).try_into()?;
         let expected_1: u8 = (1).try_into()?;
-        let _item = *self_rc.compression_flag();
+        let _item: u8 = (*self_rc.compression_flag()).try_into()?;
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/international_text_chunk/seq/1".to_string() }));
         }
@@ -3595,7 +3595,7 @@ impl KStruct for Png_PhysChunk {
         *self_rc.pixels_per_unit_x.borrow_mut() = _io.read_u4be()?;
         *self_rc.pixels_per_unit_y.borrow_mut() = _io.read_u4be()?;
         *self_rc.unit.borrow_mut() = i64::from(_io.read_u1()?).try_into()?;
-        if matches!(*self_rc.unit(), Png_PhysUnit::Unknown(_)) {
+        if matches!(*self_rc.unit(), Png_PhysUnit::UnknownVariant(_)) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotInEnum, src_path: "/types/phys_chunk/seq/2".to_string() }));
         }
         *self_rc._io.borrow_mut() = io.clone();
@@ -4130,7 +4130,7 @@ impl KStruct for Png_SpltChunk {
         *self_rc.sample_depth.borrow_mut() = _io.read_u1()?;
         let expected_0: u8 = (8).try_into()?;
         let expected_1: u8 = (16).try_into()?;
-        let _item = *self_rc.sample_depth();
+        let _item: u8 = (*self_rc.sample_depth()).try_into()?;
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/splt_chunk/seq/1".to_string() }));
         }

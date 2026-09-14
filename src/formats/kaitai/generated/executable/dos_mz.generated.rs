@@ -210,7 +210,7 @@ impl KStruct for DosMz_MzHeader {
         let _io = io;
         *self_rc.magic.borrow_mut() = bytes_to_str(&_io.read_bytes(2_usize)?, "ASCII")?;
         let _item = &*self_rc.magic();
-        if !(_item == "MZ" || _item == "ZM") {
+        if !(*_item == "MZ" || *_item == "ZM") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/mz_header/seq/0".to_string() }));
         }
         *self_rc.last_page_extra_bytes.borrow_mut() = _io.read_u2le()?;

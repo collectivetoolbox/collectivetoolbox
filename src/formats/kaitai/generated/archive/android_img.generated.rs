@@ -133,10 +133,10 @@ impl AndroidImg {
             return Ok(self.dtb_img.borrow());
         }
         self.f_dtb_img.set(true);
-        if  ((((to_i128(*self.header_version())) > (to_i128(1)))) && (((to_i128((i64::try_from(self.dtb().len())?))) > (to_i128(0)))))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(1)))) && (((to_i128(*self.dtb().size())) > (to_i128(0)))))  {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add((i64::try_from(self.ramdisk().len())?))).saturating_add((i64::try_from(self.second().len())?))).saturating_add((i64::try_from(self.recovery_dtbo().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.dtb().len())?))?)?;
+            _io.seek(usize::try_from(((((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.second().size())).saturating_add(*self.recovery_dtbo().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.dtb_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.dtb().size())?)?;
             _io.seek(_pos)?;
         }
         Ok(self.dtb_img.borrow())
@@ -170,7 +170,7 @@ impl AndroidImg {
         self.f_kernel_img.set(true);
         let _pos = _io.pos();
         _io.seek(usize::try_from(*self.page_size())?)?;
-        *self.kernel_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.kernel().len())?))?)?;
+        *self.kernel_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.kernel().size())?)?;
         _io.seek(_pos)?;
         Ok(self.kernel_img.borrow())
     }
@@ -199,10 +199,10 @@ impl AndroidImg {
             return Ok(self.ramdisk_img.borrow());
         }
         self.f_ramdisk_img.set(true);
-        if ((to_i128((i64::try_from(self.ramdisk().len())?))) > (to_i128(0))) {
+        if ((to_i128(*self.ramdisk().size())) > (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.ramdisk().len())?))?)?;
+            _io.seek(usize::try_from((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.ramdisk_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.ramdisk().size())?)?;
             _io.seek(_pos)?;
         }
         Ok(self.ramdisk_img.borrow())
@@ -232,10 +232,10 @@ impl AndroidImg {
             return Ok(self.recovery_dtbo_img.borrow());
         }
         self.f_recovery_dtbo_img.set(true);
-        if  ((((to_i128(*self.header_version())) > (to_i128(0)))) && (((to_i128((i64::try_from(self.recovery_dtbo().len())?))) > (to_i128(0)))))  {
+        if  ((((to_i128(*self.header_version())) > (to_i128(0)))) && (((to_i128(*self.recovery_dtbo().size())) > (to_i128(0)))))  {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.recovery_dtbo().offset())?)?;
-            *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.recovery_dtbo().len())?))?)?;
+            *self.recovery_dtbo_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.recovery_dtbo().size())?)?;
             _io.seek(_pos)?;
         }
         Ok(self.recovery_dtbo_img.borrow())
@@ -249,10 +249,10 @@ impl AndroidImg {
             return Ok(self.second_img.borrow());
         }
         self.f_second_img.set(true);
-        if ((to_i128((i64::try_from(self.second().len())?))) > (to_i128(0))) {
+        if ((to_i128(*self.second().size())) > (to_i128(0))) {
             let _pos = _io.pos();
-            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add((i64::try_from(self.kernel().len())?))).saturating_add((i64::try_from(self.ramdisk().len())?))).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
-            *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.second().len())?))?)?;
+            _io.seek(usize::try_from(((((((*self.page_size()).saturating_add(*self.kernel().size())).saturating_add(*self.ramdisk().size())).saturating_add(*self.page_size())).saturating_sub(1_u32)).checked_div(*self.page_size()).ok_or(KError::CastError)?).saturating_mul(*self.page_size()))?)?;
+            *self.second_img.borrow_mut() = _io.read_bytes(usize::try_from(*self.second().size())?)?;
             _io.seek(_pos)?;
         }
         Ok(self.second_img.borrow())

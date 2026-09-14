@@ -59,7 +59,7 @@ impl HeroesOfMightAndMagicAgg {
         }
         self.f_filenames.set(true);
         let _pos = _io.pos();
-        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add((i64::try_from(self.entries().last().ok_or(KError::EmptyIterator)?.len())?)))?)?;
+        _io.seek(usize::try_from((*self.entries().last().ok_or(KError::EmptyIterator)?.offset()).saturating_add(*self.entries().last().ok_or(KError::EmptyIterator)?.size()))?)?;
         *self.filenames_raw.borrow_mut() = Vec::new();
         *self.filenames.borrow_mut() = Vec::new();
         let l_filenames = usize::from(*self.num_files());

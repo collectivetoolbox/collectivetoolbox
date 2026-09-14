@@ -507,7 +507,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigurationOption {
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_u1()?;
-        let _raw_configurations = _io.read_bytes(usize::try_from((i32::from((i64::try_from(self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header().len())?))).saturating_sub(1_i32))?)?;
+        let _raw_configurations = _io.read_bytes(usize::try_from((i32::from(*self_rc._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.header().length())).saturating_sub(1_i32))?)?;
         *self_rc.configurations_raw.borrow_mut() = _raw_configurations.clone();
         let _io_configurations = BytesReader::from(_raw_configurations);
         let t = Self::read_into::<BytesReader, SomeIpSdOptions_SdOption_SdConfigStringsContainer>(&_io_configurations, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();

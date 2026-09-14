@@ -310,12 +310,6 @@ pub struct WindowsShellItems_ShellItemData {
 pub enum WindowsShellItems_ShellItemData_Body1 {
     WindowsShellItems_RootFolderBody(OptRc<WindowsShellItems_RootFolderBody>),
 }
-impl From<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
-    fn from(v: &WindowsShellItems_ShellItemData_Body1) -> Self {
-        let WindowsShellItems_ShellItemData_Body1::WindowsShellItems_RootFolderBody(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&WindowsShellItems_ShellItemData_Body1> for OptRc<WindowsShellItems_RootFolderBody> {
     type Error = KError;
     fn try_from(v: &WindowsShellItems_ShellItemData_Body1) -> Result<Self, Self::Error> {

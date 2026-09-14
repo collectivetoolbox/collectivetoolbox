@@ -85,7 +85,7 @@ impl Tga {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(26_i32))?)?;
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(26_i64))?)?;
         let t = Self::read_into::<_, Tga_TgaFooter>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;

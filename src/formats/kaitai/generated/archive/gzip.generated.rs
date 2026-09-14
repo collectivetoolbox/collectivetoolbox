@@ -42,12 +42,6 @@ pub struct Gzip {
 pub enum Gzip_ExtraFlags {
     Gzip_ExtraFlagsDeflate(OptRc<Gzip_ExtraFlagsDeflate>),
 }
-impl From<&Gzip_ExtraFlags> for OptRc<Gzip_ExtraFlagsDeflate> {
-    fn from(v: &Gzip_ExtraFlags) -> Self {
-        let Gzip_ExtraFlags::Gzip_ExtraFlagsDeflate(x) = v;
-        x.clone()
-    }
-}
 impl TryFrom<&Gzip_ExtraFlags> for OptRc<Gzip_ExtraFlagsDeflate> {
     type Error = KError;
     fn try_from(v: &Gzip_ExtraFlags) -> Result<Self, Self::Error> {
@@ -107,7 +101,7 @@ impl KStruct for Gzip {
         if *self_rc.flags().has_header_crc() {
             *self_rc.header_crc16.borrow_mut() = _io.read_u2le()?;
         }
-        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_i32))?)?;
+        *self_rc.body.borrow_mut() = _io.read_bytes(usize::try_from(((usize::try_from((i64::try_from(_io.size())?))?).saturating_sub(_io.pos())).saturating_sub(8_usize))?)?;
         *self_rc.body_crc32.borrow_mut() = _io.read_u4le()?;
         *self_rc.len_uncompressed.borrow_mut() = _io.read_u4le()?;
         *self_rc._io.borrow_mut() = io.clone();

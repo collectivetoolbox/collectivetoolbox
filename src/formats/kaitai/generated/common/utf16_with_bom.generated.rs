@@ -53,7 +53,7 @@ impl KStruct for Utf16WithBom {
         let _io = io;
         *self_rc.bom.borrow_mut() = _io.read_bytes(2_usize)?;
         let _item = &*self_rc.bom();
-        if !(_item == vec![0xfeu8, 0xffu8] || _item == vec![0xffu8, 0xfeu8]) {
+        if !(*_item == vec![0xfeu8, 0xffu8] || *_item == vec![0xffu8, 0xfeu8]) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }
         if *self_rc.is_be()? {

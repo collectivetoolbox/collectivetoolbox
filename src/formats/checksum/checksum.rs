@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub mod cli;
+pub mod fnv;
 pub mod xxhash;
 
 use ctb_utilities::string::{to_hex, to_hex_0x};

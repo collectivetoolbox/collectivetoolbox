@@ -138,7 +138,7 @@ impl KStruct for AndroidBootldrAsus_Image {
         let _io = io;
         *self_rc.chunk_id.borrow_mut() = bytes_to_str(&_io.read_bytes(8_usize)?, "ASCII")?;
         let _item = &*self_rc.chunk_id();
-        if !(_item == "IFWI!!!!" || _item == "DROIDBT!" || _item == "SPLASHS!") {
+        if !(*_item == "IFWI!!!!" || *_item == "DROIDBT!" || *_item == "SPLASHS!") {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/types/image/seq/0".to_string() }));
         }
         *self_rc.len_body.borrow_mut() = _io.read_u4le()?;

@@ -1760,7 +1760,7 @@ impl MicrosoftPe_PeHeader {
         if ((to_i128(*self.optional_hdr().data_dirs().certificate_table().virtual_address())) != (to_i128(0))) {
             let _pos = _io.pos();
             _io.seek(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().virtual_address())?)?;
-            *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from((i64::try_from(self.optional_hdr().data_dirs().certificate_table().len())?))?)?.into();
+            *self.certificate_table_raw.borrow_mut() = _io.read_bytes(usize::try_from(*self.optional_hdr().data_dirs().certificate_table().size())?)?.into();
             let certificate_table_raw = self.certificate_table_raw.borrow();
             let _t_certificate_table_raw_io = BytesReader::from(certificate_table_raw.clone());
             let t = Self::read_into::<BytesReader, MicrosoftPe_CertificateTable>(&_t_certificate_table_raw_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();

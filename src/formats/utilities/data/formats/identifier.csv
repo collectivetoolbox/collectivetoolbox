@@ -28,3 +28,6 @@ Import/export/tests support columns meaning:
 2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,Torrent,~_archive\.torrent$~,application/x-bittorrent,,,,,,,,,
 2228576,352,DcIdentifier,Dc identifier (long),identifier,"DcIdentifier, =[Natural1 & <(2^128)]",,,,,,,,,,,
 2228577,353,DcShortIdentifier,Dc identifier (short),identifier,"DcIdentifier, =[Natural1 & <(2^128)]",,,,,,,,,,,
+2228487,263,UserAgent,User-Agent string,identifier,,,,,,,,,,,,
+2228488,264,FileExtension,File extension,identifier,,,,,,,,,,,,
+2228489,265,UriProtocol,URI protocol,identifier,,,,,,,,,,,,

@@ -755,7 +755,7 @@ impl KStruct for Id3v24_Padding {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((usize::try_from(*(i64::try_from(self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().len())?).value()?)?).saturating_sub(_io.pos()))?)?;
+        *self_rc.padding.borrow_mut() = _io.read_bytes(usize::try_from((usize::try_from(*self_rc._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.tag().header().size().value()?)?).saturating_sub(_io.pos()))?)?;
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
     }
@@ -821,7 +821,7 @@ impl KStruct for Id3v24_Tag {
                 let _t_frames = self_rc.frames.borrow();
                 let Some(_tmpa) = _t_frames.last() else { break; };
                 _i = _i.saturating_add(1);
-                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*(i64::try_from(_tmpa.len())?).value()?)?))) > (to_i128(*(i64::try_from(self_rc.header().len())?).value()?)))) || (*_tmpa.is_invalid()?))  { break; }
+                if  ((((to_i128((_io.pos()).saturating_add(usize::try_from(*_tmpa.size().value()?)?))) > (to_i128(*self_rc.header().size().value()?)))) || (*_tmpa.is_invalid()?))  { break; }
             }
         }
         if !(*self_rc.header().flags().flag_footer()) {

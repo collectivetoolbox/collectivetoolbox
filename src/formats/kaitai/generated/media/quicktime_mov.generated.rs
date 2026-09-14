@@ -1168,7 +1168,7 @@ impl QuicktimeMov_Atom {
             return Ok(self.len.borrow());
         }
         self.f_len.set(true);
-        *self.len.borrow_mut() = (if ((to_i128(*self.len32())) == (to_i128(0))) { u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i32))? } else { if ((to_i128(*self.len32())) == (to_i128(1))) { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
+        *self.len.borrow_mut() = (if ((to_i128(*self.len32())) == (to_i128(0))) { u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))? } else { if ((to_i128(*self.len32())) == (to_i128(1))) { (*self.len64()).saturating_sub(16_u64) } else { u64::from((*self.len32()).saturating_sub(8_u32)) } }).try_into()?;
         Ok(self.len.borrow())
     }
 }

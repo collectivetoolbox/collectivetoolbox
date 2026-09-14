@@ -76,7 +76,7 @@ impl KStruct for SomeIp {
         *self_rc.header.borrow_mut() = t;
         match *self_rc.header().message_id().value()? {
             4294934784 => {
-                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from(((i64::try_from(self_rc.header().len())?)).saturating_sub(8_u32))?)?.into();
+                *self_rc.payload_raw.borrow_mut() = _io.read_bytes(usize::try_from((*self_rc.header().length()).saturating_sub(8_u32))?)?.into();
                 let payload_raw = self_rc.payload_raw.borrow();
                 let _t_payload_raw_io = BytesReader::from(payload_raw.clone());
                 let t = Self::read_into::<BytesReader, SomeIpSd>(&_t_payload_raw_io, None, None)?.into();

@@ -46,7 +46,7 @@ impl Fallout2Dat {
             return Ok(self.footer.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i32))?)?;
+        _io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Footer>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.footer.borrow_mut() = t;
         _io.seek(_pos)?;
@@ -61,7 +61,7 @@ impl Fallout2Dat {
             return Ok(self.index.borrow());
         }
         let _pos = _io.pos();
-        _io.seek(usize::try_from((u32::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i32))?).saturating_sub(*self.footer()?.index_size()))?)?;
+        _io.seek(usize::try_from((u64::try_from(((i64::try_from(_io.size())?)).saturating_sub(8_i64))?).saturating_sub(u64::from(*self.footer()?.index_size())))?)?;
         let t = Self::read_into::<_, Fallout2Dat_Index>(&*_io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.index.borrow_mut() = t;
         _io.seek(_pos)?;

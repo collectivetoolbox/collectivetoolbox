@@ -53,7 +53,7 @@ impl GptPartitionTable {
         }
         let io = KStream::clone(&*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?._io());
         let _pos = io.pos();
-        io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?))?)?;
+        io.seek(usize::try_from(((i64::try_from(_io.size())?)).saturating_sub(i64::from(*self._root.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingRoot)?.sector_size()?)))?)?;
         let t = Self::read_into::<_, GptPartitionTable_PartitionHeader>(&io, Some(self._root.clone()), Some(self._self_shared.clone()))?.into();
         *self.backup.borrow_mut() = t;
         io.seek(_pos)?;

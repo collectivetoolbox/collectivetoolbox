@@ -49,7 +49,7 @@ impl KStruct for ChromePak {
         *self_rc.version.borrow_mut() = _io.read_u4le()?;
         let expected_0: u32 = (4).try_into()?;
         let expected_1: u32 = (5).try_into()?;
-        let _item = *self_rc.version();
+        let _item: u32 = (*self_rc.version()).try_into()?;
         if !(_item == expected_0 || _item == expected_1) {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::NotAnyOf, src_path: "/seq/0".to_string() }));
         }
