@@ -23,5 +23,7 @@ pub mod asset_packer;
 pub mod ipc_codegen;
 pub mod license_consts;
 pub mod seabios_builder;
+pub mod standard_boilerplate;
 pub mod v86_generator;
 pub mod v86_packer;
+

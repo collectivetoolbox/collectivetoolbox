@@ -15,6 +15,7 @@ name = "generate-kaitai-tests"
 path = "bin/generate_tests.rs"
 
 [dependencies]
+ctb-build-support = { path = "../../build_support" }
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 include_dir = { version = "0.7.4", features = ["glob"] }

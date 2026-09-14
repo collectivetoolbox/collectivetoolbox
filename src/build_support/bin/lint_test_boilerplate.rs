@@ -25,30 +25,12 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use ctb_build_support::standard_boilerplate::{
+    get_standard_boilerplate, get_standard_repository_test_allows, REQUIRED_LINTS,
+};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
-const REQUIRED_LINTS: [&str; 7] = [
-    "clippy::panic",
-    "clippy::expect_used",
-    "clippy::unwrap_used",
-    "clippy::unwrap_in_result",
-    "clippy::panic_in_result_fn",
-    "clippy::indexing_slicing",
-    "clippy::arithmetic_side_effects",
-];
-
-const STANDARD_BOILERPLATE: &str = r#"#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]"#;
 
 #[derive(Debug)]
 struct Violation {
@@ -215,17 +197,6 @@ fn find_rs_files(dir: &Path, rs_files: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-const STANDARD_ALLOW_ATTR: &str = r#"#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]"#;
-
 fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
     if violations.is_empty() {
         return Ok(false);
@@ -240,6 +211,9 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
 
     let mut new_lines: Vec<String> = lines.into_iter().map(String::from).collect();
 
+    let std_boilerplate = get_standard_boilerplate();
+    let std_allow = get_standard_repository_test_allows();
+
     for v in sorted_violations {
         let mod_idx = v.mod_line.saturating_sub(1);
         let start_idx = v.replace_start_line.saturating_sub(1);
@@ -249,10 +223,11 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
         let indent: String = mod_line_str.chars().take_while(|c| c.is_whitespace()).collect();
 
         let boilerplate_template = if v.needs_cfg_test {
-            STANDARD_BOILERPLATE
+            &std_boilerplate
         } else {
-            STANDARD_ALLOW_ATTR
+            &std_allow
         };
+
 
         let replacement_lines: Vec<String> = boilerplate_template
             .lines()
