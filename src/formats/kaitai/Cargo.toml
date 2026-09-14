@@ -5,8 +5,6 @@ edition = "2024"
 [lib]
 path="kaitai.rs"
 crate-type = ["lib"]
-# Added doctest = false under [lib] in Cargo.toml so rustdoc does not attempt to compile comments copied from ksy files (e.g. hex dumps and markdown tables) as Rust doctests. FIXME Wolud it make more sense to ignore them when emitting coments in the transpiler?
-doctest = false
 
 [[bin]]
 name = "import-kaitai-formats"

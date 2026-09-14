@@ -9,7 +9,7 @@ use std::cell::{Cell, Ref, RefCell};
  * Parse UEFI variables db and dbx that contain signatures, certificates and
  * hashes. On a Linux system using UEFI, these variables are readable from:
  *
- * ```
+ * ```text
  * /sys/firmware/efi/efivars/db-d719b2cb-3d3a-4596-a3bc-dad00e67656f
  * /sys/firmware/efi/efivars/dbDefault-8be4df61-93ca-11d2-aa0d-00e098032b8c
  * /sys/firmware/efi/efivars/dbx-d719b2cb-3d3a-4596-a3bc-dad00e67656f

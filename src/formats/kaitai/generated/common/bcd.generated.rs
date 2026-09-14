@@ -18,14 +18,14 @@ use std::cell::{Cell, Ref, RefCell};
  * For example, encoding integer 31337 in 8-digit, 8 bits per digit,
  * big endian order of digits BCD format yields
  *
- * ```
+ * ```text
  * 00 00 00 03 01 03 03 07
  * ```
  *
  * Encoding the same integer as 8-digit, 4 bits per digit, little
  * endian order BCD format would yield:
  *
- * ```
+ * ```text
  * 73 31 30 00
  * ```
  *

@@ -37,7 +37,7 @@ use std::cell::{Cell, Ref, RefCell};
  * `anim_names`, `anim_start_indices`, and `anim_num_frames` respectively. This
  * information is summarized in the following table:
  *
- * ```
+ * ```text
  * |   INDEX  |    NAME | SUFFIX | NOTES                                                  |
  * |:--------:|--------:|:-------|:-------------------------------------------------------|
  * |    0-39  |   stand | 01-40  | Idle animation                                         |
@@ -198,8 +198,7 @@ impl Quake2Md2 {
 
     /**
      * \sa https://github.com/skullernet/q2pro/blob/f4faabd/src/common/math.c#L80
-from Quake anorms.h
-
+     *   from Quake anorms.h
      */
     pub fn anorms_table(
         &self

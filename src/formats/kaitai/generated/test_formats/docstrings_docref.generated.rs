@@ -116,9 +116,8 @@ impl DocstringsDocref {
 
     /**
      * \sa Now this is a really
-long document ref that
-spans multiple lines.
-
+     *   long document ref that
+     *   spans multiple lines.
      */
     pub fn parse_inst(
         &self

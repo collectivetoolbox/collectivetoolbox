@@ -90,25 +90,51 @@ impl CodeWriter {
     pub fn docblock(&mut self, text: Option<&str>, doc_refs: &[String]) {
         self.puts("/**");
         if let Some(t) = text {
+            let mut in_code_block = false;
             for line in t.lines() {
                 let sanitized = line.replace("*/", "* /").replace("/*", "/ *");
-                if sanitized.trim().is_empty() {
+                let trimmed = sanitized.trim();
+                let output_line = if in_code_block {
+                    if trimmed == "```" {
+                        in_code_block = false;
+                    }
+                    sanitized
+                } else if trimmed == "```" {
+                    in_code_block = true;
+                    sanitized.replacen("```", "```text", 1)
+                } else if trimmed.starts_with("```") {
+                    in_code_block = true;
+                    sanitized
+                } else {
+                    sanitized
+                };
+                if output_line.trim().is_empty() {
                     self.puts(" *");
                 } else {
-                    self.puts(&format!(" * {sanitized}"));
+                    self.puts(&format!(" * {output_line}"));
                 }
             }
         }
         for r in doc_refs {
             let sanitized_r = r.replace("*/", "* /").replace("/*", "/ *");
-            if sanitized_r.starts_with("http://") || sanitized_r.starts_with("https://") {
-                if sanitized_r.contains(' ') {
-                    self.puts(&format!(" * \\sa {sanitized_r}"));
+            let mut is_first = true;
+            for line in sanitized_r.lines() {
+                if is_first {
+                    is_first = false;
+                    if line.starts_with("http://") || line.starts_with("https://") {
+                        if line.contains(' ') {
+                            self.puts(&format!(" * \\sa {line}"));
+                        } else {
+                            self.puts(&format!(" * \\sa <{line}> Source"));
+                        }
+                    } else {
+                        self.puts(&format!(" * \\sa {line}"));
+                    }
+                } else if line.trim().is_empty() {
+                    self.puts(" *");
                 } else {
-                    self.puts(&format!(" * \\sa <{sanitized_r}> Source"));
+                    self.puts(&format!(" *   {line}"));
                 }
-            } else {
-                self.puts(&format!(" * \\sa {sanitized_r}"));
             }
         }
         self.puts(" */");

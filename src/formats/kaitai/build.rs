@@ -378,6 +378,7 @@ fn compile_test_suite(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
 
     for (stem, ksy_path, rel_path) in &ksy_files {
         let metadata = fs::metadata(ksy_path)?;
+        // Reason for fallback: timestamps before unix epoch default to duration 0
         let mtime = metadata
             .modified()?
             .duration_since(UNIX_EPOCH)
@@ -539,6 +540,7 @@ const PENDING_TRANSPILER_FIX_FORMATS: &[&str] = &[
             let name = entry.file_name().to_string_lossy().to_string();
             if name.starts_with("test_") && name.ends_with(".generated.rs") {
                 let mod_name = name.trim_end_matches(".generated.rs").to_string();
+                // Reason for fallback: module names without test_ prefix remain unchanged
                 let format_stem = mod_name.strip_prefix("test_").unwrap_or(&mod_name);
                 if PENDING_TRANSPILER_FIX_FORMATS.contains(&format_stem) {
                     continue;
