@@ -64,7 +64,6 @@ pub struct DebugSwitchUser {
     code: RefCell<u8>,
     data: RefCell<Option<DebugSwitchUser_Data>>,
     _io: RefCell<BytesReader>,
-    data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum DebugSwitchUser_Data {
@@ -118,17 +117,11 @@ impl KStruct for DebugSwitchUser {
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         match *self_rc.code() {
             1 => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let data_raw = self_rc.data_raw.borrow();
-                let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, DebugSwitchUser_One>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DebugSwitchUser_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             2 => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let data_raw = self_rc.data_raw.borrow();
-                let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, DebugSwitchUser_Two>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, DebugSwitchUser_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -152,11 +145,6 @@ impl DebugSwitchUser {
 impl DebugSwitchUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl DebugSwitchUser {
-    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.data_raw.borrow()
     }
 }
 

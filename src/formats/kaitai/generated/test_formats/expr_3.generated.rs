@@ -64,6 +64,7 @@ pub struct Expr3 {
     one: RefCell<u8>,
     two: RefCell<String>,
     _io: RefCell<BytesReader>,
+    two_raw: RefCell<Vec<u8>>,
     f_four: Cell<bool>,
     four: RefCell<String>,
     f_is_str_eq: Cell<bool>,
@@ -242,5 +243,10 @@ impl Expr3 {
 impl Expr3 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Expr3 {
+    pub fn two_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.two_raw.borrow()
     }
 }

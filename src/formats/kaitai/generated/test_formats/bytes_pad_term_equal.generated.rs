@@ -66,6 +66,10 @@ pub struct BytesPadTermEqual {
     s3: RefCell<Vec<u8>>,
     s4: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    s1_raw: RefCell<Vec<u8>>,
+    s2_raw: RefCell<Vec<u8>>,
+    s3_raw: RefCell<Vec<u8>>,
+    s4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BytesPadTermEqual {
     type Root = BytesPadTermEqual;
@@ -116,5 +120,25 @@ impl BytesPadTermEqual {
 impl BytesPadTermEqual {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BytesPadTermEqual {
+    pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s1_raw.borrow()
+    }
+}
+impl BytesPadTermEqual {
+    pub fn s2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s2_raw.borrow()
+    }
+}
+impl BytesPadTermEqual {
+    pub fn s3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s3_raw.borrow()
+    }
+}
+impl BytesPadTermEqual {
+    pub fn s4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s4_raw.borrow()
     }
 }

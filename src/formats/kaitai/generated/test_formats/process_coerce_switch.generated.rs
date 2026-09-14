@@ -244,6 +244,7 @@ pub struct ProcessCoerceSwitch_Foo {
     pub(crate) _self_shared: SharedType<Self>,
     bar: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    bar_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessCoerceSwitch_Foo {
     type Root = ProcessCoerceSwitch;
@@ -276,5 +277,10 @@ impl ProcessCoerceSwitch_Foo {
 impl ProcessCoerceSwitch_Foo {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCoerceSwitch_Foo {
+    pub fn bar_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bar_raw.borrow()
     }
 }

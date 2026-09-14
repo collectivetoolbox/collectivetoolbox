@@ -66,6 +66,10 @@ pub struct StrPadTermZeroSize {
     str_term_and_pad: RefCell<String>,
     str_term_include: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_pad_raw: RefCell<Vec<u8>>,
+    str_term_raw: RefCell<Vec<u8>>,
+    str_term_and_pad_raw: RefCell<Vec<u8>>,
+    str_term_include_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrPadTermZeroSize {
     type Root = StrPadTermZeroSize;
@@ -116,5 +120,25 @@ impl StrPadTermZeroSize {
 impl StrPadTermZeroSize {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrPadTermZeroSize {
+    pub fn str_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_pad_raw.borrow()
+    }
+}
+impl StrPadTermZeroSize {
+    pub fn str_term_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_raw.borrow()
+    }
+}
+impl StrPadTermZeroSize {
+    pub fn str_term_and_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_and_pad_raw.borrow()
+    }
+}
+impl StrPadTermZeroSize {
+    pub fn str_term_include_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_include_raw.borrow()
     }
 }

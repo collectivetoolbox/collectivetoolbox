@@ -117,6 +117,7 @@ pub struct ParamsCall_MyStr1 {
     len: RefCell<u32>,
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsCall_MyStr1 {
     type Root = ParamsCall;
@@ -161,6 +162,11 @@ impl ParamsCall_MyStr1 {
         self._io.borrow()
     }
 }
+impl ParamsCall_MyStr1 {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsCall_MyStr2 {
@@ -172,6 +178,7 @@ pub struct ParamsCall_MyStr2 {
     body: RefCell<String>,
     trailer: RefCell<u8>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsCall_MyStr2 {
     type Root = ParamsCall;
@@ -228,5 +235,10 @@ impl ParamsCall_MyStr2 {
 impl ParamsCall_MyStr2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsCall_MyStr2 {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

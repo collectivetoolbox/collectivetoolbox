@@ -74,6 +74,7 @@ pub struct BitsByteAligned {
     bytes_term: RefCell<Vec<u8>>,
     six: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    byte_2_raw: RefCell<Vec<u8>>,
     byte_3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BitsByteAligned {
@@ -182,6 +183,11 @@ impl BitsByteAligned {
 impl BitsByteAligned {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BitsByteAligned {
+    pub fn byte_2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.byte_2_raw.borrow()
     }
 }
 impl BitsByteAligned {

@@ -66,6 +66,7 @@ pub struct SwitchIntegers2 {
     ham: RefCell<Vec<u8>>,
     padding: RefCell<u8>,
     _io: RefCell<BytesReader>,
+    ham_raw: RefCell<Vec<u8>>,
     f_len_mod_str: Cell<bool>,
     len_mod_str: RefCell<String>,
 }
@@ -249,5 +250,10 @@ impl SwitchIntegers2 {
 impl SwitchIntegers2 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl SwitchIntegers2 {
+    pub fn ham_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ham_raw.borrow()
     }
 }

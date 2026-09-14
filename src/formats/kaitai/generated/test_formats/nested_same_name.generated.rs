@@ -234,6 +234,7 @@ pub struct NestedSameName_Main_FooObj {
     pub(crate) _self_shared: SharedType<Self>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NestedSameName_Main_FooObj {
     type Root = NestedSameName;
@@ -266,5 +267,10 @@ impl NestedSameName_Main_FooObj {
 impl NestedSameName_Main_FooObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NestedSameName_Main_FooObj {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
     }
 }

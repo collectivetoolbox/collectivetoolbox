@@ -163,6 +163,8 @@ pub struct ParamsPassArrayUsertype_ParamType {
     one: RefCell<Vec<u8>>,
     two: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    one_raw: RefCell<Vec<u8>>,
+    two_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsPassArrayUsertype_ParamType {
     type Root = ParamsPassArrayUsertype;
@@ -211,5 +213,15 @@ impl ParamsPassArrayUsertype_ParamType {
 impl ParamsPassArrayUsertype_ParamType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsPassArrayUsertype_ParamType {
+    pub fn one_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.one_raw.borrow()
+    }
+}
+impl ParamsPassArrayUsertype_ParamType {
+    pub fn two_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.two_raw.borrow()
     }
 }

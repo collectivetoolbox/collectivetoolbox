@@ -68,6 +68,7 @@ pub struct ExprBits {
     switch_on_type: RefCell<Option<ExprBits_SwitchOnType>>,
     switch_on_endian: RefCell<OptRc<ExprBits_EndianSwitch>>,
     _io: RefCell<BytesReader>,
+    byte_size_raw: RefCell<Vec<u8>>,
     f_enum_inst: Cell<bool>,
     enum_inst: RefCell<ExprBits_Items>,
     f_inst_pos: Cell<bool>,
@@ -227,6 +228,11 @@ impl ExprBits {
 impl ExprBits {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprBits {
+    pub fn byte_size_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.byte_size_raw.borrow()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

@@ -263,6 +263,23 @@ fn compile_single_class(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpe
     // Enums
     emit_enums(w, current);
 
+    // Custom Display / to_string representation
+    if let Some(to_string_expr_str) = &current.to_string {
+        if let Ok(parsed_expr) = crate::expr::parser::parse_expr(to_string_expr_str) {
+            let ctx = TranslationContext::new(current, root, false);
+            let translated = translate_expr(&parsed_expr, &ctx);
+            w.puts(&format!("impl std::fmt::Display for {class_name} {{"));
+            w.inc();
+            w.puts("fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {");
+            w.inc();
+            w.puts(&format!("write!(f, \"{{}}\", {translated})"));
+            w.dec();
+            w.puts("}");
+            w.dec();
+            w.puts("}");
+        }
+    }
+
     // Recursively compile nested subclasses
     for nested in current.subclasses.values() {
         compile_single_class(w, nested, root);
@@ -275,10 +292,10 @@ fn has_substream(attr: &ResolvedAttr) -> bool {
     }
     if let DataType::SwitchType { cases, .. } = &attr.data_type {
         if cases.values().any(|ct| matches!(ct, DataType::UserType { .. })) {
-            return true;
+            return attr.size_expr.is_some() || attr.process.is_some();
         }
     }
-    false
+    attr.size_expr.is_some() || attr.process.is_some()
 }
 
 fn rust_field_type(dt: &DataType, current: &ClassSpec, attr_id: &str) -> String {
@@ -662,23 +679,39 @@ fn emit_read_array_element(
     self_name: &str,
     io: &str,
 ) {
+    let stream_type = if io == "_io" {
+        "_"
+    } else {
+        "BytesReader"
+    };
+    let io_expr = if io.starts_with('&') {
+        io.to_string()
+    } else if io == "_io" {
+        "&*_io".to_string()
+    } else {
+        format!("&{io}")
+    };
+
     if let DataType::UserType { names, is_external, args } = element {
         let type_name = types_to_class_name(names);
         let target_args = get_target_args(names, *is_external, self_name, ctx, None);
-        let stream_type = if io == "_io" {
-            "_"
-        } else {
-            "BytesReader"
-        };
-        let io_expr = if io.starts_with('&') {
-            io.to_string()
-        } else if io == "_io" {
-            "&*_io".to_string()
-        } else {
-            format!("&{io}")
-        };
 
-        if args.is_empty() {
+        if current.ks_debug {
+            w.puts(&format!("let t: OptRc<{type_name}> = OptRc::from({type_name}::default());"));
+            if !args.is_empty() {
+                let trans_args = translate_args(args, ctx, true);
+                w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_params({trans_args})); f(&mut *t.get_mut()) }})();"));
+            }
+            if current.has_dynamic_endian() {
+                w.puts(&format!("let _ = (|| -> KResult<()> {{ let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow())); f(&mut *t.get_mut()) }})();"));
+            }
+            w.puts(&format!("let (root_in, parent_in) = ({target_args});"));
+            w.puts(&format!("let root = Self::downcast(root_in, t.clone(), true);"));
+            w.puts(&format!("let parent = Self::downcast(parent_in, t.clone(), false);"));
+            w.puts(&format!("let res = {type_name}::read(&t, {io_expr}, root, parent);"));
+            w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
+            w.puts("res?;");
+        } else if args.is_empty() {
             if current.has_dynamic_endian() {
                 w.puts(&format!(
                     "let f = |t : &mut {type_name}| Ok(t.set_endian(*{self_name}._is_le.borrow()));"
@@ -691,6 +724,7 @@ fn emit_read_array_element(
                     "let t = Self::read_into::<{stream_type}, {type_name}>({io_expr}, {target_args})?.into();"
                 ));
             }
+            w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
         } else {
             let trans_args = translate_args(args, ctx, true);
             w.puts(&format!(
@@ -699,8 +733,8 @@ fn emit_read_array_element(
             w.puts(&format!(
                 "let t = Self::read_into_with_init::<{stream_type}, {type_name}>({io_expr}, {target_args}, &f)?.into();"
             ));
+            w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
         }
-        w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
     } else if let DataType::SwitchType { cases, switch_on } = element {
         let sw_type = super::translator::detect_type_approx(switch_on, ctx);
         let is_str_switch = matches!(sw_type, Some(DataType::Str { .. } | DataType::CalcStrType));
@@ -743,13 +777,11 @@ fn emit_read_array_element(
             w.inc();
 
             if let DataType::UserType { names, is_external, args } = case_type {
-                w.puts(&format!("let _t_{id}_raw = _io.read_bytes_full()?;"));
-                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw);"));
                 let type_name = types_to_class_name(names);
                 let target_args = get_target_args(names, *is_external, self_name, ctx, None);
                 if args.is_empty() {
                     w.puts(&format!(
-                        "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
+                        "let t = Self::read_into::<{stream_type}, {type_name}>({io_expr}, {target_args})?.into();"
                     ));
                 } else {
                     let trans_args = translate_args(args, ctx, true);
@@ -757,7 +789,7 @@ fn emit_read_array_element(
                         "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
                     ));
                     w.puts(&format!(
-                        "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
+                        "let t = Self::read_into_with_init::<{stream_type}, {type_name}>({io_expr}, {target_args}, &f)?.into();"
                     ));
                 }
                 w.puts(&format!("{self_name}.{id}.borrow_mut().push(t);"));
@@ -1744,38 +1776,57 @@ fn emit_switch_read(
         w.inc();
 
         if let DataType::UserType { names, is_external, args } = case_type {
-            let read_call = if let Some(size_expr) = &attr.size_expr {
-                let s = expr_to_usize(size_expr, ctx);
-                format!("_io.read_bytes({s})?.into()")
-            } else {
-                "_io.read_bytes_full()?.into()".to_string()
-            };
-            w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = {read_call};"));
-            w.puts(&format!("let {id}_raw = {self_name}.{id}_raw.borrow();"));
-            if let Some(proc) = &attr.process {
-                let processed = translate_process(proc, &format!("{id}_raw"), ctx);
-                w.puts(&format!("let _t_{id}_raw_proc = {processed};"));
-                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw_proc);"));
-            } else {
-                w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
-            }
+            if has_substream(attr) || attr.size_expr.is_some() || attr.process.is_some() {
+                let read_call = if let Some(size_expr) = &attr.size_expr {
+                    let s = expr_to_usize(size_expr, ctx);
+                    format!("_io.read_bytes({s})?.into()")
+                } else {
+                    "_io.read_bytes_full()?.into()".to_string()
+                };
+                w.puts(&format!("*{self_name}.{id}_raw.borrow_mut() = {read_call};"));
+                w.puts(&format!("let {id}_raw = {self_name}.{id}_raw.borrow();"));
+                if let Some(proc) = &attr.process {
+                    let processed = translate_process(proc, &format!("{id}_raw"), ctx);
+                    w.puts(&format!("let _t_{id}_raw_proc = {processed};"));
+                    w.puts(&format!("let _t_{id}_raw_io = BytesReader::from(_t_{id}_raw_proc);"));
+                } else {
+                    w.puts(&format!("let _t_{id}_raw_io = BytesReader::from({id}_raw.clone());"));
+                }
 
-            let type_name = types_to_class_name(names);
-            let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
-            if args.is_empty() {
-                w.puts(&format!(
-                    "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
-                ));
+                let type_name = types_to_class_name(names);
+                let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
+                if args.is_empty() {
+                    w.puts(&format!(
+                        "let t = Self::read_into::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args})?.into();"
+                    ));
+                } else {
+                    let trans_args = translate_args(args, ctx, true);
+                    w.puts(&format!(
+                        "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
+                    ));
+                    w.puts(&format!(
+                        "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
+                    ));
+                }
+                w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
             } else {
-                let trans_args = translate_args(args, ctx, true);
-                w.puts(&format!(
-                    "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
-                ));
-                w.puts(&format!(
-                    "let t = Self::read_into_with_init::<BytesReader, {type_name}>(&_t_{id}_raw_io, {target_args}, &f)?.into();"
-                ));
+                let type_name = types_to_class_name(names);
+                let target_args = get_target_args(names, *is_external, self_name, ctx, attr.parent_expr.as_ref());
+                if args.is_empty() {
+                    w.puts(&format!(
+                        "let t = Self::read_into::<_, {type_name}>(&*_io, {target_args})?.into();"
+                    ));
+                } else {
+                    let trans_args = translate_args(args, ctx, true);
+                    w.puts(&format!(
+                        "let f = |t : &mut {type_name}| Ok(t.set_params({trans_args}));"
+                    ));
+                    w.puts(&format!(
+                        "let t = Self::read_into_with_init::<_, {type_name}>(&*_io, {target_args}, &f)?.into();"
+                    ));
+                }
+                w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
             }
-            w.puts(&format!("*{self_name}.{escaped_id}.borrow_mut() = Some(t);"));
         } else {
             let val = read_expr_for_type(case_type, current, ctx, "_io");
             let val = if val.ends_with(".into()") {

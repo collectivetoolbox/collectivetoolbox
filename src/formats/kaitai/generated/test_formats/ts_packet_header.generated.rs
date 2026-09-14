@@ -75,6 +75,7 @@ pub struct TsPacketHeader {
     continuity_counter: RefCell<u64>,
     ts_packet_remain: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    ts_packet_remain_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for TsPacketHeader {
     type Root = TsPacketHeader;
@@ -156,6 +157,11 @@ impl TsPacketHeader {
 impl TsPacketHeader {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl TsPacketHeader {
+    pub fn ts_packet_remain_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.ts_packet_remain_raw.borrow()
     }
 }
 #[derive(Debug, PartialEq, Copy, Clone)]

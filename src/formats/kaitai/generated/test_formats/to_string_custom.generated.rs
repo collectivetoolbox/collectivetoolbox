@@ -104,3 +104,8 @@ impl ToStringCustom {
         self._io.borrow()
     }
 }
+impl std::fmt::Display for ToStringCustom {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", format!("{}{}", format!("{}{}", format!("{}{}", "s1 = ", self.s1()), ", s2 = "), self.s2()))
+    }
+}

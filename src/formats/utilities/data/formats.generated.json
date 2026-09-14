@@ -7087,7 +7087,9 @@
     "aliases": [],
     "cross_references": [],
     "description": "ASCII text containing list of integers representing long Dcs, separated by commas, with no newlines. Loosely, with optional newlines, or spaces after commas. A parser could reasonably delegate to handling it as DcAsciiList if there are Dcs separated only by spaces, though a file mixing commas and spaces without commas should be rejected.",
-    "format": {},
+    "format": {
+      "extensions": ".csdl"
+    },
     "source_file": "document.csv",
     "line_number": 65
   },
@@ -9619,7 +9621,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "Like DcText, but Dcs are short by default. @123@ = short Dc; a = literal Unicode a; @l123@ = long Dc 123; @L123@ = local node; @u123a@ = U+123A",
+    "description": "Like DcText, but Dcs are short by default. @123@ = short Dc 123; a = literal Unicode a; @l123@ = long Dc 123; @L123@ = local node; @u123a@ = U+123A, @f123@ = format 123",
     "format": {
       "extensions": ".dcts"
     },

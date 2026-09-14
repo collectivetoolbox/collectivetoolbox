@@ -63,6 +63,7 @@ pub struct ExprStrOps {
     pub(crate) _self_shared: SharedType<Self>,
     one: RefCell<String>,
     _io: RefCell<BytesReader>,
+    one_raw: RefCell<Vec<u8>>,
     f_one_len: Cell<bool>,
     one_len: RefCell<i32>,
     f_one_rev: Cell<bool>,
@@ -333,5 +334,10 @@ impl ExprStrOps {
 impl ExprStrOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprStrOps {
+    pub fn one_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.one_raw.borrow()
     }
 }

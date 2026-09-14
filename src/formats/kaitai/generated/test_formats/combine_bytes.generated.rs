@@ -65,6 +65,7 @@ pub struct CombineBytes {
     bytes_limit: RefCell<Vec<u8>>,
     bytes_eos: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    bytes_limit_raw: RefCell<Vec<u8>>,
     f_bytes_calc: Cell<bool>,
     bytes_calc: RefCell<Vec<i32>>,
     f_eos_or_calc: Cell<bool>,
@@ -207,5 +208,10 @@ impl CombineBytes {
 impl CombineBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl CombineBytes {
+    pub fn bytes_limit_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bytes_limit_raw.borrow()
     }
 }

@@ -167,6 +167,7 @@ pub struct ParamsPassArrayIo_ParamType {
     arg_streams: RefCell<BytesReader>,
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsPassArrayIo_ParamType {
     type Root = ParamsPassArrayIo;
@@ -209,5 +210,10 @@ impl ParamsPassArrayIo_ParamType {
 impl ParamsPassArrayIo_ParamType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsPassArrayIo_ParamType {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

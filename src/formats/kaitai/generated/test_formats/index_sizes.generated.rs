@@ -65,6 +65,7 @@ pub struct IndexSizes {
     sizes: RefCell<Vec<u32>>,
     bufs: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+    bufs_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for IndexSizes {
     type Root = IndexSizes;
@@ -117,5 +118,10 @@ impl IndexSizes {
 impl IndexSizes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl IndexSizes {
+    pub fn bufs_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bufs_raw.borrow()
     }
 }

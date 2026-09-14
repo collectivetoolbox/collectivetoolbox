@@ -65,6 +65,7 @@ pub struct StrEncodingsDefault {
     str1: RefCell<String>,
     rest: RefCell<OptRc<StrEncodingsDefault_Subtype>>,
     _io: RefCell<BytesReader>,
+    str1_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrEncodingsDefault {
     type Root = StrEncodingsDefault;
@@ -112,6 +113,11 @@ impl StrEncodingsDefault {
         self._io.borrow()
     }
 }
+impl StrEncodingsDefault {
+    pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str1_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct StrEncodingsDefault_Subtype {
@@ -125,6 +131,9 @@ pub struct StrEncodingsDefault_Subtype {
     len_of_4: RefCell<u16>,
     str4: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str2_raw: RefCell<Vec<u8>>,
+    str3_raw: RefCell<Vec<u8>>,
+    str4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrEncodingsDefault_Subtype {
     type Root = StrEncodingsDefault;
@@ -187,5 +196,20 @@ impl StrEncodingsDefault_Subtype {
 impl StrEncodingsDefault_Subtype {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrEncodingsDefault_Subtype {
+    pub fn str2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str2_raw.borrow()
+    }
+}
+impl StrEncodingsDefault_Subtype {
+    pub fn str3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str3_raw.borrow()
+    }
+}
+impl StrEncodingsDefault_Subtype {
+    pub fn str4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str4_raw.borrow()
     }
 }

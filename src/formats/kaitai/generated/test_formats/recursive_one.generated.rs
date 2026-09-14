@@ -64,7 +64,6 @@ pub struct RecursiveOne {
     one: RefCell<u8>,
     next: RefCell<Option<RecursiveOne_Next>>,
     _io: RefCell<BytesReader>,
-    next_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum RecursiveOne_Next {
@@ -118,31 +117,19 @@ impl KStruct for RecursiveOne {
         *self_rc.one.borrow_mut() = _io.read_u1()?;
         match ((i32::from(*self_rc.one())) & (3_i32)) {
             0 => {
-                *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let next_raw = self_rc.next_raw.borrow();
-                let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             1 => {
-                *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let next_raw = self_rc.next_raw.borrow();
-                let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             2 => {
-                *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let next_raw = self_rc.next_raw.borrow();
-                let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             3 => {
-                *self_rc.next_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let next_raw = self_rc.next_raw.borrow();
-                let _t_next_raw_io = BytesReader::from(next_raw.clone());
-                let t = Self::read_into::<BytesReader, RecursiveOne_Fini>(&_t_next_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, RecursiveOne_Fini>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.next.borrow_mut() = Some(t);
             }
             _ => {}
@@ -166,11 +153,6 @@ impl RecursiveOne {
 impl RecursiveOne {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl RecursiveOne {
-    pub fn next_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.next_raw.borrow()
     }
 }
 

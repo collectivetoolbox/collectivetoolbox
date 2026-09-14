@@ -115,6 +115,7 @@ pub struct EosExceptionBytes_Data {
     pub(crate) _self_shared: SharedType<Self>,
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EosExceptionBytes_Data {
     type Root = EosExceptionBytes;
@@ -147,5 +148,10 @@ impl EosExceptionBytes_Data {
 impl EosExceptionBytes_Data {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EosExceptionBytes_Data {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

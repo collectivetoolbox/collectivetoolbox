@@ -63,6 +63,7 @@ pub struct ValidFailRangeBytes {
     pub(crate) _self_shared: SharedType<Self>,
     foo: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    foo_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ValidFailRangeBytes {
     type Root = ValidFailRangeBytes;
@@ -101,5 +102,10 @@ impl ValidFailRangeBytes {
 impl ValidFailRangeBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ValidFailRangeBytes {
+    pub fn foo_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.foo_raw.borrow()
     }
 }

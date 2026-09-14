@@ -63,6 +63,7 @@ pub struct ProcessRepeatBytes {
     pub(crate) _self_shared: SharedType<Self>,
     bufs: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    bufs_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessRepeatBytes {
     type Root = ProcessRepeatBytes;
@@ -99,5 +100,10 @@ impl ProcessRepeatBytes {
 impl ProcessRepeatBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessRepeatBytes {
+    pub fn bufs_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.bufs_raw.borrow()
     }
 }

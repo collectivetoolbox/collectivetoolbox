@@ -158,6 +158,7 @@ pub struct ParamsPassUsertype_ParamType {
     foo: RefCell<OptRc<ParamsPassUsertype_Block>>,
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsPassUsertype_ParamType {
     type Root = ParamsPassUsertype;
@@ -200,5 +201,10 @@ impl ParamsPassUsertype_ParamType {
 impl ParamsPassUsertype_ParamType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsPassUsertype_ParamType {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

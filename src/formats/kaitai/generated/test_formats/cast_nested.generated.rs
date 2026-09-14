@@ -170,7 +170,6 @@ pub struct CastNested_Opcode {
     code: RefCell<u8>,
     body: RefCell<Option<CastNested_Opcode_Body>>,
     _io: RefCell<BytesReader>,
-    body_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum CastNested_Opcode_Body {
@@ -224,17 +223,11 @@ impl KStruct for CastNested_Opcode {
         *self_rc.code.borrow_mut() = _io.read_u1()?;
         match *self_rc.code() {
             73 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, CastNested_Opcode_Intval>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, CastNested_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             83 => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, CastNested_Opcode_Strval>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, CastNested_Opcode_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -258,11 +251,6 @@ impl CastNested_Opcode {
 impl CastNested_Opcode {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl CastNested_Opcode {
-    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body_raw.borrow()
     }
 }
 

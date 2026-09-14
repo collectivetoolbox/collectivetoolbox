@@ -86,8 +86,13 @@ impl KStruct for DebugArrayUser {
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
-            let t = Self::read_into::<_, DebugArrayUser_Cat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t: OptRc<DebugArrayUser_Cat> = OptRc::from(DebugArrayUser_Cat::default());
+            let (root_in, parent_in) = (Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()));
+            let root = Self::downcast(root_in, t.clone(), true);
+            let parent = Self::downcast(parent_in, t.clone(), false);
+            let res = DebugArrayUser_Cat::read(&t, &*_io, root, parent);
             self_rc.array_of_cats.borrow_mut().push(t);
+            res?;
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

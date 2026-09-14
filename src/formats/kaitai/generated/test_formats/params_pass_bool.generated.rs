@@ -196,6 +196,7 @@ pub struct ParamsPassBool_ParamTypeB1 {
     arg: RefCell<bool>,
     foo: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    foo_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsPassBool_ParamTypeB1 {
     type Root = ParamsPassBool;
@@ -240,6 +241,11 @@ impl ParamsPassBool_ParamTypeB1 {
         self._io.borrow()
     }
 }
+impl ParamsPassBool_ParamTypeB1 {
+    pub fn foo_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.foo_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsPassBool_ParamTypeBool {
@@ -249,6 +255,7 @@ pub struct ParamsPassBool_ParamTypeBool {
     arg: RefCell<bool>,
     foo: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    foo_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsPassBool_ParamTypeBool {
     type Root = ParamsPassBool;
@@ -291,5 +298,10 @@ impl ParamsPassBool_ParamTypeBool {
 impl ParamsPassBool_ParamTypeBool {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsPassBool_ParamTypeBool {
+    pub fn foo_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.foo_raw.borrow()
     }
 }

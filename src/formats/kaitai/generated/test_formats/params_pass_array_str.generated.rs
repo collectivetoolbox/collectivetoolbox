@@ -65,6 +65,7 @@ pub struct ParamsPassArrayStr {
     pass_str_array: RefCell<OptRc<ParamsPassArrayStr_WantsStrs>>,
     pass_str_array_calc: RefCell<OptRc<ParamsPassArrayStr_WantsStrs>>,
     _io: RefCell<BytesReader>,
+    str_array_raw: RefCell<Vec<u8>>,
     f_str_array_calc: Cell<bool>,
     str_array_calc: RefCell<Vec<String>>,
 }
@@ -131,6 +132,11 @@ impl ParamsPassArrayStr {
 impl ParamsPassArrayStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsPassArrayStr {
+    pub fn str_array_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_array_raw.borrow()
     }
 }
 

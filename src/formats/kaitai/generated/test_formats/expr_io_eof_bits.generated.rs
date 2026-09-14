@@ -67,6 +67,7 @@ pub struct ExprIoEofBits {
     align: RefCell<Vec<u8>>,
     qux: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    align_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprIoEofBits {
     type Root = ExprIoEofBits;
@@ -130,5 +131,10 @@ impl ExprIoEofBits {
 impl ExprIoEofBits {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprIoEofBits {
+    pub fn align_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.align_raw.borrow()
     }
 }

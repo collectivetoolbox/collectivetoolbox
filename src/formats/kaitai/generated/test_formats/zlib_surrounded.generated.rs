@@ -65,7 +65,9 @@ pub struct ZlibSurrounded {
     zlib: RefCell<OptRc<ZlibSurrounded_Inflated>>,
     post: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    pre_raw: RefCell<Vec<u8>>,
     zlib_raw: RefCell<Vec<u8>>,
+    post_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ZlibSurrounded {
     type Root = ZlibSurrounded;
@@ -118,8 +120,18 @@ impl ZlibSurrounded {
     }
 }
 impl ZlibSurrounded {
+    pub fn pre_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.pre_raw.borrow()
+    }
+}
+impl ZlibSurrounded {
     pub fn zlib_raw(&self) -> Ref<'_, Vec<u8>> {
         self.zlib_raw.borrow()
+    }
+}
+impl ZlibSurrounded {
+    pub fn post_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.post_raw.borrow()
     }
 }
 

@@ -63,6 +63,7 @@ pub struct ValidFailRepeatInst {
     pub(crate) _self_shared: SharedType<Self>,
     a: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    a_raw: RefCell<Vec<u8>>,
     f_inst: Cell<bool>,
     inst: RefCell<Vec<u32>>,
 }
@@ -125,5 +126,10 @@ impl ValidFailRepeatInst {
 impl ValidFailRepeatInst {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ValidFailRepeatInst {
+    pub fn a_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.a_raw.borrow()
     }
 }

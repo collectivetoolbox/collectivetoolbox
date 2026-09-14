@@ -212,6 +212,7 @@ pub struct Expr2_ModStr {
     str: RefCell<String>,
     rest: RefCell<OptRc<Expr2_Tuple>>,
     _io: RefCell<BytesReader>,
+    str_raw: RefCell<Vec<u8>>,
     rest_raw: RefCell<Vec<u8>>,
     f_char5: Cell<bool>,
     char5: RefCell<String>,
@@ -309,6 +310,11 @@ impl Expr2_ModStr {
 impl Expr2_ModStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Expr2_ModStr {
+    pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_raw.borrow()
     }
 }
 impl Expr2_ModStr {

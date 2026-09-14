@@ -438,11 +438,31 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                         b'\\' => val.push('\\'),
                         b'\'' => val.push('\''),
                         b'"' => val.push('"'),
-                        b'0' => val.push('\0'),
                         b'a' => val.push('\u{0007}'),
                         b'b' => val.push('\u{0008}'),
+                        b'e' => val.push('\u{001B}'),
                         b'f' => val.push('\u{000C}'),
                         b'v' => val.push('\u{000B}'),
+                        b'0'..=b'7' => {
+                            let octal_start = idx;
+                            let mut count = 0_usize;
+                            while count < 3
+                                && bytes
+                                    .get(idx.saturating_add(count))
+                                    .is_some_and(|&c| (b'0'..=b'7').contains(&c))
+                            {
+                                count = count.saturating_add(1);
+                            }
+                            let oct_str = src
+                                .get(octal_start..octal_start.saturating_add(count))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(oct_str, 8)
+                                .context("Invalid octal escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint from octal")?;
+                            val.push(ch);
+                            idx = idx.saturating_add(count.saturating_sub(1));
+                        }
                         b'u' => {
                             idx = idx.saturating_add(1);
                             ensure!(idx.saturating_add(4) <= len, "Incomplete unicode escape in string literal");

@@ -241,6 +241,7 @@ pub struct SwitchManualIntSize_Chunk_ChunkDir {
     pub(crate) _self_shared: SharedType<Self>,
     entries: RefCell<Vec<String>>,
     _io: RefCell<BytesReader>,
+    entries_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for SwitchManualIntSize_Chunk_ChunkDir {
     type Root = SwitchManualIntSize;
@@ -280,6 +281,11 @@ impl SwitchManualIntSize_Chunk_ChunkDir {
 impl SwitchManualIntSize_Chunk_ChunkDir {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl SwitchManualIntSize_Chunk_ChunkDir {
+    pub fn entries_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.entries_raw.borrow()
     }
 }
 

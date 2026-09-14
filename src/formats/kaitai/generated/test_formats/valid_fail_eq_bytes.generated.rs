@@ -63,6 +63,7 @@ pub struct ValidFailEqBytes {
     pub(crate) _self_shared: SharedType<Self>,
     foo: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    foo_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ValidFailEqBytes {
     type Root = ValidFailEqBytes;
@@ -98,5 +99,10 @@ impl ValidFailEqBytes {
 impl ValidFailEqBytes {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ValidFailEqBytes {
+    pub fn foo_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.foo_raw.borrow()
     }
 }

@@ -112,6 +112,8 @@ pub struct ProcessCoerceBytes_Record {
     buf_unproc: RefCell<Vec<u8>>,
     buf_proc: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf_unproc_raw: RefCell<Vec<u8>>,
+    buf_proc_raw: RefCell<Vec<u8>>,
     f_buf: Cell<bool>,
     buf: RefCell<Vec<u8>>,
 }
@@ -174,5 +176,15 @@ impl ProcessCoerceBytes_Record {
 impl ProcessCoerceBytes_Record {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCoerceBytes_Record {
+    pub fn buf_unproc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_unproc_raw.borrow()
+    }
+}
+impl ProcessCoerceBytes_Record {
+    pub fn buf_proc_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_proc_raw.borrow()
     }
 }

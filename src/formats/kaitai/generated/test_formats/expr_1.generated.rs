@@ -64,6 +64,7 @@ pub struct Expr1 {
     len_of_1: RefCell<u16>,
     str1: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str1_raw: RefCell<Vec<u8>>,
     f_len_of_1_mod: Cell<bool>,
     len_of_1_mod: RefCell<i32>,
     f_str1_len: Cell<bool>,
@@ -130,5 +131,10 @@ impl Expr1 {
 impl Expr1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl Expr1 {
+    pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str1_raw.borrow()
     }
 }

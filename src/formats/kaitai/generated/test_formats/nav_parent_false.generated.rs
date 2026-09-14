@@ -122,6 +122,7 @@ pub struct NavParentFalse_Child {
     code: RefCell<u8>,
     more: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    more_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NavParentFalse_Child {
     type Root = NavParentFalse;
@@ -162,6 +163,11 @@ impl NavParentFalse_Child {
 impl NavParentFalse_Child {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NavParentFalse_Child {
+    pub fn more_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.more_raw.borrow()
     }
 }
 

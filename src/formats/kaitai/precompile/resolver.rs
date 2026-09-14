@@ -984,6 +984,22 @@ fn resolve_class_spec(
     resolved_enums.sort_keys();
     resolved_subclasses.sort_keys();
 
+    let ks_debug = ksy
+        .meta
+        .as_ref()
+        .and_then(|m| m.ks_debug)
+        // Reason for fallback: inherit debug mode from enclosing scopes if not explicitly defined on class
+        .unwrap_or_else(|| {
+            scopes.iter().any(|(_, f)| {
+                f.meta
+                    .as_ref()
+                    .and_then(|m| m.ks_debug)
+                    // Reason for fallback: absent ks_debug meta setting defaults to non-debug mode per Kaitai spec
+                    .unwrap_or(false)
+            })
+        });
+    let to_string = ksy.to_string.clone();
+
     Ok(ClassSpec {
         name: name.to_vec(),
         parent_name: parent_name.map(<[String]>::to_vec),
@@ -1001,6 +1017,8 @@ fn resolve_class_spec(
         meta_license,
         meta_imports,
         external_types,
+        ks_debug,
+        to_string,
     })
 }
 

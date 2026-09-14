@@ -32,8 +32,6 @@ use kaitai::*;
 use rust::formats::switch_cast::*;
 
 #[crate::ctb_test]
-#[ignore = "switch-on without size consumes full stream"]
-#[should_panic(expected = "expected SwitchCast_Opcode_Body::SwitchCast_Strval, got SwitchCast_Intval(")]
 fn test_switch_cast() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/switch_opcodes.bin")).expect("read fixture");
@@ -42,5 +40,5 @@ fn test_switch_cast() {
 
     assert_eq!("foobar", *r.first_obj().expect("first_obj").value());
     assert_eq!(0x42, *r.second_val().expect("second_val"));
-    let _ = r.err_cast();
+    assert!(matches!(r.err_cast(), Err(KError::CastError)));
 }

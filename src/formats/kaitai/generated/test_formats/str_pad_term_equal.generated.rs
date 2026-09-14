@@ -66,6 +66,10 @@ pub struct StrPadTermEqual {
     s3: RefCell<String>,
     s4: RefCell<String>,
     _io: RefCell<BytesReader>,
+    s1_raw: RefCell<Vec<u8>>,
+    s2_raw: RefCell<Vec<u8>>,
+    s3_raw: RefCell<Vec<u8>>,
+    s4_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrPadTermEqual {
     type Root = StrPadTermEqual;
@@ -116,5 +120,25 @@ impl StrPadTermEqual {
 impl StrPadTermEqual {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrPadTermEqual {
+    pub fn s1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s1_raw.borrow()
+    }
+}
+impl StrPadTermEqual {
+    pub fn s2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s2_raw.borrow()
+    }
+}
+impl StrPadTermEqual {
+    pub fn s3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s3_raw.borrow()
+    }
+}
+impl StrPadTermEqual {
+    pub fn s4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.s4_raw.borrow()
     }
 }

@@ -155,6 +155,7 @@ pub struct EnumIf_ArgStr {
     len: RefCell<u8>,
     str: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EnumIf_ArgStr {
     type Root = EnumIf;
@@ -193,6 +194,11 @@ impl EnumIf_ArgStr {
 impl EnumIf_ArgStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EnumIf_ArgStr {
+    pub fn str_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_raw.borrow()
     }
 }
 

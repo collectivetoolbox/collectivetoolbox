@@ -64,6 +64,7 @@ pub struct StrLiteralsLatin1 {
     len_parsed: RefCell<u16>,
     parsed: RefCell<String>,
     _io: RefCell<BytesReader>,
+    parsed_raw: RefCell<Vec<u8>>,
     f_parsed_eq_literal: Cell<bool>,
     parsed_eq_literal: RefCell<bool>,
 }
@@ -116,5 +117,10 @@ impl StrLiteralsLatin1 {
 impl StrLiteralsLatin1 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrLiteralsLatin1 {
+    pub fn parsed_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.parsed_raw.borrow()
     }
 }

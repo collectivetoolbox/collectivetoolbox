@@ -73,6 +73,9 @@ pub struct ValidShort {
     sint32: RefCell<i32>,
     sint64: RefCell<i64>,
     _io: RefCell<BytesReader>,
+    magic1_raw: RefCell<Vec<u8>>,
+    magic_uint_raw: RefCell<Vec<u8>>,
+    magic_sint_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ValidShort {
     type Root = ValidShort;
@@ -206,5 +209,20 @@ impl ValidShort {
 impl ValidShort {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ValidShort {
+    pub fn magic1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic1_raw.borrow()
+    }
+}
+impl ValidShort {
+    pub fn magic_uint_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_uint_raw.borrow()
+    }
+}
+impl ValidShort {
+    pub fn magic_sint_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_sint_raw.borrow()
     }
 }

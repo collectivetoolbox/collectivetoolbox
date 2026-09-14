@@ -63,6 +63,7 @@ pub struct RepeatEosBytesPad {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    records_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for RepeatEosBytesPad {
     type Root = RepeatEosBytesPad;
@@ -102,5 +103,10 @@ impl RepeatEosBytesPad {
 impl RepeatEosBytesPad {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl RepeatEosBytesPad {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
     }
 }

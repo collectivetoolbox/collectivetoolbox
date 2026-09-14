@@ -136,6 +136,7 @@ pub struct IndexToParamUntil_Block {
     idx: RefCell<i32>,
     buf: RefCell<String>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for IndexToParamUntil_Block {
     type Root = IndexToParamUntil;
@@ -178,5 +179,10 @@ impl IndexToParamUntil_Block {
 impl IndexToParamUntil_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl IndexToParamUntil_Block {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

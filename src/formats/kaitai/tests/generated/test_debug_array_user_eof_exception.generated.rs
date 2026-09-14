@@ -78,13 +78,14 @@ use kaitai::*;
 use rust::formats::debug_array_user_eof_exception::*;
 use rust::test_formats::*;
 
-#[ignore = "ks-debug partial AST recovery on EOF not supported"]
 #[crate::ctb_test]
 fn test_debug_array_user_eof_exception() -> KResult<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/nav_parent_codes.bin"))?;
     let _io = BytesReader::from(bytes);
-    let r: OptRc<DebugArrayUserEofException> = DebugArrayUserEofException::read_into(&_io, None, None)?;
+    let r: OptRc<DebugArrayUserEofException> = OptRc::from(DebugArrayUserEofException::default());
+    let res = DebugArrayUserEofException::read(&r, &_io, SharedType::default(), SharedType::default());
+    assert!(matches!(res, Err(KError::Eof { .. })), "expected EOF error, got: {:?}", res);
 
     assert_eq!(*r.one_cat().meow(), 3);
     assert_eq!(*r.one_cat().chirp(), 73);

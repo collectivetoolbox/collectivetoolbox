@@ -63,6 +63,7 @@ pub struct ExprBytesOps {
     pub(crate) _self_shared: SharedType<Self>,
     one: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    one_raw: RefCell<Vec<u8>>,
     f_one_first: Cell<bool>,
     one_first: RefCell<i32>,
     f_one_last: Cell<bool>,
@@ -277,5 +278,10 @@ impl ExprBytesOps {
 impl ExprBytesOps {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprBytesOps {
+    pub fn one_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.one_raw.borrow()
     }
 }

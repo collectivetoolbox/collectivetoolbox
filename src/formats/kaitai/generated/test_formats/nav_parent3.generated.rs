@@ -136,6 +136,7 @@ pub struct NavParent3_Tag {
     ofs: RefCell<u32>,
     num_items: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    name_raw: RefCell<Vec<u8>>,
     f_tag_content: Cell<bool>,
     tag_content: RefCell<Option<NavParent3_Tag_TagContent>>,
 }
@@ -230,6 +231,11 @@ impl NavParent3_Tag {
         self._io.borrow()
     }
 }
+impl NavParent3_Tag {
+    pub fn name_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.name_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct NavParent3_Tag_TagChar {
@@ -238,6 +244,7 @@ pub struct NavParent3_Tag_TagChar {
     pub(crate) _self_shared: SharedType<Self>,
     content: RefCell<String>,
     _io: RefCell<BytesReader>,
+    content_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NavParent3_Tag_TagChar {
     type Root = NavParent3;
@@ -270,5 +277,10 @@ impl NavParent3_Tag_TagChar {
 impl NavParent3_Tag_TagChar {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NavParent3_Tag_TagChar {
+    pub fn content_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.content_raw.borrow()
     }
 }

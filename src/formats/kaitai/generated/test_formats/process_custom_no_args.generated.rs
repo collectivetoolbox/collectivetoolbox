@@ -63,6 +63,7 @@ pub struct ProcessCustomNoArgs {
     pub(crate) _self_shared: SharedType<Self>,
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessCustomNoArgs {
     type Root = ProcessCustomNoArgs;
@@ -95,5 +96,10 @@ impl ProcessCustomNoArgs {
 impl ProcessCustomNoArgs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCustomNoArgs {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

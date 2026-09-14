@@ -133,6 +133,7 @@ pub struct IndexToParamEos_Block {
     idx: RefCell<i32>,
     buf: RefCell<String>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for IndexToParamEos_Block {
     type Root = IndexToParamEos;
@@ -175,5 +176,10 @@ impl IndexToParamEos_Block {
 impl IndexToParamEos_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl IndexToParamEos_Block {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

@@ -64,6 +64,7 @@ pub struct EofExceptionU4 {
     prebuf: RefCell<Vec<u8>>,
     fail_int: RefCell<u32>,
     _io: RefCell<BytesReader>,
+    prebuf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for EofExceptionU4 {
     type Root = EofExceptionU4;
@@ -102,5 +103,10 @@ impl EofExceptionU4 {
 impl EofExceptionU4 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl EofExceptionU4 {
+    pub fn prebuf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.prebuf_raw.borrow()
     }
 }

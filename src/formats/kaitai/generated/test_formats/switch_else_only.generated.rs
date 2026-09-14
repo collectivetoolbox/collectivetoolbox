@@ -66,7 +66,7 @@ pub struct SwitchElseOnly {
     indicator: RefCell<Vec<u8>>,
     ut: RefCell<Option<SwitchElseOnly_Ut>>,
     _io: RefCell<BytesReader>,
-    ut_raw: RefCell<Vec<u8>>,
+    indicator_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum SwitchElseOnly_PrimByte {
@@ -168,10 +168,7 @@ impl KStruct for SwitchElseOnly {
         *self_rc.indicator.borrow_mut() = _io.read_bytes(4_usize)?;
         match self_rc.indicator().as_slice() {
             _ => {
-                *self_rc.ut_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let ut_raw = self_rc.ut_raw.borrow();
-                let _t_ut_raw_io = BytesReader::from(ut_raw.clone());
-                let t = Self::read_into::<BytesReader, SwitchElseOnly_Data>(&_t_ut_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchElseOnly_Data>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.ut.borrow_mut() = Some(t);
             }
         }
@@ -211,8 +208,8 @@ impl SwitchElseOnly {
     }
 }
 impl SwitchElseOnly {
-    pub fn ut_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.ut_raw.borrow()
+    pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.indicator_raw.borrow()
     }
 }
 
@@ -223,6 +220,7 @@ pub struct SwitchElseOnly_Data {
     pub(crate) _self_shared: SharedType<Self>,
     value: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    value_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for SwitchElseOnly_Data {
     type Root = SwitchElseOnly;
@@ -255,5 +253,10 @@ impl SwitchElseOnly_Data {
 impl SwitchElseOnly_Data {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl SwitchElseOnly_Data {
+    pub fn value_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.value_raw.borrow()
     }
 }

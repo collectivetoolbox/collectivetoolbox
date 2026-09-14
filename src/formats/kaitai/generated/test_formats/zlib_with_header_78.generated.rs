@@ -63,6 +63,7 @@ pub struct ZlibWithHeader78 {
     pub(crate) _self_shared: SharedType<Self>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ZlibWithHeader78 {
     type Root = ZlibWithHeader78;
@@ -95,5 +96,10 @@ impl ZlibWithHeader78 {
 impl ZlibWithHeader78 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ZlibWithHeader78 {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
     }
 }

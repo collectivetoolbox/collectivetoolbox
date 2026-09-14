@@ -63,6 +63,7 @@ pub struct ValidFailContentsInst {
     pub(crate) _self_shared: SharedType<Self>,
     a: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    a_raw: RefCell<Vec<u8>>,
     f_foo: Cell<bool>,
     foo: RefCell<Vec<u8>>,
 }
@@ -117,5 +118,10 @@ impl ValidFailContentsInst {
 impl ValidFailContentsInst {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ValidFailContentsInst {
+    pub fn a_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.a_raw.borrow()
     }
 }

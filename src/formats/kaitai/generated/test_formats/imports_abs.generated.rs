@@ -65,6 +65,7 @@ pub struct ImportsAbs {
     len: RefCell<OptRc<VlqBase128Le>>,
     body: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ImportsAbs {
     type Root = ImportsAbs;
@@ -104,5 +105,10 @@ impl ImportsAbs {
 impl ImportsAbs {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ImportsAbs {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

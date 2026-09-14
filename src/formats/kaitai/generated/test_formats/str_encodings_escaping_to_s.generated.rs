@@ -70,6 +70,10 @@ pub struct StrEncodingsEscapingToS {
     len_of_4: RefCell<u16>,
     str4_raw: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    str1_raw_raw: RefCell<Vec<u8>>,
+    str2_raw_raw: RefCell<Vec<u8>>,
+    str3_raw_raw: RefCell<Vec<u8>>,
+    str4_raw_raw: RefCell<Vec<u8>>,
     f_str1: Cell<bool>,
     str1: RefCell<String>,
     f_str2: Cell<bool>,
@@ -200,5 +204,25 @@ impl StrEncodingsEscapingToS {
 impl StrEncodingsEscapingToS {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrEncodingsEscapingToS {
+    pub fn str1_raw_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str1_raw_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingToS {
+    pub fn str2_raw_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str2_raw_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingToS {
+    pub fn str3_raw_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str3_raw_raw.borrow()
+    }
+}
+impl StrEncodingsEscapingToS {
+    pub fn str4_raw_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str4_raw_raw.borrow()
     }
 }

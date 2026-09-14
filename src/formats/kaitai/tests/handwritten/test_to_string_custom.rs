@@ -32,14 +32,12 @@ use kaitai::*;
 use rust::formats::to_string_custom::*;
 
 #[crate::ctb_test]
-#[ignore = "to-string feature not yet implemented in Kaitai transpiler"]
 fn test_to_string_custom() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;
     let _io = BytesReader::from(bytes);
-    let _r: OptRc<ToStringCustom> = ToStringCustom::read_into(&_io, None, None)?;
+    let r: OptRc<ToStringCustom> = ToStringCustom::read_into(&_io, None, None)?;
 
-    // Note: ToStringCustom does not yet have Display/to_string implemented by the transpiler.
-    // assert_eq!(r.to_string(), "s1 = foo, s2 = bar");
+    assert_eq!(r.to_string(), "s1 = foo, s2 = bar");
     Ok(())
 }

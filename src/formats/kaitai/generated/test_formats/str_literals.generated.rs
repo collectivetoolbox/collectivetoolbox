@@ -103,7 +103,7 @@ impl StrLiterals {
             return Ok(self.backslashes.borrow());
         }
         self.f_backslashes.set(true);
-        *self.backslashes.borrow_mut() = "\\\\134".to_string();
+        *self.backslashes.borrow_mut() = "\\\\\\".to_string();
         Ok(self.backslashes.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -115,7 +115,7 @@ impl StrLiterals {
             return Ok(self.complex_str.borrow());
         }
         self.f_complex_str.set(true);
-        *self.complex_str.borrow_mut() = "\012\u{7}\u{8}\n\r\t\u{b}\u{c}e757\n$☻".to_string();
+        *self.complex_str.borrow_mut() = "\0\u{1}\u{2}\u{7}\u{8}\n\r\t\u{b}\u{c}\u{1b}=\u{7}\n$☻".to_string();
         Ok(self.complex_str.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -127,7 +127,7 @@ impl StrLiterals {
             return Ok(self.double_quotes.borrow());
         }
         self.f_double_quotes.set(true);
-        *self.double_quotes.borrow_mut() = "\"\"42".to_string();
+        *self.double_quotes.borrow_mut() = "\"\"\"".to_string();
         Ok(self.double_quotes.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -139,7 +139,7 @@ impl StrLiterals {
             return Ok(self.octal_eatup.borrow());
         }
         self.f_octal_eatup.set(true);
-        *self.octal_eatup.borrow_mut() = "\06262".to_string();
+        *self.octal_eatup.borrow_mut() = "\022".to_string();
         Ok(self.octal_eatup.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
@@ -151,7 +151,7 @@ impl StrLiterals {
             return Ok(self.octal_eatup2.borrow());
         }
         self.f_octal_eatup2.set(true);
-        *self.octal_eatup2.borrow_mut() = "262".to_string();
+        *self.octal_eatup2.borrow_mut() = "\u{2}2".to_string();
         Ok(self.octal_eatup2.borrow())
     }
 }

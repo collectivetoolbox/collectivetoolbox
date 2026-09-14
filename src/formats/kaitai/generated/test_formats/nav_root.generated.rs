@@ -114,6 +114,7 @@ pub struct NavRoot_Entry {
     pub(crate) _self_shared: SharedType<Self>,
     filename: RefCell<String>,
     _io: RefCell<BytesReader>,
+    filename_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NavRoot_Entry {
     type Root = NavRoot;
@@ -146,6 +147,11 @@ impl NavRoot_Entry {
 impl NavRoot_Entry {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NavRoot_Entry {
+    pub fn filename_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.filename_raw.borrow()
     }
 }
 
@@ -206,6 +212,7 @@ pub struct NavRoot_IndexObj {
     magic: RefCell<Vec<u8>>,
     entries: RefCell<Vec<OptRc<NavRoot_Entry>>>,
     _io: RefCell<BytesReader>,
+    magic_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NavRoot_IndexObj {
     type Root = NavRoot;
@@ -249,5 +256,10 @@ impl NavRoot_IndexObj {
 impl NavRoot_IndexObj {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NavRoot_IndexObj {
+    pub fn magic_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.magic_raw.borrow()
     }
 }

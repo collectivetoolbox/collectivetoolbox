@@ -64,6 +64,8 @@ pub struct ProcessXor4Value {
     key: RefCell<Vec<u8>>,
     buf: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    key_raw: RefCell<Vec<u8>>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessXor4Value {
     type Root = ProcessXor4Value;
@@ -102,5 +104,15 @@ impl ProcessXor4Value {
 impl ProcessXor4Value {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessXor4Value {
+    pub fn key_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.key_raw.borrow()
+    }
+}
+impl ProcessXor4Value {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

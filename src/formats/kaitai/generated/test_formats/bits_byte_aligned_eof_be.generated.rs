@@ -64,6 +64,7 @@ pub struct BitsByteAlignedEofBe {
     prebuf: RefCell<Vec<u8>>,
     bits: RefCell<u64>,
     _io: RefCell<BytesReader>,
+    prebuf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BitsByteAlignedEofBe {
     type Root = BitsByteAlignedEofBe;
@@ -102,5 +103,10 @@ impl BitsByteAlignedEofBe {
 impl BitsByteAlignedEofBe {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BitsByteAlignedEofBe {
+    pub fn prebuf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.prebuf_raw.borrow()
     }
 }

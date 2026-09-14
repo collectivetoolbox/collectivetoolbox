@@ -134,6 +134,7 @@ pub struct ExprIoPos_AllPlusNumber {
     body: RefCell<Vec<u8>>,
     number: RefCell<u16>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprIoPos_AllPlusNumber {
     type Root = ExprIoPos;
@@ -178,5 +179,10 @@ impl ExprIoPos_AllPlusNumber {
 impl ExprIoPos_AllPlusNumber {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprIoPos_AllPlusNumber {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

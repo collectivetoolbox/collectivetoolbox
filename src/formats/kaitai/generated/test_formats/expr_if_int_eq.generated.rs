@@ -65,6 +65,7 @@ pub struct ExprIfIntEq {
     seq: RefCell<i16>,
     seq_if: RefCell<i16>,
     _io: RefCell<BytesReader>,
+    skip_raw: RefCell<Vec<u8>>,
     f_calc: Cell<bool>,
     calc: RefCell<i32>,
     f_calc_eq_calc_if: Cell<bool>,
@@ -281,5 +282,10 @@ impl ExprIfIntEq {
 impl ExprIfIntEq {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprIfIntEq {
+    pub fn skip_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.skip_raw.borrow()
     }
 }

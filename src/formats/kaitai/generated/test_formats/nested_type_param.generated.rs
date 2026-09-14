@@ -143,6 +143,7 @@ pub struct NestedTypeParam_Nested_MyType {
     my_len: RefCell<u32>,
     body: RefCell<String>,
     _io: RefCell<BytesReader>,
+    body_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NestedTypeParam_Nested_MyType {
     type Root = NestedTypeParam;
@@ -185,5 +186,10 @@ impl NestedTypeParam_Nested_MyType {
 impl NestedTypeParam_Nested_MyType {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NestedTypeParam_Nested_MyType {
+    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.body_raw.borrow()
     }
 }

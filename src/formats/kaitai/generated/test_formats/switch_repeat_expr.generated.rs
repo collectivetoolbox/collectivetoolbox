@@ -140,21 +140,15 @@ impl KStruct for SwitchRepeatExpr {
         for _i in 0_usize..l_body {
             match *(self_rc.codes().get(_i).ok_or(KError::CastError)?) {
                 1 => {
-                    let _t_body_raw = _io.read_bytes_full()?;
-                    let _t_body_raw_io = BytesReader::from(_t_body_raw);
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, SwitchRepeatExpr_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 2 => {
-                    let _t_body_raw = _io.read_bytes_full()?;
-                    let _t_body_raw_io = BytesReader::from(_t_body_raw);
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_One>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, SwitchRepeatExpr_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 7 => {
-                    let _t_body_raw = _io.read_bytes_full()?;
-                    let _t_body_raw_io = BytesReader::from(_t_body_raw);
-                    let t = Self::read_into::<BytesReader, SwitchRepeatExpr_Two>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                    let t = Self::read_into::<_, SwitchRepeatExpr_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                     self_rc.body.borrow_mut().push(t);
                 }
                 _ => {

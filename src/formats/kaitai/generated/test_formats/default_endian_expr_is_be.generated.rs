@@ -114,6 +114,7 @@ pub struct DefaultEndianExprIsBe_Doc {
     indicator: RefCell<Vec<u8>>,
     main: RefCell<OptRc<DefaultEndianExprIsBe_Doc_MainObj>>,
     _io: RefCell<BytesReader>,
+    indicator_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DefaultEndianExprIsBe_Doc {
     type Root = DefaultEndianExprIsBe;
@@ -153,6 +154,11 @@ impl DefaultEndianExprIsBe_Doc {
 impl DefaultEndianExprIsBe_Doc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DefaultEndianExprIsBe_Doc {
+    pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.indicator_raw.borrow()
     }
 }
 

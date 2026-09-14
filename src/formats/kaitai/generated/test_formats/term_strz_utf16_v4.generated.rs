@@ -68,7 +68,9 @@ pub struct TermStrzUtf16V4 {
     s3: RefCell<OptRc<TermStrzUtf16V4_S3Type>>,
     _io: RefCell<BytesReader>,
     s1_raw: RefCell<Vec<u8>>,
+    skip_term1_raw: RefCell<Vec<u8>>,
     s2_raw: RefCell<Vec<u8>>,
+    skip_term2_raw: RefCell<Vec<u8>>,
     s3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for TermStrzUtf16V4 {
@@ -146,8 +148,18 @@ impl TermStrzUtf16V4 {
     }
 }
 impl TermStrzUtf16V4 {
+    pub fn skip_term1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.skip_term1_raw.borrow()
+    }
+}
+impl TermStrzUtf16V4 {
     pub fn s2_raw(&self) -> Ref<'_, Vec<u8>> {
         self.s2_raw.borrow()
+    }
+}
+impl TermStrzUtf16V4 {
+    pub fn skip_term2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.skip_term2_raw.borrow()
     }
 }
 impl TermStrzUtf16V4 {

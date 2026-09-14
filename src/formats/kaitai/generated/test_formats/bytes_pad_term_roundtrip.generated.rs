@@ -66,6 +66,10 @@ pub struct BytesPadTermRoundtrip {
     str_term_and_pad: RefCell<Vec<u8>>,
     str_term_include: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    str_pad_raw: RefCell<Vec<u8>>,
+    str_term_raw: RefCell<Vec<u8>>,
+    str_term_and_pad_raw: RefCell<Vec<u8>>,
+    str_term_include_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for BytesPadTermRoundtrip {
     type Root = BytesPadTermRoundtrip;
@@ -116,5 +120,25 @@ impl BytesPadTermRoundtrip {
 impl BytesPadTermRoundtrip {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl BytesPadTermRoundtrip {
+    pub fn str_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_pad_raw.borrow()
+    }
+}
+impl BytesPadTermRoundtrip {
+    pub fn str_term_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_raw.borrow()
+    }
+}
+impl BytesPadTermRoundtrip {
+    pub fn str_term_and_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_and_pad_raw.borrow()
+    }
+}
+impl BytesPadTermRoundtrip {
+    pub fn str_term_include_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_include_raw.borrow()
     }
 }

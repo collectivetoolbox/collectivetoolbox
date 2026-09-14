@@ -70,6 +70,10 @@ pub struct ExprStrEncodings {
     len_of_4: RefCell<u16>,
     str4: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str1_raw: RefCell<Vec<u8>>,
+    str2_raw: RefCell<Vec<u8>>,
+    str3_raw: RefCell<Vec<u8>>,
+    str4_raw: RefCell<Vec<u8>>,
     f_str1_eq: Cell<bool>,
     str1_eq: RefCell<bool>,
     f_str2_eq: Cell<bool>,
@@ -242,5 +246,25 @@ impl ExprStrEncodings {
 impl ExprStrEncodings {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprStrEncodings {
+    pub fn str1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str1_raw.borrow()
+    }
+}
+impl ExprStrEncodings {
+    pub fn str2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str2_raw.borrow()
+    }
+}
+impl ExprStrEncodings {
+    pub fn str3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str3_raw.borrow()
+    }
+}
+impl ExprStrEncodings {
+    pub fn str4_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str4_raw.borrow()
     }
 }

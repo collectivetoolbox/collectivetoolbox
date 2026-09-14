@@ -194,6 +194,7 @@ pub struct ExprSizeofValueSized_Block {
     b: RefCell<u32>,
     c: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    c_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprSizeofValueSized_Block {
     type Root = ExprSizeofValueSized;
@@ -238,5 +239,10 @@ impl ExprSizeofValueSized_Block {
 impl ExprSizeofValueSized_Block {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprSizeofValueSized_Block {
+    pub fn c_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.c_raw.borrow()
     }
 }

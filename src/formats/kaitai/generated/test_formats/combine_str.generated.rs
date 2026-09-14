@@ -65,6 +65,7 @@ pub struct CombineStr {
     str_limit: RefCell<String>,
     str_eos: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_limit_raw: RefCell<Vec<u8>>,
     f_calc_bytes: Cell<bool>,
     calc_bytes: RefCell<Vec<i32>>,
     f_calc_or_calc_bytes: Cell<bool>,
@@ -291,5 +292,10 @@ impl CombineStr {
 impl CombineStr {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl CombineStr {
+    pub fn str_limit_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_limit_raw.borrow()
     }
 }

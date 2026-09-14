@@ -65,6 +65,7 @@ pub struct OptionalId {
     unnamed1: RefCell<u8>,
     unnamed2: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    unnamed2_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for OptionalId {
     type Root = OptionalId;
@@ -109,5 +110,10 @@ impl OptionalId {
 impl OptionalId {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl OptionalId {
+    pub fn unnamed2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.unnamed2_raw.borrow()
     }
 }

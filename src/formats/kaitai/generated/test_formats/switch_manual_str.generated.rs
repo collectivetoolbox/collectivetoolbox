@@ -114,7 +114,7 @@ pub struct SwitchManualStr_Opcode {
     code: RefCell<String>,
     body: RefCell<Option<SwitchManualStr_Opcode_Body>>,
     _io: RefCell<BytesReader>,
-    body_raw: RefCell<Vec<u8>>,
+    code_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum SwitchManualStr_Opcode_Body {
@@ -168,17 +168,11 @@ impl KStruct for SwitchManualStr_Opcode {
         *self_rc.code.borrow_mut() = bytes_to_str(&_io.read_bytes(1_usize)?, "ASCII")?;
         match self_rc.code().as_str() {
             "I" => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, SwitchManualStr_Opcode_Intval>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchManualStr_Opcode_Intval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             "S" => {
-                *self_rc.body_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let body_raw = self_rc.body_raw.borrow();
-                let _t_body_raw_io = BytesReader::from(body_raw.clone());
-                let t = Self::read_into::<BytesReader, SwitchManualStr_Opcode_Strval>(&_t_body_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, SwitchManualStr_Opcode_Strval>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.body.borrow_mut() = Some(t);
             }
             _ => {}
@@ -205,8 +199,8 @@ impl SwitchManualStr_Opcode {
     }
 }
 impl SwitchManualStr_Opcode {
-    pub fn body_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.body_raw.borrow()
+    pub fn code_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.code_raw.borrow()
     }
 }
 

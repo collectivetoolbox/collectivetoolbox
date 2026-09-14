@@ -64,7 +64,6 @@ pub struct EofExceptionSwitchUser {
     code: RefCell<u16>,
     data: RefCell<Option<EofExceptionSwitchUser_Data>>,
     _io: RefCell<BytesReader>,
-    data_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum EofExceptionSwitchUser_Data {
@@ -118,17 +117,11 @@ impl KStruct for EofExceptionSwitchUser {
         *self_rc.code.borrow_mut() = _io.read_u2le()?;
         match *self_rc.code() {
             2 => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let data_raw = self_rc.data_raw.borrow();
-                let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, EofExceptionSwitchUser_Two>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, EofExceptionSwitchUser_Two>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             511 => {
-                *self_rc.data_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let data_raw = self_rc.data_raw.borrow();
-                let _t_data_raw_io = BytesReader::from(data_raw.clone());
-                let t = Self::read_into::<BytesReader, EofExceptionSwitchUser_One>(&_t_data_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, EofExceptionSwitchUser_One>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.data.borrow_mut() = Some(t);
             }
             _ => {}
@@ -152,11 +145,6 @@ impl EofExceptionSwitchUser {
 impl EofExceptionSwitchUser {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl EofExceptionSwitchUser {
-    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.data_raw.borrow()
     }
 }
 

@@ -114,6 +114,7 @@ pub struct DefaultEndianExprInherited_Doc {
     indicator: RefCell<Vec<u8>>,
     main: RefCell<OptRc<DefaultEndianExprInherited_Doc_MainObj>>,
     _io: RefCell<BytesReader>,
+    indicator_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DefaultEndianExprInherited_Doc {
     type Root = DefaultEndianExprInherited;
@@ -153,6 +154,11 @@ impl DefaultEndianExprInherited_Doc {
 impl DefaultEndianExprInherited_Doc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DefaultEndianExprInherited_Doc {
+    pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.indicator_raw.borrow()
     }
 }
 

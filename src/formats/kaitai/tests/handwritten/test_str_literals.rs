@@ -32,7 +32,6 @@ use kaitai::*;
 use rust::formats::str_literals::*;
 
 #[crate::ctb_test]
-#[ignore = "octal/escape parsing in string literals not yet implemented in Kaitai transpiler"]
 fn test_str_literals() -> KResult<()> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/fixed_struct.bin"))?;

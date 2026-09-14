@@ -114,6 +114,7 @@ pub struct DefaultEndianExprException_Doc {
     indicator: RefCell<Vec<u8>>,
     main: RefCell<OptRc<DefaultEndianExprException_Doc_MainObj>>,
     _io: RefCell<BytesReader>,
+    indicator_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DefaultEndianExprException_Doc {
     type Root = DefaultEndianExprException;
@@ -153,6 +154,11 @@ impl DefaultEndianExprException_Doc {
 impl DefaultEndianExprException_Doc {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DefaultEndianExprException_Doc {
+    pub fn indicator_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.indicator_raw.borrow()
     }
 }
 

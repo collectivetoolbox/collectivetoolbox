@@ -65,6 +65,9 @@ pub struct StrPadTermUtf16 {
     str_term_include: RefCell<String>,
     str_term_and_pad: RefCell<String>,
     _io: RefCell<BytesReader>,
+    str_term_raw: RefCell<Vec<u8>>,
+    str_term_include_raw: RefCell<Vec<u8>>,
+    str_term_and_pad_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for StrPadTermUtf16 {
     type Root = StrPadTermUtf16;
@@ -109,5 +112,20 @@ impl StrPadTermUtf16 {
 impl StrPadTermUtf16 {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl StrPadTermUtf16 {
+    pub fn str_term_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_raw.borrow()
+    }
+}
+impl StrPadTermUtf16 {
+    pub fn str_term_include_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_include_raw.borrow()
+    }
+}
+impl StrPadTermUtf16 {
+    pub fn str_term_and_pad_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.str_term_and_pad_raw.borrow()
     }
 }

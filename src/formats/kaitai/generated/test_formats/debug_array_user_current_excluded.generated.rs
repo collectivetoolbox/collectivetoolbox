@@ -83,8 +83,13 @@ impl KStruct for DebugArrayUserCurrentExcluded {
         *self_rc.array_of_cats.borrow_mut() = Vec::new();
         let l_array_of_cats = 3_usize;
         for _i in 0_usize..l_array_of_cats {
-            let t = Self::read_into::<_, DebugArrayUserCurrentExcluded_Cat>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+            let t: OptRc<DebugArrayUserCurrentExcluded_Cat> = OptRc::from(DebugArrayUserCurrentExcluded_Cat::default());
+            let (root_in, parent_in) = (Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()));
+            let root = Self::downcast(root_in, t.clone(), true);
+            let parent = Self::downcast(parent_in, t.clone(), false);
+            let res = DebugArrayUserCurrentExcluded_Cat::read(&t, &*_io, root, parent);
             self_rc.array_of_cats.borrow_mut().push(t);
+            res?;
         }
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -110,6 +115,7 @@ pub struct DebugArrayUserCurrentExcluded_Cat {
     pub(crate) _self_shared: SharedType<Self>,
     meow: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    meow_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for DebugArrayUserCurrentExcluded_Cat {
     type Root = DebugArrayUserCurrentExcluded;
@@ -142,5 +148,10 @@ impl DebugArrayUserCurrentExcluded_Cat {
 impl DebugArrayUserCurrentExcluded_Cat {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl DebugArrayUserCurrentExcluded_Cat {
+    pub fn meow_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.meow_raw.borrow()
     }
 }

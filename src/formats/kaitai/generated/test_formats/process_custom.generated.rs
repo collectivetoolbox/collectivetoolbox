@@ -66,6 +66,9 @@ pub struct ProcessCustom {
     key: RefCell<u8>,
     buf3: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    buf1_raw: RefCell<Vec<u8>>,
+    buf2_raw: RefCell<Vec<u8>>,
+    buf3_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ProcessCustom {
     type Root = ProcessCustom;
@@ -116,5 +119,20 @@ impl ProcessCustom {
 impl ProcessCustom {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ProcessCustom {
+    pub fn buf1_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf1_raw.borrow()
+    }
+}
+impl ProcessCustom {
+    pub fn buf2_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf2_raw.borrow()
+    }
+}
+impl ProcessCustom {
+    pub fn buf3_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf3_raw.borrow()
     }
 }

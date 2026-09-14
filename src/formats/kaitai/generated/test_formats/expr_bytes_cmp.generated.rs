@@ -64,6 +64,8 @@ pub struct ExprBytesCmp {
     one: RefCell<Vec<u8>>,
     two: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    one_raw: RefCell<Vec<u8>>,
+    two_raw: RefCell<Vec<u8>>,
     f_ack: Cell<bool>,
     ack: RefCell<Vec<i32>>,
     f_ack2: Cell<bool>,
@@ -256,5 +258,15 @@ impl ExprBytesCmp {
 impl ExprBytesCmp {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprBytesCmp {
+    pub fn one_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.one_raw.borrow()
+    }
+}
+impl ExprBytesCmp {
+    pub fn two_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.two_raw.borrow()
     }
 }

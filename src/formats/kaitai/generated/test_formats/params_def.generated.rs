@@ -66,6 +66,7 @@ pub struct ParamsDef {
     buf: RefCell<String>,
     trailer: RefCell<u8>,
     _io: RefCell<BytesReader>,
+    buf_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ParamsDef {
     type Root = ParamsDef;
@@ -122,5 +123,10 @@ impl ParamsDef {
 impl ParamsDef {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ParamsDef {
+    pub fn buf_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.buf_raw.borrow()
     }
 }

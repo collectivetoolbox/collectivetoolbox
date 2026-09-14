@@ -64,7 +64,6 @@ pub struct NavParentSwitch {
     category: RefCell<u8>,
     content: RefCell<Option<NavParentSwitch_Content>>,
     _io: RefCell<BytesReader>,
-    content_raw: RefCell<Vec<u8>>,
 }
 #[derive(Debug, Clone)]
 pub enum NavParentSwitch_Content {
@@ -109,10 +108,7 @@ impl KStruct for NavParentSwitch {
         *self_rc.category.borrow_mut() = _io.read_u1()?;
         match *self_rc.category() {
             1 => {
-                *self_rc.content_raw.borrow_mut() = _io.read_bytes_full()?.into();
-                let content_raw = self_rc.content_raw.borrow();
-                let _t_content_raw_io = BytesReader::from(content_raw.clone());
-                let t = Self::read_into::<BytesReader, NavParentSwitch_Element1>(&_t_content_raw_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
+                let t = Self::read_into::<_, NavParentSwitch_Element1>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()))?.into();
                 *self_rc.content.borrow_mut() = Some(t);
             }
             _ => {}
@@ -136,11 +132,6 @@ impl NavParentSwitch {
 impl NavParentSwitch {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
-    }
-}
-impl NavParentSwitch {
-    pub fn content_raw(&self) -> Ref<'_, Vec<u8>> {
-        self.content_raw.borrow()
     }
 }
 

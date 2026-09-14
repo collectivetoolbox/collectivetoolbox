@@ -63,6 +63,7 @@ pub struct RepeatUntilBytesPad {
     pub(crate) _self_shared: SharedType<Self>,
     records: RefCell<Vec<Vec<u8>>>,
     _io: RefCell<BytesReader>,
+    records_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for RepeatUntilBytesPad {
     type Root = RepeatUntilBytesPad;
@@ -105,5 +106,10 @@ impl RepeatUntilBytesPad {
 impl RepeatUntilBytesPad {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl RepeatUntilBytesPad {
+    pub fn records_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.records_raw.borrow()
     }
 }

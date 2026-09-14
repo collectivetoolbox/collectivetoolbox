@@ -121,6 +121,7 @@ pub struct NavParentOverride_Child {
     pub(crate) _self_shared: SharedType<Self>,
     data: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    data_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for NavParentOverride_Child {
     type Root = NavParentOverride;
@@ -153,6 +154,11 @@ impl NavParentOverride_Child {
 impl NavParentOverride_Child {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl NavParentOverride_Child {
+    pub fn data_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.data_raw.borrow()
     }
 }
 

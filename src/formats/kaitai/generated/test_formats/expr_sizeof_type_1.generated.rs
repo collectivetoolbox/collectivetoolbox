@@ -129,6 +129,7 @@ pub struct ExprSizeofType1_Block {
     c: RefCell<Vec<u8>>,
     d: RefCell<OptRc<ExprSizeofType1_Block_Subblock>>,
     _io: RefCell<BytesReader>,
+    c_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprSizeofType1_Block {
     type Root = ExprSizeofType1;
@@ -182,6 +183,11 @@ impl ExprSizeofType1_Block {
         self._io.borrow()
     }
 }
+impl ExprSizeofType1_Block {
+    pub fn c_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.c_raw.borrow()
+    }
+}
 
 #[derive(Default, Debug, Clone)]
 pub struct ExprSizeofType1_Block_Subblock {
@@ -190,6 +196,7 @@ pub struct ExprSizeofType1_Block_Subblock {
     pub(crate) _self_shared: SharedType<Self>,
     a: RefCell<Vec<u8>>,
     _io: RefCell<BytesReader>,
+    a_raw: RefCell<Vec<u8>>,
 }
 impl KStruct for ExprSizeofType1_Block_Subblock {
     type Root = ExprSizeofType1;
@@ -222,5 +229,10 @@ impl ExprSizeofType1_Block_Subblock {
 impl ExprSizeofType1_Block_Subblock {
     pub fn _io(&self) -> Ref<'_, BytesReader> {
         self._io.borrow()
+    }
+}
+impl ExprSizeofType1_Block_Subblock {
+    pub fn a_raw(&self) -> Ref<'_, Vec<u8>> {
+        self.a_raw.borrow()
     }
 }
