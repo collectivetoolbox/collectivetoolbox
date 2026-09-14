@@ -224,6 +224,8 @@ pub fn transform_test_content(src_name: &str, content: &str) -> Result<String> {
     out.push_str("    clippy::panic,\n");
     out.push_str("    clippy::expect_used,\n");
     out.push_str("    clippy::unwrap_used,\n");
+    out.push_str("    clippy::unwrap_in_result,\n");
+    out.push_str("    clippy::panic_in_result_fn,\n");
     out.push_str("    clippy::indexing_slicing,\n");
     out.push_str("    clippy::arithmetic_side_effects,\n");
     out.push_str("    clippy::redundant_clone,\n");
@@ -545,6 +547,8 @@ pub fn synthesize_test_from_kst(
     out.push_str("    clippy::panic,\n");
     out.push_str("    clippy::expect_used,\n");
     out.push_str("    clippy::unwrap_used,\n");
+    out.push_str("    clippy::unwrap_in_result,\n");
+    out.push_str("    clippy::panic_in_result_fn,\n");
     out.push_str("    clippy::indexing_slicing,\n");
     out.push_str("    clippy::arithmetic_side_effects,\n");
     out.push_str("    clippy::redundant_clone,\n");
