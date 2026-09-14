@@ -340,7 +340,8 @@ mod tests {
     #[crate::ctb_test]
     fn test_execute_cli_dctext_binary_dcutf_input() {
         let text = "hi @64@ @L42@";
-        let raw_bytes = crate::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec());
+        let raw_bytes = crate::converters::dctext::dctext_to_dcutf(text.as_bytes().to_vec())
+            .expect("convert dctext to dcutf");
         let args = CharacterDescriptionArgs {
             from: CharacterDescriptionInputFormat::DcText,
             ..Default::default()

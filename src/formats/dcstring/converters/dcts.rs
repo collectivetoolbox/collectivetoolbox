@@ -272,24 +272,19 @@ pub fn dcstring_to_dcts(s: &DcStr) -> Vec<u8> {
 }
 
 /// Converts Dcts format bytes to DcUtf format bytes.
-#[must_use]
-pub fn dcts_to_dcutf(document: Vec<u8>) -> Vec<u8> {
-    if let Ok(out) = dcts_to_dcstring(&document) {
-        out.result.into_bytes()
-    } else {
-        Vec::new()
-    }
+///
+/// # Errors
+/// Returns an error if the document cannot be parsed into a `DcString`.
+pub fn dcts_to_dcutf(document: Vec<u8>) -> Result<Vec<u8>> {
+    let out = dcts_to_dcstring(&document)?;
+    Ok(out.result.into_bytes())
 }
 
 /// Converts DcUtf format bytes to Dcts format bytes.
 #[must_use]
 pub fn dcutf_to_dcts(document: Vec<u8>) -> Vec<u8> {
-    if let Ok(dc_str) = DcStr::from_bytes(&document) {
-        dcstring_to_dcts(dc_str)
-    } else {
-        let dclist = dcutf_to_dclist(&document);
-        dclist_to_dcts(&dclist)
-    }
+    let dclist = dcutf_to_dclist(&document);
+    dclist_to_dcts(&dclist)
 }
 
 /// Converts an EITE DcArray (short Dcs, `&[u32]`) to Dcts format (`Vec<u8>`).
@@ -412,7 +407,7 @@ mod tests {
         let roundtrip_bytes = dcstring_to_dcts(&out.result);
         assert_eq!(String::from_utf8(roundtrip_bytes).unwrap(), input);
 
-        let dcutf = dcts_to_dcutf(input.as_bytes().to_vec());
+        let dcutf = dcts_to_dcutf(input.as_bytes().to_vec()).unwrap();
         let roundtrip_from_dcutf = dcutf_to_dcts(dcutf);
         assert_eq!(String::from_utf8(roundtrip_from_dcutf).unwrap(), input);
     }

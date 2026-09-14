@@ -52,6 +52,7 @@ use include_dir::{include_dir, Dir};
 
 pub mod codegen;
 pub mod expr;
+#[path = "generated.generated.rs"]
 pub mod generated;
 pub mod parser;
 pub mod precompile;

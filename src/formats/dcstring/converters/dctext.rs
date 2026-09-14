@@ -258,22 +258,19 @@ pub fn dcstring_to_dctext(s: &DcStr) -> Vec<u8> {
 }
 
 /// Converts DcText format bytes to DcUtf format bytes.
-pub fn dctext_to_dcutf(document: Vec<u8>) -> Vec<u8> {
-    if let Ok(out) = dctext_to_dcstring(&document) {
-        out.result.into_bytes()
-    } else {
-        Vec::new()
-    }
+///
+/// # Errors
+/// Returns an error if the document cannot be parsed into a `DcString`.
+pub fn dctext_to_dcutf(document: Vec<u8>) -> Result<Vec<u8>> {
+    let out = dctext_to_dcstring(&document)?;
+    Ok(out.result.into_bytes())
 }
 
 /// Converts DcUtf format bytes to DcText format bytes.
+#[must_use]
 pub fn dcutf_to_dctext(document: Vec<u8>) -> Vec<u8> {
-    if let Ok(dc_str) = DcStr::from_bytes(&document) {
-        dcstring_to_dctext(dc_str)
-    } else {
-        let dclist = dcutf_to_dclist(&document);
-        dclist_to_dctext(&dclist)
-    }
+    let dclist = dcutf_to_dclist(&document);
+    dclist_to_dctext(&dclist)
 }
 
 /// Converts an EITE DcArray (short Dcs, `&[u32]`) to a `DcList` (`Vec<u128>`).
@@ -479,7 +476,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_dctext_to_dcutf() {
         let text = "hi @64@ @@ @65@ @128@ there 🥴 @L42@ noncharacter @1114111@ surrogate @56191@ unicode null @0@ dc null @1114112@ @2147483648@ 2^128-1 @340282366920938463463374607431768211455@";
-        let dcutf = dctext_to_dcutf(text.as_bytes().to_vec());
+        let dcutf = dctext_to_dcutf(text.as_bytes().to_vec()).unwrap();
         assert_eq!(
             "686920402040204120c28020746865726520f09fa5b420ff84849084a8ff8484908086ff8488a08387ff84849082a9ff8484908087206e6f6e63686172616374657220f48fbfbf20737572726f6761746520edadbf20756e69636f6465206e756c6c2000206463206e756c6c20ff848490808020ff8682808080808020325e3132382d3120ff9683bfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbfbf",
             bin2hex(&dcutf)
@@ -500,7 +497,7 @@ mod tests {
         let dc_string = out.result;
         assert_eq!(
             dc_string.as_bytes(),
-            dctext_to_dcutf(text.as_bytes().to_vec()).as_slice()
+            dctext_to_dcutf(text.as_bytes().to_vec()).unwrap().as_slice()
         );
 
         let roundtrip = dcstring_to_dctext(&dc_string);

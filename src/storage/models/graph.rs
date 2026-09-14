@@ -82,7 +82,7 @@ impl Graph {
         data.read_to_end(&mut buf)?; // returns io::Result<usize>
 
         let converted_data = if node_type == NodeType::Statements {
-            dctext_to_dcutf(buf)
+            dctext_to_dcutf(buf)?
         } else {
             buf
         };
