@@ -70,6 +70,7 @@ impl KStruct for InstanceInRepeatExpr {
     type Root = InstanceInRepeatExpr;
     type Parent = InstanceInRepeatExpr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -92,6 +93,7 @@ impl KStruct for InstanceInRepeatExpr {
     }
 }
 impl InstanceInRepeatExpr {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn num_chunks(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -131,6 +133,7 @@ impl KStruct for InstanceInRepeatExpr_Chunk {
     type Root = InstanceInRepeatExpr;
     type Parent = InstanceInRepeatExpr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -70,6 +70,7 @@ impl KStruct for ParamsPassIo {
     type Root = ParamsPassIo;
     type Parent = ParamsPassIo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -128,6 +129,7 @@ impl KStruct for ParamsPassIo_Block {
     type Root = ParamsPassIo;
     type Parent = ParamsPassIo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -170,6 +172,7 @@ impl KStruct for ParamsPassIo_ParamType {
     type Root = ParamsPassIo;
     type Parent = ParamsPassIo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

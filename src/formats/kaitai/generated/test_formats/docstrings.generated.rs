@@ -76,6 +76,7 @@ impl KStruct for Docstrings {
     type Root = Docstrings;
     type Parent = Docstrings;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -97,6 +98,7 @@ impl Docstrings {
     /**
      * And yet another one for value instance "three"
      */
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn three(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -112,6 +114,7 @@ impl Docstrings {
     /**
      * Another description for parse instance "two"
      */
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -169,6 +172,7 @@ impl KStruct for Docstrings_ComplexSubtype {
     type Root = Docstrings;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

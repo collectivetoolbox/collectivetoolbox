@@ -70,6 +70,7 @@ impl KStruct for IndexToParamExpr {
     type Root = IndexToParamExpr;
     type Parent = IndexToParamExpr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -134,6 +135,7 @@ impl KStruct for IndexToParamExpr_Block {
     type Root = IndexToParamExpr;
     type Parent = IndexToParamExpr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

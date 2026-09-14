@@ -69,6 +69,7 @@ impl KStruct for RepeatEosTermStruct {
     type Root = RepeatEosTermStruct;
     type Parent = RepeatEosTermStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,6 +126,7 @@ impl KStruct for RepeatEosTermStruct_BytesWrapper {
     type Root = RepeatEosTermStruct;
     type Parent = RepeatEosTermStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

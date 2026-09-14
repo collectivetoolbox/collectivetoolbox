@@ -69,6 +69,7 @@ impl KStruct for RepeatNStrz {
     type Root = RepeatNStrz;
     type Parent = RepeatNStrz;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

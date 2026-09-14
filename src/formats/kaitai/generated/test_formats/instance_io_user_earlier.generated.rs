@@ -79,6 +79,7 @@ impl KStruct for InstanceIoUserEarlier {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,6 +114,7 @@ impl KStruct for InstanceIoUserEarlier {
     }
 }
 impl InstanceIoUserEarlier {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn a_mid(
         &self
     ) -> KResult<Ref<'_, u16>> {
@@ -128,6 +130,7 @@ impl InstanceIoUserEarlier {
         io.seek(_pos)?;
         Ok(self.a_mid.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn b_mid(
         &self
     ) -> KResult<Ref<'_, u16>> {
@@ -202,6 +205,7 @@ impl KStruct for InstanceIoUserEarlier_Baz {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -249,6 +253,7 @@ impl KStruct for InstanceIoUserEarlier_Foo {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -269,6 +274,7 @@ impl KStruct for InstanceIoUserEarlier_Foo {
     }
 }
 impl InstanceIoUserEarlier_Foo {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst(
         &self
     ) -> KResult<Ref<'_, OptRc<InstanceIoUserEarlier_Slot>>> {
@@ -323,6 +329,7 @@ impl KStruct for InstanceIoUserEarlier_Slot {
     type Root = InstanceIoUserEarlier;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -342,6 +349,7 @@ impl KStruct for InstanceIoUserEarlier_Slot {
     }
 }
 impl InstanceIoUserEarlier_Slot {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn last(
         &self
     ) -> KResult<Ref<'_, u8>> {

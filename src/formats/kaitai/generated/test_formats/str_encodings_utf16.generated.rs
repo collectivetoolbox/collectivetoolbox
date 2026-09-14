@@ -73,6 +73,7 @@ impl KStruct for StrEncodingsUtf16 {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -151,6 +152,7 @@ impl KStruct for StrEncodingsUtf16_StrBeBomRemoved {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -199,6 +201,7 @@ impl KStruct for StrEncodingsUtf16_StrLeBomRemoved {
     type Root = StrEncodingsUtf16;
     type Parent = StrEncodingsUtf16;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

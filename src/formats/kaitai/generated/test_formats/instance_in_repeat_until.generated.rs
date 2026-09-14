@@ -70,6 +70,7 @@ impl KStruct for InstanceInRepeatUntil {
     type Root = InstanceInRepeatUntil;
     type Parent = InstanceInRepeatUntil;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -98,6 +99,7 @@ impl KStruct for InstanceInRepeatUntil {
     }
 }
 impl InstanceInRepeatUntil {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn until_val(
         &self
     ) -> KResult<Ref<'_, i16>> {

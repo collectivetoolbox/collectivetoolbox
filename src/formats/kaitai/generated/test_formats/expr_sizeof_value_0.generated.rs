@@ -79,6 +79,7 @@ impl KStruct for ExprSizeofValue0 {
     type Root = ExprSizeofValue0;
     type Parent = ExprSizeofValue0;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -98,6 +99,7 @@ impl KStruct for ExprSizeofValue0 {
     }
 }
 impl ExprSizeofValue0 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn self_sizeof(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -109,6 +111,7 @@ impl ExprSizeofValue0 {
         *self.self_sizeof.borrow_mut() = (9_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -120,6 +123,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block.borrow_mut() = (7_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_a(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -131,6 +135,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_b(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -142,6 +147,7 @@ impl ExprSizeofValue0 {
         *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_c(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -184,6 +190,7 @@ impl KStruct for ExprSizeofValue0_Block {
     type Root = ExprSizeofValue0;
     type Parent = ExprSizeofValue0;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

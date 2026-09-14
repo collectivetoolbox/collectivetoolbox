@@ -69,6 +69,7 @@ impl KStruct for EofExceptionSized {
     type Root = EofExceptionSized;
     type Parent = EofExceptionSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for EofExceptionSized_Foo {
     type Root = EofExceptionSized;
     type Parent = EofExceptionSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

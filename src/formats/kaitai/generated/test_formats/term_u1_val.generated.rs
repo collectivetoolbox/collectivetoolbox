@@ -69,6 +69,7 @@ impl KStruct for TermU1Val {
     type Root = TermU1Val;
     type Parent = TermU1Val;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

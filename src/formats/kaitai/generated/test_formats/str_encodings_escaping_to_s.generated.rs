@@ -83,6 +83,7 @@ impl KStruct for StrEncodingsEscapingToS {
     type Root = StrEncodingsEscapingToS;
     type Parent = StrEncodingsEscapingToS;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -107,6 +108,7 @@ impl KStruct for StrEncodingsEscapingToS {
     }
 }
 impl StrEncodingsEscapingToS {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str1(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -118,6 +120,7 @@ impl StrEncodingsEscapingToS {
         *self.str1.borrow_mut() = bytes_to_str(&self.str1_raw(), "ASCII\\x")?.to_string();
         Ok(self.str1.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str2(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -129,6 +132,7 @@ impl StrEncodingsEscapingToS {
         *self.str2.borrow_mut() = bytes_to_str(&self.str2_raw(), "UTF-8\\'x")?.to_string();
         Ok(self.str2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str3(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -140,6 +144,7 @@ impl StrEncodingsEscapingToS {
         *self.str3.borrow_mut() = bytes_to_str(&self.str3_raw(), "SJIS\"x")?.to_string();
         Ok(self.str3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str4(
         &self
     ) -> KResult<Ref<'_, String>> {

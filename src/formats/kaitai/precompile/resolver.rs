@@ -1554,7 +1554,7 @@ fn resolve_simple_type(
 
     // 6. Check if it's the root class itself or qualified from root
     if let Some((root_name, root_ksy)) = scopes.first() {
-        if parts.len() == 1 && root_name.last().map(String::as_str) == Some(parts[0]) {
+        if parts.len() == 1 && root_name.last().map(String::as_str) == parts.first().copied() {
             return Ok((
                 DataType::UserType {
                     names: root_name.to_vec(),
@@ -1564,10 +1564,10 @@ fn resolve_simple_type(
                 None,
             ));
         }
-        if parts.len() > 1 && root_name.last().map(String::as_str) == Some(parts[0]) {
+        if parts.len() > 1 && root_name.last().map(String::as_str) == parts.first().copied() {
             let mut curr_ksy = *root_ksy;
             let mut found = true;
-            for part in &parts[1..] {
+            for part in parts.iter().skip(1) {
                 if let Some(child_ksy) = curr_ksy.types.get(*part) {
                     curr_ksy = child_ksy;
                 } else {
@@ -1577,7 +1577,7 @@ fn resolve_simple_type(
             }
             if found {
                 let mut full_name = root_name.to_vec();
-                for part in &parts[1..] {
+                for part in parts.iter().skip(1) {
                     full_name.push((*part).to_string());
                 }
                 return Ok((

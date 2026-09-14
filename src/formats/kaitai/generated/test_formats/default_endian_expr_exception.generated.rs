@@ -68,6 +68,7 @@ impl KStruct for DefaultEndianExprException {
     type Root = DefaultEndianExprException;
     type Parent = DefaultEndianExprException;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for DefaultEndianExprException_Doc {
     type Root = DefaultEndianExprException;
     type Parent = DefaultEndianExprException;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -169,6 +171,7 @@ impl KStruct for DefaultEndianExprException_Doc_MainObj {
     type Root = DefaultEndianExprException;
     type Parent = DefaultEndianExprException_Doc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

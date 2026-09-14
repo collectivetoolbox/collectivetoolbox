@@ -69,6 +69,7 @@ impl KStruct for EosExceptionBytes {
     type Root = EosExceptionBytes;
     type Parent = EosExceptionBytes;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,6 +120,7 @@ impl KStruct for EosExceptionBytes_Data {
     type Root = EosExceptionBytes;
     type Parent = EosExceptionBytes;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

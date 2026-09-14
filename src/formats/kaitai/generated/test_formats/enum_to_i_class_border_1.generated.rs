@@ -74,6 +74,7 @@ impl KStruct for EnumToIClassBorder1 {
     type Root = EnumToIClassBorder1;
     type Parent = EnumToIClassBorder1;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -92,6 +93,7 @@ impl KStruct for EnumToIClassBorder1 {
     }
 }
 impl EnumToIClassBorder1 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn checker(
         &self
     ) -> KResult<Ref<'_, OptRc<EnumToIClassBorder2>>> {
@@ -107,6 +109,7 @@ impl EnumToIClassBorder1 {
         _io.seek(_pos)?;
         Ok(self.checker.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn some_dog(
         &self
     ) -> KResult<Ref<'_, EnumToIClassBorder1_Animal>> {

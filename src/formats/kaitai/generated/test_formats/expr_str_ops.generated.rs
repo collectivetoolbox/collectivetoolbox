@@ -102,6 +102,7 @@ impl KStruct for ExprStrOps {
     type Root = ExprStrOps;
     type Parent = ExprStrOps;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -119,6 +120,7 @@ impl KStruct for ExprStrOps {
     }
 }
 impl ExprStrOps {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -130,6 +132,7 @@ impl ExprStrOps {
         *self.one_len.borrow_mut() = (self.one().len()).try_into()?;
         Ok(self.one_len.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_rev(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -141,6 +144,7 @@ impl ExprStrOps {
         *self.one_rev.borrow_mut() = reverse_string(&self.one())?.to_string();
         Ok(self.one_rev.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_substr_0_to_0(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -152,6 +156,7 @@ impl ExprStrOps {
         *self.one_substr_0_to_0.borrow_mut() = substring(&self.one(), 0, 0).to_string();
         Ok(self.one_substr_0_to_0.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_substr_0_to_3(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -163,6 +168,7 @@ impl ExprStrOps {
         *self.one_substr_0_to_3.borrow_mut() = substring(&self.one(), 0, 3).to_string();
         Ok(self.one_substr_0_to_3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_substr_2_to_5(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -174,6 +180,7 @@ impl ExprStrOps {
         *self.one_substr_2_to_5.borrow_mut() = substring(&self.one(), 2, 5).to_string();
         Ok(self.one_substr_2_to_5.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_substr_3_to_3(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -185,6 +192,7 @@ impl ExprStrOps {
         *self.one_substr_3_to_3.borrow_mut() = substring(&self.one(), 3, 3).to_string();
         Ok(self.one_substr_3_to_3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_attr(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -196,6 +204,7 @@ impl ExprStrOps {
         *self.to_i_attr.borrow_mut() = ("9173".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_attr.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r10(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -207,6 +216,7 @@ impl ExprStrOps {
         *self.to_i_r10.borrow_mut() = ("-072".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r10.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r16(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -218,6 +228,7 @@ impl ExprStrOps {
         *self.to_i_r16.borrow_mut() = (i32::from_str_radix("47cf", 16).map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r16.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -229,6 +240,7 @@ impl ExprStrOps {
         *self.to_i_r2.borrow_mut() = (i32::from_str_radix("1010110", 2).map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r8(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -240,6 +252,7 @@ impl ExprStrOps {
         *self.to_i_r8.borrow_mut() = (i32::from_str_radix("721", 8).map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r8.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -251,6 +264,7 @@ impl ExprStrOps {
         *self.two.borrow_mut() = "0123456789".to_string();
         Ok(self.two.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two_len(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -262,6 +276,7 @@ impl ExprStrOps {
         *self.two_len.borrow_mut() = (self.two()?.len()).try_into()?;
         Ok(self.two_len.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two_rev(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -273,6 +288,7 @@ impl ExprStrOps {
         *self.two_rev.borrow_mut() = reverse_string(&self.two()?)?.to_string();
         Ok(self.two_rev.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two_substr_0_to_10(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -284,6 +300,7 @@ impl ExprStrOps {
         *self.two_substr_0_to_10.borrow_mut() = substring(&self.two()?, 0, 10).to_string();
         Ok(self.two_substr_0_to_10.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two_substr_0_to_7(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -295,6 +312,7 @@ impl ExprStrOps {
         *self.two_substr_0_to_7.borrow_mut() = substring(&self.two()?, 0, 7).to_string();
         Ok(self.two_substr_0_to_7.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn two_substr_4_to_10(
         &self
     ) -> KResult<Ref<'_, String>> {

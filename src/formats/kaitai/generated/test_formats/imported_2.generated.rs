@@ -68,6 +68,7 @@ impl KStruct for Imported2 {
     type Root = Imported2;
     type Parent = Imported2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

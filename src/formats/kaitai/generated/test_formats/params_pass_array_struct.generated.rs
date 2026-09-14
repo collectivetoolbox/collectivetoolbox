@@ -73,6 +73,7 @@ impl KStruct for ParamsPassArrayStruct {
     type Root = ParamsPassArrayStruct;
     type Parent = ParamsPassArrayStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -96,6 +97,7 @@ impl KStruct for ParamsPassArrayStruct {
     }
 }
 impl ParamsPassArrayStruct {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_two(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<Struct>>>> {
@@ -141,6 +143,7 @@ impl KStruct for ParamsPassArrayStruct_Bar {
     type Root = ParamsPassArrayStruct;
     type Parent = ParamsPassArrayStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -182,6 +185,7 @@ impl KStruct for ParamsPassArrayStruct_Foo {
     type Root = ParamsPassArrayStruct;
     type Parent = ParamsPassArrayStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -223,6 +227,7 @@ impl KStruct for ParamsPassArrayStruct_StructType {
     type Root = ParamsPassArrayStruct;
     type Parent = ParamsPassArrayStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

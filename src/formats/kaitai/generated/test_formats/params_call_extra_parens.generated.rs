@@ -68,6 +68,7 @@ impl KStruct for ParamsCallExtraParens {
     type Root = ParamsCallExtraParens;
     type Parent = ParamsCallExtraParens;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,6 +113,7 @@ impl KStruct for ParamsCallExtraParens_MyStr1 {
     type Root = ParamsCallExtraParens;
     type Parent = ParamsCallExtraParens;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -71,6 +71,7 @@ impl KStruct for CombineEnum {
     type Root = CombineEnum;
     type Parent = CombineEnum;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for CombineEnum {
     }
 }
 impl CombineEnum {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn enum_u4_u2(
         &self
     ) -> KResult<Ref<'_, CombineEnum_Animal>> {

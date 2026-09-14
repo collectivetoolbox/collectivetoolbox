@@ -79,6 +79,7 @@ impl KStruct for DocstringsDocref {
     type Root = DocstringsDocref;
     type Parent = DocstringsDocref;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -102,6 +103,7 @@ impl DocstringsDocref {
     /**
      * \sa Doc ref for instance, a plain one
      */
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn foo(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -119,6 +121,7 @@ impl DocstringsDocref {
      *   long document ref that
      *   spans multiple lines.
      */
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn parse_inst(
         &self
     ) -> KResult<Ref<'_, u8>> {

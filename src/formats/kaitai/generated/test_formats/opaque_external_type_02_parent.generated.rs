@@ -69,6 +69,7 @@ impl KStruct for OpaqueExternalType02Parent {
     type Root = OpaqueExternalType02Parent;
     type Parent = OpaqueExternalType02Parent;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -111,6 +112,7 @@ impl KStruct for OpaqueExternalType02Parent_ParentObj {
     type Root = OpaqueExternalType02Parent;
     type Parent = OpaqueExternalType02Parent;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

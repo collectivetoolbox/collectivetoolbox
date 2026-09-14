@@ -71,6 +71,7 @@ impl KStruct for ImportsParamsDefUsertypeImported {
     type Root = ImportsParamsDefUsertypeImported;
     type Parent = ImportsParamsDefUsertypeImported;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

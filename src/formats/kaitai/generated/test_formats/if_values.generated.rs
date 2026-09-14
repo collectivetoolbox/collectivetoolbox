@@ -68,6 +68,7 @@ impl KStruct for IfValues {
     type Root = IfValues;
     type Parent = IfValues;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,6 +117,7 @@ impl KStruct for IfValues_Code {
     type Root = IfValues;
     type Parent = IfValues;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,6 +135,7 @@ impl KStruct for IfValues_Code {
     }
 }
 impl IfValues_Code {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn half_opcode(
         &self
     ) -> KResult<Ref<'_, i32>> {

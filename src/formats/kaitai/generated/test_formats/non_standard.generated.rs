@@ -86,6 +86,7 @@ impl From<u32> for NonStandard_Bar {
 }
 impl TryFrom<&NonStandard_Bar> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
         match e {
             NonStandard_Bar::U2(v) => Ok(i64::try_from(*v)?),
@@ -95,6 +96,7 @@ impl TryFrom<&NonStandard_Bar> for i64 {
 }
 impl TryFrom<&NonStandard_Bar> for u16 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
         match e {
             NonStandard_Bar::U2(v) => Ok(u16::try_from(*v)?),
@@ -104,6 +106,7 @@ impl TryFrom<&NonStandard_Bar> for u16 {
 }
 impl TryFrom<&NonStandard_Bar> for u32 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
         match e {
             NonStandard_Bar::U2(v) => Ok(u32::try_from(*v)?),
@@ -113,6 +116,7 @@ impl TryFrom<&NonStandard_Bar> for u32 {
 }
 impl TryFrom<&NonStandard_Bar> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &NonStandard_Bar) -> Result<Self, Self::Error> {
         match e {
             NonStandard_Bar::U2(v) => Ok(u64::try_from(*v)?),
@@ -134,6 +138,7 @@ impl KStruct for NonStandard {
     type Root = NonStandard;
     type Parent = NonStandard;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -160,6 +165,7 @@ impl KStruct for NonStandard {
     }
 }
 impl NonStandard {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pi(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -174,6 +180,7 @@ impl NonStandard {
         _io.seek(_pos)?;
         Ok(self.pi.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn vi(
         &self
     ) -> KResult<Ref<'_, u8>> {

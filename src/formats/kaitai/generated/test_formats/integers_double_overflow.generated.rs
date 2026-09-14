@@ -83,6 +83,7 @@ impl KStruct for IntegersDoubleOverflow {
     type Root = IntegersDoubleOverflow;
     type Parent = IntegersDoubleOverflow;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -107,6 +108,7 @@ impl KStruct for IntegersDoubleOverflow {
     }
 }
 impl IntegersDoubleOverflow {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unsigned_safe_max_be(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -121,6 +123,7 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_safe_max_be.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unsigned_safe_max_le(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -135,6 +138,7 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_safe_max_le.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unsigned_unsafe_pos_be(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -149,6 +153,7 @@ impl IntegersDoubleOverflow {
         _io.seek(_pos)?;
         Ok(self.unsigned_unsafe_pos_be.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unsigned_unsafe_pos_le(
         &self
     ) -> KResult<Ref<'_, u64>> {

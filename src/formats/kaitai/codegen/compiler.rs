@@ -480,6 +480,7 @@ fn emit_switch_enum(
             w.puts(&format!("impl TryFrom<&{enum_name}> for {target} {{"));
             w.inc();
             w.puts("type Error = KError;");
+            w.puts("#[allow(clippy::unnecessary_fallible_conversions, reason = \"Generic TryFrom implementation over varied enum variant types\")]");
             w.puts(&format!("fn try_from(e: &{enum_name}) -> Result<Self, Self::Error> {{"));
             w.inc();
             w.puts("match e {");
@@ -576,6 +577,7 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.puts(&format!("type Parent = {parent_class_name};"));
     w.newline();
 
+    w.puts("#[allow(clippy::unnecessary_fallible_conversions, reason = \"Generic validation value conversion\")]");
     w.puts("fn read<S: KStream>(");
     w.inc();
     w.puts("self_rc: &OptRc<Self>,");
@@ -2231,6 +2233,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
             };
 
             let escaped_inst_id = escape_rust_keyword(inst_id);
+            w.puts("#[allow(clippy::approx_constant, reason = \"Kaitai format specification float literal\")]");
             w.puts(&format!("pub fn {escaped_inst_id}("));
             w.inc();
             w.puts("&self");

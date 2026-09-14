@@ -909,8 +909,19 @@ pub fn bytes_terminate_pad(
     pad: Option<u8>,
 ) -> Vec<u8> {
     if let Some(t) = term {
-        bytes_terminate(bytes, t, include_term)
-    } else if let Some(p) = pad {
+        if let Some(pos) = bytes.iter().position(|&b| b == t) {
+            let end = if include_term {
+                pos.saturating_add(1)
+            } else {
+                pos
+            };
+            if let Some(sub) = bytes.get(..end) {
+                return sub.to_vec();
+            }
+            return bytes.to_vec();
+        }
+    }
+    if let Some(p) = pad {
         bytes_strip_right(bytes, p)
     } else {
         bytes.to_vec()

@@ -73,6 +73,7 @@ impl KStruct for RepeatUntilCalcArrayType {
     type Root = RepeatUntilCalcArrayType;
     type Parent = RepeatUntilCalcArrayType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -103,6 +104,7 @@ impl KStruct for RepeatUntilCalcArrayType {
     }
 }
 impl RepeatUntilCalcArrayType {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn first_rec(
         &self
     ) -> KResult<Ref<'_, OptRc<RepeatUntilCalcArrayType_Record>>> {
@@ -113,6 +115,7 @@ impl RepeatUntilCalcArrayType {
         *self.first_rec.borrow_mut() = self.recs_accessor()?.first().ok_or(KError::EmptyIterator)?.clone();
         Ok(self.first_rec.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn recs_accessor(
         &self
     ) -> KResult<Ref<'_, Vec<OptRc<RepeatUntilCalcArrayType_Record>>>> {
@@ -154,6 +157,7 @@ impl KStruct for RepeatUntilCalcArrayType_Record {
     type Root = RepeatUntilCalcArrayType;
     type Parent = RepeatUntilCalcArrayType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

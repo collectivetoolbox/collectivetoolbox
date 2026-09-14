@@ -82,6 +82,7 @@ impl From<&ValidSwitch_B> for u16 {
 }
 impl TryFrom<&ValidSwitch_B> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(i64::try_from(*v)?),
@@ -90,6 +91,7 @@ impl TryFrom<&ValidSwitch_B> for i64 {
 }
 impl TryFrom<&ValidSwitch_B> for u16 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(u16::try_from(*v)?),
@@ -98,6 +100,7 @@ impl TryFrom<&ValidSwitch_B> for u16 {
 }
 impl TryFrom<&ValidSwitch_B> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ValidSwitch_B) -> Result<Self, Self::Error> {
         match e {
             ValidSwitch_B::U2(v) => Ok(u64::try_from(*v)?),
@@ -117,6 +120,7 @@ impl KStruct for ValidSwitch {
     type Root = ValidSwitch;
     type Parent = ValidSwitch;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

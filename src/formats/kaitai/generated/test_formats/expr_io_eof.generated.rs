@@ -71,6 +71,7 @@ impl KStruct for ExprIoEof {
     type Root = ExprIoEof;
     type Parent = ExprIoEof;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -139,6 +140,7 @@ impl KStruct for ExprIoEof_OneOrTwo {
     type Root = ExprIoEof;
     type Parent = ExprIoEof;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -159,6 +161,7 @@ impl KStruct for ExprIoEof_OneOrTwo {
     }
 }
 impl ExprIoEof_OneOrTwo {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn reflect_eof(
         &self
     ) -> KResult<Ref<'_, bool>> {

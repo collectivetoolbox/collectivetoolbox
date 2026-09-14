@@ -69,6 +69,7 @@ impl KStruct for NavParent {
     type Root = NavParent;
     type Parent = NavParent;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for NavParent_Entry {
     type Root = NavParent;
     type Parent = NavParent_IndexObj;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -160,6 +162,7 @@ impl KStruct for NavParent_HeaderObj {
     type Root = NavParent;
     type Parent = NavParent;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -208,6 +211,7 @@ impl KStruct for NavParent_IndexObj {
     type Root = NavParent;
     type Parent = NavParent;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

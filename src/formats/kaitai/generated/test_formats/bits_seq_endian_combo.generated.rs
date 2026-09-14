@@ -75,6 +75,7 @@ impl KStruct for BitsSeqEndianCombo {
     type Root = BitsSeqEndianCombo;
     type Parent = BitsSeqEndianCombo;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

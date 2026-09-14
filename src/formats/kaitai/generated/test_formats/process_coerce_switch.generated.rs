@@ -141,6 +141,7 @@ impl KStruct for ProcessCoerceSwitch {
     type Root = ProcessCoerceSwitch;
     type Parent = ProcessCoerceSwitch;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -188,6 +189,7 @@ impl KStruct for ProcessCoerceSwitch {
     }
 }
 impl ProcessCoerceSwitch {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn buf(
         &self
     ) -> KResult<Ref<'_, OptRc<ProcessCoerceSwitch_Foo>>> {
@@ -247,6 +249,7 @@ impl KStruct for ProcessCoerceSwitch_Foo {
     type Root = ProcessCoerceSwitch;
     type Parent = ProcessCoerceSwitch;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

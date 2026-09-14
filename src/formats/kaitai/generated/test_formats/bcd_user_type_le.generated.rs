@@ -73,6 +73,7 @@ impl KStruct for BcdUserTypeLe {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -176,6 +177,7 @@ impl KStruct for BcdUserTypeLe_LeadingZeroLtrObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -196,6 +198,7 @@ impl KStruct for BcdUserTypeLe_LeadingZeroLtrObj {
     }
 }
 impl BcdUserTypeLe_LeadingZeroLtrObj {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -207,6 +210,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.as_int.borrow_mut() = (((((((((*self.digit8()?).saturating_mul(1_i32)).saturating_add((*self.digit7()?).saturating_mul(10_i32))).saturating_add((*self.digit6()?).saturating_mul(100_i32))).saturating_add((*self.digit5()?).saturating_mul(1000_i32))).saturating_add((*self.digit4()?).saturating_mul(10000_i32))).saturating_add((*self.digit3()?).saturating_mul(100000_i32))).saturating_add((*self.digit2()?).saturating_mul(1000000_i32))).saturating_add((*self.digit1()?).saturating_mul(10000000_i32))).try_into()?;
         Ok(self.as_int.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -218,6 +222,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.as_str.borrow_mut() = format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", self.digit1()?.to_string(), self.digit2()?.to_string()), self.digit3()?.to_string()), self.digit4()?.to_string()), self.digit5()?.to_string()), self.digit6()?.to_string()), self.digit7()?.to_string()), self.digit8()?.to_string()).to_string();
         Ok(self.as_str.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -229,6 +234,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit1.borrow_mut() = ((((i32::from(*self.b4())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit1.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -240,6 +246,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit2.borrow_mut() = (((i32::from(*self.b4())) & (15_i32))).try_into()?;
         Ok(self.digit2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -251,6 +258,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit3.borrow_mut() = ((((i32::from(*self.b3())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit4(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -262,6 +270,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit4.borrow_mut() = (((i32::from(*self.b3())) & (15_i32))).try_into()?;
         Ok(self.digit4.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit5(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -273,6 +282,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit5.borrow_mut() = ((((i32::from(*self.b2())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit5.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit6(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -284,6 +294,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit6.borrow_mut() = (((i32::from(*self.b2())) & (15_i32))).try_into()?;
         Ok(self.digit6.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit7(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -295,6 +306,7 @@ impl BcdUserTypeLe_LeadingZeroLtrObj {
         *self.digit7.borrow_mut() = ((((i32::from(*self.b1())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit7.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit8(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -368,6 +380,7 @@ impl KStruct for BcdUserTypeLe_LtrObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -388,6 +401,7 @@ impl KStruct for BcdUserTypeLe_LtrObj {
     }
 }
 impl BcdUserTypeLe_LtrObj {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -399,6 +413,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.as_int.borrow_mut() = (((((((((*self.digit8()?).saturating_mul(1_i32)).saturating_add((*self.digit7()?).saturating_mul(10_i32))).saturating_add((*self.digit6()?).saturating_mul(100_i32))).saturating_add((*self.digit5()?).saturating_mul(1000_i32))).saturating_add((*self.digit4()?).saturating_mul(10000_i32))).saturating_add((*self.digit3()?).saturating_mul(100000_i32))).saturating_add((*self.digit2()?).saturating_mul(1000000_i32))).saturating_add((*self.digit1()?).saturating_mul(10000000_i32))).try_into()?;
         Ok(self.as_int.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -410,6 +425,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.as_str.borrow_mut() = format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", self.digit1()?.to_string(), self.digit2()?.to_string()), self.digit3()?.to_string()), self.digit4()?.to_string()), self.digit5()?.to_string()), self.digit6()?.to_string()), self.digit7()?.to_string()), self.digit8()?.to_string()).to_string();
         Ok(self.as_str.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -421,6 +437,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit1.borrow_mut() = ((((i32::from(*self.b4())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit1.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -432,6 +449,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit2.borrow_mut() = (((i32::from(*self.b4())) & (15_i32))).try_into()?;
         Ok(self.digit2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -443,6 +461,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit3.borrow_mut() = ((((i32::from(*self.b3())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit4(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -454,6 +473,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit4.borrow_mut() = (((i32::from(*self.b3())) & (15_i32))).try_into()?;
         Ok(self.digit4.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit5(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -465,6 +485,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit5.borrow_mut() = ((((i32::from(*self.b2())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit5.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit6(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -476,6 +497,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit6.borrow_mut() = (((i32::from(*self.b2())) & (15_i32))).try_into()?;
         Ok(self.digit6.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit7(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -487,6 +509,7 @@ impl BcdUserTypeLe_LtrObj {
         *self.digit7.borrow_mut() = ((((i32::from(*self.b1())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit7.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit8(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -560,6 +583,7 @@ impl KStruct for BcdUserTypeLe_RtlObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -580,6 +604,7 @@ impl KStruct for BcdUserTypeLe_RtlObj {
     }
 }
 impl BcdUserTypeLe_RtlObj {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_int(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -591,6 +616,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.as_int.borrow_mut() = (((((((((*self.digit1()?).saturating_mul(1_i32)).saturating_add((*self.digit2()?).saturating_mul(10_i32))).saturating_add((*self.digit3()?).saturating_mul(100_i32))).saturating_add((*self.digit4()?).saturating_mul(1000_i32))).saturating_add((*self.digit5()?).saturating_mul(10000_i32))).saturating_add((*self.digit6()?).saturating_mul(100000_i32))).saturating_add((*self.digit7()?).saturating_mul(1000000_i32))).saturating_add((*self.digit8()?).saturating_mul(10000000_i32))).try_into()?;
         Ok(self.as_int.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn as_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -602,6 +628,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.as_str.borrow_mut() = format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", format!("{}{}", self.digit8()?.to_string(), self.digit7()?.to_string()), self.digit6()?.to_string()), self.digit5()?.to_string()), self.digit4()?.to_string()), self.digit3()?.to_string()), self.digit2()?.to_string()), self.digit1()?.to_string()).to_string();
         Ok(self.as_str.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -613,6 +640,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit1.borrow_mut() = ((((i32::from(*self.b4())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit1.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -624,6 +652,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit2.borrow_mut() = (((i32::from(*self.b4())) & (15_i32))).try_into()?;
         Ok(self.digit2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -635,6 +664,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit3.borrow_mut() = ((((i32::from(*self.b3())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit4(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -646,6 +676,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit4.borrow_mut() = (((i32::from(*self.b3())) & (15_i32))).try_into()?;
         Ok(self.digit4.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit5(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -657,6 +688,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit5.borrow_mut() = ((((i32::from(*self.b2())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit5.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit6(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -668,6 +700,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit6.borrow_mut() = (((i32::from(*self.b2())) & (15_i32))).try_into()?;
         Ok(self.digit6.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit7(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -679,6 +712,7 @@ impl BcdUserTypeLe_RtlObj {
         *self.digit7.borrow_mut() = ((((i32::from(*self.b1())) & (240_i32))).wrapping_shr(4_u32)).try_into()?;
         Ok(self.digit7.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn digit8(
         &self
     ) -> KResult<Ref<'_, i32>> {

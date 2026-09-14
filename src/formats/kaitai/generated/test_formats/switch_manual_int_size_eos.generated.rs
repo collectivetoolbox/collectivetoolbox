@@ -68,6 +68,7 @@ impl KStruct for SwitchManualIntSizeEos {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,6 +121,7 @@ impl KStruct for SwitchManualIntSizeEos_Chunk {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -231,6 +233,7 @@ impl KStruct for SwitchManualIntSizeEos_ChunkBody {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos_Chunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -295,6 +298,7 @@ impl KStruct for SwitchManualIntSizeEos_ChunkBody_ChunkDir {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos_ChunkBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -344,6 +348,7 @@ impl KStruct for SwitchManualIntSizeEos_ChunkBody_ChunkMeta {
     type Root = SwitchManualIntSizeEos;
     type Parent = SwitchManualIntSizeEos_ChunkBody;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

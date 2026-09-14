@@ -79,6 +79,7 @@ impl KStruct for ParamsPassBool {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -116,6 +117,7 @@ impl KStruct for ParamsPassBool {
     }
 }
 impl ParamsPassBool {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v_false(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -127,6 +129,7 @@ impl ParamsPassBool {
         *self.v_false.borrow_mut() = (false).try_into()?;
         Ok(self.v_false.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v_true(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -198,6 +201,7 @@ impl KStruct for ParamsPassBool_ParamTypeB1 {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -250,6 +254,7 @@ impl KStruct for ParamsPassBool_ParamTypeBool {
     type Root = ParamsPassBool;
     type Parent = ParamsPassBool;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

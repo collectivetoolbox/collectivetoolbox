@@ -75,6 +75,7 @@ impl KStruct for StructPadTermEqual {
     type Root = StructPadTermEqual;
     type Parent = StructPadTermEqual;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -170,6 +171,7 @@ impl KStruct for StructPadTermEqual_BytesWrapper {
     type Root = StructPadTermEqual;
     type Parent = StructPadTermEqual;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

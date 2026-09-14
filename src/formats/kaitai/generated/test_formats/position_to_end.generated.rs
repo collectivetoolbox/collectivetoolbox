@@ -69,6 +69,7 @@ impl KStruct for PositionToEnd {
     type Root = PositionToEnd;
     type Parent = PositionToEnd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,6 +86,7 @@ impl KStruct for PositionToEnd {
     }
 }
 impl PositionToEnd {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<PositionToEnd_IndexObj>>> {
@@ -119,6 +121,7 @@ impl KStruct for PositionToEnd_IndexObj {
     type Root = PositionToEnd;
     type Parent = PositionToEnd;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

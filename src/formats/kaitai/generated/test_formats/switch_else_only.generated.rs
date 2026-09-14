@@ -85,6 +85,7 @@ impl From<&SwitchElseOnly_PrimByte> for i8 {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(i64::try_from(*v)?),
@@ -93,6 +94,7 @@ impl TryFrom<&SwitchElseOnly_PrimByte> for i64 {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for i8 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(i8::try_from(*v)?),
@@ -101,6 +103,7 @@ impl TryFrom<&SwitchElseOnly_PrimByte> for i8 {
 }
 impl TryFrom<&SwitchElseOnly_PrimByte> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchElseOnly_PrimByte) -> Result<Self, Self::Error> {
         match e {
             SwitchElseOnly_PrimByte::S1(v) => Ok(u64::try_from(*v)?),
@@ -144,6 +147,7 @@ impl KStruct for SwitchElseOnly {
     type Root = SwitchElseOnly;
     type Parent = SwitchElseOnly;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,6 +228,7 @@ impl KStruct for SwitchElseOnly_Data {
     type Root = SwitchElseOnly;
     type Parent = SwitchElseOnly;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

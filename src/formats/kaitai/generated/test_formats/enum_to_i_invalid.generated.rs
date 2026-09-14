@@ -81,6 +81,7 @@ impl KStruct for EnumToIInvalid {
     type Root = EnumToIInvalid;
     type Parent = EnumToIInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,6 +100,7 @@ impl KStruct for EnumToIInvalid {
     }
 }
 impl EnumToIInvalid {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_lt_two(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -110,6 +112,7 @@ impl EnumToIInvalid {
         *self.one_lt_two.borrow_mut() = (i64::from(&*self.pet_1()) < i64::from(&*self.pet_2())).try_into()?;
         Ok(self.one_lt_two.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_2_eq_int_f(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -121,6 +124,7 @@ impl EnumToIInvalid {
         *self.pet_2_eq_int_f.borrow_mut() = (((to_i128(i64::from(&*self.pet_2()))) == (to_i128(110)))).try_into()?;
         Ok(self.pet_2_eq_int_f.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_2_eq_int_t(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -132,6 +136,7 @@ impl EnumToIInvalid {
         *self.pet_2_eq_int_t.borrow_mut() = (((to_i128(i64::from(&*self.pet_2()))) == (to_i128(111)))).try_into()?;
         Ok(self.pet_2_eq_int_t.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_2_i(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -143,6 +148,7 @@ impl EnumToIInvalid {
         *self.pet_2_i.borrow_mut() = (i64::from(&*self.pet_2())).try_into()?;
         Ok(self.pet_2_i.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_2_i_to_s(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -154,6 +160,7 @@ impl EnumToIInvalid {
         *self.pet_2_i_to_s.borrow_mut() = i64::from(&*self.pet_2()).to_string().to_string();
         Ok(self.pet_2_i_to_s.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_2_mod(
         &self
     ) -> KResult<Ref<'_, i32>> {

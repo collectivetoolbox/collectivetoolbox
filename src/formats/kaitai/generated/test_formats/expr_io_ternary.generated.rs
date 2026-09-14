@@ -83,6 +83,7 @@ impl KStruct for ExprIoTernary {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -110,6 +111,7 @@ impl KStruct for ExprIoTernary {
     }
 }
 impl ExprIoTernary {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_or_two_io(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -121,6 +123,7 @@ impl ExprIoTernary {
         *self.one_or_two_io.borrow_mut() = (if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io()).try_into()?;
         Ok(self.one_or_two_io.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_or_two_io_size1(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -132,6 +135,7 @@ impl ExprIoTernary {
         *self.one_or_two_io_size1.borrow_mut() = ((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io().size())?)).try_into()?;
         Ok(self.one_or_two_io_size1.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_or_two_io_size2(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -143,6 +147,7 @@ impl ExprIoTernary {
         *self.one_or_two_io_size2.borrow_mut() = ((i64::try_from(self.one_or_two_io()?.len())?)).try_into()?;
         Ok(self.one_or_two_io_size2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_or_two_io_size_add_3(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -154,6 +159,7 @@ impl ExprIoTernary {
         *self.one_or_two_io_size_add_3.borrow_mut() = (((i64::try_from(if ((to_i128(*self.flag())) == (to_i128(64))) { self.obj1().clone() } else { self.obj2().clone() }._io().size())?)).saturating_add(3_i32)).try_into()?;
         Ok(self.one_or_two_io_size_add_3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn one_or_two_obj(
         &self
     ) -> KResult<Ref<'_, OptRc<Struct>>> {
@@ -208,6 +214,7 @@ impl KStruct for ExprIoTernary_One {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -249,6 +256,7 @@ impl KStruct for ExprIoTernary_Two {
     type Root = ExprIoTernary;
     type Parent = ExprIoTernary;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -69,6 +69,7 @@ impl KStruct for ExprSizeofType0 {
     type Root = ExprSizeofType0;
     type Parent = ExprSizeofType0;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,6 +86,7 @@ impl KStruct for ExprSizeofType0 {
     }
 }
 impl ExprSizeofType0 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -117,6 +119,7 @@ impl KStruct for ExprSizeofType0_Block {
     type Root = ExprSizeofType0;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

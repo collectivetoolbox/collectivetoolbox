@@ -69,6 +69,7 @@ impl KStruct for OpaqueExternalType {
     type Root = OpaqueExternalType;
     type Parent = OpaqueExternalType;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

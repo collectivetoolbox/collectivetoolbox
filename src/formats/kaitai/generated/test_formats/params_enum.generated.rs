@@ -69,6 +69,7 @@ impl KStruct for ParamsEnum {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -155,6 +156,7 @@ impl KStruct for ParamsEnum_WithParam {
     type Root = ParamsEnum;
     type Parent = ParamsEnum;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -181,6 +183,7 @@ impl ParamsEnum_WithParam {
     }
 }
 impl ParamsEnum_WithParam {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn is_cat(
         &self
     ) -> KResult<Ref<'_, bool>> {

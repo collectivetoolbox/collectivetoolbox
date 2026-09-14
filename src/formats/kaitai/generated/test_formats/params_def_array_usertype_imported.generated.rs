@@ -73,6 +73,7 @@ impl KStruct for ParamsDefArrayUsertypeImported {
     type Root = ParamsDefArrayUsertypeImported;
     type Parent = ParamsDefArrayUsertypeImported;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,6 +100,7 @@ impl ParamsDefArrayUsertypeImported {
     }
 }
 impl ParamsDefArrayUsertypeImported {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn hw0_one(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -110,6 +112,7 @@ impl ParamsDefArrayUsertypeImported {
         *self.hw0_one.borrow_mut() = (*self.hws_param().get(0_usize).ok_or(KError::CastError)?.one()).try_into()?;
         Ok(self.hw0_one.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn hw1_one(
         &self
     ) -> KResult<Ref<'_, i32>> {

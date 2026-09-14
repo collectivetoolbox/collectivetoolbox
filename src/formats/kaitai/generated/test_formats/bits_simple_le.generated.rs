@@ -82,6 +82,7 @@ impl KStruct for BitsSimpleLe {
     type Root = BitsSimpleLe;
     type Parent = BitsSimpleLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,6 +113,7 @@ impl KStruct for BitsSimpleLe {
     }
 }
 impl BitsSimpleLe {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn test_if_b1(
         &self
     ) -> KResult<Ref<'_, i32>> {

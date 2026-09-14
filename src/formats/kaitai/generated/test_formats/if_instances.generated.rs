@@ -69,6 +69,7 @@ impl KStruct for IfInstances {
     type Root = IfInstances;
     type Parent = IfInstances;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,6 +86,7 @@ impl KStruct for IfInstances {
     }
 }
 impl IfInstances {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn never_happens(
         &self
     ) -> KResult<Ref<'_, u8>> {

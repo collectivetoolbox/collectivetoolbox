@@ -31,7 +31,7 @@ SOFTWARE.
 
 extern crate kaitai;
 
-#[allow(non_snake_case)]
+#[allow(non_snake_case, reason = "Upstream Kaitai test mock module hierarchy")]
 
 pub mod Nested {
     pub mod Deeply {

@@ -71,6 +71,7 @@ impl KStruct for ExprSizeofType1 {
     type Root = ExprSizeofType1;
     type Parent = ExprSizeofType1;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,6 +88,7 @@ impl KStruct for ExprSizeofType1 {
     }
 }
 impl ExprSizeofType1 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -98,6 +100,7 @@ impl ExprSizeofType1 {
         *self.sizeof_block.borrow_mut() = (11_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_subblock(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -131,6 +134,7 @@ impl KStruct for ExprSizeofType1_Block {
     type Root = ExprSizeofType1;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -191,6 +195,7 @@ impl KStruct for ExprSizeofType1_Block_Subblock {
     type Root = ExprSizeofType1;
     type Parent = ExprSizeofType1_Block;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

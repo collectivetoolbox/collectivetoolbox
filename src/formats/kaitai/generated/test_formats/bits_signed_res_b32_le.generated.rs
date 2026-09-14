@@ -68,6 +68,7 @@ impl KStruct for BitsSignedResB32Le {
     type Root = BitsSignedResB32Le;
     type Parent = BitsSignedResB32Le;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

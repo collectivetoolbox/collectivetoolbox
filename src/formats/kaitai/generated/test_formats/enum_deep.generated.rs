@@ -69,6 +69,7 @@ impl KStruct for EnumDeep {
     type Root = EnumDeep;
     type Parent = EnumDeep;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,6 +116,7 @@ impl KStruct for EnumDeep_Container1 {
     type Root = EnumDeep;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -184,6 +186,7 @@ impl KStruct for EnumDeep_Container1_Container2 {
     type Root = EnumDeep;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -79,6 +79,7 @@ impl KStruct for StrEncodingsEscapingEnc {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -199,6 +200,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,6 +217,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str1Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str1Wrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -249,6 +252,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -265,6 +269,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str2Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str2Wrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -299,6 +304,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -315,6 +321,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str3Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str3Wrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -349,6 +356,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     type Root = StrEncodingsEscapingEnc;
     type Parent = StrEncodingsEscapingEnc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -365,6 +373,7 @@ impl KStruct for StrEncodingsEscapingEnc_Str4Wrapper {
     }
 }
 impl StrEncodingsEscapingEnc_Str4Wrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn v(
         &self
     ) -> KResult<Ref<'_, String>> {

@@ -73,6 +73,7 @@ impl KStruct for Expr1 {
     type Root = Expr1;
     type Parent = Expr1;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +92,7 @@ impl KStruct for Expr1 {
     }
 }
 impl Expr1 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn len_of_1_mod(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -102,6 +104,7 @@ impl Expr1 {
         *self.len_of_1_mod.borrow_mut() = ((i32::from(*self.len_of_1())).saturating_sub(2_i32)).try_into()?;
         Ok(self.len_of_1_mod.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str1_len(
         &self
     ) -> KResult<Ref<'_, i32>> {

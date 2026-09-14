@@ -72,6 +72,7 @@ impl KStruct for ParamsPassArrayStr {
     type Root = ParamsPassArrayStr;
     type Parent = ParamsPassArrayStr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,6 +100,7 @@ impl KStruct for ParamsPassArrayStr {
     }
 }
 impl ParamsPassArrayStr {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str_array_calc(
         &self
     ) -> KResult<Ref<'_, Vec<String>>> {
@@ -144,6 +146,7 @@ impl KStruct for ParamsPassArrayStr_WantsStrs {
     type Root = ParamsPassArrayStr;
     type Parent = ParamsPassArrayStr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -75,6 +75,7 @@ impl KStruct for StrEosPadTermEmpty {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -170,6 +171,7 @@ impl KStruct for StrEosPadTermEmpty_StrPadType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -211,6 +213,7 @@ impl KStruct for StrEosPadTermEmpty_StrTermAndPadType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -252,6 +255,7 @@ impl KStruct for StrEosPadTermEmpty_StrTermIncludeType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -293,6 +297,7 @@ impl KStruct for StrEosPadTermEmpty_StrTermType {
     type Root = StrEosPadTermEmpty;
     type Parent = StrEosPadTermEmpty;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

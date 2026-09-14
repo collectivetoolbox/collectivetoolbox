@@ -69,6 +69,7 @@ impl KStruct for NavParentVsValueInst {
     type Root = NavParentVsValueInst;
     type Parent = NavParentVsValueInst;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for NavParentVsValueInst_ChildObj {
     type Root = NavParentVsValueInst;
     type Parent = NavParentVsValueInst;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -134,6 +136,7 @@ impl KStruct for NavParentVsValueInst_ChildObj {
     }
 }
 impl NavParentVsValueInst_ChildObj {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn do_something(
         &self
     ) -> KResult<Ref<'_, bool>> {

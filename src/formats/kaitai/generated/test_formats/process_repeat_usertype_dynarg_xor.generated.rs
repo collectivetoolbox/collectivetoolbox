@@ -70,6 +70,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -131,6 +132,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_Block {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -176,6 +178,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     type Root = ProcessRepeatUsertypeDynargXor;
     type Parent = ProcessRepeatUsertypeDynargXor;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -193,6 +196,7 @@ impl KStruct for ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
     }
 }
 impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_0_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -208,6 +212,7 @@ impl ProcessRepeatUsertypeDynargXor_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_0_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_1_b(
         &self
     ) -> KResult<Ref<'_, u8>> {

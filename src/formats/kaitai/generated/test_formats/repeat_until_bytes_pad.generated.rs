@@ -68,6 +68,7 @@ impl KStruct for RepeatUntilBytesPad {
     type Root = RepeatUntilBytesPad;
     type Parent = RepeatUntilBytesPad;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

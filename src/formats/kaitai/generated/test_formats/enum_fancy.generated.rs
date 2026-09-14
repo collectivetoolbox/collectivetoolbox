@@ -69,6 +69,7 @@ impl KStruct for EnumFancy {
     type Root = EnumFancy;
     type Parent = EnumFancy;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -69,6 +69,7 @@ impl KStruct for ProcessToUser {
     type Root = ProcessToUser;
     type Parent = ProcessToUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,6 +121,7 @@ impl KStruct for ProcessToUser_JustStr {
     type Root = ProcessToUser;
     type Parent = ProcessToUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

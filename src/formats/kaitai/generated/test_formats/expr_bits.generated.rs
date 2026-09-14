@@ -90,6 +90,7 @@ impl From<&ExprBits_SwitchOnType> for i8 {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(i64::try_from(*v)?),
@@ -98,6 +99,7 @@ impl TryFrom<&ExprBits_SwitchOnType> for i64 {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for i8 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(i8::try_from(*v)?),
@@ -106,6 +108,7 @@ impl TryFrom<&ExprBits_SwitchOnType> for i8 {
 }
 impl TryFrom<&ExprBits_SwitchOnType> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &ExprBits_SwitchOnType) -> Result<Self, Self::Error> {
         match e {
             ExprBits_SwitchOnType::S1(v) => Ok(u64::try_from(*v)?),
@@ -125,6 +128,7 @@ impl KStruct for ExprBits {
     type Root = ExprBits;
     type Parent = ExprBits;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -158,6 +162,7 @@ impl KStruct for ExprBits {
     }
 }
 impl ExprBits {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn enum_inst(
         &self
     ) -> KResult<Ref<'_, ExprBits_Items>> {
@@ -169,6 +174,7 @@ impl ExprBits {
         *self.enum_inst.borrow_mut() = i64::try_from(*self.a())?.try_into()?;
         Ok(self.enum_inst.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_pos(
         &self
     ) -> KResult<Ref<'_, i8>> {
@@ -269,6 +275,7 @@ impl KStruct for ExprBits_EndianSwitch {
     type Root = ExprBits;
     type Parent = ExprBits;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

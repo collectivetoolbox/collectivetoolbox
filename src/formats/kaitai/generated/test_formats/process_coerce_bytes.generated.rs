@@ -68,6 +68,7 @@ impl KStruct for ProcessCoerceBytes {
     type Root = ProcessCoerceBytes;
     type Parent = ProcessCoerceBytes;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for ProcessCoerceBytes_Record {
     type Root = ProcessCoerceBytes;
     type Parent = ProcessCoerceBytes;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,6 +143,7 @@ impl KStruct for ProcessCoerceBytes_Record {
     }
 }
 impl ProcessCoerceBytes_Record {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn buf(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

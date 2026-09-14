@@ -69,6 +69,7 @@ impl KStruct for BitsShiftByB64Le {
     type Root = BitsShiftByB64Le;
     type Parent = BitsShiftByB64Le;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

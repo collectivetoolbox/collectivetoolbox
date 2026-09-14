@@ -68,6 +68,7 @@ impl KStruct for SwitchManualIntElse {
     type Root = SwitchManualIntElse;
     type Parent = SwitchManualIntElse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -167,6 +168,7 @@ impl KStruct for SwitchManualIntElse_Opcode {
     type Root = SwitchManualIntElse;
     type Parent = SwitchManualIntElse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -241,6 +243,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Intval {
     type Root = SwitchManualIntElse;
     type Parent = SwitchManualIntElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -282,6 +285,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Noneval {
     type Root = SwitchManualIntElse;
     type Parent = SwitchManualIntElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -323,6 +327,7 @@ impl KStruct for SwitchManualIntElse_Opcode_Strval {
     type Root = SwitchManualIntElse;
     type Parent = SwitchManualIntElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

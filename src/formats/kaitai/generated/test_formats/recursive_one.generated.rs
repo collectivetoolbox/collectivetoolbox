@@ -103,6 +103,7 @@ impl KStruct for RecursiveOne {
     type Root = RecursiveOne;
     type Parent = RecursiveOne;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -185,6 +186,7 @@ impl KStruct for RecursiveOne_Fini {
     type Root = RecursiveOne;
     type Parent = RecursiveOne;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -118,6 +118,7 @@ impl KStruct for SwitchRepeatExprInvalid {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,6 +195,7 @@ impl KStruct for SwitchRepeatExprInvalid_One {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -235,6 +237,7 @@ impl KStruct for SwitchRepeatExprInvalid_Two {
     type Root = SwitchRepeatExprInvalid;
     type Parent = SwitchRepeatExprInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

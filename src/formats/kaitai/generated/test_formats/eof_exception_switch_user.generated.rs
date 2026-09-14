@@ -103,6 +103,7 @@ impl KStruct for EofExceptionSwitchUser {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -171,6 +172,7 @@ impl KStruct for EofExceptionSwitchUser_One {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -212,6 +214,7 @@ impl KStruct for EofExceptionSwitchUser_Two {
     type Root = EofExceptionSwitchUser;
     type Parent = EofExceptionSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

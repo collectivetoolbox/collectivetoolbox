@@ -70,6 +70,7 @@ impl KStruct for DebugEnumName {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -189,6 +190,7 @@ impl KStruct for DebugEnumName_TestSubtype {
     type Root = DebugEnumName;
     type Parent = DebugEnumName;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -207,6 +209,7 @@ impl KStruct for DebugEnumName_TestSubtype {
     }
 }
 impl DebugEnumName_TestSubtype {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn instance_field(
         &self
     ) -> KResult<Ref<'_, DebugEnumName_TestSubtype_InnerEnum2>> {

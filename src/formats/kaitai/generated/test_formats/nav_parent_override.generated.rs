@@ -70,6 +70,7 @@ impl KStruct for NavParentOverride {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,6 +126,7 @@ impl KStruct for NavParentOverride_Child {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -166,6 +168,7 @@ impl KStruct for NavParentOverride_Mediator {
     type Root = NavParentOverride;
     type Parent = NavParentOverride;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

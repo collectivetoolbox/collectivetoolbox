@@ -70,6 +70,7 @@ impl KStruct for TermBytes3 {
     type Root = TermBytes3;
     type Parent = TermBytes3;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

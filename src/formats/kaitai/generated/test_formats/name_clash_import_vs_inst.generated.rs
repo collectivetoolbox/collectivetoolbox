@@ -72,6 +72,7 @@ impl KStruct for NameClashImportVsInst {
     type Root = NameClashImportVsInst;
     type Parent = NameClashImportVsInst;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -88,6 +89,7 @@ impl KStruct for NameClashImportVsInst {
     }
 }
 impl NameClashImportVsInst {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn integers(
         &self
     ) -> KResult<Ref<'_, OptRc<Integers>>> {
@@ -102,6 +104,7 @@ impl NameClashImportVsInst {
         _io.seek(_pos)?;
         Ok(self.integers.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn std(
         &self
     ) -> KResult<Ref<'_, i32>> {

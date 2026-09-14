@@ -74,6 +74,7 @@ impl KStruct for SwitchCast {
     type Root = SwitchCast;
     type Parent = SwitchCast;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,6 +100,7 @@ impl KStruct for SwitchCast {
     }
 }
 impl SwitchCast {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn err_cast(
         &self
     ) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
@@ -109,6 +111,7 @@ impl SwitchCast {
         *self.err_cast.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*(self.opcodes().get(2_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.err_cast.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn first_obj(
         &self
     ) -> KResult<Ref<'_, OptRc<SwitchCast_Strval>>> {
@@ -119,6 +122,7 @@ impl SwitchCast {
         *self.first_obj.borrow_mut() = OptRc::<SwitchCast_Strval>::try_from(&*(self.opcodes().get(0_usize).ok_or(KError::CastError)?.body()).as_ref().ok_or(KError::CastError)?)?.clone();
         Ok(self.first_obj.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn second_val(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -154,6 +158,7 @@ impl KStruct for SwitchCast_Intval {
     type Root = SwitchCast;
     type Parent = SwitchCast_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -230,6 +235,7 @@ impl KStruct for SwitchCast_Opcode {
     type Root = SwitchCast;
     type Parent = SwitchCast;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -298,6 +304,7 @@ impl KStruct for SwitchCast_Strval {
     type Root = SwitchCast;
     type Parent = SwitchCast_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

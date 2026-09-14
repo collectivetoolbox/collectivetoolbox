@@ -68,6 +68,7 @@ impl KStruct for RepeatEosU4 {
     type Root = RepeatEosU4;
     type Parent = RepeatEosU4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

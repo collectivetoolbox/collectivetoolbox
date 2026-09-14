@@ -80,6 +80,7 @@ impl KStruct for ExprSizeofValueSized {
     type Root = ExprSizeofValueSized;
     type Parent = ExprSizeofValueSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -102,6 +103,7 @@ impl KStruct for ExprSizeofValueSized {
     }
 }
 impl ExprSizeofValueSized {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn self_sizeof(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -113,6 +115,7 @@ impl ExprSizeofValueSized {
         *self.self_sizeof.borrow_mut() = (14_i32).try_into()?;
         Ok(self.self_sizeof.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -124,6 +127,7 @@ impl ExprSizeofValueSized {
         *self.sizeof_block.borrow_mut() = (12_i32).try_into()?;
         Ok(self.sizeof_block.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_a(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -135,6 +139,7 @@ impl ExprSizeofValueSized {
         *self.sizeof_block_a.borrow_mut() = (1_i32).try_into()?;
         Ok(self.sizeof_block_a.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_b(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -146,6 +151,7 @@ impl ExprSizeofValueSized {
         *self.sizeof_block_b.borrow_mut() = (4_i32).try_into()?;
         Ok(self.sizeof_block_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn sizeof_block_c(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -193,6 +199,7 @@ impl KStruct for ExprSizeofValueSized_Block {
     type Root = ExprSizeofValueSized;
     type Parent = ExprSizeofValueSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

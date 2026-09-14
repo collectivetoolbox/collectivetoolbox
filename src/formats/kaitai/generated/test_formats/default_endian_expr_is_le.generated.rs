@@ -68,6 +68,7 @@ impl KStruct for DefaultEndianExprIsLe {
     type Root = DefaultEndianExprIsLe;
     type Parent = DefaultEndianExprIsLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for DefaultEndianExprIsLe_Doc {
     type Root = DefaultEndianExprIsLe;
     type Parent = DefaultEndianExprIsLe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -169,6 +171,7 @@ impl KStruct for DefaultEndianExprIsLe_Doc_MainObj {
     type Root = DefaultEndianExprIsLe;
     type Parent = DefaultEndianExprIsLe_Doc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

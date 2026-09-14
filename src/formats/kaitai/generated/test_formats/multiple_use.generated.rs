@@ -69,6 +69,7 @@ impl KStruct for MultipleUse {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for MultipleUse_Multi {
     type Root = MultipleUse;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -159,6 +161,7 @@ impl KStruct for MultipleUse_Type1 {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -202,6 +205,7 @@ impl KStruct for MultipleUse_Type2 {
     type Root = MultipleUse;
     type Parent = MultipleUse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -218,6 +222,7 @@ impl KStruct for MultipleUse_Type2 {
     }
 }
 impl MultipleUse_Type2 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn second_use(
         &self
     ) -> KResult<Ref<'_, OptRc<MultipleUse_Multi>>> {

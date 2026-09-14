@@ -71,6 +71,7 @@ impl KStruct for NavRootRecursive {
     type Root = NavRootRecursive;
     type Parent = NavRootRecursive;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -92,6 +93,7 @@ impl KStruct for NavRootRecursive {
     }
 }
 impl NavRootRecursive {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn root_value(
         &self
     ) -> KResult<Ref<'_, u8>> {

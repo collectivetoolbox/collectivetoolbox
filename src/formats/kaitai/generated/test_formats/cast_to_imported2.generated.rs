@@ -71,6 +71,7 @@ impl KStruct for CastToImported2 {
     type Root = CastToImported2;
     type Parent = CastToImported2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -97,6 +98,7 @@ impl CastToImported2 {
     }
 }
 impl CastToImported2 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn hw(
         &self
     ) -> KResult<Ref<'_, i32>> {

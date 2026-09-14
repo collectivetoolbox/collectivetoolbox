@@ -71,6 +71,7 @@ impl KStruct for InstanceIoUser {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,6 +142,7 @@ impl KStruct for InstanceIoUser_Entry {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -159,6 +161,7 @@ impl KStruct for InstanceIoUser_Entry {
     }
 }
 impl InstanceIoUser_Entry {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn name(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -203,6 +206,7 @@ impl KStruct for InstanceIoUser_StringsObj {
     type Root = InstanceIoUser;
     type Parent = InstanceIoUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

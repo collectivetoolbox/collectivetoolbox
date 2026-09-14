@@ -70,6 +70,7 @@ impl KStruct for IfStruct {
     type Root = IfStruct;
     type Parent = IfStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -127,6 +128,7 @@ impl KStruct for IfStruct_ArgStr {
     type Root = IfStruct;
     type Parent = IfStruct_Operation;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -175,6 +177,7 @@ impl KStruct for IfStruct_ArgTuple {
     type Root = IfStruct;
     type Parent = IfStruct_Operation;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -224,6 +227,7 @@ impl KStruct for IfStruct_Operation {
     type Root = IfStruct;
     type Parent = IfStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

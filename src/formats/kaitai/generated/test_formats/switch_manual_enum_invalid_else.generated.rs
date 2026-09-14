@@ -68,6 +68,7 @@ impl KStruct for SwitchManualEnumInvalidElse {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -167,6 +168,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -277,6 +279,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Defval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -293,6 +296,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Defval {
     }
 }
 impl SwitchManualEnumInvalidElse_Opcode_Defval {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn value(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -323,6 +327,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Intval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -364,6 +369,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Strval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

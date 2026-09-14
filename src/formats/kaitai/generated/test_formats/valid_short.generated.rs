@@ -78,6 +78,7 @@ impl KStruct for ValidShort {
     type Root = ValidShort;
     type Parent = ValidShort;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

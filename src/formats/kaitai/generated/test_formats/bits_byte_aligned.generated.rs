@@ -80,6 +80,7 @@ impl KStruct for BitsByteAligned {
     type Root = BitsByteAligned;
     type Parent = BitsByteAligned;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -201,6 +202,7 @@ impl KStruct for BitsByteAligned_Foo {
     type Root = BitsByteAligned;
     type Parent = BitsByteAligned;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

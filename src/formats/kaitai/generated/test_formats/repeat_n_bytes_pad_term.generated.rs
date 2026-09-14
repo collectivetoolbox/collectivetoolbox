@@ -68,6 +68,7 @@ impl KStruct for RepeatNBytesPadTerm {
     type Root = RepeatNBytesPadTerm;
     type Parent = RepeatNBytesPadTerm;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

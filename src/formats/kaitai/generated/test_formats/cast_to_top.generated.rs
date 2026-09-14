@@ -72,6 +72,7 @@ impl KStruct for CastToTop {
     type Root = CastToTop;
     type Parent = CastToTop;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for CastToTop {
     }
 }
 impl CastToTop {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn header(
         &self
     ) -> KResult<Ref<'_, OptRc<CastToTop>>> {
@@ -103,6 +105,7 @@ impl CastToTop {
         _io.seek(_pos)?;
         Ok(self.header.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn header_casted(
         &self
     ) -> KResult<Ref<'_, OptRc<CastToTop>>> {

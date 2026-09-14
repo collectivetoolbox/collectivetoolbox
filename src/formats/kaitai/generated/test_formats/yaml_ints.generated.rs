@@ -75,6 +75,7 @@ impl KStruct for YamlInts {
     type Root = YamlInts;
     type Parent = YamlInts;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +92,7 @@ impl KStruct for YamlInts {
     }
 }
 impl YamlInts {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn test_u4_dec(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -102,6 +104,7 @@ impl YamlInts {
         *self.test_u4_dec.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_dec.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn test_u4_hex(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -113,6 +116,7 @@ impl YamlInts {
         *self.test_u4_hex.borrow_mut() = (4294967295_i64).try_into()?;
         Ok(self.test_u4_hex.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn test_u8_dec(
         &self
     ) -> KResult<Ref<'_, u64>> {
@@ -124,6 +128,7 @@ impl YamlInts {
         *self.test_u8_dec.borrow_mut() = (18446744073709551615_i128).try_into()?;
         Ok(self.test_u8_dec.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn test_u8_hex(
         &self
     ) -> KResult<Ref<'_, u64>> {

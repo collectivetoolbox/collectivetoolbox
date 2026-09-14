@@ -476,3 +476,4 @@ Import/export/tests support columns meaning:
 2228682,458,ReiserFs,ReiserFS,filesystem,,,,,,,,,,,,
 2228683,459,Reiser4,Reiser4,filesystem,ReiserFs,,,,,,,,,,,
 2228684,460,Bcachefs,Bcachefs,filesystem,,,,,,,,,,,,
+2228685,461,Dcts,DcText short,document,,.dcts,,,,,,,,,"Like DcText, but Dcs are short by default. @123@ = short Dc; a = literal Unicode a; @l123@ = long Dc 123; @L123@ = local node; @u123a@ = U+123A",

@@ -68,6 +68,7 @@ impl KStruct for DefaultBigEndian {
     type Root = DefaultBigEndian;
     type Parent = DefaultBigEndian;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

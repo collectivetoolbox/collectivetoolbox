@@ -70,6 +70,7 @@ impl KStruct for PositionAbs {
     type Root = PositionAbs;
     type Parent = PositionAbs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,6 +88,7 @@ impl KStruct for PositionAbs {
     }
 }
 impl PositionAbs {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn index(
         &self
     ) -> KResult<Ref<'_, OptRc<PositionAbs_IndexObj>>> {
@@ -125,6 +127,7 @@ impl KStruct for PositionAbs_IndexObj {
     type Root = PositionAbs;
     type Parent = PositionAbs;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -68,6 +68,7 @@ impl KStruct for ZlibWithHeader78 {
     type Root = ZlibWithHeader78;
     type Parent = ZlibWithHeader78;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

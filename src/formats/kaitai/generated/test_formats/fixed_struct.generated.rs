@@ -69,6 +69,7 @@ impl KStruct for FixedStruct {
     type Root = FixedStruct;
     type Parent = FixedStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,6 +86,7 @@ impl KStruct for FixedStruct {
     }
 }
 impl FixedStruct {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn hdr(
         &self
     ) -> KResult<Ref<'_, OptRc<FixedStruct_Header>>> {
@@ -144,6 +146,7 @@ impl KStruct for FixedStruct_Header {
     type Root = FixedStruct;
     type Parent = FixedStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

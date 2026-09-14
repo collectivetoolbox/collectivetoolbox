@@ -68,6 +68,7 @@ impl KStruct for SwitchManualEnumInvalid {
     type Root = SwitchManualEnumInvalid;
     type Parent = SwitchManualEnumInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -152,6 +153,7 @@ impl KStruct for SwitchManualEnumInvalid_Opcode {
     type Root = SwitchManualEnumInvalid;
     type Parent = SwitchManualEnumInvalid;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -255,6 +257,7 @@ impl KStruct for SwitchManualEnumInvalid_Opcode_Intval {
     type Root = SwitchManualEnumInvalid;
     type Parent = SwitchManualEnumInvalid_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -296,6 +299,7 @@ impl KStruct for SwitchManualEnumInvalid_Opcode_Strval {
     type Root = SwitchManualEnumInvalid;
     type Parent = SwitchManualEnumInvalid_Opcode;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

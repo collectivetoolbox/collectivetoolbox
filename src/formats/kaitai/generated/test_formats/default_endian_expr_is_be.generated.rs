@@ -68,6 +68,7 @@ impl KStruct for DefaultEndianExprIsBe {
     type Root = DefaultEndianExprIsBe;
     type Parent = DefaultEndianExprIsBe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -118,6 +119,7 @@ impl KStruct for DefaultEndianExprIsBe_Doc {
     type Root = DefaultEndianExprIsBe;
     type Parent = DefaultEndianExprIsBe;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -173,6 +175,7 @@ impl KStruct for DefaultEndianExprIsBe_Doc_MainObj {
     type Root = DefaultEndianExprIsBe;
     type Parent = DefaultEndianExprIsBe_Doc;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -209,6 +212,7 @@ impl DefaultEndianExprIsBe_Doc_MainObj {
     }
 }
 impl DefaultEndianExprIsBe_Doc_MainObj {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_int(
         &self
     ) -> KResult<Ref<'_, u32>> {
@@ -223,6 +227,7 @@ impl DefaultEndianExprIsBe_Doc_MainObj {
         _io.seek(_pos)?;
         Ok(self.inst_int.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_sub(
         &self
     ) -> KResult<Ref<'_, OptRc<DefaultEndianExprIsBe_Doc_MainObj_SubMainObj>>> {
@@ -273,6 +278,7 @@ impl KStruct for DefaultEndianExprIsBe_Doc_MainObj_SubMainObj {
     type Root = DefaultEndianExprIsBe;
     type Parent = DefaultEndianExprIsBe_Doc_MainObj;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

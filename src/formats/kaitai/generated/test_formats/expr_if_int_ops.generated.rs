@@ -75,6 +75,7 @@ impl KStruct for ExprIfIntOps {
     type Root = ExprIfIntOps;
     type Parent = ExprIfIntOps;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -101,6 +102,7 @@ impl KStruct for ExprIfIntOps {
     }
 }
 impl ExprIfIntOps {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn bytes_sub_key(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -112,6 +114,7 @@ impl ExprIfIntOps {
         *self.bytes_sub_key.borrow_mut() = (*(self.bytes().get(usize::try_from(*self.key())?).ok_or(KError::CastError)?)).try_into()?;
         Ok(self.bytes_sub_key.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn items_sub_key(
         &self
     ) -> KResult<Ref<'_, i8>> {

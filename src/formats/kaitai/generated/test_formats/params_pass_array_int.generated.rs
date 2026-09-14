@@ -72,6 +72,7 @@ impl KStruct for ParamsPassArrayInt {
     type Root = ParamsPassArrayInt;
     type Parent = ParamsPassArrayInt;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -99,6 +100,7 @@ impl KStruct for ParamsPassArrayInt {
     }
 }
 impl ParamsPassArrayInt {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn ints_calc(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -144,6 +146,7 @@ impl KStruct for ParamsPassArrayInt_WantsInts {
     type Root = ParamsPassArrayInt;
     type Parent = ParamsPassArrayInt;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

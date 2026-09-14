@@ -70,6 +70,7 @@ impl KStruct for ValidFailRepeatInst {
     type Root = ValidFailRepeatInst;
     type Parent = ValidFailRepeatInst;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for ValidFailRepeatInst {
     }
 }
 impl ValidFailRepeatInst {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst(
         &self
     ) -> KResult<Ref<'_, Vec<u32>>> {

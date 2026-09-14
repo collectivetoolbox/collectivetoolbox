@@ -71,6 +71,7 @@ impl KStruct for JsSignedRightShift {
     type Root = JsSignedRightShift;
     type Parent = JsSignedRightShift;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -87,6 +88,7 @@ impl KStruct for JsSignedRightShift {
     }
 }
 impl JsSignedRightShift {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn should_be_40000000(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -98,6 +100,7 @@ impl JsSignedRightShift {
         *self.should_be_40000000.borrow_mut() = ((2147483648_u32).wrapping_shr(1_u32)).try_into()?;
         Ok(self.should_be_40000000.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn should_be_a00000(
         &self
     ) -> KResult<Ref<'_, i32>> {

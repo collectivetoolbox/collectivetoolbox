@@ -72,6 +72,7 @@ impl KStruct for Expr0 {
     type Root = Expr0;
     type Parent = Expr0;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for Expr0 {
     }
 }
 impl Expr0 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn must_be_abc123(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -100,6 +102,7 @@ impl Expr0 {
         *self.must_be_abc123.borrow_mut() = format!("{}{}", "abc", "123").to_string();
         Ok(self.must_be_abc123.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn must_be_f7(
         &self
     ) -> KResult<Ref<'_, i32>> {

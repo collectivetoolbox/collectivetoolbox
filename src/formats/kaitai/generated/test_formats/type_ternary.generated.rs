@@ -77,6 +77,7 @@ impl KStruct for TypeTernary {
     type Root = TypeTernary;
     type Parent = TypeTernary;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -106,6 +107,7 @@ impl KStruct for TypeTernary {
     }
 }
 impl TypeTernary {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn dif(
         &self
     ) -> KResult<Ref<'_, OptRc<TypeTernary_Dummy>>> {
@@ -116,6 +118,7 @@ impl TypeTernary {
         *self.dif.borrow_mut() = if !(*self.is_hack()?) { self.dif_wo_hack().clone() } else { self.dif_with_hack().clone() }.clone();
         Ok(self.dif.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn dif_value(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -127,6 +130,7 @@ impl TypeTernary {
         *self.dif_value.borrow_mut() = (*self.dif()?.value()).try_into()?;
         Ok(self.dif_value.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn is_hack(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -177,6 +181,7 @@ impl KStruct for TypeTernary_Dummy {
     type Root = TypeTernary;
     type Parent = TypeTernary;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

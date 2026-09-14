@@ -73,6 +73,7 @@ impl KStruct for EnumOfValueInst {
     type Root = EnumOfValueInst;
     type Parent = EnumOfValueInst;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +92,7 @@ impl KStruct for EnumOfValueInst {
     }
 }
 impl EnumOfValueInst {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_3(
         &self
     ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {
@@ -102,6 +104,7 @@ impl EnumOfValueInst {
         *self.pet_3.borrow_mut() = i64::from(if *self.pet_1() == EnumOfValueInst_Animal::Cat { 4_i32 } else { 12_i32 }).try_into()?;
         Ok(self.pet_3.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn pet_4(
         &self
     ) -> KResult<Ref<'_, EnumOfValueInst_Animal>> {

@@ -71,6 +71,7 @@ impl KStruct for ExprBytesNonLiteral {
     type Root = ExprBytesNonLiteral;
     type Parent = ExprBytesNonLiteral;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for ExprBytesNonLiteral {
     }
 }
 impl ExprBytesNonLiteral {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn calc_bytes(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {

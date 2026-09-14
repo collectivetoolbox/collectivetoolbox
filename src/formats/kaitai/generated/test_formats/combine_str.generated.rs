@@ -96,6 +96,7 @@ impl KStruct for CombineStr {
     type Root = CombineStr;
     type Parent = CombineStr;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,6 +116,7 @@ impl KStruct for CombineStr {
     }
 }
 impl CombineStr {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn calc_bytes(
         &self
     ) -> KResult<Ref<'_, Vec<i32>>> {
@@ -126,6 +128,7 @@ impl CombineStr {
         *self.calc_bytes.borrow_mut() = vec![98_i32, 97_i32, 122_i32];
         Ok(self.calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn calc_or_calc_bytes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -137,6 +140,7 @@ impl CombineStr {
         *self.calc_or_calc_bytes.borrow_mut() = if false { self.str_calc()?.to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
         Ok(self.calc_or_calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn eos_or_calc(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -148,6 +152,7 @@ impl CombineStr {
         *self.eos_or_calc.borrow_mut() = if false { self.str_eos().to_string() } else { self.str_calc()?.to_string() }.to_string();
         Ok(self.eos_or_calc.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn eos_or_calc_bytes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -159,6 +164,7 @@ impl CombineStr {
         *self.eos_or_calc_bytes.borrow_mut() = if true { self.str_eos().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
         Ok(self.eos_or_calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn limit_or_calc(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -170,6 +176,7 @@ impl CombineStr {
         *self.limit_or_calc.borrow_mut() = if false { self.str_limit().to_string() } else { self.str_calc()?.to_string() }.to_string();
         Ok(self.limit_or_calc.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn limit_or_calc_bytes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -181,6 +188,7 @@ impl CombineStr {
         *self.limit_or_calc_bytes.borrow_mut() = if true { self.str_limit().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
         Ok(self.limit_or_calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn limit_or_eos(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -192,6 +200,7 @@ impl CombineStr {
         *self.limit_or_eos.borrow_mut() = if true { self.str_limit().to_string() } else { self.str_eos().to_string() }.to_string();
         Ok(self.limit_or_eos.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str_calc(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -203,6 +212,7 @@ impl CombineStr {
         *self.str_calc.borrow_mut() = "bar".to_string();
         Ok(self.str_calc.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn str_calc_bytes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -214,6 +224,7 @@ impl CombineStr {
         *self.str_calc_bytes.borrow_mut() = bytes_to_str(&*self.calc_bytes()?, "ASCII")?.to_string();
         Ok(self.str_calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn term_or_calc(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -225,6 +236,7 @@ impl CombineStr {
         *self.term_or_calc.borrow_mut() = if true { self.str_term().to_string() } else { self.str_calc()?.to_string() }.to_string();
         Ok(self.term_or_calc.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn term_or_calc_bytes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -236,6 +248,7 @@ impl CombineStr {
         *self.term_or_calc_bytes.borrow_mut() = if false { self.str_term().to_string() } else { self.str_calc_bytes()?.to_string() }.to_string();
         Ok(self.term_or_calc_bytes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn term_or_eos(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -247,6 +260,7 @@ impl CombineStr {
         *self.term_or_eos.borrow_mut() = if false { self.str_term().to_string() } else { self.str_eos().to_string() }.to_string();
         Ok(self.term_or_eos.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn term_or_limit(
         &self
     ) -> KResult<Ref<'_, String>> {

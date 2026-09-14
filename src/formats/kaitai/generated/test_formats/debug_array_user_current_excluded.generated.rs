@@ -68,6 +68,7 @@ impl KStruct for DebugArrayUserCurrentExcluded {
     type Root = DebugArrayUserCurrentExcluded;
     type Parent = DebugArrayUserCurrentExcluded;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,6 +115,7 @@ impl KStruct for DebugArrayUserCurrentExcluded_Cat {
     type Root = DebugArrayUserCurrentExcluded;
     type Parent = DebugArrayUserCurrentExcluded;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

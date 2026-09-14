@@ -72,6 +72,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate {
     type Root = ProcessRepeatUsertypeDynargRotate;
     type Parent = ProcessRepeatUsertypeDynargRotate;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -152,6 +153,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate_Block {
     type Root = ProcessRepeatUsertypeDynargRotate;
     type Parent = ProcessRepeatUsertypeDynargRotate;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -203,6 +205,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
     type Root = ProcessRepeatUsertypeDynargRotate;
     type Parent = ProcessRepeatUsertypeDynargRotate;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -220,6 +223,7 @@ impl KStruct for ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
     }
 }
 impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_rol_0_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -235,6 +239,7 @@ impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_rol_0_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_rol_1_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -250,6 +255,7 @@ impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_rol_1_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_ror_0_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -265,6 +271,7 @@ impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_ror_0_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_ror_1_b(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -280,6 +287,7 @@ impl ProcessRepeatUsertypeDynargRotate_BlocksBWrapper {
         io.seek(_pos)?;
         Ok(self.blocks_ror_1_b.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn blocks_ror_2_b(
         &self
     ) -> KResult<Ref<'_, u8>> {

@@ -71,6 +71,7 @@ impl KStruct for IntegersMinMax {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,6 +141,7 @@ impl KStruct for IntegersMinMax_Signed {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -223,6 +225,7 @@ impl KStruct for IntegersMinMax_Unsigned {
     type Root = IntegersMinMax;
     type Parent = IntegersMinMax;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

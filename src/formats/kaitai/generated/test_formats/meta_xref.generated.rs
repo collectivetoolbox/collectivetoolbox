@@ -67,6 +67,7 @@ impl KStruct for MetaXref {
     type Root = MetaXref;
     type Parent = MetaXref;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

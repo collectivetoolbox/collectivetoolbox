@@ -73,6 +73,7 @@ impl KStruct for ProcessTermStruct {
     type Root = ProcessTermStruct;
     type Parent = ProcessTermStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -156,6 +157,7 @@ impl KStruct for ProcessTermStruct_BytesWrapper {
     type Root = ProcessTermStruct;
     type Parent = ProcessTermStruct;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

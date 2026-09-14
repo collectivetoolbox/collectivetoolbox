@@ -72,6 +72,7 @@ impl KStruct for CombineBool {
     type Root = CombineBool;
     type Parent = CombineBool;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for CombineBool {
     }
 }
 impl CombineBool {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn bool_calc(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -100,6 +102,7 @@ impl CombineBool {
         *self.bool_calc.borrow_mut() = (false).try_into()?;
         Ok(self.bool_calc.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn bool_calc_bit(
         &self
     ) -> KResult<Ref<'_, bool>> {

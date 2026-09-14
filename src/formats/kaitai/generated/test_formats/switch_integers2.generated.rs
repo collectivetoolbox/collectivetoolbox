@@ -98,6 +98,7 @@ impl From<u64> for SwitchIntegers2_Len {
 }
 impl TryFrom<&SwitchIntegers2_Len> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(i64::try_from(*v)?),
@@ -109,6 +110,7 @@ impl TryFrom<&SwitchIntegers2_Len> for i64 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u16 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u16::try_from(*v)?),
@@ -120,6 +122,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u16 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u32 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u32::try_from(*v)?),
@@ -131,6 +134,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u32 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u64::try_from(*v)?),
@@ -142,6 +146,7 @@ impl TryFrom<&SwitchIntegers2_Len> for u64 {
 }
 impl TryFrom<&SwitchIntegers2_Len> for u8 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchIntegers2_Len) -> Result<Self, Self::Error> {
         match e {
             SwitchIntegers2_Len::U1(v) => Ok(u8::try_from(*v)?),
@@ -167,6 +172,7 @@ impl KStruct for SwitchIntegers2 {
     type Root = SwitchIntegers2;
     type Parent = SwitchIntegers2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -203,6 +209,7 @@ impl KStruct for SwitchIntegers2 {
     }
 }
 impl SwitchIntegers2 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn len_mod_str(
         &self
     ) -> KResult<Ref<'_, String>> {

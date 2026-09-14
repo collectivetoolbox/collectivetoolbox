@@ -73,6 +73,7 @@ impl KStruct for ExprToITrailing {
     type Root = ExprToITrailing;
     type Parent = ExprToITrailing;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for ExprToITrailing {
     }
 }
 impl ExprToITrailing {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_garbage(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -100,6 +102,7 @@ impl ExprToITrailing {
         *self.to_i_garbage.borrow_mut() = ("123_.^".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_garbage.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r10(
         &self
     ) -> KResult<Ref<'_, i32>> {
@@ -111,6 +114,7 @@ impl ExprToITrailing {
         *self.to_i_r10.borrow_mut() = ("9173abc".parse::<i32>().map_err(|_| KError::CastError)?).try_into()?;
         Ok(self.to_i_r10.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn to_i_r16(
         &self
     ) -> KResult<Ref<'_, i32>> {

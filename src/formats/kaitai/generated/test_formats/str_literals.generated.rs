@@ -77,6 +77,7 @@ impl KStruct for StrLiterals {
     type Root = StrLiterals;
     type Parent = StrLiterals;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -93,6 +94,7 @@ impl KStruct for StrLiterals {
     }
 }
 impl StrLiterals {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn backslashes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -104,6 +106,7 @@ impl StrLiterals {
         *self.backslashes.borrow_mut() = "\\\\134".to_string();
         Ok(self.backslashes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn complex_str(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -115,6 +118,7 @@ impl StrLiterals {
         *self.complex_str.borrow_mut() = "\012\u{7}\u{8}\n\r\t\u{b}\u{c}e757\n$☻".to_string();
         Ok(self.complex_str.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn double_quotes(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -126,6 +130,7 @@ impl StrLiterals {
         *self.double_quotes.borrow_mut() = "\"\"42".to_string();
         Ok(self.double_quotes.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn octal_eatup(
         &self
     ) -> KResult<Ref<'_, String>> {
@@ -137,6 +142,7 @@ impl StrLiterals {
         *self.octal_eatup.borrow_mut() = "\06262".to_string();
         Ok(self.octal_eatup.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn octal_eatup2(
         &self
     ) -> KResult<Ref<'_, String>> {

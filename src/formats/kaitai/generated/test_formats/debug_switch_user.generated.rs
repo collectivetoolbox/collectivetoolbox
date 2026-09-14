@@ -103,6 +103,7 @@ impl KStruct for DebugSwitchUser {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -171,6 +172,7 @@ impl KStruct for DebugSwitchUser_One {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -212,6 +214,7 @@ impl KStruct for DebugSwitchUser_Two {
     type Root = DebugSwitchUser;
     type Parent = DebugSwitchUser;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

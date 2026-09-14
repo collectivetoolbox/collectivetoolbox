@@ -70,6 +70,7 @@ impl KStruct for NavParent2 {
     type Root = NavParent2;
     type Parent = NavParent2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -156,6 +157,7 @@ impl KStruct for NavParent2_Tag {
     type Root = NavParent2;
     type Parent = NavParent2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -175,6 +177,7 @@ impl KStruct for NavParent2_Tag {
     }
 }
 impl NavParent2_Tag {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn tag_content(
         &self
     ) -> KResult<Ref<'_, Option<NavParent2_Tag_TagContent>>> {
@@ -230,6 +233,7 @@ impl KStruct for NavParent2_Tag_TagChar {
     type Root = NavParent2;
     type Parent = NavParent2_Tag;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

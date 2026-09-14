@@ -75,6 +75,7 @@ impl KStruct for TermStruct4 {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -167,6 +168,7 @@ impl KStruct for TermStruct4_BytesWrapper {
     type Root = TermStruct4;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -209,6 +211,7 @@ impl KStruct for TermStruct4_S1Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -260,6 +263,7 @@ impl KStruct for TermStruct4_S2Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -311,6 +315,7 @@ impl KStruct for TermStruct4_S3Type {
     type Root = TermStruct4;
     type Parent = TermStruct4;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

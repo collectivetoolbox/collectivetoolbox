@@ -9604,5 +9604,26 @@
     "format": {},
     "source_file": "filesystem.csv",
     "line_number": 45
+  },
+  {
+    "dc_id": 2228685,
+    "short_id": 461,
+    "ident": "Dcts",
+    "name": "DcText short",
+    "category": "format_document",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Like DcText, but Dcs are short by default. @123@ = short Dc; a = literal Unicode a; @l123@ = long Dc 123; @L123@ = local node; @u123a@ = U+123A",
+    "format": {
+      "extensions": ".dcts"
+    },
+    "source_file": "document.csv",
+    "line_number": 66
   }
 ]

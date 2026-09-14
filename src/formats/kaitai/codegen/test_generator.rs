@@ -325,11 +325,11 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 return format!("{num}_f64");
             }
 
+            let clean = trimmed.replace('_', "");
             if trimmed == "null" {
                 "None".to_string()
-            } else if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
-                let clean = trimmed.replace('_', "");
-                if let Ok(val) = u128::from_str_radix(&clean[2..], 16) {
+            } else if let Some(hex_str) = clean.strip_prefix("0x").or_else(|| clean.strip_prefix("0X")) {
+                if let Ok(val) = u128::from_str_radix(hex_str, 16) {
                     if val > u128::from(u64::MAX) {
                         format!("{val}_u128")
                     } else if val > u128::from(u32::MAX) {
@@ -340,16 +340,14 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 } else {
                     trimmed.to_string()
                 }
-            } else if trimmed.starts_with("-0x") || trimmed.starts_with("-0X") {
-                let clean = trimmed.replace('_', "");
-                if let Ok(val) = i128::from_str_radix(&clean[3..], 16) {
+            } else if let Some(hex_str) = clean.strip_prefix("-0x").or_else(|| clean.strip_prefix("-0X")) {
+                if let Ok(val) = i128::from_str_radix(hex_str, 16) {
                     format!("-{val}")
                 } else {
                     trimmed.to_string()
                 }
-            } else if trimmed.starts_with("0b") || trimmed.starts_with("0B") {
-                let clean = trimmed.replace('_', "");
-                if let Ok(val) = u128::from_str_radix(&clean[2..], 2) {
+            } else if let Some(bin_str) = clean.strip_prefix("0b").or_else(|| clean.strip_prefix("0B")) {
+                if let Ok(val) = u128::from_str_radix(bin_str, 2) {
                     if val > u128::from(u64::MAX) {
                         format!("{val}_u128")
                     } else if val > u128::from(u32::MAX) {
@@ -360,9 +358,8 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 } else {
                     trimmed.to_string()
                 }
-            } else if trimmed.starts_with("0o") || trimmed.starts_with("0O") {
-                let clean = trimmed.replace('_', "");
-                if let Ok(val) = u128::from_str_radix(&clean[2..], 8) {
+            } else if let Some(oct_str) = clean.strip_prefix("0o").or_else(|| clean.strip_prefix("0O")) {
+                if let Ok(val) = u128::from_str_radix(oct_str, 8) {
                     format!("{val}")
                 } else {
                     trimmed.to_string()
@@ -422,10 +419,15 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                 } else {
                     s.to_string()
                 }
-            } else if (trimmed.starts_with('"') && trimmed.ends_with('"'))
-                || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+            } else if let Some(unquoted) = trimmed
+                .strip_prefix('"')
+                .and_then(|t| t.strip_suffix('"'))
+                .or_else(|| {
+                    trimmed
+                        .strip_prefix('\'')
+                        .and_then(|t| t.strip_suffix('\''))
+                })
             {
-                let unquoted = &trimmed[1..trimmed.len().saturating_sub(1)];
                 let rust_str = unquoted.replace("\\u0000", "\\0");
                 format!("\"{rust_str}\"")
             } else {

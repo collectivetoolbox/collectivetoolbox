@@ -69,6 +69,7 @@ impl KStruct for InstanceInSized {
     type Root = InstanceInSized;
     type Parent = InstanceInSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,6 +122,7 @@ impl KStruct for InstanceInSized_Bar {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -138,6 +140,7 @@ impl KStruct for InstanceInSized_Bar {
     }
 }
 impl InstanceInSized_Bar {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -178,6 +181,7 @@ impl KStruct for InstanceInSized_Baz {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -195,6 +199,7 @@ impl KStruct for InstanceInSized_Baz {
     }
 }
 impl InstanceInSized_Baz {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -237,6 +242,7 @@ impl KStruct for InstanceInSized_Qux {
     type Root = InstanceInSized;
     type Parent = InstanceInSized_Wrapper;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -256,6 +262,7 @@ impl KStruct for InstanceInSized_Qux {
     }
 }
 impl InstanceInSized_Qux {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_invoked(
         &self
     ) -> KResult<Ref<'_, u8>> {
@@ -270,6 +277,7 @@ impl InstanceInSized_Qux {
         _io.seek(_pos)?;
         Ok(self.inst_invoked.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_unused_by_seq(
         &self
     ) -> KResult<Ref<'_, Vec<u8>>> {
@@ -315,6 +323,7 @@ impl KStruct for InstanceInSized_Wrapper {
     type Root = InstanceInSized;
     type Parent = InstanceInSized;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -338,6 +347,7 @@ impl KStruct for InstanceInSized_Wrapper {
     }
 }
 impl InstanceInSized_Wrapper {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_in_stream(
         &self
     ) -> KResult<Ref<'_, OptRc<InstanceInSized_Baz>>> {
@@ -352,6 +362,7 @@ impl InstanceInSized_Wrapper {
         _io.seek(_pos)?;
         Ok(self.inst_in_stream.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn inst_sized(
         &self
     ) -> KResult<Ref<'_, OptRc<InstanceInSized_Qux>>> {

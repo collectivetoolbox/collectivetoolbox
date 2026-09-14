@@ -68,6 +68,7 @@ impl KStruct for SwitchManualIntSize {
     type Root = SwitchManualIntSize;
     type Parent = SwitchManualIntSize;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -168,6 +169,7 @@ impl KStruct for SwitchManualIntSize_Chunk {
     type Root = SwitchManualIntSize;
     type Parent = SwitchManualIntSize;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -244,6 +246,7 @@ impl KStruct for SwitchManualIntSize_Chunk_ChunkDir {
     type Root = SwitchManualIntSize;
     type Parent = SwitchManualIntSize_Chunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -293,6 +296,7 @@ impl KStruct for SwitchManualIntSize_Chunk_ChunkMeta {
     type Root = SwitchManualIntSize;
     type Parent = SwitchManualIntSize_Chunk;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

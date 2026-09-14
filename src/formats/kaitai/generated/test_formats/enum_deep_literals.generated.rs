@@ -73,6 +73,7 @@ impl KStruct for EnumDeepLiterals {
     type Root = EnumDeepLiterals;
     type Parent = EnumDeepLiterals;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +92,7 @@ impl KStruct for EnumDeepLiterals {
     }
 }
 impl EnumDeepLiterals {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn is_pet_1_ok(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -102,6 +104,7 @@ impl EnumDeepLiterals {
         *self.is_pet_1_ok.borrow_mut() = (*self.pet_1() == EnumDeepLiterals_Container1_Animal::Cat).try_into()?;
         Ok(self.is_pet_1_ok.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn is_pet_2_ok(
         &self
     ) -> KResult<Ref<'_, bool>> {
@@ -141,6 +144,7 @@ impl KStruct for EnumDeepLiterals_Container1 {
     type Root = EnumDeepLiterals;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,6 +214,7 @@ impl KStruct for EnumDeepLiterals_Container1_Container2 {
     type Root = EnumDeepLiterals;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

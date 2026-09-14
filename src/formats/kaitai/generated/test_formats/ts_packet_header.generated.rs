@@ -80,6 +80,7 @@ impl KStruct for TsPacketHeader {
     type Root = TsPacketHeader;
     type Parent = TsPacketHeader;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -69,6 +69,7 @@ impl KStruct for NestedTypes2 {
     type Root = NestedTypes2;
     type Parent = NestedTypes2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,6 +121,7 @@ impl KStruct for NestedTypes2_SubtypeA {
     type Root = NestedTypes2;
     type Parent = NestedTypes2;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -179,6 +181,7 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC {
     type Root = NestedTypes2;
     type Parent = NestedTypes2_SubtypeA;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -241,6 +244,7 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeC_SubtypeD {
     type Root = NestedTypes2;
     type Parent = NestedTypes2_SubtypeA_SubtypeC;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -282,6 +286,7 @@ impl KStruct for NestedTypes2_SubtypeA_SubtypeCc {
     type Root = NestedTypes2;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -323,6 +328,7 @@ impl KStruct for NestedTypes2_SubtypeB {
     type Root = NestedTypes2;
     type Parent = KStructUnit;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

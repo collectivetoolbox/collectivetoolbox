@@ -72,6 +72,7 @@ impl KStruct for ExprIoEofBits {
     type Root = ExprIoEofBits;
     type Parent = ExprIoEofBits;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

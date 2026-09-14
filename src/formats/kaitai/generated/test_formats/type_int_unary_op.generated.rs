@@ -73,6 +73,7 @@ impl KStruct for TypeIntUnaryOp {
     type Root = TypeIntUnaryOp;
     type Parent = TypeIntUnaryOp;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -91,6 +92,7 @@ impl KStruct for TypeIntUnaryOp {
     }
 }
 impl TypeIntUnaryOp {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unary_s2(
         &self
     ) -> KResult<Ref<'_, i16>> {
@@ -102,6 +104,7 @@ impl TypeIntUnaryOp {
         *self.unary_s2.borrow_mut() = ((0_i32).saturating_sub(to_i32(*self.value_s2()))).try_into()?;
         Ok(self.unary_s2.borrow())
     }
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn unary_s8(
         &self
     ) -> KResult<Ref<'_, i64>> {

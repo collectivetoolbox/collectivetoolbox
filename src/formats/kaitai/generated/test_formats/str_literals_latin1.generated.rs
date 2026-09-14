@@ -71,6 +71,7 @@ impl KStruct for StrLiteralsLatin1 {
     type Root = StrLiteralsLatin1;
     type Parent = StrLiteralsLatin1;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -89,6 +90,7 @@ impl KStruct for StrLiteralsLatin1 {
     }
 }
 impl StrLiteralsLatin1 {
+    #[allow(clippy::approx_constant, reason = "Kaitai format specification float literal")]
     pub fn parsed_eq_literal(
         &self
     ) -> KResult<Ref<'_, bool>> {

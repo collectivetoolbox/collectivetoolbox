@@ -68,6 +68,7 @@ impl KStruct for ValidFailAnyofInt {
     type Root = ValidFailAnyofInt;
     type Parent = ValidFailAnyofInt;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

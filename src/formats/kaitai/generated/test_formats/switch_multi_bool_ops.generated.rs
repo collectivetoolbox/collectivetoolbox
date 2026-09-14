@@ -68,6 +68,7 @@ impl KStruct for SwitchMultiBoolOps {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -143,6 +144,7 @@ impl From<u64> for SwitchMultiBoolOps_Opcode_Body {
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for i64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(i64::try_from(*v)?),
@@ -154,6 +156,7 @@ impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for i64 {
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u16 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u16::try_from(*v)?),
@@ -165,6 +168,7 @@ impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u16 {
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u32 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u32::try_from(*v)?),
@@ -176,6 +180,7 @@ impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u32 {
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u64 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u64::try_from(*v)?),
@@ -187,6 +192,7 @@ impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u64 {
 }
 impl TryFrom<&SwitchMultiBoolOps_Opcode_Body> for u8 {
     type Error = KError;
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic TryFrom implementation over varied enum variant types")]
     fn try_from(e: &SwitchMultiBoolOps_Opcode_Body) -> Result<Self, Self::Error> {
         match e {
             SwitchMultiBoolOps_Opcode_Body::U1(v) => Ok(u8::try_from(*v)?),
@@ -212,6 +218,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

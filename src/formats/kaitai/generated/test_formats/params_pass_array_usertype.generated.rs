@@ -69,6 +69,7 @@ impl KStruct for ParamsPassArrayUsertype {
     type Root = ParamsPassArrayUsertype;
     type Parent = ParamsPassArrayUsertype;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -123,6 +124,7 @@ impl KStruct for ParamsPassArrayUsertype_Block {
     type Root = ParamsPassArrayUsertype;
     type Parent = ParamsPassArrayUsertype;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -166,6 +168,7 @@ impl KStruct for ParamsPassArrayUsertype_ParamType {
     type Root = ParamsPassArrayUsertype;
     type Parent = ParamsPassArrayUsertype;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

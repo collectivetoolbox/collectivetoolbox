@@ -70,6 +70,7 @@ impl KStruct for RepeatUntilComplex {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -157,6 +158,7 @@ impl KStruct for RepeatUntilComplex_TypeU1 {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -209,6 +211,7 @@ impl KStruct for RepeatUntilComplex_TypeU2 {
     type Root = RepeatUntilComplex;
     type Parent = RepeatUntilComplex;
 
+    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
