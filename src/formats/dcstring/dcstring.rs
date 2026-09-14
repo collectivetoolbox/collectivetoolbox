@@ -17,8 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Document String (`DcString`, `DcStr`), Document Character (`DcChar`), and
-//! related Document Text formats (`DcText`, `DcList`, `DcUtf`).
+//! Document Character String (`DcString`, `DcStr`), Document Character (`DcChar`), and
+//! related Document Character Text formats (`DcText`, `DcList`, `DcUtf`).
 
 #[expect(
     unused_imports,
