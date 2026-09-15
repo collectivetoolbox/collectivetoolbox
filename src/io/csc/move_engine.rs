@@ -276,3 +276,150 @@ fn verify_source_identity(source: &Path, expected: &FileEntity) -> Result<()> {
     }
     Ok(())
 }
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{MvArgs};
+    use crate::move_engine::run_mv;
+    use ctb_utilities::cli::ToolResult;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_mv_same_filesystem() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("mv_src");
+        let dest = temp.path().join("mv_dest");
+        fs::create_dir_all(&src).expect("create src dir");
+
+        let file_path = src.join("move_me.txt");
+        fs::write(&file_path, b"Move this file atomically").expect("write file");
+
+        let target_file = dest.join("move_me.txt");
+        let args = MvArgs {
+            paths: vec![file_path.clone(), target_file.clone()],
+            verbose: true,
+            progress: false,
+            no_progress: true,
+            verify_after: true,
+            no_verify_after: false,
+            best_effort_metadata: false,
+            allow_unknown_fs: false,
+            force: false,
+            dry_run: false,
+        };
+
+        let res = run_mv(args).expect("run mv");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Items renamed (same filesystem): 1"));
+                assert!(out.contains("Move completed successfully"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(!file_path.exists(), "Source file should no longer exist");
+        assert!(target_file.exists(), "Destination file should exist");
+        let content = fs::read(&target_file).expect("read dest");
+        assert_eq!(content, b"Move this file atomically");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_directory_tree() {
+        let temp = tempdir().expect("create tempdir");
+        let src_dir = temp.path().join("mv_dir_src");
+        let dest_dir = temp.path().join("mv_dir_dest");
+        fs::create_dir_all(src_dir.join("subdir")).expect("create src tree");
+
+        fs::write(src_dir.join("file1.txt"), b"Content 1").expect("write file1");
+        fs::write(src_dir.join("subdir").join("file2.txt"), b"Content 2").expect("write file2");
+
+        let args = MvArgs {
+            paths: vec![src_dir.clone(), dest_dir.clone()],
+            verbose: true,
+            progress: false,
+            no_progress: true,
+            verify_after: true,
+            no_verify_after: false,
+            best_effort_metadata: false,
+            allow_unknown_fs: false,
+            force: false,
+            dry_run: false,
+        };
+
+        let res = run_mv(args).expect("run mv on dir");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Move completed successfully"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(!src_dir.exists(), "Source directory should no longer exist");
+        assert!(dest_dir.join("file1.txt").exists());
+        assert!(dest_dir.join("subdir").join("file2.txt").exists());
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_cleanup_retains_uncopied_entries() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        fs::write(source.join("new-data"), b"not copied").unwrap();
+        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        ctb_io::file::apply_entity_metadata(&destination, None, &entity.metadata, false, true, true).unwrap();
+        let entries = vec![(source.clone(), destination, entity)];
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert_eq!(fs::read(source.join("new-data")).unwrap(), b"not copied");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_cleanup_retains_changed_source() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::write(&source, b"original").unwrap();
+        let entity = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        fs::copy(&source, &destination).unwrap();
+        fs::write(&source, b"new data").unwrap();
+        let entries = vec![(source.clone(), destination, entity)];
+        assert!(crate::move_engine::remove_copied_sources(&entries, &source, false).is_err());
+        assert_eq!(fs::read(source).unwrap(), b"new data");
+    }
+
+    #[crate::ctb_test]
+    fn test_mv_contents_fallback() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::create_dir_all(source.join("sub")).unwrap();
+        fs::write(source.join("sub/data"), b"move payload").unwrap();
+        let result = run_mv(MvArgs {
+            paths: vec![source.join(""), destination.clone()],
+            verbose: false, progress: false, no_progress: true,
+            verify_after: false, no_verify_after: true,
+            best_effort_metadata: false, allow_unknown_fs: false, force: false, dry_run: false,
+        });
+        if result.is_ok() {
+            assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");
+            assert_eq!(fs::read_dir(source).unwrap().count(), 0);
+        } else {
+            assert_eq!(fs::read(source.join("sub/data")).unwrap(), b"move payload");
+        }
+    }
+}
+

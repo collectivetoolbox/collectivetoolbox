@@ -1080,3 +1080,606 @@ fn read_opt_timestamp(r: &mut impl Read) -> Result<(Option<i64>, Option<u32>)> {
         Ok((None, None))
     }
 }
+#[cfg(test)]
+pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
+    for entry in fs::read_dir(state_dir).expect("read state dir") {
+        let entry = entry.expect("entry");
+        if entry.path().extension().and_then(|e| e.to_str()) == Some("cscjournal") {
+            return entry.path();
+        }
+    }
+    panic!("No .cscjournal found in {}", state_dir.display());
+}
+
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{default_test_args};
+    use crate::cli::run_csc;
+    use crate::journal::find_cscjournal;
+    use std::fs;
+    use std::path::{PathBuf};
+    use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_journal_entity_format_and_checksum_resilience() {
+        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+        use std::io::Write;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+
+        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+
+        let read_time_expected = std::time::SystemTime::UNIX_EPOCH
+            .checked_add(std::time::Duration::from_secs(1_700_000_000))
+            .expect("valid timestamp");
+
+        let mut file_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("hello.txt"),
+                enclosing_path: Some(src.clone()),
+                raw_relative_path: b"hello.txt".to_vec(),
+                raw_filename: b"hello.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 100,
+                    mtime_sec: 1_700_000_001,
+                    mtime_nsec: 200,
+                    ctime_sec: 1_700_000_002,
+                    ctime_nsec: 300,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: Some(read_time_expected),
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 42,
+                sha256: [0xAB; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        let link_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("link.txt"),
+                enclosing_path: None,
+                raw_relative_path: b"link.txt".to_vec(),
+                raw_filename: b"link.txt".to_vec(),
+                nlink: 2,
+                hardlink_group: Some(12345),
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Hardlink {
+                target_relative_path: b"hello.txt".to_vec(),
+            },
+            streams: Vec::new(),
+        };
+
+        file_entity.metadata.timestamps.birthtime_sec = Some(-123);
+        file_entity.metadata.timestamps.birthtime_nsec = Some(987_654_321);
+        file_entity.metadata.native = Some(ctb_io::file::metadata::NativeMetadata {
+            source_os: ctb_io::file::OsFamily::Darwin,
+            values: std::collections::BTreeMap::from([
+                ("opaque".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Bytes(vec![0, 255, 128])),
+                ("unsigned".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Unsigned(u64::MAX)),
+                ("signed".to_owned(), ctb_io::file::metadata::NativeMetadataValue::Signed(i64::MIN)),
+            ]),
+        });
+        file_entity.metadata.platform_raw_flags = Some(ctb_io::file::PlatformRawFlags {
+            source_os: ctb_io::file::OsFamily::Darwin,
+            raw_value: u64::MAX,
+            has_unparsed_flags: true,
+        });
+        if let FileEntityKind::Regular { extents, .. } = &mut file_entity.kind {
+            extents.push(ctb_io::file::Extent::Data { offset: 0, length: 42 });
+        }
+        let mut stream_entity = file_entity.clone();
+        stream_entity.streams.clear();
+        file_entity.streams.push(ctb_io::file::AttachedStream {
+            name: Some(ctb_io::file::StreamName::from_bytes(b"user.raw\xff")),
+            kind: ctb_io::file::StreamKind::SecurityLabel,
+            entity: Box::new(stream_entity),
+            data: Some(vec![0, 255, 128]),
+        });
+        let mut wide_stream = file_entity.streams[0].clone();
+        wide_stream.name = Some(ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]));
+        file_entity.streams.push(wide_stream);
+        for name in [
+            ctb_io::file::StreamName::from_bytes(b"user.binary\xff"),
+            ctb_io::file::StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061]),
+        ] {
+            file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
+                Some(name), ctb_io::file::StreamKind::NtfsAlternateDataStream, vec![0, 255, 128],
+            ).unwrap());
+        }
+        file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
+            None, ctb_io::file::StreamKind::MacOsResourceFork, vec![1, 2, 3, 4],
+        ).unwrap());
+        file_entity.metadata.environment = writer.environment.clone();
+        for stream in &mut file_entity.streams {
+            stream.entity.metadata.environment = writer.environment.clone();
+        }
+        writer.record_entity(&file_entity);
+        writer.record_entity(&link_entity);
+        writer.commit_batch().expect("commit batch");
+
+        let snap = read_journal_snapshot(writer.journal_path()).expect("read snapshot");
+        assert_eq!(snap.committed_entities.len(), 2);
+        assert!(snap.is_committed(b"hello.txt"));
+        assert!(snap.is_committed(b"link.txt"));
+
+        let read_file = snap.committed_entities.get(b"hello.txt".as_slice()).expect("get hello.txt");
+        assert_eq!(read_file, &file_entity);
+        assert_eq!(read_file.identity.enclosing_path, Some(src.clone()));
+        assert_eq!(read_file.metadata.read_time, Some(read_time_expected));
+        if let FileEntityKind::Regular { size, sha256, .. } = &read_file.kind {
+            assert_eq!(*size, 42);
+            assert_eq!(*sha256, [0xAB; 32]);
+        } else {
+            panic!("Expected regular file kind");
+        }
+
+        let read_link = snap.committed_entities.get(b"link.txt".as_slice()).expect("get link.txt");
+        if let FileEntityKind::Hardlink { target_relative_path } = &read_link.kind {
+            assert_eq!(target_relative_path, b"hello.txt");
+        } else {
+            panic!("Expected hardlink kind");
+        }
+
+        // Test corruption resilience: Append corrupted bytes (bad checksum)
+        {
+            let mut file = std::fs::OpenOptions::new()
+                .append(true)
+                .open(writer.journal_path())
+                .expect("open for append");
+            // TAG_ENTITY (2) + len (10) + checksum (0) + 10 junk bytes
+            file.write_all(&[2, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).expect("write junk");
+            file.write_all(b"badpayload").expect("write junk payload");
+        }
+
+        // Snapshot should cleanly recover up to the last valid batch and discard corrupted bytes
+        let recovered = read_journal_snapshot(writer.journal_path()).expect("recover after corruption");
+        assert_eq!(recovered.committed_entities.len(), 2);
+        assert_eq!(recovered.last_batch_id, snap.last_batch_id);
+    }
+
+    #[crate::ctb_test]
+    fn test_journal_pre_epoch_read_time_rejected() {
+        use crate::journal::JournalWriter;
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        std::fs::create_dir_all(&src).expect("create src");
+        std::fs::create_dir_all(&dest).expect("create dest");
+
+        let mut writer = JournalWriter::create_new(temp.path(), &[src.clone()], &dest).expect("create journal");
+
+        let pre_epoch_time = std::time::SystemTime::UNIX_EPOCH
+            .checked_sub(std::time::Duration::from_secs(10))
+            .expect("valid pre-epoch time");
+
+        let file_entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: PathBuf::from("pre_epoch.txt"),
+                enclosing_path: Some(src),
+                raw_relative_path: b"pre_epoch.txt".to_vec(),
+                raw_filename: b"pre_epoch.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: Some(pre_epoch_time),
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 0,
+                sha256: [0; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        writer.record_entity(&file_entity);
+        assert!(writer.commit_batch().is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_failed_copy_retains_captured_metadata_and_destination() {
+        let temp = tempdir().unwrap();
+        let source = temp.path().join("link");
+        let destination = temp.path().join("destination");
+        let state = temp.path().join("state");
+        fs::create_dir(&state).unwrap();
+        std::os::unix::fs::symlink("missing-target", &source).unwrap();
+        fs::write(&destination, b"old destination").unwrap();
+        let _ = std::fs::read_link(&source);
+        let original = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
+        assert!(original.metadata.timestamps.birthtime_sec.is_some());
+        let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
+        args.best_effort_metadata = false;
+        assert!(run_csc(args).is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"old destination");
+        assert!(fs::symlink_metadata(&source).is_ok());
+        let journal = find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
+        assert!(!snapshot.is_completed);
+        let recorded = snapshot.committed_entities.values().next().unwrap();
+        let mut expected_native = original.metadata.native.clone();
+        let mut actual_native = recorded.metadata.native.clone();
+        if let (Some(exp), Some(act)) = (&mut expected_native, &mut actual_native) {
+            exp.values.remove("statx.atime.nsec");
+            act.values.remove("statx.atime.nsec");
+        }
+        assert_eq!(actual_native, expected_native);
+        assert_eq!(recorded.metadata.timestamps, original.metadata.timestamps);
+        assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
+        assert_eq!(recorded.streams, original.streams);
+    }
+
+    #[crate::ctb_test]
+    fn test_target_error_reporting_shows_target_file() {
+        let temp = tempdir().expect("create tempdir");
+        let scratch_file = temp.path().join("scratch.csc-tmp.12345");
+        fs::write(&scratch_file, b"data").expect("write scratch");
+
+        let intended_target = temp.path().join("my_real_file.bin");
+
+        // Non-root user cannot chown to root (uid 0) unless running as root
+        if nix::unistd::geteuid().as_raw() != 0 {
+            let meta = ctb_io::file::FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 0,
+                gid: 0,
+                timestamps: ctb_io::file::FileTimestamps {
+                    atime_sec: 1_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            };
+
+            let err = ctb_io::file::apply_entity_metadata(
+                &scratch_file,
+                Some(&intended_target),
+                &meta,
+                false,
+                false,
+                true, // strict_lossless
+            )
+            .unwrap_err();
+
+            let err_msg = format!("{err:#}");
+            // The error MUST mention the intended destination path, and NOT the scratch temp file!
+            assert!(
+                err_msg.contains("my_real_file.bin"),
+                "Error message should mention the intended target file: {err_msg}"
+            );
+            assert!(
+                !err_msg.contains("scratch.csc-tmp.12345"),
+                "Error message should NOT mention the scratch temp path: {err_msg}"
+            );
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_journal_and_index_environment_metadata() {
+        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+        use std::sync::Arc;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("tempdir");
+        let journal_path = temp.path().join("test_env.cscjournal");
+        let desc_path = temp.path().join("test_env.cscdesc");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+
+        // 1. Create journal and verify environment is initialized
+        let mut writer = JournalWriter::create_at_path(
+            &journal_path,
+            &desc_path,
+            &[src.clone()],
+            &dest,
+        ).expect("create_at_path");
+
+        assert!(writer.environment.is_some(), "JournalWriter should initialize environment");
+
+        let rel_path = PathBuf::from("file_a.txt");
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: b"file_a.txt".to_vec(),
+                raw_filename: b"file_a.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 25,
+                sha256: [0x11; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        writer.record_entity(&entity);
+        writer.commit_batch().expect("commit_batch");
+        writer.mark_completed().expect("mark_completed");
+
+        // 2. Read snapshot and verify environment attached to entity deduplicated
+        let snapshot = read_journal_snapshot(&journal_path).expect("read snapshot");
+        assert!(snapshot.environment.is_some(), "Snapshot should have decoded environment");
+        let snap_env = snapshot.environment.as_ref().unwrap();
+
+        let committed = snapshot.committed_entities.get(b"file_a.txt".as_slice())
+            .expect("committed entity");
+        assert!(committed.metadata.environment.is_some(), "Entity should inherit deduplicated environment");
+        assert!(
+            Arc::ptr_eq(snap_env, committed.metadata.environment.as_ref().unwrap()),
+            "Arc pointer should be shared (deduplicated)"
+        );
+
+        // 3. Backward compatibility: reading a synthetic journal without TAG_SESSION_ENV
+        let legacy_journal_path = temp.path().join("legacy.cscjournal");
+        let mut legacy_bytes = Vec::new();
+        legacy_bytes.extend_from_slice(b"CTBCSCJ\x01");
+        // TAG_SESSION_HEADER = 1, current_platform = 1, sources count = 0, destination = ""
+        legacy_bytes.push(1); // TAG_SESSION_HEADER
+        legacy_bytes.push(1); // platform
+        legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // src_count = 0
+        legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // dest_len = 0
+        legacy_bytes.push(4); // TAG_JOB_COMPLETED
+        fs::write(&legacy_journal_path, legacy_bytes).expect("write legacy journal");
+
+        let legacy_snapshot = read_journal_snapshot(&legacy_journal_path).expect("read legacy snapshot");
+        assert!(legacy_snapshot.environment.is_none(), "Legacy journal should yield None environment");
+
+        // 4. Test SQLite database schema initialization, migration, and sources environment column
+        let db_path = temp.path().join("env_test.cscindex.sqlite");
+        let db = Builder::new_local(db_path.to_str().expect("valid path"))
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+
+        // Verify environment column exists in sources table
+        let mut pragma_stmt = conn.prepare("PRAGMA table_info(sources)").await.expect("prepare pragma");
+        let mut pragma_rows = pragma_stmt.query(()).await.expect("query pragma");
+        let mut has_env_col = false;
+        while let Some(row) = pragma_rows.next().await.expect("row") {
+            if let Ok(Value::Text(col)) = row.get_value(1) {
+                if col == "environment" {
+                    has_env_col = true;
+                    break;
+                }
+            }
+        }
+        assert!(has_env_col, "sources table must have environment column");
+
+        // Ingest snapshot into database
+        let progress = ctb_utilities::Progress::new(false);
+        let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
+        let src_id = crate::index_engine::get_or_create_source(
+            &conn,
+            "test_source",
+            &journal_path,
+            env_json.as_deref(),
+        ).await.expect("get_or_create_source");
+
+        let ingested = crate::index_engine::ingest_journal_snapshot(
+            &conn,
+            src_id,
+            &snapshot,
+            100,
+            &progress,
+            None,
+        ).await.expect("ingest");
+        assert_eq!(ingested, 1);
+
+        // Verify the environment JSON in sources row
+        let mut select_stmt = conn.prepare("SELECT environment FROM sources WHERE id = ?").await.expect("prepare");
+        let mut select_rows = select_stmt.query(vec![Value::Integer(src_id)]).await.expect("query");
+        let row = select_rows.next().await.expect("next").expect("row present");
+        let stored_env = row.get_value(0).expect("get value");
+        if let Value::Text(json_str) = stored_env {
+            assert!(json_str.contains("\"os\":"), "Stored JSON should contain os");
+            assert!(
+                json_str.contains("\"is_linux\":") || json_str.contains("\"is_windows\":"),
+                "Stored JSON should contain platform flags"
+            );
+        } else {
+            panic!("Expected Value::Text for sources.environment");
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_environment_metadata_auto_population_and_operation_isolation() {
+        let temp = tempdir().unwrap();
+        let file1 = temp.path().join("file1.txt");
+        let file2 = temp.path().join("file2.txt");
+        fs::write(&file1, b"hello file 1").unwrap();
+        fs::write(&file2, b"hello file 2").unwrap();
+
+        // 1. FileEntity::from_filesystem automatically populates environment metadata
+        let mut entity1 = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+        assert!(entity1.metadata.environment.is_some());
+        assert!(entity1.environment().is_some());
+
+        // 2. Attached streams also automatically populate environment metadata
+        let stream = ctb_io::file::AttachedStream::from_data(
+            Some(ctb_io::file::StreamName::from_bytes(b"stream1")),
+            ctb_io::file::StreamKind::NtfsAlternateDataStream,
+            vec![1, 2, 3],
+        ).unwrap();
+        assert!(stream.entity.metadata.environment.is_some());
+        entity1.streams.push(stream);
+
+        // 3. Unscoped calls within the same operation epoch share the exact same Arc (pointer equality)
+        let entity2 = ctb_io::file::FileEntity::from_filesystem(&file2, None).unwrap();
+        let env1 = entity1.metadata.environment.as_ref().unwrap();
+        let env2 = entity2.metadata.environment.as_ref().unwrap();
+        assert!(std::sync::Arc::ptr_eq(env1, env2));
+
+        // 4. FileEntity::set_environment propagates to all attached streams
+        let custom_env = std::sync::Arc::new(ctb_utilities::environment::capture_quick());
+        entity1.set_environment(std::sync::Arc::clone(&custom_env));
+        assert!(std::sync::Arc::ptr_eq(
+            entity1.metadata.environment.as_ref().unwrap(),
+            &custom_env
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            entity1.streams[0].entity.metadata.environment.as_ref().unwrap(),
+            &custom_env
+        ));
+
+        // 5. Simulate two separate operations within a single process (e.g. successive csc runs):
+        // Each operation enters its own GlobalEnvironmentScope, getting a distinct Arc snapshot.
+        let arc_op1 = {
+            let _scope1 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            e.metadata.environment.unwrap()
+        };
+
+        let arc_op2 = {
+            let _scope2 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            e.metadata.environment.unwrap()
+        };
+
+        // Independent operations get distinct Arc instances (not inadvertently cached together)
+        assert!(!std::sync::Arc::ptr_eq(&arc_op1, &arc_op2));
+
+        // Global network caches remain intact across operations
+        if let Ok(ip) = ctb_utilities::environment::local_ipv4() {
+            let cached = ctb_utilities::environment::cached_local_ipv4();
+            assert_eq!(cached.ok(), Some(ip));
+        }
+    }
+}
+

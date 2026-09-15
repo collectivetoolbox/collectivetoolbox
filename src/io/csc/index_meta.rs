@@ -434,3 +434,80 @@ pub async fn open_index_database(
         }
     }
 }
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[crate::ctb_test("tokio")]
+    async fn test_file_entity_type_and_sqlite_check_constraint() {
+        use ctb_io::file::entity::FileEntityType;
+        use turso::Builder;
+
+        // Verify parsing shortcuts and canonical names
+        assert_eq!(FileEntityType::parse("f").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("file").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("regular").unwrap(), FileEntityType::Regular);
+        assert_eq!(FileEntityType::parse("d").unwrap(), FileEntityType::Directory);
+        assert_eq!(FileEntityType::parse("dir").unwrap(), FileEntityType::Directory);
+        assert_eq!(FileEntityType::parse("l").unwrap(), FileEntityType::Symlink);
+        assert_eq!(FileEntityType::parse("symlink").unwrap(), FileEntityType::Symlink);
+        assert_eq!(FileEntityType::parse("h").unwrap(), FileEntityType::Hardlink);
+        assert_eq!(FileEntityType::parse("p").unwrap(), FileEntityType::Fifo);
+        assert_eq!(FileEntityType::parse("c").unwrap(), FileEntityType::CharDevice);
+        assert_eq!(FileEntityType::parse("chardev").unwrap(), FileEntityType::CharDevice);
+        assert_eq!(FileEntityType::parse("b").unwrap(), FileEntityType::BlockDevice);
+        assert_eq!(FileEntityType::parse("blockdev").unwrap(), FileEntityType::BlockDevice);
+        assert_eq!(FileEntityType::parse("s").unwrap(), FileEntityType::Socket);
+        assert_eq!(FileEntityType::parse("door").unwrap(), FileEntityType::Door);
+        assert_eq!(FileEntityType::parse("bundle").unwrap(), FileEntityType::Bundle);
+        assert!(FileEntityType::parse("invalid_kind").is_err());
+
+        // Verify SQLite CHECK constraint rejects invalid kinds
+        let temp = tempdir().expect("create tempdir");
+        let db_path = temp.path().join("check_test.sqlite");
+        let db = Builder::new_local(db_path.to_str().expect("valid path"))
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+
+        // Insert a valid source
+        conn.execute("INSERT INTO sources (name, journal_path, indexed_at) VALUES ('test', '/test.cscjournal', 0)", ())
+            .await
+            .expect("insert source");
+
+        // Inserting valid kind 'regular' must succeed
+        conn.execute(
+            "INSERT INTO entries (source_id, path, filename, parent_dir, kind, size, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink) \
+             VALUES (1, 'test.txt', 'test.txt', '', 'regular', 10, 0, 0, 0, 0, 420, 1)",
+            (),
+        )
+        .await
+        .expect("insert valid kind");
+
+        // Inserting invalid kind 'not_a_kind' must be rejected by the CHECK constraint
+        let bad_insert = conn.execute(
+            "INSERT INTO entries (source_id, path, filename, parent_dir, kind, size, mtime_sec, mtime_nsec, ctime_sec, ctime_nsec, mode, nlink) \
+             VALUES (1, 'bad.txt', 'bad.txt', '', 'not_a_kind', 10, 0, 0, 0, 0, 420, 1)",
+            (),
+        )
+        .await;
+
+        assert!(bad_insert.is_err(), "CHECK constraint should reject invalid kind");
+    }
+}
+

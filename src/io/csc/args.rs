@@ -875,4 +875,357 @@ impl MvArgs {
         }
     }
 }
+#[cfg(test)]
+pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscArgs {
+    CscArgs {
+        paths,
+        resume: None,
+        journal_path: None,
+        state_dir: Some(state_dir),
+        verbose: true,
+        progress: false,
+        no_progress: true,
+        verify_after: true,
+        no_verify_after: false,
+        always_overwrite: false,
+        on_source_change: crate::args::SourceChangePolicy::Error,
+        copy_specials_as_specials: false,
+        copy_block_devices_as_regular_files: false,
+        one_file_system: false,
+        best_effort_metadata: true,
+        allow_unknown_fs: false,
+        check_atime: false,
+        check_ctime: false,
+        strict: false,
+        delete_manifest_after: false,
+        recursive: true,
+        archive: true,
+        dry_run: false,
+        read_apple_double: None,
+        read_apple_double_alongside: false,
+        no_read_apple_double_alongside: false,
+        read_apple_double_zip: false,
+        read_apple_double_netatalk: false,
+        read_apple_single: false,
+        read_apple_single_without_extension: false,
+        no_read_apple_single: false,
+        read_apple_single_with_extension: Vec::new(),
+        maybe_write_apple_double: None,
+        force_write_apple_double: None,
+        maybe_write_apple_single: false,
+        force_write_apple_single: false,
+        write_apple_single_with_extension: None,
+        write_apple_single_without_extension: false,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> CscVerifyArgs {
+    CscVerifyArgs {
+        manifest,
+        dir,
+        no_drop_caches: true,
+        ignore_atime: true,
+        check_atime: false,
+        ignore_mtime: false,
+        ignore_ctime: true,
+        check_ctime: false,
+        ignore_owner: true,
+        ignore_perms: false,
+        ignore_flags: true,
+        ignore_xattrs: false,
+        ignore_untracked: false,
+        ignore: Vec::new(),
+        format: VerifyOutputFormat::Text,
+        quiet: false,
+        best_effort: true,
+        strict: false,
+        allow_incomplete: false,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathBuf>) -> crate::args::FsindexArgs {
+    crate::args::FsindexArgs {
+        targets,
+        database,
+        journal_path: None,
+        flush_deleted: false,
+        source_name: None,
+        resume: false,
+        resume_journal: None,
+        checksum: false,
+        journal_only: false,
+        batch_size: 50,
+        quiet: true,
+        one_file_system: false,
+        fulltext: false,
+        fulltext_max: "20k".to_string(),
+        encrypt: false,
+        password_file: None,
+        password_stdin: false,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn default_fsearch_args(database: PathBuf) -> crate::args::FsearchArgs {
+    crate::args::FsearchArgs {
+        database,
+        query: Vec::new(),
+        regex_path: None,
+        regex_text: None,
+        regex_name: None,
+        glob_path: None,
+        glob_text: None,
+        glob_name: None,
+        keyword_path: None,
+        keyword_text: None,
+        keyword_name: None,
+        substring_path: None,
+        substring_text: None,
+        substring_name: None,
+        context: None,
+        name_glob: None,
+        path_glob: None,
+        keyword: Vec::new(),
+        regex: None,
+        source: None,
+        mtime_after: None,
+        mtime_before: None,
+        ctime_after: None,
+        ctime_before: None,
+        size_min: None,
+        size_max: None,
+        entry_type: None,
+        sort: crate::args::SearchSortField::Path,
+        sort_desc: false,
+        limit: None,
+        format: crate::args::SearchOutputFormat::Path,
+        password_file: None,
+        password_stdin: false,
+    }
+}
+
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{AppleDoubleStyle, CscArgs, CscVerifyArgs, MvArgs, default_test_args};
+    use crate::cli::run_csc;
+    use ctb_utilities::cli::ToolResult;
+    use std::fs;
+    use std::path::{PathBuf};
+    use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_strict_error_on_altered_filename() {
+        use ctb_io::file::verify_filename_exact_bytes;
+
+        let temp = tempdir().expect("create tempdir");
+        let test_file = temp.path().join("original_name.txt");
+        fs::write(&test_file, b"data").expect("write test file");
+
+        // Verify that matching bytes succeed
+        assert!(verify_filename_exact_bytes(temp.path(), b"original_name.txt").is_ok());
+
+        // Verify that altered, stripped, or normalized bytes fail with error
+        let err = verify_filename_exact_bytes(temp.path(), b"Original_Name.txt");
+        assert!(err.is_err(), "Expected error when filename bytes do not match exactly");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_and_mv_progress_resolution() {
+        use clap::Parser;
+
+        // Default without flags: neither progress nor no_progress
+        let args = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
+        assert!(!args.progress);
+        assert!(!args.no_progress);
+        // Fallback matches stderr interactivity
+        assert_eq!(
+            args.should_show_progress(),
+            ctb_utilities::cli::is_stderr_interactive()
+        );
+
+        // Explicit --progress
+        let args = CscArgs::try_parse_from(["csc", "--progress", "src", "dest"]).unwrap();
+        assert!(args.progress);
+        assert!(!args.no_progress);
+        assert!(args.should_show_progress());
+
+        // Explicit --no-progress
+        let args = CscArgs::try_parse_from(["csc", "--no-progress", "src", "dest"]).unwrap();
+        assert!(!args.progress);
+        assert!(args.no_progress);
+        assert!(!args.should_show_progress());
+
+        // Overrides: later flag wins
+        let args = CscArgs::try_parse_from([
+            "csc",
+            "--progress",
+            "--no-progress",
+            "src",
+            "dest",
+        ])
+        .unwrap();
+        assert!(!args.progress);
+        assert!(args.no_progress);
+        assert!(!args.should_show_progress());
+
+        let args = CscArgs::try_parse_from([
+            "csc",
+            "--no-progress",
+            "--progress",
+            "src",
+            "dest",
+        ])
+        .unwrap();
+        assert!(args.progress);
+        assert!(!args.no_progress);
+        assert!(args.should_show_progress());
+
+        // Same verification for MvArgs
+        let mv_args = MvArgs::try_parse_from(["mv", "src", "dest"]).unwrap();
+        assert!(!mv_args.progress);
+        assert!(!mv_args.no_progress);
+        assert_eq!(
+            mv_args.should_show_progress(),
+            ctb_utilities::cli::is_stderr_interactive()
+        );
+
+        let mv_args = MvArgs::try_parse_from(["mv", "--progress", "src", "dest"]).unwrap();
+        assert!(mv_args.should_show_progress());
+
+        let mv_args = MvArgs::try_parse_from(["mv", "--no-progress", "src", "dest"]).unwrap();
+        assert!(!mv_args.should_show_progress());
+    }
+
+    #[crate::ctb_test]
+    fn test_strict_flags_parsing() {
+        use clap::Parser;
+
+        let verify_args = CscVerifyArgs::try_parse_from(["csc-verify", "--strict", "manifest.cscjournal"]).unwrap();
+        assert!(verify_args.strict);
+        assert!(!verify_args.should_ignore_atime());
+        assert!(!verify_args.should_ignore_ctime());
+        assert!(verify_args.is_strict());
+
+        let csc_args = CscArgs::try_parse_from(["csc", "--strict", "src", "dest"]).unwrap();
+        assert!(csc_args.strict);
+        assert!(csc_args.should_check_atime());
+        assert!(csc_args.should_check_ctime());
+
+        let csc_args_ctime = CscArgs::try_parse_from(["csc", "--check-ctime", "src", "dest"]).unwrap();
+        assert!(csc_args_ctime.check_ctime);
+        assert!(csc_args_ctime.should_check_ctime());
+        assert!(!csc_args_ctime.should_check_atime());
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_apple_write_mode_mutual_exclusion() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(src.join("a.txt"), b"data").unwrap();
+
+        let mut args = default_test_args(vec![src, dest], state);
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+        args.force_write_apple_single = true;
+
+        let res = run_csc(args);
+        assert!(res.is_err(), "Expected mutual exclusion error when multiple write modes specified");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_best_effort_metadata_enables_maybe_apple_double() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+
+        let mut args = default_test_args(vec![src, dest], state);
+        args.best_effort_metadata = true;
+        let (mode, _ext) = args.resolve_apple_write_mode().expect("resolve mode");
+        assert_eq!(mode, ctb_io::file::AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_write_apple_single_with_extension_as() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("sample.txt"), b"AppleSingle with .as").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::As);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest.join("sample.txt.as").exists(), "sample.txt.as must exist");
+        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+
+        let data = fs::read(dest.join("sample.txt.as")).unwrap();
+        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
+        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .as"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_write_apple_single_with_extension_asf() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("sample.txt"), b"AppleSingle with .asf").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::Asf);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest.join("sample.txt.asf").exists(), "sample.txt.asf must exist");
+        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+
+        let data = fs::read(dest.join("sample.txt.asf")).unwrap();
+        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
+        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .asf"[..]));
+    }
+}
 

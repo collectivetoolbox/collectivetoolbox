@@ -207,3 +207,189 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{default_test_args};
+    use crate::cli::run_csc;
+    use crate::journal::find_cscjournal;
+    use ctb_utilities::cli::ToolResult;
+    use std::fs;
+    use std::path::{PathBuf};
+    use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_multiple_sources_to_dest_dir() {
+        let temp = tempdir().expect("create tempdir");
+        let src1 = temp.path().join("src1");
+        let src2 = temp.path().join("src2");
+        let dest = temp.path().join("dest_multi");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src1).expect("create src1");
+        fs::create_dir_all(&src2).expect("create src2");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src1.join("a.txt"), b"Content A").expect("write a");
+        fs::write(src2.join("b.txt"), b"Content B").expect("write b");
+
+        let args = default_test_args(
+            vec![src1.clone(), src2.clone(), dest.clone()],
+            state,
+        );
+
+        run_csc(args).expect("run csc multiple sources");
+
+        assert_eq!(
+            fs::read(dest.join("src1").join("a.txt")).expect("read a"),
+            b"Content A"
+        );
+        assert_eq!(
+            fs::read(dest.join("src2").join("b.txt")).expect("read b"),
+            b"Content B"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_copy_single_file_to_directory() {
+        let temp = tempdir().expect("create tempdir");
+        let src_file = temp.path().join(".face");
+        let dest_dir = temp.path().join("dest_dir");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&dest_dir).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(&src_file, b"face icon bytes").expect("write face");
+
+        // Test case 1: dest with trailing slash (e.g. csc ~/.face ./)
+        let dest_with_slash = PathBuf::from(format!("{}/", dest_dir.display()));
+        let args = default_test_args(
+            vec![src_file.clone(), dest_with_slash],
+            state.clone(),
+        );
+
+        run_csc(args).expect("run csc single file with trailing slash");
+        assert_eq!(
+            fs::read(dest_dir.join(".face")).expect("read copied file"),
+            b"face icon bytes"
+        );
+
+        // Test case 2: dest without trailing slash (e.g. csc ~/.face .)
+        let dest_dir2 = temp.path().join("dest_dir2");
+        let state2 = temp.path().join("state_dir2");
+        fs::create_dir_all(&dest_dir2).expect("create dest2");
+        fs::create_dir_all(&state2).expect("create state2");
+
+        let args2 = default_test_args(
+            vec![src_file.clone(), dest_dir2.clone()],
+            state2,
+        );
+        run_csc(args2).expect("run csc single file to directory without trailing slash");
+        assert_eq!(
+            fs::read(dest_dir2.join(".face")).expect("read copied file 2"),
+            b"face icon bytes"
+        );
+
+        // Test case 3: direct file rename (e.g. csc ~/.face renamed.face)
+        let renamed_file = temp.path().join("renamed.face");
+        let state3 = temp.path().join("state_dir3");
+        fs::create_dir_all(&state3).expect("create state3");
+
+        let args3 = default_test_args(
+            vec![src_file.clone(), renamed_file.clone()],
+            state3,
+        );
+        run_csc(args3).expect("run csc single file rename");
+        assert_eq!(
+            fs::read(&renamed_file).expect("read renamed file"),
+            b"face icon bytes"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_configurable_journal_path() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+        fs::write(src.join("test.txt"), b"Configurable journal test").expect("write test.txt");
+
+        let custom_journal = state.join("my_backup.cscjournal");
+        let custom_desc = state.join("my_backup.cscdesc");
+
+        let mut args = default_test_args(vec![src.clone(), dest.clone()], state.clone());
+        args.journal_path = Some(custom_journal.clone());
+
+        let res = run_csc(args.clone()).expect("run csc with explicit journal path");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        assert!(custom_journal.exists(), "Explicit .cscjournal must be created");
+        assert!(custom_desc.exists(), "Explicit .cscdesc must be created");
+        assert!(dest.join("test.txt").exists(), "Destination file must exist");
+
+        // Attempting to run again with the same journal path without --resume must fail
+        let err = match run_csc(args) {
+            Err(e) => e,
+            Ok(_) => panic!("Expected error when journal already exists"),
+        };
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("already exists"),
+            "Must reject overwriting existing journal file: {err_msg}"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+
+    #[crate::ctb_test]
+    fn test_csc_delete_manifest_after() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_del_manifest");
+        let dest = temp.path().join("dest_del_manifest");
+        let state = temp.path().join("state_del_manifest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state dir");
+
+        fs::write(src.join("test.txt"), b"Manifest should be deleted after copy").expect("write file");
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        args.delete_manifest_after = true;
+
+        let res = run_csc(args).expect("run csc with delete_manifest_after");
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Files copied:             1"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert!(dest.join("test.txt").exists());
+
+        let journal = find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
+        assert!(snapshot.committed_entities.values().any(|entity| entity.metadata.native.is_some()));
+        assert!(journal.with_extension("cscdesc").exists());
+    }
+}
+

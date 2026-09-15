@@ -588,4 +588,745 @@ pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
         exit_code,
     })
 }
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{VerifyOutputFormat, default_test_args, default_verify_args};
+    use crate::cli::run_csc;
+    use crate::verifier::run_csc_verify;
+    use crate::journal::find_cscjournal;
+    use ctb_utilities::cli::ToolResult;
+    use std::fs;
+    use std::os::unix::fs::{PermissionsExt};
+    use std::path::{PathBuf};
+    use tempfile::tempdir;
+
+    #[crate::ctb_test]
+    fn test_verify_clean_directory() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_clean");
+        let dest = temp.path().join("dest_clean");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(src.join("sub")).expect("create sub");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("hello.txt"), b"Hello verification!").expect("write hello");
+        fs::write(src.join("sub").join("data.bin"), b"binary payload").expect("write data");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+        let verify_args = default_verify_args(journal, None);
+        let res = run_csc_verify(&verify_args).expect("run verifier");
+
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_relocated_directory() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_reloc");
+        let dest = temp.path().join("dest_reloc");
+        let relocated = temp.path().join("dest_reloc_moved");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(src.join("nested")).expect("create nested");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("file.txt"), b"Relocated test data").expect("write file");
+        fs::write(src.join("nested").join("sub.txt"), b"nested data").expect("write nested");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Move the destination folder to a relocated path
+        fs::rename(&dest, &relocated).expect("rename dest");
+
+        let journal = find_cscjournal(&state);
+        // Verify with relocated folder specified
+        let verify_args = default_verify_args(journal, Some(relocated));
+        let res = run_csc_verify(&verify_args).expect("run verifier on relocated");
+
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_detects_changed_content() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_changed");
+        let dest = temp.path().join("dest_changed");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("tampered.txt"), b"Original authentic content").expect("write file");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Tamper with destination file content
+        fs::write(dest.join("tampered.txt"), b"Modified corrupted content").expect("tamper file");
+
+        let journal = find_cscjournal(&state);
+        let verify_args = default_verify_args(journal, None);
+        let res = run_csc_verify(&verify_args).expect("run verifier");
+
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1, "Verification must fail on changed content");
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("[CHANGED] tampered.txt"));
+                assert!(out.contains("SHA-256 mismatch"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_detects_metadata_mode_and_ignore_perms() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_meta");
+        let dest = temp.path().join("dest_meta");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("script.sh");
+        fs::write(&file, b"#!/bin/sh\necho test\n").expect("write file");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).expect("set mode");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Alter permissions on destination file
+        fs::set_permissions(dest.join("script.sh"), fs::Permissions::from_mode(0o644)).expect("alter mode");
+
+        let journal = find_cscjournal(&state);
+
+        // Strict verification: should detect permissions mismatch
+        let verify_args = default_verify_args(journal.clone(), None);
+        let res = run_csc_verify(&verify_args).expect("run strict verifier");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Permissions mismatch"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // With --ignore-perms: should pass cleanly
+        let mut ignored_args = default_verify_args(journal, None);
+        ignored_args.ignore_perms = true;
+        ignored_args.ignore_atime = true;
+        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_perms");
+        match res2 {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_atime_and_ignore_atime() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_atime");
+        let dest = temp.path().join("dest_atime");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("read_me.txt");
+        fs::write(&file, b"Access time test payload").expect("write file");
+
+        let initial_atime = filetime::FileTime::from_unix_time(1_600_000_000, 0);
+        let initial_mtime = filetime::FileTime::from_unix_time(1_600_000_000, 0);
+        filetime::set_file_times(&file, initial_atime, initial_mtime).expect("set initial times");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Alter only atime on destination
+        let modified_atime = filetime::FileTime::from_unix_time(1_700_000_000, 0);
+        filetime::set_file_times(dest.join("read_me.txt"), modified_atime, initial_mtime)
+            .expect("alter atime");
+
+        let journal = find_cscjournal(&state);
+
+        // Default verification: should ignore atime by default and pass cleanly
+        let verify_args = default_verify_args(journal.clone(), None);
+        let res = run_csc_verify(&verify_args).expect("run default verifier");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Opt-in with --check-atime: should detect atime mismatch
+        let mut checked_args = default_verify_args(journal, None);
+        checked_args.check_atime = true;
+        let res2 = run_csc_verify(&checked_args).expect("run verifier with check_atime");
+        match res2 {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Atime mismatch"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_detects_missing_and_untracked_files() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_missing");
+        let dest = temp.path().join("dest_missing");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("to_delete.txt"), b"Will be deleted").expect("write to_delete");
+        fs::write(src.join("kept.txt"), b"Will remain").expect("write kept");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Delete one expected file and create one untracked extra file
+        fs::remove_file(dest.join("to_delete.txt")).expect("remove file");
+        fs::write(dest.join("untracked_extra.log"), b"stray log").expect("write untracked");
+
+        let journal = find_cscjournal(&state);
+
+        // Default verification: should report both missing and untracked
+        let verify_args = default_verify_args(journal.clone(), None);
+        let res = run_csc_verify(&verify_args).expect("run verifier");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("[MISSING] to_delete.txt"));
+                assert!(out.contains("[UNTRACKED] untracked_extra.log"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        // With --ignore-untracked: untracked file is not reported, but missing file is still caught
+        let mut ignored_args = default_verify_args(journal, None);
+        ignored_args.ignore_untracked = true;
+        let res2 = run_csc_verify(&ignored_args).expect("run verifier with ignore_untracked");
+        match res2 {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("[MISSING] to_delete.txt"));
+                assert!(!out.contains("UNTRACKED"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_untracked_scoped_to_copied_subtrees() {
+        let temp = tempdir().expect("create tempdir");
+        let src_fonts = temp.path().join("my_fonts");
+        let dest_dir = temp.path().join("dest_root");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src_fonts).expect("create src_fonts");
+        fs::create_dir_all(&dest_dir).expect("create dest_dir");
+        fs::create_dir_all(&state).expect("create state");
+
+        // Populate source fonts
+        fs::write(src_fonts.join("font1.ttf"), b"font content 1").expect("write font1");
+
+        // Destination root already contains unrelated files/directories outside the copied tree
+        let dosbox = dest_dir.join(".dosbox");
+        fs::create_dir_all(&dosbox).expect("create dosbox");
+        fs::write(dosbox.join("dosbox.conf"), b"conf").expect("write dosbox.conf");
+        fs::write(dest_dir.join(".face"), b"image").expect("write .face");
+        fs::write(dest_dir.join("e"), b"file e").expect("write e");
+
+        // Copy "my_fonts" into "dest_root" without trailing slash (creates dest_root/my_fonts)
+        let csc_args = default_test_args(
+            vec![src_fonts.clone(), dest_dir.clone()],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        // Now add a real untracked file INSIDE the copied subtree
+        fs::write(dest_dir.join("my_fonts").join("untracked_in_fonts.ttf"), b"extra font")
+            .expect("write untracked font");
+
+        let journal = find_cscjournal(&state);
+        let verify_args = default_verify_args(journal, None);
+        let res = run_csc_verify(&verify_args).expect("run csc-verify");
+
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                // Untracked entry inside my_fonts MUST be reported
+                assert!(out.contains("[UNTRACKED] my_fonts/untracked_in_fonts.ttf"));
+                // Sibling entries outside my_fonts MUST NOT be reported
+                assert!(!out.contains(".dosbox"));
+                assert!(!out.contains(".face"));
+                assert!(!out.contains("[UNTRACKED] e"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verify_json_output() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_json");
+        let dest = temp.path().join("dest_json");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("sample.txt"), b"JSON verification sample").expect("write sample");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+        let mut verify_args = default_verify_args(journal, None);
+        verify_args.format = VerifyOutputFormat::Json;
+
+        let res = run_csc_verify(&verify_args).expect("run json verifier");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let json_str = String::from_utf8(stdout).expect("valid utf8");
+                let parsed: serde_json::Value = serde_json::from_str(&json_str).expect("parse json");
+                assert_eq!(parsed["total_manifest_entries"], 1);
+                assert_eq!(parsed["matched_entries"], 1);
+                assert!(parsed["changed_entries"].as_array().expect("array").is_empty());
+                assert!(parsed["missing_entries"].as_array().expect("array").is_empty());
+                assert!(parsed["untracked_entries"].as_array().expect("array").is_empty());
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_cscv_disallows_incomplete_manifest_by_default() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_incomplete");
+        let dest = temp.path().join("dest_incomplete");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("data.txt"), b"Incomplete test").expect("write file");
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        args.no_verify_after = true;
+        args.verify_after = false;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        let journal = find_cscjournal(&state);
+
+        // Verification without --allow-incomplete must fail
+        let verify_args = default_verify_args(journal.clone(), None);
+        let err = run_csc_verify(&verify_args).err().expect("must fail on incomplete manifest");
+        assert!(err.to_string().contains("incomplete or was not marked finished"));
+
+        // Verification with --allow-incomplete must succeed
+        let mut allow_args = default_verify_args(journal, None);
+        allow_args.allow_incomplete = true;
+        let res2 = run_csc_verify(&allow_args).expect("run verifier with allow_incomplete");
+        match res2 {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_cscv_best_effort_reporting() {
+        use filetime::{FileTime, set_file_mtime};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_be");
+        let dest = temp.path().join("dest_be");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let file = src.join("item.txt");
+        fs::write(&file, b"best effort test payload").expect("write file");
+
+        let args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        run_csc(args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+
+        // Modify mtime on destination by 1 second
+        let dest_file = dest.join("item.txt");
+        let meta = fs::metadata(&dest_file).expect("metadata");
+        let mtime_sec = meta.mtime();
+        set_file_mtime(&dest_file, FileTime::from_unix_time(mtime_sec.saturating_add(1), 0))
+            .expect("set mtime");
+
+        // Strict verification: fails with MtimeMismatch
+        let mut strict_args = default_verify_args(journal.clone(), None);
+        strict_args.best_effort = false;
+        let res = run_csc_verify(&strict_args).expect("run strict verifier");
+        match res {
+            ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Mtime mismatch"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Best-effort verification: passes, reports ignored differences, and does NOT claim perfection
+        let mut be_args = default_verify_args(journal, None);
+        be_args.best_effort = true;
+        let res2 = run_csc_verify(&be_args).expect("run best effort verifier");
+        match res2 {
+            ToolResult::Immediate { exit_code, stdout, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest in best-effort mode; ignored"));
+                assert!(out.contains("timestamp"));
+                assert!(!out.contains("Directory matches manifest perfectly"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_verify_caveats_without_strict() {
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_caveats");
+        let dest = temp.path().join("dest_caveats");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        fs::write(src.join("sample.txt"), b"Caveat verification test").expect("write sample");
+
+        let csc_args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state.clone(),
+        );
+        run_csc(csc_args).expect("run csc");
+
+        let journal = find_cscjournal(&state);
+
+        // Standard verification without strict settings
+        let mut verify_args = default_verify_args(journal.clone(), None);
+        verify_args.best_effort = true;
+        verify_args.strict = false;
+        verify_args.ignore_atime = true;
+        verify_args.ignore_ctime = true;
+
+        let res = run_csc_verify(&verify_args).expect("run verifier without strict");
+        match res {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("OK - Directory matches manifest"));
+                assert!(!out.contains("Directory matches manifest perfectly"));
+                assert!(out.contains("Caveats:"));
+                assert!(out.contains("Access times (atime) not verified"));
+                assert!(out.contains("Change times (ctime) not verified"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+
+        // Alter atime on destination
+        let dest_file = dest.join("sample.txt");
+        let orig_meta = fs::metadata(&dest_file).expect("metadata");
+        let orig_atime = filetime::FileTime::from_unix_time(orig_meta.atime().saturating_add(100), 0);
+        let orig_mtime = filetime::FileTime::from_unix_time(orig_meta.mtime(), 0);
+        filetime::set_file_times(&dest_file, orig_atime, orig_mtime).expect("alter atime");
+
+        // Strict verification must catch differences and fail
+        let mut strict_args = default_verify_args(journal, None);
+        strict_args.strict = true;
+
+        let res_strict = run_csc_verify(&strict_args).expect("run strict verifier");
+        match res_strict {
+            ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 1);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("mismatch") || out.contains("Discrepancies detected"));
+            }
+            ToolResult::Streaming { .. } => panic!("Expected Immediate ToolResult"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_verification_report_formatting_modes() {
+        use crate::verifier::VerificationReport;
+        use ctb_io::file::verifier::IgnoredDifferences;
+
+        // 1. Clean report with no caveats (strictest settings)
+        let strict_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: Vec::new(),
+        };
+        let out = strict_clean.format_human_report();
+        assert!(out.contains("Status:           OK - Directory matches manifest perfectly."));
+        assert!(!out.contains("Caveats:"));
+
+        // 2. Clean report with caveats (non-strict settings)
+        let non_strict_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences::default(),
+            best_effort: false,
+            caveats: vec![
+                "Access times (atime) not verified (use --check-atime or --strict to check)".to_string(),
+                "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
+            ],
+        };
+        let out2 = non_strict_clean.format_human_report();
+        assert!(out2.contains("Status:           OK - Directory matches manifest."));
+        assert!(!out2.contains("Directory matches manifest perfectly"));
+        assert!(out2.contains("Caveats:"));
+        assert!(out2.contains("Access times (atime) not verified"));
+        assert!(out2.contains("Change times (ctime) not verified"));
+
+        // 3. Clean report in best-effort mode with ignored differences
+        let be_clean = VerificationReport {
+            target_directory: PathBuf::from("/target"),
+            manifest_path: PathBuf::from("/manifest.cscjournal"),
+            total_manifest_entries: 5,
+            total_disk_entries_scanned: 5,
+            matched_entries: 5,
+            changed_entries: Vec::new(),
+            missing_entries: Vec::new(),
+            untracked_entries: Vec::new(),
+            ignored_differences: IgnoredDifferences {
+                ownership: 0,
+                timestamps: 2,
+                permissions: 0,
+                flags: 0,
+                sparseness: 0,
+            },
+            best_effort: true,
+            caveats: vec![
+                "Access times (atime) not verified (use --check-atime or --strict to check)".to_string(),
+                "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
+                "Best-effort mode: ignored 2 timestamp differences".to_string(),
+            ],
+        };
+        let out3 = be_clean.format_human_report();
+        assert!(out3.contains("Status:           OK - Directory matches manifest in best-effort mode; ignored 2 timestamp differences."));
+        assert!(!out3.contains("Directory matches manifest perfectly"));
+        assert!(out3.contains("Caveats:"));
+        assert!(out3.contains("ignored 2 timestamp differences"));
+    }
+
+    #[crate::ctb_test]
+    fn test_sparse_verification_best_effort_filesystem_support() {
+        use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
+        use std::io::{Seek, SeekFrom, Write};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_sparse");
+        let dest = temp.path().join("dest_sparse");
+        let state = temp.path().join("state_sparse");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+        fs::create_dir_all(&state).expect("create state");
+
+        let sparse_src = src.join("sparse.bin");
+        let mut f = fs::File::create(&sparse_src).expect("create sparse src");
+        f.write_all(b"Header").expect("write header");
+        let seek_pos = 1024_u64.saturating_mul(1024);
+        f.seek(SeekFrom::Start(seek_pos)).expect("seek 1MB");
+        f.write_all(b"Tail").expect("write tail");
+        f.sync_data().expect("sync sparse src");
+        drop(f);
+
+        let args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        run_csc(args).expect("run csc");
+        let journal_path = find_cscjournal(&state);
+
+        // Overwrite destination file with non-sparse zero bytes
+        let dest_file_path = dest.join("sparse.bin");
+        let mut df = fs::File::create(&dest_file_path).expect("recreate dest non-sparse");
+        df.write_all(b"Header").expect("write header");
+        let zeroes_len = 1024_usize.saturating_mul(1024).saturating_sub(6);
+        let zeroes = vec![0_u8; zeroes_len];
+        df.write_all(&zeroes).expect("write zeroes");
+        df.write_all(b"Tail").expect("write tail");
+        df.sync_data().expect("sync non-sparse dest");
+        drop(df);
+
+        let meta = fs::metadata(&dest).expect("read dest metadata");
+        let dev_id = extract_device_id(&meta).expect("dev id");
+
+        // 1. On known sparse filesystem (e.g. ext4):
+        set_cached_filesystem_info(dev_id, FilesystemInfo {
+            fs_type: "ext4".to_string(),
+            resolution_nsec: 1,
+        });
+
+        // Strict mode fails
+        let mut strict_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        strict_args.best_effort = false;
+        strict_args.strict = true;
+        let res = run_csc_verify(&strict_args).expect("verify strict");
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // Best-effort mode ALSO fails because ext4 supports sparse files
+        let mut be_args = default_verify_args(journal_path.clone(), Some(dest.clone()));
+        be_args.best_effort = true;
+        be_args.strict = false;
+        let res = run_csc_verify(&be_args).expect("verify best_effort on ext4");
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // 2. On filesystem without sparse support (e.g. vfat):
+        set_cached_filesystem_info(dev_id, FilesystemInfo {
+            fs_type: "vfat".to_string(),
+            resolution_nsec: 2_000_000_000,
+        });
+
+        // Strict mode still fails
+        let res_vfat_strict = run_csc_verify(&strict_args).expect("verify strict on vfat");
+        if let ToolResult::Immediate { stdout, .. } = res_vfat_strict {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(out.contains("Sparse hole mismatch") || out.contains("1 discrepancies detected"));
+        }
+
+        // Best-effort mode succeeds, tolerates lost hole, and emits caveat!
+        let res_vfat_be = run_csc_verify(&be_args).expect("verify best_effort on vfat");
+        if let ToolResult::Immediate { stdout, .. } = res_vfat_be {
+            let out = String::from_utf8_lossy(&stdout);
+            assert!(
+                out.contains("OK - Directory matches manifest in best-effort mode; ignored ")
+                    && out.contains("1 sparse file difference"),
+                "Unexpected report output: {out}"
+            );
+            assert!(
+                out.contains("1 sparse file difference (materialized without holes due to filesystem limitations)"),
+                "Expected caveat not found in report: {out}"
+            );
+        }
+
+        clear_filesystem_cache();
+    }
+}
 

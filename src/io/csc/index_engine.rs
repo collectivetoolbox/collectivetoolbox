@@ -841,3 +841,514 @@ pub async fn flush_deleted_files_from_index(
 
     Ok(count)
 }
+#[cfg(all(test, unix))]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::args::{default_fsearch_args, default_fsindex_args};
+    use ctb_utilities::cli::ToolResult;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_and_fsearch_pipeline() {
+        use crate::args::{SearchOutputFormat, SearchSortField};
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use ctb_utilities::ToolResult;
+
+        let temp = tempdir().expect("create tempdir");
+        let src_a = temp.path().join("source_a");
+        let src_b = temp.path().join("source_b");
+        fs::create_dir_all(src_a.join("nested/deep")).expect("create src_a");
+        fs::create_dir_all(src_b.join("sub")).expect("create src_b");
+
+        fs::write(src_a.join("hello.txt"), b"Hello Source A").expect("write hello.txt");
+        fs::write(src_a.join("nested/doc.md"), b"# Markdown document").expect("write doc.md");
+        fs::write(src_a.join("nested/deep/data.bin"), vec![0u8; 1024]).expect("write data.bin");
+        std::os::unix::fs::symlink("hello.txt", src_a.join("link_to_hello")).expect("create symlink");
+
+        fs::write(src_b.join("world.txt"), b"World Source B").expect("write world.txt");
+        fs::write(src_b.join("sub/extra.log"), b"log entry 1\nlog entry 2\n").expect("write extra.log");
+
+        let db_path = temp.path().join("combined.cscindex.sqlite");
+
+        // 1. Run fsindex on source_a
+        let mut args_a = default_fsindex_args(vec![src_a.clone()], Some(db_path.clone()));
+        args_a.source_name = Some("source_a_tag".to_string());
+        let res_a = run_fsindex(args_a).await.expect("run_fsindex source_a");
+        match res_a {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        // 2. append source_b into the same database
+        let mut args_b = default_fsindex_args(vec![src_b.clone()], Some(db_path.clone()));
+        args_b.source_name = Some("source_b_tag".to_string());
+        let res_b = run_fsindex(args_b).await.expect("run_fsindex source_b (append)");
+        match res_b {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        // 3. Search: filename glob "*.txt" -> should match hello.txt and world.txt across both sources
+        let mut search_txt = default_fsearch_args(db_path.clone());
+        search_txt.query = vec!["*.txt".to_string()];
+        let res_search_txt = run_fsearch(search_txt).await.expect("run_fsearch *.txt");
+        if let ToolResult::Immediate { stdout, .. } = res_search_txt {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(out_str.contains("world.txt"));
+            assert!(!out_str.contains("doc.md"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Search with source filter: only source_a_tag
+        let mut search_src_a = default_fsearch_args(db_path.clone());
+        search_src_a.query = vec!["*.txt".to_string()];
+        search_src_a.source = Some("source_a_tag".to_string());
+        let res_src_a = run_fsearch(search_src_a).await.expect("run_fsearch source filter");
+        if let ToolResult::Immediate { stdout, .. } = res_src_a {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(!out_str.contains("world.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 5. Search with path glob "nested/*"
+        let mut search_path = default_fsearch_args(db_path.clone());
+        search_path.path_glob = Some("nested/*".to_string());
+        search_path.format = SearchOutputFormat::Long;
+        let res_path = run_fsearch(search_path).await.expect("run_fsearch path glob");
+        if let ToolResult::Immediate { stdout, .. } = res_path {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("doc.md"));
+            assert!(out_str.contains("data.bin"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 6. Search with JSON output and type filter (symlinks)
+        let mut search_sym = default_fsearch_args(db_path.clone());
+        search_sym.entry_type = Some("symlink".to_string());
+        search_sym.sort = SearchSortField::Name;
+        search_sym.format = SearchOutputFormat::Json;
+        let res_sym = run_fsearch(search_sym).await.expect("run_fsearch symlink json");
+        if let ToolResult::Immediate { stdout, .. } = res_sym {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("\"filename\": \"link_to_hello\""));
+            assert!(out_str.contains("\"symlink_target\": \"hello.txt\""));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 7. Search with size filter: >= 500 bytes (should match data.bin which is 1024 bytes)
+        let mut search_size = default_fsearch_args(db_path.clone());
+        search_size.size_min = Some("500".to_string());
+        search_size.sort = SearchSortField::Size;
+        search_size.sort_desc = true;
+        let res_size = run_fsearch(search_size).await.expect("run_fsearch size filter");
+        if let ToolResult::Immediate { stdout, .. } = res_size {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("data.bin"));
+            assert!(!out_str.contains("hello.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 8. Search with entry_type filter: "f" / "file"
+        let mut search_type = default_fsearch_args(db_path.clone());
+        search_type.entry_type = Some("f".to_string());
+        let res_type = run_fsearch(search_type).await.expect("run_fsearch type filter");
+        if let ToolResult::Immediate { stdout, .. } = res_type {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("hello.txt"));
+            assert!(out_str.contains("world.txt"));
+        }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_configurable_journal_path() {
+        use crate::index_engine::run_fsindex;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("item.txt"), b"Item content").expect("write item.txt");
+
+        let custom_journal = temp.path().join("custom_index.cscjournal");
+        let custom_desc = temp.path().join("custom_index.cscdesc");
+
+        let mut args = default_fsindex_args(vec![src.clone()], None);
+        args.journal_path = Some(custom_journal.clone());
+        args.journal_only = true;
+
+        let res = run_fsindex(args.clone()).await.expect("run fsindex with explicit journal_path");
+        match res {
+            ToolResult::Immediate { exit_code, .. } => assert_eq!(exit_code, 0),
+            _ => panic!("Expected immediate tool result"),
+        }
+
+        assert!(custom_journal.exists(), "Custom journal must exist");
+        assert!(custom_desc.exists(), "Custom desc must exist");
+
+        // Running again without --resume must error
+        let err = match run_fsindex(args).await {
+            Err(e) => e,
+            Ok(_) => panic!("Expected error when journal already exists"),
+        };
+        let err_msg = err.to_string();
+        assert!(
+            err_msg.contains("already exists"),
+            "Must reject overwriting existing journal file: {err_msg}"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_flush_deleted_files_from_index() {
+        use crate::index_engine::run_fsindex;
+        use crate::journal::read_journal_snapshot;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("files");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("a.txt"), b"File A").expect("write a.txt");
+        fs::write(src.join("b.txt"), b"File B").expect("write b.txt");
+        fs::write(src.join("c.txt"), b"File C").expect("write c.txt");
+
+        let journal_path = temp.path().join("files.cscjournal");
+        let db_path = temp.path().join("files.cscindex.sqlite");
+
+        // 1. Initial index
+        let mut args_init = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        args_init.journal_path = Some(journal_path.clone());
+        args_init.source_name = Some("test_src".to_string());
+        run_fsindex(args_init).await.expect("initial fsindex");
+
+        // Verify all 3 files exist in the database
+        {
+            let db_str = db_path.to_string_lossy().to_string();
+            let db = Builder::new_local(&db_str)
+                .experimental_index_method(true)
+                .build()
+                .await
+                .expect("open db");
+            let conn = db.connect().expect("connect db");
+            let mut count_stmt = conn.prepare("SELECT COUNT(*) FROM entries").await.expect("prepare count");
+            let mut rows = count_stmt.query(()).await.expect("query count");
+            let total: i64 = match rows.next().await.expect("row").expect("some row").get_value(0) {
+                Ok(Value::Integer(n)) => n,
+                _ => panic!("Expected integer count"),
+            };
+            // 3 regular files + 1 root directory entry
+            assert_eq!(total, 4);
+        }
+
+        // 2. Delete b.txt from disk
+        fs::remove_file(src.join("b.txt")).expect("remove b.txt");
+
+        let snap_before = read_journal_snapshot(&journal_path).expect("read snap");
+        assert!(
+            snap_before.is_committed(b"b.txt"),
+            "Journal must contain b.txt before flush"
+        );
+
+        // 3. Run fsindex again with the journal path and --flush-deleted
+        let mut args_flush = default_fsindex_args(vec![journal_path.clone()], Some(db_path.clone()));
+        args_flush.flush_deleted = true;
+        args_flush.source_name = Some("test_src".to_string());
+        let res_flush = run_fsindex(args_flush).await.expect("run fsindex flush");
+        if let ToolResult::Immediate { stdout, .. } = res_flush {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(
+                out_str.contains("Entries flushed:  1"),
+                "Output must report 1 flushed entry: {out_str}"
+            );
+        } else {
+            panic!("Expected immediate tool result");
+        }
+
+        // 4. Verify b.txt is gone from database, while a.txt and c.txt remain
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        let mut check_b = conn
+            .prepare("SELECT COUNT(*) FROM entries WHERE filename = 'b.txt'")
+            .await
+            .expect("prepare check_b");
+        let mut b_rows = check_b.query(()).await.expect("query b");
+        let b_count: i64 = match b_rows.next().await.expect("row").expect("some row").get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected integer count"),
+        };
+        assert_eq!(b_count, 0, "b.txt must be flushed from SQLite index");
+
+        let mut check_a = conn
+            .prepare("SELECT COUNT(*) FROM entries WHERE filename = 'a.txt'")
+            .await
+            .expect("prepare check_a");
+        let mut a_rows = check_a.query(()).await.expect("query a");
+        let a_count: i64 = match a_rows.next().await.expect("row").expect("some row").get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected integer count"),
+        };
+        assert_eq!(a_count, 1, "a.txt must remain in SQLite index");
+
+        // 5. Verify the journal file was completely untouched
+        let snap_after = read_journal_snapshot(&journal_path).expect("read snap after");
+        assert!(
+            snap_after.is_committed(b"b.txt"),
+            "Journal file must be untouched and still contain b.txt"
+        );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_appended_indices_deduplicated_by_path() {
+        use crate::index_engine::run_fsindex;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src1 = temp.path().join("src1");
+        let src2 = temp.path().join("src2");
+        fs::create_dir_all(&src1).expect("create src1");
+        fs::create_dir_all(&src2).expect("create src2");
+
+        // Version 1 of shared file
+        fs::write(src1.join("shared.txt"), b"version 1").expect("write v1");
+        // Version 2 of shared file (longer content)
+        fs::write(src2.join("shared.txt"), b"version 2 longer content").expect("write v2");
+
+        let db_path = temp.path().join("dedup.cscindex.sqlite");
+
+        // Index source 1
+        let mut args1 = default_fsindex_args(vec![src1.clone()], Some(db_path.clone()));
+        args1.source_name = Some("source_1".to_string());
+        run_fsindex(args1).await.expect("index src1");
+
+        // Index source 2 into same database (append)
+        let mut args2 = default_fsindex_args(vec![src2.clone()], Some(db_path.clone()));
+        args2.source_name = Some("source_2".to_string());
+        run_fsindex(args2).await.expect("index src2");
+
+        // Verify deduplication: exactly 1 entry for shared.txt with updated size
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*), size, s.name FROM entries e JOIN sources s ON e.source_id = s.id WHERE e.path = 'shared.txt'")
+            .await
+            .expect("prepare stmt");
+        let mut rows = stmt.query(()).await.expect("query");
+        let row = rows.next().await.expect("row").expect("some row");
+
+        let count: i64 = match row.get_value(0) {
+            Ok(Value::Integer(n)) => n,
+            _ => panic!("Expected count integer"),
+        };
+        let size: i64 = match row.get_value(1) {
+            Ok(Value::Integer(s)) => s,
+            _ => panic!("Expected size integer"),
+        };
+        let src_name: String = match row.get_value(2) {
+            Ok(Value::Text(s)) => s,
+            _ => panic!("Expected source name text"),
+        };
+
+        assert_eq!(count, 1, "Appended index must deduplicate entries with the same path");
+        assert_eq!(size, 24, "Entry must be updated with the latest appended data");
+        assert_eq!(src_name, "source_2", "Source tag must be updated to the latest source");
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_and_fsearch_fulltext_and_context() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("docs");
+        fs::create_dir_all(&src).expect("create src");
+
+        fs::write(
+            src.join("sample.txt"),
+            b"Line 1 introductory text\nLine 2 contains unique_phrase_xyz for search\nLine 3 conclusion text\n",
+        )
+        .expect("write sample.txt");
+
+        fs::write(
+            src.join("other.txt"),
+            b"Line 1 standard words\nLine 2 another normal sentence\n",
+        )
+        .expect("write other.txt");
+
+        let db_path = temp.path().join("fulltext.cscindex.sqlite");
+
+        // Index with fulltext enabled
+        let mut idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        idx_args.fulltext = true;
+        idx_args.fulltext_max = "50k".to_string();
+        run_fsindex(idx_args).await.expect("run fsindex with fulltext");
+
+        // 1. Keyword search on text content (-kt / --keyword-text)
+        let mut search_kt = default_fsearch_args(db_path.clone());
+        search_kt.keyword_text = Some("unique_phrase_xyz".to_string());
+        let res_kt = run_fsearch(search_kt).await.expect("search -kt");
+        if let ToolResult::Immediate { stdout, .. } = res_kt {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"), "Must find sample.txt by content: {s}");
+            assert!(!s.contains("other.txt"), "Must not find other.txt");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 2. Search with context (-C 1)
+        let mut search_ctx = default_fsearch_args(db_path.clone());
+        search_ctx.keyword_text = Some("unique_phrase_xyz".to_string());
+        search_ctx.context = Some(1);
+        let res_ctx = run_fsearch(search_ctx).await.expect("search with context");
+        if let ToolResult::Immediate { stdout, .. } = res_ctx {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"));
+            assert!(s.contains("1- Line 1 introductory text"), "Must show line 1 context: {s}");
+            assert!(s.contains("2: Line 2 contains unique_phrase_xyz for search"), "Must show matching line 2: {s}");
+            assert!(s.contains("3- Line 3 conclusion text"), "Must show line 3 context: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 3. Auto-resolved keyword search with multiple terms
+        let mut search_multi = default_fsearch_args(db_path.clone());
+        search_multi.query = vec!["unique_phrase_xyz".to_string(), "conclusion".to_string()];
+        let res_multi = run_fsearch(search_multi).await.expect("search multiple positional terms");
+        if let ToolResult::Immediate { stdout, .. } = res_multi {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"), "Multiple terms must match sample.txt: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 4. Auto-resolved glob search with wildcard '*'
+        let mut search_glob = default_fsearch_args(db_path.clone());
+        search_glob.query = vec!["*.txt".to_string()];
+        let res_glob = run_fsearch(search_glob).await.expect("search glob *.txt");
+        if let ToolResult::Immediate { stdout, .. } = res_glob {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(s.contains("sample.txt"));
+            assert!(s.contains("other.txt"));
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 5. Orthogonal flag: -kn (keyword on filename only)
+        let mut search_kn = default_fsearch_args(db_path.clone());
+        search_kn.keyword_name = Some("unique_phrase_xyz".to_string());
+        let res_kn = run_fsearch(search_kn).await.expect("search -kn");
+        if let ToolResult::Immediate { stdout, .. } = res_kn {
+            let s = String::from_utf8_lossy(&stdout);
+            assert!(!s.contains("sample.txt"), "-kn must not match text content in sample.txt: {s}");
+        } else {
+            panic!("Expected immediate result");
+        }
+
+        // 6. Multi-argument keyword search (-k with multiple parameters vs single argument with space)
+        let mut search_k_multi = default_fsearch_args(db_path.clone());
+        search_k_multi.keyword = vec!["sample".to_string(), "txt".to_string()];
+        let res_k_multi = run_fsearch(search_k_multi).await.expect("search -k multiple terms");
+        let s_multi = if let ToolResult::Immediate { stdout, .. } = res_k_multi {
+            String::from_utf8_lossy(&stdout).to_string()
+        } else {
+            panic!("Expected immediate result");
+        };
+
+        let mut search_k_joined = default_fsearch_args(db_path.clone());
+        search_k_joined.keyword = vec!["sample txt".to_string()];
+        let res_k_joined = run_fsearch(search_k_joined).await.expect("search -k single term with space");
+        let s_joined = if let ToolResult::Immediate { stdout, .. } = res_k_joined {
+            String::from_utf8_lossy(&stdout).to_string()
+        } else {
+            panic!("Expected immediate result");
+        };
+
+        assert_eq!(s_multi, s_joined, "-k 'a' 'b' must produce identical results to -k 'a b'");
+        assert!(s_multi.contains("sample.txt"));
+
+        // 7. Rejection of conflicting explicit option and positional query
+        let mut search_conflict = default_fsearch_args(db_path.clone());
+        search_conflict.keyword = vec!["sample".to_string()];
+        search_conflict.query = vec!["unexpected_trailing_positional".to_string()];
+        let err_conflict = run_fsearch(search_conflict).await.err().expect("must fail on mixed explicit option and query");
+        assert!(err_conflict.to_string().contains("Cannot specify both explicit search filter flags and positional query terms"));
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_fsindex_without_fulltext_schema() {
+        use crate::index_engine::run_fsindex;
+        use crate::search_engine::run_fsearch;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("files");
+        fs::create_dir_all(&src).expect("create src");
+        fs::write(src.join("test.txt"), b"Normal content").expect("write file");
+
+        let db_path = temp.path().join("nofulltext.cscindex.sqlite");
+
+        // Index with fulltext disabled (default)
+        let idx_args = default_fsindex_args(vec![src.clone()], Some(db_path.clone()));
+        run_fsindex(idx_args).await.expect("run fsindex without fulltext");
+
+        // Check SQLite schema: full_text column must NOT exist
+        let db_str = db_path.to_string_lossy().to_string();
+        let db = Builder::new_local(&db_str)
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+        let mut stmt = conn.prepare("PRAGMA table_info(entries)").await.expect("pragma table_info");
+        let mut rows = stmt.query(()).await.expect("query");
+        let mut has_full_text_col = false;
+        while let Some(row) = rows.next().await.expect("row") {
+            if let Ok(Value::Text(col)) = row.get_value(1) {
+                if col == "full_text" {
+                    has_full_text_col = true;
+                }
+            }
+        }
+        assert!(!has_full_text_col, "entries table must NOT contain full_text column when fulltext is disabled");
+
+        // Searching with -kt or -C on non-fulltext database must error
+        let mut search_kt = default_fsearch_args(db_path.clone());
+        search_kt.keyword_text = Some("Normal".to_string());
+        let err = run_fsearch(search_kt).await.err().expect("must fail -kt on non-fulltext db");
+        assert!(err.to_string().contains("not indexed with --fulltext"));
+
+        let mut search_ctx = default_fsearch_args(db_path.clone());
+        search_ctx.query = vec!["Normal".to_string()];
+        search_ctx.context = Some(2);
+        let err_ctx = run_fsearch(search_ctx).await.err().expect("must fail context on non-fulltext db");
+        assert!(err_ctx.to_string().contains("not indexed with --fulltext"));
+    }
+}
+
