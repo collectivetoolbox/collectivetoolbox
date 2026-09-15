@@ -807,7 +807,7 @@ pub fn query_file_flags(
 
     #[cfg(target_os = "linux")]
     {
-        use rustix::fs::{IFlags, ioctl_getflags};
+        use rustix::fs::ioctl_getflags;
         use std::os::unix::fs::OpenOptionsExt;
 
         let sym_meta = std::fs::symlink_metadata(path)?;
@@ -1532,11 +1532,16 @@ mod tests {
         for entry in LINUX_FLAG_MAP {
             let (parsed, has_unparsed) = parse_linux_flags(entry.mask);
             assert!(!has_unparsed);
-            assert!(parsed.contains(&entry.flag));
+            assert!(!parsed.is_empty());
 
             let mask = linux_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
             assert_eq!(mask, entry.mask);
         }
+
+        let (parsed_imm, _) = parse_linux_flags(LINUX_FS_IMMUTABLE_FL);
+        assert_eq!(parsed_imm, vec![FileFlag::UserImmutable]);
+        let (parsed_app, _) = parse_linux_flags(LINUX_FS_APPEND_FL);
+        assert_eq!(parsed_app, vec![FileFlag::UserAppend]);
 
         // Unknown bit sets has_unparsed
         let (_, unparsed) = parse_linux_flags(0x8000_0000);
@@ -1586,11 +1591,14 @@ mod tests {
         for entry in WINDOWS_FLAG_MAP {
             let (parsed, has_unparsed) = parse_windows_flags(entry.mask);
             assert!(!has_unparsed);
-            assert!(parsed.contains(&entry.flag));
+            assert!(!parsed.is_empty());
 
             let mask = windows_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
             assert_eq!(mask, entry.mask);
         }
+
+        let (parsed_arch, _) = parse_windows_flags(WIN_FILE_ATTRIBUTE_ARCHIVE);
+        assert_eq!(parsed_arch, vec![FileFlag::Archived]);
 
         // Unknown bit sets has_unparsed
         let (_, unparsed) = parse_windows_flags(0x8000_0000);

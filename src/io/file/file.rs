@@ -1576,6 +1576,24 @@ mod tests {
             assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).is_err());
         }
     }
+
+    #[crate::ctb_test]
+    fn test_bundle_detection_and_environment_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_dir = temp.path().join("Sample.app");
+        std::fs::create_dir(&app_dir).unwrap();
+
+        let entity = FileEntity::from_filesystem(&app_dir, None).unwrap();
+
+        // On non-macOS platforms, .app directory must be classified as Directory, not Bundle
+        #[cfg(not(target_os = "macos"))]
+        assert_eq!(entity.kind, FileEntityKind::Directory);
+
+        // Environment metadata must be recorded and accessible
+        let env = entity.environment().expect("environment must be recorded");
+        assert!(!env.os.is_empty());
+        let _ = env.looks_like_gnustep;
+    }
 }
 
 
