@@ -634,13 +634,24 @@ fn lint_file(
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
 ) -> Result<()> {
-    if file_path.file_name().and_then(|n| n.to_str()) == Some("mod.rs") {
-        violations.push(Violation {
-            file: file_path.to_path_buf(),
-            line: 1,
-            message: "mod.rs is not allowed; modules must use the module name and be located in the enclosing directory (e.g. `foo.rs` alongside `foo/` directory)"
-                .to_string(),
-        });
+    match file_path.file_name().and_then(|n| n.to_str()) {
+        Some("mod.rs") => {
+            violations.push(Violation {
+                file: file_path.to_path_buf(),
+                line: 1,
+                message: "mod.rs is not allowed; modules must use the module name and be located in the enclosing directory (e.g. `foo.rs` alongside `foo/` directory)"
+                    .to_string(),
+            });
+        }
+        Some("tests.rs") => {
+            violations.push(Violation {
+                file: file_path.to_path_buf(),
+                line: 1,
+                message: "tests.rs is not allowed; tests should be entered into the relevant associated files rather than all in a lump separate from the code under test"
+                    .to_string(),
+            });
+        }
+        _ => {}
     }
 
     let content = fs::read_to_string(file_path)

@@ -24,7 +24,7 @@ We have successfully completed the LLM-assisted port of the `dceutils` (libdce 2
 - Created [dceutils.rs](ctoolbox/src/formats/dceutils/dceutils.rs) as the main routing entrypoint exposing `dce_convert` and `get_dce_version`.
 
 ### 6. Automated Compatibility Tests
-- Created [test_converter.py](ctoolbox/src/formats/dceutils/test_converter.py) to read `dceutils_tests.php` and generate the Rust equivalent test file [tests.rs](ctoolbox/src/formats/dceutils/tests.rs).
+- Created [test_converter.py](ctoolbox/src/formats/dceutils/test_converter.py) to read `dceutils_tests.php` and generate the Rust equivalent test file [dceutils_tests.rs](ctoolbox/src/formats/dceutils/dceutils_tests.rs).
 - This ensures that no manual translation hallucinations could impact the test data.
 
 ## Faithfully Replicated Quirks
@@ -65,7 +65,7 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
    - Bypassed the outer mapping wrapper for base64/iconv/UTF-8 decoding errors in input formats to output standard format error strings matching PHP.
 
 3. **Automated Conversion & Verification**:
-   - Developed **[test_converter.py](ctoolbox/src/formats/dceutils/test_converter.py)** to translate the original `dceutils_tests.php` suite into static compile-time Rust tests (**[tests.rs](ctoolbox/src/formats/dceutils/tests.rs)**) without manual intervention.
+   - Developed **[test_converter.py](ctoolbox/src/formats/dceutils/test_converter.py)** to translate the original `dceutils_tests.php` suite into static compile-time Rust tests (**[dceutils_tests.rs](ctoolbox/src/formats/dceutils/dceutils_tests.rs)**) without manual intervention.
    - Executed the test suite successfully with all 88 compatibility assertions passing cleanly:
      ```
      running 4 tests

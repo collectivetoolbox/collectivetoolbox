@@ -98,7 +98,7 @@ pub mod unicode;
     clippy::arithmetic_side_effects,
     reason = "Standard repository test boilerplate"
 )]
-mod tests;
+mod dceutils_tests;
 
 use anyhow::{Context, Result, anyhow, bail};
 pub use ctb_formats_utilities::FormatLog;

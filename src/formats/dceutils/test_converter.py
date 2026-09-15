@@ -213,7 +213,7 @@ def main():
 
     rust_tests.append("}\n")
 
-    out_path = "~/ctoolbox/src/formats/dceutils/tests.rs"
+    out_path = "~/ctoolbox/src/formats/dceutils/dceutils_tests.rs"
     with open(out_path, "w", encoding="utf-8") as f:
         f.writelines(rust_tests)
     print(f"Generated {test_counter} test assertions in {out_path}")

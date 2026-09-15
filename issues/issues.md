@@ -32,8 +32,6 @@
 
 - AppleDouble fixme:         // FIXME: These three cases are not correct, because it doesn't confirm that they actually are being used as AppleDouble. It should still traverse them here if they are not actually associated with an AppleDouble file being copied, or else they'll be omitted
 
-- AppleSingle do not get .as extensions it doesn't look like. I think they should?
-
 Windows-style streams (:Zone.Identifier)
 
 - Testing/handling of name collisions (e.g. if a folder has Foo, Foo.as, and Foo.as.as all in it, and each has a resource fork FinderInfo, etc. to save, and AppleSingle is turned on, making sure no files are lost ore clobbered). This also applies to ._foo, .AppleDouble, __MACOSX, and .Parent - these might preexist, for instance.
