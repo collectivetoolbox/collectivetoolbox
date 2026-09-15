@@ -67,6 +67,7 @@ pub use ctb_workspace_ipc;
 pub mod capabilities;
 pub mod crlite;
 pub mod panic_hooks;
+pub mod environment;
 pub mod process;
 pub mod update_status;
 
@@ -79,6 +80,9 @@ pub async fn entry() -> anyhow::Result<()> {
 
     match invocation {
         cli::Invocation::Subprocess(sub) => {
+            crate::utilities::environment::set_process_role(
+                crate::utilities::environment::ProcessRole::ServiceSubprocess,
+            );
             setup_logger_for_subprocess(&sub.kind)?;
             setup_subprocess_panic_hooks();
             ctb_storage_minimal::xkb::ensure_xkb_config_root()?;
@@ -88,6 +92,15 @@ pub async fn entry() -> anyhow::Result<()> {
             Ok(())
         }
         cli::Invocation::User(cli_args) => {
+            if cli_args.command.is_some() {
+                crate::utilities::environment::set_process_role(
+                    crate::utilities::environment::ProcessRole::LightweightCli,
+                );
+            } else {
+                crate::utilities::environment::set_process_role(
+                    crate::utilities::environment::ProcessRole::WorkspaceMain,
+                );
+            }
             // Skip for subprocesses to avoid race.
             check_filesystem_lock_support()?;
 
@@ -210,6 +223,9 @@ impl Workspace for CtbWorkspace {
             "Starting Collective Toolbox on socket: {}",
             rt.socket_path()
         );
+
+        // Concurrently run full environment capture/cache refill during boot
+        tokio::task::spawn_blocking(ctb_utilities::environment::env_cache_reset);
 
         if self.args().no_update {
             log!("Skipping update checks due to --no-update");

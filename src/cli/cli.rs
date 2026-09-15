@@ -157,11 +157,23 @@ pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
     let (kind, _remaining_args) =
         subprocess::parse_subprocess_cli(raw.clone())?;
     if let Some(kind) = kind {
+        environment::set_process_role(
+            environment::ProcessRole::ServiceSubprocess,
+        );
         return Ok(Invocation::Subprocess(SubprocessArgs { kind, args: raw }));
     }
     let normalized = normalize_fsearch_flags(raw);
     // Fallback: user CLI
     let cli = Cli::parse_from(normalized); // Clap handles errors & help display
+    if cli.command.is_some() {
+        environment::set_process_role(
+            environment::ProcessRole::LightweightCli,
+        );
+    } else {
+        environment::set_process_role(
+            environment::ProcessRole::WorkspaceMain,
+        );
+    }
     Ok(Invocation::User(cli))
 }
 

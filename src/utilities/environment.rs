@@ -629,6 +629,10 @@ fn current_platform_str() -> &'static str {
     }
 }
 
+pub fn cwd() -> Result<String> {
+    env::current_dir()?
+}
+
 fn verify_official_signature_in_thread() -> bool {
     // Can't depend on installer or formats/base64 here, to avoid circular dependencies.
     let Ok(exe_path) = std::env::current_exe() else {
@@ -945,6 +949,8 @@ pub struct EnvDescription {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_system_time_offset_nanos: Option<i128>,
+
+    pub cwd: Option<String>,
 
     #[serde(
         flatten,

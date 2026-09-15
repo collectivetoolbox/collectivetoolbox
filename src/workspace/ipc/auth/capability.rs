@@ -252,6 +252,25 @@ pub fn default_service_capabilities(kind: ChildKind) -> CapabilitySet {
         }],
     );
 
+    // All services can query environment from workspace
+    allowed.insert(
+        ServiceName("workspace".to_string()),
+        vec![
+            MethodRule {
+                method: MethodSelector::Exact("capture".into()),
+                quotas: None,
+            },
+            MethodRule {
+                method: MethodSelector::Exact("capture_quick".into()),
+                quotas: None,
+            },
+            MethodRule {
+                method: MethodSelector::Exact("env_cache_reset".into()),
+                quotas: None,
+            },
+        ],
+    );
+
     // Service-specific capabilities can be added here
     match kind {
         ChildKind::Network | ChildKind::Io | ChildKind::Storage => {
