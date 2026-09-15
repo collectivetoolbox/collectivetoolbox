@@ -46,6 +46,14 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 
+static APPLESINGLEDOUBLE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+/// Retrieves embedded AppleSingle / AppleDouble asset data by path key.
+#[must_use]
+pub fn get_apple_single_double_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&APPLESINGLEDOUBLE_DATA_DIR, key)
+}
+
 /// AppleSingle magic number in big-endian byte order.
 pub const APPLESINGLE_MAGIC_BE: u32 = 0x0005_1600;
 
@@ -1132,6 +1140,245 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_apple_single_fixtures() -> anyhow::Result<()> {
+        let data1 = get_archive_data("fixtures/AppleSingle/test file.as")
+            .context("test file.as fixture missing")?;
+        let archive1 = read_apple_single_double(&data1)?;
+
+        ensure!(archive1.format == AppleFormat::AppleSingle);
+        ensure!(archive1.version == VERSION_2_0_BE);
+        ensure!(archive1.real_name.as_deref() == Some("test file"));
+        ensure!(archive1.data_fork.as_deref() == Some(b"test file".as_slice()));
+        ensure!(archive1.data_fork_size == Some(9));
+        ensure!(archive1.resource_fork_size == Some(332));
+
+        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo1.file_type == "TEXT");
+        ensure!(finfo1.file_creator == "ttxt");
+        ensure!(finfo1.label.index == 0);
+        ensure!(finfo1.label.classic_color == "Black");
+        ensure!(finfo1.label.osx_color == "None");
+        ensure!(finfo1.flags.has_been_inited);
+
+        let ts1 = archive1.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(ts1.birthtime_sec == Some(1_789_356_839));
+        ensure!(ts1.mtime_sec == 1_789_356_839);
+
+        // Test JSON export
+        let json1 = archive1.to_json()?;
+        ensure!(json1.contains("\"format\":\"AppleSingle\""));
+        ensure!(json1.contains("\"real_name\":\"test file\""));
+        let json_val1: serde_json::Value = serde_json::from_str(&json1)?;
+        ensure!(json_val1["format"] == "AppleSingle");
+
+        // Test roundtrip serialization
+        let written1 = write_apple_single_double(&archive1)?;
+        let parsed1 = read_apple_single_double(&written1)?;
+        ensure!(parsed1.format == AppleFormat::AppleSingle);
+        ensure!(parsed1.real_name == archive1.real_name);
+        ensure!(parsed1.data_fork == archive1.data_fork);
+        ensure!(parsed1.resource_fork == archive1.resource_fork);
+        ensure!(parsed1.finder_info == archive1.finder_info);
+        ensure!(parsed1.timestamps == archive1.timestamps);
+
+        // Test second AppleSingle fixture with green label
+        let data2 = get_archive_data("fixtures/AppleSingle/test file green2.as")
+            .context("test file green2.as fixture missing")?;
+        let archive2 = read_apple_single_double(&data2)?;
+
+        ensure!(archive2.format == AppleFormat::AppleSingle);
+        ensure!(archive2.real_name.as_deref() == Some("test file green2"));
+        ensure!(archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice()));
+        ensure!(archive2.data_fork_size == Some(10));
+        ensure!(archive2.resource_fork_size == Some(372));
+
+        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo2.file_type == "TEXT");
+        ensure!(finfo2.file_creator == "ttxt");
+        ensure!(finfo2.label.index == 2);
+        ensure!(finfo2.label.classic_color == "Green");
+        ensure!(finfo2.label.osx_color == "Green");
+
+        let ts2 = archive2.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(ts2.birthtime_sec == Some(1_789_356_860));
+        ensure!(ts2.mtime_sec == 1_789_356_875);
+
+        // Test roundtrip serialization of archive2
+        let written2 = write_apple_single_double(&archive2)?;
+        let parsed2 = read_apple_single_double(&written2)?;
+        ensure!(parsed2.format == AppleFormat::AppleSingle);
+        ensure!(parsed2.real_name == archive2.real_name);
+        ensure!(parsed2.data_fork == archive2.data_fork);
+        ensure!(parsed2.resource_fork == archive2.resource_fork);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
+        let data1 = get_archive_data("fixtures/AppleDouble/Alongside/test file/._test file")
+            .context("Alongside ._test file missing")?;
+        let archive1 = read_apple_single_double(&data1)?;
+
+        ensure!(archive1.format == AppleFormat::AppleDouble);
+        ensure!(archive1.data_fork.is_none());
+        ensure!(archive1.resource_fork_size == Some(332));
+
+        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo1.file_type == "TEXT");
+        ensure!(finfo1.file_creator == "ttxt");
+        ensure!(finfo1.label.index == 0);
+
+        let data2 = get_archive_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
+            .context("Alongside ._test file green2 missing")?;
+        let archive2 = read_apple_single_double(&data2)?;
+
+        ensure!(archive2.format == AppleFormat::AppleDouble);
+        ensure!(archive2.data_fork.is_none());
+        ensure!(archive2.resource_fork_size == Some(372));
+
+        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo2.file_type == "TEXT");
+        ensure!(finfo2.file_creator == "ttxt");
+        ensure!(finfo2.label.index == 2);
+        ensure!(finfo2.label.classic_color == "Green");
+        ensure!(finfo2.location == (88, 220));
+
+        // Test roundtrip serialization of AppleDouble
+        let written2 = write_apple_single_double(&archive2)?;
+        let parsed2 = read_apple_single_double(&written2)?;
+        ensure!(parsed2.format == AppleFormat::AppleDouble);
+        ensure!(parsed2.resource_fork == archive2.resource_fork);
+        let parsed_finfo2 = parsed2.finder_info.as_ref().context("missing parsed finfo")?;
+        ensure!(parsed_finfo2.file_type == finfo2.file_type);
+        ensure!(parsed_finfo2.file_creator == finfo2.file_creator);
+        ensure!(parsed_finfo2.label.index == finfo2.label.index);
+        ensure!(parsed_finfo2.location == finfo2.location);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_brown_bin_fixture() -> anyhow::Result<()> {
+        let data = get_archive_data(
+            "fixtures/AppleDouble/__MACOSX-style/test file green2 brown.bin/__MACOSX/._test file green2 brown.bin",
+        )
+        .context("brown.bin fixture missing")?;
+        let archive = read_apple_single_double(&data)?;
+
+        ensure!(archive.format == AppleFormat::AppleDouble);
+        ensure!(archive.entries.len() == 1);
+        ensure!(archive.entries[0].entry_type == EntryType::FinderInfo);
+        ensure!(archive.resource_fork.is_none());
+
+        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo.file_type == "BINA");
+        ensure!(finfo.file_creator == "SITx");
+        ensure!(finfo.label.index == 1);
+        ensure!(finfo.label.classic_name == "Project 2");
+        ensure!(finfo.label.classic_color == "Brown");
+        ensure!(finfo.label.osx_color == "Gray");
+        ensure!(finfo.location == (448, 129));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_with_xattrs_roundtrip() -> anyhow::Result<()> {
+        let archive = AppleArchive {
+            format: AppleFormat::AppleDouble,
+            version: VERSION_2_0_BE,
+            real_name: Some("example.txt".to_string()),
+            comment: Some("Test comment".to_string()),
+            timestamps: Some(AppleDatesInfo {
+                birthtime_sec: Some(1_700_000_000),
+                mtime_sec: 1_700_001_000,
+                ctime_sec: 1_700_001_000,
+                atime_sec: 1_700_002_000,
+                backup_sec: Some(1_700_000_500),
+            }),
+            backup_timestamp_sec: Some(1_700_000_500),
+            finder_info: Some(FinderInfo {
+                file_type: "TEXT".to_string(),
+                file_creator: "ttxt".to_string(),
+                raw_flags: 0,
+                label: FinderLabel::from_index(3),
+                flags: FinderFlags {
+                    is_on_desk: false,
+                    is_shared: false,
+                    has_been_inited: true,
+                    has_custom_icon: false,
+                    is_stationery: false,
+                    name_locked: false,
+                    has_bundle: false,
+                    is_invisible: false,
+                    is_alias: false,
+                },
+                location: (100, 200),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: vec![
+                AppleExtendedAttribute {
+                    name: "com.apple.metadata:kMDItemWhereFroms".to_string(),
+                    data: b"https://example.com/download".to_vec(),
+                    size: 28,
+                },
+                AppleExtendedAttribute {
+                    name: "user.custom.note".to_string(),
+                    data: b"important payload".to_vec(),
+                    size: 17,
+                },
+            ],
+            data_fork: None,
+            resource_fork: Some(b"mock resource fork binary data".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(30),
+            entries: Vec::new(),
+        };
+
+        let bytes = write_apple_single_double(&archive)?;
+        let parsed = read_apple_single_double(&bytes)?;
+
+        ensure!(parsed.format == AppleFormat::AppleDouble);
+        ensure!(parsed.real_name == archive.real_name);
+        ensure!(parsed.comment == archive.comment);
+        ensure!(parsed.resource_fork == archive.resource_fork);
+
+        let parsed_ts = parsed.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(parsed_ts.birthtime_sec == archive.timestamps.as_ref().unwrap().birthtime_sec);
+        ensure!(parsed_ts.mtime_sec == archive.timestamps.as_ref().unwrap().mtime_sec);
+
+        let parsed_finfo = parsed.finder_info.as_ref().context("missing finfo")?;
+        ensure!(parsed_finfo.file_type == "TEXT");
+        ensure!(parsed_finfo.file_creator == "ttxt");
+        ensure!(parsed_finfo.location == (100, 200));
+
+        ensure!(parsed.extended_attributes.len() == 2);
+        ensure!(parsed.extended_attributes[0].name == "com.apple.metadata:kMDItemWhereFroms");
+        ensure!(parsed.extended_attributes[0].data == b"https://example.com/download");
+        ensure!(parsed.extended_attributes[1].name == "user.custom.note");
+        ensure!(parsed.extended_attributes[1].data == b"important payload");
+
+        Ok(())
+    }
+}
+
 /* Licensing details for TheUnarchiver, from License.txt:
 
 This program, "The Unarchiver", its accompanying libraries, "XADMaster"
@@ -2043,250 +2290,3 @@ PURPOSE.
 The End
 
 */
-
-static ARCHIVE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
-
-/// Retrieves embedded archive asset data by path key.
-#[must_use]
-pub fn get_archive_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&ARCHIVE_DATA_DIR, key)
-}
-
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-
-    #[crate::ctb_test]
-    fn test_apple_single_fixtures() -> anyhow::Result<()> {
-        let data1 = get_archive_data("fixtures/AppleSingle/test file.as")
-            .context("test file.as fixture missing")?;
-        let archive1 = read_apple_single_double(&data1)?;
-
-        ensure!(archive1.format == AppleFormat::AppleSingle);
-        ensure!(archive1.version == VERSION_2_0_BE);
-        ensure!(archive1.real_name.as_deref() == Some("test file"));
-        ensure!(archive1.data_fork.as_deref() == Some(b"test file".as_slice()));
-        ensure!(archive1.data_fork_size == Some(9));
-        ensure!(archive1.resource_fork_size == Some(332));
-
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
-        ensure!(finfo1.file_type == "TEXT");
-        ensure!(finfo1.file_creator == "ttxt");
-        ensure!(finfo1.label.index == 0);
-        ensure!(finfo1.label.classic_color == "Black");
-        ensure!(finfo1.label.osx_color == "None");
-        ensure!(finfo1.flags.has_been_inited);
-
-        let ts1 = archive1.timestamps.as_ref().context("missing timestamps")?;
-        ensure!(ts1.birthtime_sec == Some(1_789_356_839));
-        ensure!(ts1.mtime_sec == 1_789_356_839);
-
-        // Test JSON export
-        let json1 = archive1.to_json()?;
-        ensure!(json1.contains("\"format\":\"AppleSingle\""));
-        ensure!(json1.contains("\"real_name\":\"test file\""));
-        let json_val1: serde_json::Value = serde_json::from_str(&json1)?;
-        ensure!(json_val1["format"] == "AppleSingle");
-
-        // Test roundtrip serialization
-        let written1 = write_apple_single_double(&archive1)?;
-        let parsed1 = read_apple_single_double(&written1)?;
-        ensure!(parsed1.format == AppleFormat::AppleSingle);
-        ensure!(parsed1.real_name == archive1.real_name);
-        ensure!(parsed1.data_fork == archive1.data_fork);
-        ensure!(parsed1.resource_fork == archive1.resource_fork);
-        ensure!(parsed1.finder_info == archive1.finder_info);
-        ensure!(parsed1.timestamps == archive1.timestamps);
-
-        // Test second AppleSingle fixture with green label
-        let data2 = get_archive_data("fixtures/AppleSingle/test file green2.as")
-            .context("test file green2.as fixture missing")?;
-        let archive2 = read_apple_single_double(&data2)?;
-
-        ensure!(archive2.format == AppleFormat::AppleSingle);
-        ensure!(archive2.real_name.as_deref() == Some("test file green2"));
-        ensure!(archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice()));
-        ensure!(archive2.data_fork_size == Some(10));
-        ensure!(archive2.resource_fork_size == Some(372));
-
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
-        ensure!(finfo2.file_type == "TEXT");
-        ensure!(finfo2.file_creator == "ttxt");
-        ensure!(finfo2.label.index == 2);
-        ensure!(finfo2.label.classic_color == "Green");
-        ensure!(finfo2.label.osx_color == "Green");
-
-        let ts2 = archive2.timestamps.as_ref().context("missing timestamps")?;
-        ensure!(ts2.birthtime_sec == Some(1_789_356_860));
-        ensure!(ts2.mtime_sec == 1_789_356_875);
-
-        // Test roundtrip serialization of archive2
-        let written2 = write_apple_single_double(&archive2)?;
-        let parsed2 = read_apple_single_double(&written2)?;
-        ensure!(parsed2.format == AppleFormat::AppleSingle);
-        ensure!(parsed2.real_name == archive2.real_name);
-        ensure!(parsed2.data_fork == archive2.data_fork);
-        ensure!(parsed2.resource_fork == archive2.resource_fork);
-
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
-        let data1 = get_archive_data("fixtures/AppleDouble/Alongside/test file/._test file")
-            .context("Alongside ._test file missing")?;
-        let archive1 = read_apple_single_double(&data1)?;
-
-        ensure!(archive1.format == AppleFormat::AppleDouble);
-        ensure!(archive1.data_fork.is_none());
-        ensure!(archive1.resource_fork_size == Some(332));
-
-        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
-        ensure!(finfo1.file_type == "TEXT");
-        ensure!(finfo1.file_creator == "ttxt");
-        ensure!(finfo1.label.index == 0);
-
-        let data2 = get_archive_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
-            .context("Alongside ._test file green2 missing")?;
-        let archive2 = read_apple_single_double(&data2)?;
-
-        ensure!(archive2.format == AppleFormat::AppleDouble);
-        ensure!(archive2.data_fork.is_none());
-        ensure!(archive2.resource_fork_size == Some(372));
-
-        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
-        ensure!(finfo2.file_type == "TEXT");
-        ensure!(finfo2.file_creator == "ttxt");
-        ensure!(finfo2.label.index == 2);
-        ensure!(finfo2.label.classic_color == "Green");
-        ensure!(finfo2.location == (88, 220));
-
-        // Test roundtrip serialization of AppleDouble
-        let written2 = write_apple_single_double(&archive2)?;
-        let parsed2 = read_apple_single_double(&written2)?;
-        ensure!(parsed2.format == AppleFormat::AppleDouble);
-        ensure!(parsed2.resource_fork == archive2.resource_fork);
-        let parsed_finfo2 = parsed2.finder_info.as_ref().context("missing parsed finfo")?;
-        ensure!(parsed_finfo2.file_type == finfo2.file_type);
-        ensure!(parsed_finfo2.file_creator == finfo2.file_creator);
-        ensure!(parsed_finfo2.label.index == finfo2.label.index);
-        ensure!(parsed_finfo2.location == finfo2.location);
-
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_apple_double_brown_bin_fixture() -> anyhow::Result<()> {
-        let data = get_archive_data(
-            "fixtures/AppleDouble/__MACOSX-style/test file green2 brown.bin/__MACOSX/._test file green2 brown.bin",
-        )
-        .context("brown.bin fixture missing")?;
-        let archive = read_apple_single_double(&data)?;
-
-        ensure!(archive.format == AppleFormat::AppleDouble);
-        ensure!(archive.entries.len() == 1);
-        ensure!(archive.entries[0].entry_type == EntryType::FinderInfo);
-        ensure!(archive.resource_fork.is_none());
-
-        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
-        ensure!(finfo.file_type == "BINA");
-        ensure!(finfo.file_creator == "SITx");
-        ensure!(finfo.label.index == 1);
-        ensure!(finfo.label.classic_name == "Project 2");
-        ensure!(finfo.label.classic_color == "Brown");
-        ensure!(finfo.label.osx_color == "Gray");
-        ensure!(finfo.location == (448, 129));
-
-        Ok(())
-    }
-
-    #[crate::ctb_test]
-    fn test_apple_double_with_xattrs_roundtrip() -> anyhow::Result<()> {
-        let archive = AppleArchive {
-            format: AppleFormat::AppleDouble,
-            version: VERSION_2_0_BE,
-            real_name: Some("example.txt".to_string()),
-            comment: Some("Test comment".to_string()),
-            timestamps: Some(AppleDatesInfo {
-                birthtime_sec: Some(1_700_000_000),
-                mtime_sec: 1_700_001_000,
-                ctime_sec: 1_700_001_000,
-                atime_sec: 1_700_002_000,
-                backup_sec: Some(1_700_000_500),
-            }),
-            backup_timestamp_sec: Some(1_700_000_500),
-            finder_info: Some(FinderInfo {
-                file_type: "TEXT".to_string(),
-                file_creator: "ttxt".to_string(),
-                raw_flags: 0,
-                label: FinderLabel::from_index(3),
-                flags: FinderFlags {
-                    is_on_desk: false,
-                    is_shared: false,
-                    has_been_inited: true,
-                    has_custom_icon: false,
-                    is_stationery: false,
-                    name_locked: false,
-                    has_bundle: false,
-                    is_invisible: false,
-                    is_alias: false,
-                },
-                location: (100, 200),
-                folder_id: 0,
-                extended: None,
-            }),
-            extended_attributes: vec![
-                AppleExtendedAttribute {
-                    name: "com.apple.metadata:kMDItemWhereFroms".to_string(),
-                    data: b"https://example.com/download".to_vec(),
-                    size: 28,
-                },
-                AppleExtendedAttribute {
-                    name: "user.custom.note".to_string(),
-                    data: b"important payload".to_vec(),
-                    size: 17,
-                },
-            ],
-            data_fork: None,
-            resource_fork: Some(b"mock resource fork binary data".to_vec()),
-            data_fork_size: None,
-            resource_fork_size: Some(30),
-            entries: Vec::new(),
-        };
-
-        let bytes = write_apple_single_double(&archive)?;
-        let parsed = read_apple_single_double(&bytes)?;
-
-        ensure!(parsed.format == AppleFormat::AppleDouble);
-        ensure!(parsed.real_name == archive.real_name);
-        ensure!(parsed.comment == archive.comment);
-        ensure!(parsed.resource_fork == archive.resource_fork);
-
-        let parsed_ts = parsed.timestamps.as_ref().context("missing timestamps")?;
-        ensure!(parsed_ts.birthtime_sec == archive.timestamps.as_ref().unwrap().birthtime_sec);
-        ensure!(parsed_ts.mtime_sec == archive.timestamps.as_ref().unwrap().mtime_sec);
-
-        let parsed_finfo = parsed.finder_info.as_ref().context("missing finfo")?;
-        ensure!(parsed_finfo.file_type == "TEXT");
-        ensure!(parsed_finfo.file_creator == "ttxt");
-        ensure!(parsed_finfo.location == (100, 200));
-
-        ensure!(parsed.extended_attributes.len() == 2);
-        ensure!(parsed.extended_attributes[0].name == "com.apple.metadata:kMDItemWhereFroms");
-        ensure!(parsed.extended_attributes[0].data == b"https://example.com/download");
-        ensure!(parsed.extended_attributes[1].name == "user.custom.note");
-        ensure!(parsed.extended_attributes[1].data == b"important payload");
-
-        Ok(())
-    }
-}
