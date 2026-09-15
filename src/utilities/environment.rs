@@ -33,31 +33,94 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::bin2hex;
+use crate::ipc::workspace_client::WorkspaceIpcExt;
 use crate::pc_settings;
 use crate::pc_settings::PcSettingBoolKey;
 use crate::pc_settings::PcSettingU16Key;
 use crate::pc_settings::get_bool_setting;
 use crate::pc_settings::get_u16_setting;
 
+/// Process role classification for execution contexts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum ProcessRole {
+    /// Uninitialized or test runner context.
+    Unknown = 0,
+    /// Lightweight CLI command executing without booting the workspace.
+    LightweightCli = 1,
+    /// Root workspace supervisor process.
+    WorkspaceMain = 2,
+    /// Service child process managed by the workspace over IPC.
+    ServiceSubprocess = 3,
+}
+
+impl ProcessRole {
+    pub const fn to_u8(self) -> u8 {
+        match self {
+            Self::Unknown => 0,
+            Self::LightweightCli => 1,
+            Self::WorkspaceMain => 2,
+            Self::ServiceSubprocess => 3,
+        }
+    }
+}
+
+static PROCESS_ROLE: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(0);
+
+/// Set the current process role.
+pub fn set_process_role(role: ProcessRole) {
+    PROCESS_ROLE.store(role.to_u8(), std::sync::atomic::Ordering::Release);
+}
+
+/// Reset the process role (primarily used for unit testing).
+pub fn reset_process_role_for_testing() {
+    PROCESS_ROLE.store(0, std::sync::atomic::Ordering::Release);
+}
+
+/// Get the current process role.
+///
+/// In production, accessing this before initialization will exit the process
+/// with an unrecoverable configuration error. In tests, it defaults to
+/// [`ProcessRole::Unknown`].
+pub fn get_process_role() -> ProcessRole {
+    let raw = PROCESS_ROLE.load(std::sync::atomic::Ordering::Acquire);
+    match raw {
+        1 => ProcessRole::LightweightCli,
+        2 => ProcessRole::WorkspaceMain,
+        3 => ProcessRole::ServiceSubprocess,
+        _ => {
+            if is_in_test() {
+                ProcessRole::Unknown
+            } else {
+                eprintln!(
+                    "Error: Process role was accessed before being initialized"
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
 /// Is a lightweight CLI command running (without workspace boot)?
 pub fn is_cli_lightweight() -> bool {
-    false
+    get_process_role() == ProcessRole::LightweightCli
 }
 
 /// Is the workspace running? True even if this is a subprocess, not the main
 /// workspace process.
 pub fn is_workspace() -> bool {
-    false
+    is_workspace_main_process() || is_service_subprocess()
 }
 
 /// Is this the main workspace process?
 pub fn is_workspace_main_process() -> bool {
-    false
+    get_process_role() == ProcessRole::WorkspaceMain
 }
 
 /// Is this a service subprocess?
 pub fn is_service_subprocess() -> bool {
-    false
+    get_process_role() == ProcessRole::ServiceSubprocess
 }
 
 /// Is this a workspace UI running in any VM instance in a browser? (v86, or
@@ -122,6 +185,8 @@ static CACHED_LOCAL_IPV4: RwLock<Option<Ipv4Addr>> = RwLock::new(None);
 static CACHED_LOCAL_IPV6: RwLock<Option<Ipv6Addr>> = RwLock::new(None);
 static CACHED_PUBLIC_IPV4: RwLock<Option<Ipv4Addr>> = RwLock::new(None);
 static CACHED_PUBLIC_IPV6: RwLock<Option<Ipv6Addr>> = RwLock::new(None);
+static CACHED_SERVER_TIME_OFFSET_NANOS: RwLock<Option<i128>> =
+    RwLock::new(None);
 
 #[derive(Deserialize)]
 struct ServerIpResponse {
@@ -392,6 +457,47 @@ pub fn server_system_time_offset_nanos() -> Result<i128> {
     Ok(diff)
 }
 
+/// Return cached server system time offset in nanoseconds, discovering if not
+/// already cached.
+pub fn cached_server_system_time_offset_nanos() -> Result<i128> {
+    if let Ok(lock) = CACHED_SERVER_TIME_OFFSET_NANOS.read() {
+        if let Some(offset) = *lock {
+            return Ok(offset);
+        }
+    }
+    let offset = server_system_time_offset_nanos()?;
+    if let Ok(mut lock) = CACHED_SERVER_TIME_OFFSET_NANOS.write() {
+        *lock = Some(offset);
+    }
+    Ok(offset)
+}
+
+/// Clear cached IP addresses and server timestamp offset, and immediately
+/// refill them.
+pub fn env_cache_reset() {
+    if let Ok(mut lock) = CACHED_LOCAL_IPV4.write() {
+        *lock = None;
+    }
+    if let Ok(mut lock) = CACHED_LOCAL_IPV6.write() {
+        *lock = None;
+    }
+    if let Ok(mut lock) = CACHED_PUBLIC_IPV4.write() {
+        *lock = None;
+    }
+    if let Ok(mut lock) = CACHED_PUBLIC_IPV6.write() {
+        *lock = None;
+    }
+    if let Ok(mut lock) = CACHED_SERVER_TIME_OFFSET_NANOS.write() {
+        *lock = None;
+    }
+
+    let _ = cached_local_ipv4();
+    let _ = cached_local_ipv6();
+    let _ = cached_public_ipv4();
+    let _ = cached_public_ipv6();
+    let _ = cached_server_system_time_offset_nanos();
+}
+
 
 /// Is running on Unix-ish OS?
 pub fn is_unix() -> bool {
@@ -630,7 +736,7 @@ fn current_platform_str() -> &'static str {
 }
 
 pub fn cwd() -> Result<String> {
-    env::current_dir()?
+    Ok(env::current_dir()?.to_string_lossy().into_owned())
 }
 
 fn verify_official_signature_in_thread() -> bool {
@@ -962,8 +1068,11 @@ pub struct EnvDescription {
 
 impl EnvDescription {
     /// Capture a quick snapshot of the current execution environment, omitting
-    /// network-dependent checks that are not instantaneous.
-    pub fn capture_quick() -> Self {
+    /// slow or network-dependent queries unless already cached.
+    ///
+    /// NOTE: Direct use of `EnvDescription::capture_quick()` is discouraged;
+    /// prefer [`crate::environment::capture_quick`].
+    pub(crate) fn capture_quick() -> Self {
         Self {
             os: os(),
             usize_width: usize(),
@@ -1006,24 +1115,41 @@ impl EnvDescription {
             is_in_test: is_in_test(),
             is_branded_build: is_branded_build(),
             is_official_signed_build: is_official_signed_build(),
-            local_ipv4: local_ipv4().ok(),
-            local_ipv6: local_ipv6().ok(),
-            public_ipv4: None,
-            public_ipv6: None,
+            local_ipv4: CACHED_LOCAL_IPV4
+                .read()
+                .ok()
+                .and_then(|l| *l)
+                .or_else(|| local_ipv4().ok()),
+            local_ipv6: CACHED_LOCAL_IPV6
+                .read()
+                .ok()
+                .and_then(|l| *l)
+                .or_else(|| local_ipv6().ok()),
+            public_ipv4: CACHED_PUBLIC_IPV4.read().ok().and_then(|l| *l),
+            public_ipv6: CACHED_PUBLIC_IPV6.read().ok().and_then(|l| *l),
             system_time_resolution_nanos: unix_system_time_resolution().ok(),
-            server_system_time_offset_nanos: None,
+            server_system_time_offset_nanos: CACHED_SERVER_TIME_OFFSET_NANOS
+                .read()
+                .ok()
+                .and_then(|l| *l),
+            cwd: std::env::current_dir()
+                .ok()
+                .map(|p| p.to_string_lossy().into_owned()),
             extra: BTreeMap::new(),
         }
     }
 
     /// Capture a full snapshot of the current execution environment, including
     /// network discovery for public IP and server time offset.
-    pub fn capture() -> Self {
+    ///
+    /// NOTE: Direct use of `EnvDescription::capture()` is discouraged;
+    /// prefer [`crate::environment::capture`].
+    pub(crate) fn capture() -> Self {
         let mut desc = Self::capture_quick();
-        desc.public_ipv4 = public_ipv4().ok();
-        desc.public_ipv6 = public_ipv6().ok();
+        desc.public_ipv4 = cached_public_ipv4().ok();
+        desc.public_ipv6 = cached_public_ipv6().ok();
         desc.server_system_time_offset_nanos =
-            server_system_time_offset_nanos().ok();
+            cached_server_system_time_offset_nanos().ok();
         desc
     }
 
@@ -1057,13 +1183,38 @@ impl EnvDescription {
 
 /// Capture a snapshot of the current execution environment as an
 /// [`EnvDescription`].
+///
+/// When invoked within a service subprocess, queries the workspace supervisor
+/// over IPC so that only the main workspace process performs external network
+/// detection.
 pub fn capture() -> EnvDescription {
+    if is_service_subprocess() {
+        if let Ok(ipc_ctx) = crate::ipc::service_prelude::ipc() {
+            // Reason for fallback: if IPC call to workspace fails or times out, fall back to in-process capture
+            if let Ok(Ok(desc)) = crate::unasync(ipc_ctx.capture()) {
+                return desc;
+            }
+        }
+    }
     EnvDescription::capture()
 }
 
 /// Capture a quick snapshot of the current execution environment as an
-/// [`EnvDescription`], omitting slow or network-dependent queries.
+/// [`EnvDescription`], omitting slow or network-dependent queries unless
+/// already cached.
+///
+/// When invoked within a service subprocess, queries the workspace supervisor
+/// over IPC so that only the main workspace process performs external network
+/// detection.
 pub fn capture_quick() -> EnvDescription {
+    if is_service_subprocess() {
+        if let Ok(ipc_ctx) = crate::ipc::service_prelude::ipc() {
+            // Reason for fallback: if IPC call to workspace fails or times out, fall back to in-process quick capture
+            if let Ok(Ok(desc)) = crate::unasync(ipc_ctx.capture_quick()) {
+                return desc;
+            }
+        }
+    }
     EnvDescription::capture_quick()
 }
 

@@ -23,6 +23,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Do not edit by hand.
 
 ctb_workspace_ipc_macro::workspace_ipc_methods! {
+    async fn capture() -> Result < EnvDescription >;
+    async fn capture_quick() -> Result < EnvDescription >;
+    async fn env_cache_reset() -> Result < () >;
     async fn get_crlite_artifact(relative_path: & str) -> Result < Vec < u8 > >;
     async fn get_crlite_cache_status() -> Result < String >;
     async fn get_crlite_manifest_json() -> Result < String >;
