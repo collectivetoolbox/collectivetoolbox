@@ -607,7 +607,6 @@ mod tests {
     use crate::journal::find_cscjournal;
     use ctb_utilities::cli::ToolResult;
     use std::fs;
-    use std::os::unix::fs::{PermissionsExt};
     use std::path::{PathBuf};
     use tempfile::tempdir;
 

@@ -1082,7 +1082,7 @@ fn read_opt_timestamp(r: &mut impl Read) -> Result<(Option<i64>, Option<u32>)> {
 }
 #[cfg(test)]
 pub(crate) fn find_cscjournal(state_dir: &Path) -> PathBuf {
-    for entry in fs::read_dir(state_dir).expect("read state dir") {
+    for entry in std::fs::read_dir(state_dir).expect("read state dir") {
         let entry = entry.expect("entry");
         if entry.path().extension().and_then(|e| e.to_str()) == Some("cscjournal") {
             return entry.path();

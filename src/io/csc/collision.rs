@@ -381,7 +381,6 @@ mod tests {
     use super::*;
     use crate::args::{AppleDoubleStyle, default_test_args};
     use crate::cli::run_csc;
-    use ctb_utilities::cli::ToolResult;
     use std::fs;
     use std::path::{PathBuf};
     use tempfile::tempdir;
