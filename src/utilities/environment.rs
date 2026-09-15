@@ -549,15 +549,22 @@ pub fn looks_like_gnustep() -> bool {
         }
     }
     if let Ok(wmaker) = env::var("WMAKER_USER_ROOT") {
-        if wmaker != "" {
+        if !wmaker.is_empty() {
             return true;
         }
     }
-    // Multiple LLMs suggest you can use these, but I couldn't confirm it and it
-    // doesn't appear to be the case on my system (though I haven't tried a
-    // dedicated WindowMaker session):
-    // env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
-    //     || env::var_os("GNUSTEP_USER_ROOT").is_some()
+    if env::var_os("GNUSTEP_USER_ROOT").is_some()
+        || env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
+        || env::var_os("GNUSTEP_PATHLIST").is_some()
+        || env::var_os("GNUSTEP_CONFIG_FILE").is_some()
+    {
+        return true;
+    }
+    if std::path::Path::new("/etc/GNUstep/GNUstep.conf").exists()
+        || std::path::Path::new("/etc/GNUstep.conf").exists()
+    {
+        return true;
+    }
     false
 }
 
@@ -1129,6 +1136,16 @@ pub fn capture_quick() -> EnvDescription {
     EnvDescription::capture_quick()
 }
 
+/// Returns a shared [`Arc<EnvDescription>`] snapshot of the current
+/// environment.
+///
+/// Lazily cached using [`OnceLock`] so repeated calls avoid re-reading the
+/// environment and allocating new descriptions.
+pub fn capture_quick_arc() -> Arc<EnvDescription> {
+    static QUICK_DESC: OnceLock<Arc<EnvDescription>> = OnceLock::new();
+    QUICK_DESC.get_or_init(|| Arc::new(capture_quick())).clone()
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -1313,6 +1330,25 @@ mod tests {
         let quick = capture_quick();
         assert_eq!(quick.os, os());
         assert!(quick.system_time_resolution_nanos.is_some());
+    }
+
+    #[crate::ctb_test]
+    fn test_capture_quick_arc() {
+        let arc1 = capture_quick_arc();
+        let arc2 = capture_quick_arc();
+        assert!(Arc::ptr_eq(&arc1, &arc2));
+        assert_eq!(arc1.os, os());
+    }
+
+    #[crate::ctb_test]
+    fn test_looks_like_gnustep_env() {
+        unsafe {
+            env::set_var("GNUSTEP_USER_ROOT", "/tmp/fake_gnustep");
+        }
+        assert!(looks_like_gnustep());
+        unsafe {
+            env::remove_var("GNUSTEP_USER_ROOT");
+        }
     }
 }
 

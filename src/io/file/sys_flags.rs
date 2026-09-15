@@ -1050,27 +1050,8 @@ fn apply_file_flags_native(
         }
 
         if target_iflags.is_empty() {
-            for flag in flags {
-                match flag {
-                    FileFlag::NoDump => target_iflags |= IFlags::NODUMP,
-                    FileFlag::UserImmutable | FileFlag::SystemImmutable => {
-                        target_iflags |= IFlags::IMMUTABLE;
-                    }
-                    FileFlag::UserAppend | FileFlag::SystemAppend => {
-                        target_iflags |= IFlags::APPEND;
-                    }
-                    FileFlag::Compressed => target_iflags |= IFlags::COMPRESSED,
-                    other => {
-                        if strict_lossless {
-                            anyhow::bail!(
-                                "Cannot losslessly apply flag {:?} on Linux filesystem for {}",
-                                other,
-                                path.display()
-                            );
-                        }
-                    }
-                }
-            }
+            let mask = linux_flags_to_mask(flags, strict_lossless, path)?;
+            target_iflags = IFlags::from_bits_retain(mask);
         }
 
         let current = match ioctl_getflags(&f) {
