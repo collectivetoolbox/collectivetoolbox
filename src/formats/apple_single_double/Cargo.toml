@@ -1,0 +1,18 @@
+[package]
+name = "ctb-formats-archive"
+edition = "2024"
+
+[lib]
+path="archive.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-io-file = { path = "../../io/file" }
+include_dir = { version = "0.7.4", features = ["glob"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
+
+[lints]
+workspace = true
