@@ -3592,5 +3592,69 @@ mod csc_tests {
             panic!("Expected Value::Text for sources.environment");
         }
     }
+
+    #[crate::ctb_test]
+    fn test_environment_metadata_auto_population_and_operation_isolation() {
+        let temp = tempdir().unwrap();
+        let file1 = temp.path().join("file1.txt");
+        let file2 = temp.path().join("file2.txt");
+        fs::write(&file1, b"hello file 1").unwrap();
+        fs::write(&file2, b"hello file 2").unwrap();
+
+        // 1. FileEntity::from_filesystem automatically populates environment metadata
+        let mut entity1 = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+        assert!(entity1.metadata.environment.is_some());
+        assert!(entity1.environment().is_some());
+
+        // 2. Attached streams also automatically populate environment metadata
+        let stream = ctb_io::file::AttachedStream::from_data(
+            Some(ctb_io::file::StreamName::from_bytes(b"stream1")),
+            ctb_io::file::StreamKind::NtfsAlternateDataStream,
+            vec![1, 2, 3],
+        ).unwrap();
+        assert!(stream.entity.metadata.environment.is_some());
+        entity1.streams.push(stream);
+
+        // 3. Unscoped calls within the same operation epoch share the exact same Arc (pointer equality)
+        let entity2 = ctb_io::file::FileEntity::from_filesystem(&file2, None).unwrap();
+        let env1 = entity1.metadata.environment.as_ref().unwrap();
+        let env2 = entity2.metadata.environment.as_ref().unwrap();
+        assert!(std::sync::Arc::ptr_eq(env1, env2));
+
+        // 4. FileEntity::set_environment propagates to all attached streams
+        let custom_env = std::sync::Arc::new(ctb_utilities::environment::capture_quick());
+        entity1.set_environment(std::sync::Arc::clone(&custom_env));
+        assert!(std::sync::Arc::ptr_eq(
+            entity1.metadata.environment.as_ref().unwrap(),
+            &custom_env
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            entity1.streams[0].entity.metadata.environment.as_ref().unwrap(),
+            &custom_env
+        ));
+
+        // 5. Simulate two separate operations within a single process (e.g. successive csc runs):
+        // Each operation enters its own GlobalEnvironmentScope, getting a distinct Arc snapshot.
+        let arc_op1 = {
+            let _scope1 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            e.metadata.environment.unwrap()
+        };
+
+        let arc_op2 = {
+            let _scope2 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
+            e.metadata.environment.unwrap()
+        };
+
+        // Independent operations get distinct Arc instances (not inadvertently cached together)
+        assert!(!std::sync::Arc::ptr_eq(&arc_op1, &arc_op2));
+
+        // Global network caches remain intact across operations
+        if let Ok(ip) = ctb_utilities::environment::local_ipv4() {
+            let cached = ctb_utilities::environment::cached_local_ipv4();
+            assert_eq!(cached.ok(), Some(ip));
+        }
+    }
 }
 
