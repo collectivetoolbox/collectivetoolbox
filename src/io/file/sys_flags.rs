@@ -111,14 +111,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::metadata::{FileFlag, OsFamily, PlatformRawFlags};
+use crate::file::metadata::{FileFlag, FlagSettability, OsFamily, PlatformRawFlags};
 use std::path::Path;
 
-/// Mapping between a semantic [`FileFlag`] and a platform-specific bitmask.
+/// Mapping between a semantic [`FileFlag`], a platform-specific bitmask, and
+/// its settability classification.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FlagMapping {
     pub flag: FileFlag,
     pub mask: u32,
+    pub settability: FlagSettability,
 }
 
 fn parse_flags_from_map(raw_val: u32, map: &[FlagMapping]) -> (Vec<FileFlag>, bool) {
@@ -126,7 +128,9 @@ fn parse_flags_from_map(raw_val: u32, map: &[FlagMapping]) -> (Vec<FileFlag>, bo
     let mut mapped_mask: u32 = 0;
     for entry in map {
         if (raw_val & entry.mask) != 0 {
-            flags.push(entry.flag);
+            if (mapped_mask & entry.mask) == 0 {
+                flags.push(entry.flag);
+            }
             mapped_mask |= entry.mask;
         }
     }
@@ -160,10 +164,11 @@ macro_rules! define_platform_flags {
         map: $map_name:ident,
         parse: $parse_fn:ident,
         to_mask: $to_mask_fn:ident,
+        settability: $settability_fn:ident,
         os_id: $os_id:literal,
         os_name: $os_name:literal,
         flags: [
-            $( ($flag:expr, $const_name:ident, $val:expr) ),* $(,)?
+            $( ($flag:expr, $const_name:ident, $val:expr, $settability:expr) ),* $(,)?
         ] $(,
         extra_constants: [
             $( ($extra_name:ident, $extra_val:expr) ),* $(,)?
@@ -184,9 +189,21 @@ macro_rules! define_platform_flags {
                 FlagMapping {
                     flag: $flag,
                     mask: $const_name,
+                    settability: $settability,
                 },
             )*
         ];
+
+        /// Returns the [`FlagSettability`] of a given [`FileFlag`] on $os_name.
+        #[must_use]
+        pub const fn $settability_fn(flag: FileFlag) -> FlagSettability {
+            match flag {
+                $(
+                    $flag => $settability,
+                )*
+                _ => FlagSettability::Unsupported,
+            }
+        }
 
         /// Parses a $os_name `st_flags` bitmask into semantic [`FileFlag`]s and
         /// indicates if any unparsed bits remain.
@@ -262,24 +279,25 @@ define_platform_flags! {
     map: DRAGONFLY_FLAG_MAP,
     parse: parse_dragonfly_flags,
     to_mask: dragonfly_flags_to_mask,
+    settability: dragonfly_flag_settability,
     os_id: "dragonfly",
     os_name: "DragonFly BSD",
     flags: [
-        (FileFlag::NoDump,          DRAGONFLY_UF_NODUMP,    0x0000_0001),
-        (FileFlag::UserImmutable,   DRAGONFLY_UF_IMMUTABLE, 0x0000_0002),
-        (FileFlag::UserAppend,      DRAGONFLY_UF_APPEND,    0x0000_0004),
-        (FileFlag::Opaque,          DRAGONFLY_UF_OPAQUE,    0x0000_0008),
-        (FileFlag::UserNoUnlink,    DRAGONFLY_UF_NOUNLINK,  0x0000_0010),
-        (FileFlag::UserNoHistory,   DRAGONFLY_UF_NOHISTORY, 0x0000_0040),
-        (FileFlag::UserCache,       DRAGONFLY_UF_CACHE,     0x0000_0080),
-        (FileFlag::UserXlink,       DRAGONFLY_UF_XLINK,     0x0000_0100),
-        (FileFlag::Archived,        DRAGONFLY_SF_ARCHIVED,  0x0001_0000),
-        (FileFlag::SystemImmutable, DRAGONFLY_SF_IMMUTABLE, 0x0002_0000),
-        (FileFlag::SystemAppend,    DRAGONFLY_SF_APPEND,    0x0004_0000),
-        (FileFlag::SystemNoUnlink,  DRAGONFLY_SF_NOUNLINK,  0x0010_0000),
-        (FileFlag::SystemNoHistory, DRAGONFLY_SF_NOHISTORY, 0x0040_0000),
-        (FileFlag::SystemNoCache,   DRAGONFLY_SF_NOCACHE,   0x0080_0000),
-        (FileFlag::SystemXlink,     DRAGONFLY_SF_XLINK,     0x0100_0000),
+        (FileFlag::NoDump,          DRAGONFLY_UF_NODUMP,    0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   DRAGONFLY_UF_IMMUTABLE, 0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::UserAppend,      DRAGONFLY_UF_APPEND,    0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Opaque,          DRAGONFLY_UF_OPAQUE,    0x0000_0008, FlagSettability::UserSettable),
+        (FileFlag::UserNoUnlink,    DRAGONFLY_UF_NOUNLINK,  0x0000_0010, FlagSettability::UserSettable),
+        (FileFlag::UserNoHistory,   DRAGONFLY_UF_NOHISTORY, 0x0000_0040, FlagSettability::UserSettable),
+        (FileFlag::UserCache,       DRAGONFLY_UF_CACHE,     0x0000_0080, FlagSettability::UserSettable),
+        (FileFlag::UserXlink,       DRAGONFLY_UF_XLINK,     0x0000_0100, FlagSettability::UserSettable),
+        (FileFlag::Archived,        DRAGONFLY_SF_ARCHIVED,  0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, DRAGONFLY_SF_IMMUTABLE, 0x0002_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    DRAGONFLY_SF_APPEND,    0x0004_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemNoUnlink,  DRAGONFLY_SF_NOUNLINK,  0x0010_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemNoHistory, DRAGONFLY_SF_NOHISTORY, 0x0040_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemNoCache,   DRAGONFLY_SF_NOCACHE,   0x0080_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemXlink,     DRAGONFLY_SF_XLINK,     0x0100_0000, FlagSettability::RootSettable),
     ],
     extra_constants: [
         (DRAGONFLY_UF_SETTABLE, 0x0000_ffff),
@@ -356,27 +374,28 @@ define_platform_flags! {
     map: FREEBSD_FLAG_MAP,
     parse: parse_freebsd_flags,
     to_mask: freebsd_flags_to_mask,
+    settability: freebsd_flag_settability,
     os_id: "freebsd",
     os_name: "FreeBSD",
     flags: [
-        (FileFlag::NoDump,          FREEBSD_UF_NODUMP,    0x0000_0001),
-        (FileFlag::UserImmutable,   FREEBSD_UF_IMMUTABLE, 0x0000_0002),
-        (FileFlag::UserAppend,      FREEBSD_UF_APPEND,    0x0000_0004),
-        (FileFlag::Opaque,          FREEBSD_UF_OPAQUE,    0x0000_0008),
-        (FileFlag::UserNoUnlink,    FREEBSD_UF_NOUNLINK,  0x0000_0010),
-        (FileFlag::System,          FREEBSD_UF_SYSTEM,    0x0000_0080),
-        (FileFlag::Sparse,          FREEBSD_UF_SPARSE,    0x0000_0100),
-        (FileFlag::Offline,         FREEBSD_UF_OFFLINE,   0x0000_0200),
-        (FileFlag::Reparse,         FREEBSD_UF_REPARSE,   0x0000_0400),
-        (FileFlag::UserArchive,     FREEBSD_UF_ARCHIVE,   0x0000_0800),
-        (FileFlag::ReadOnly,        FREEBSD_UF_READONLY,  0x0000_1000),
-        (FileFlag::UserNoCache,     FREEBSD_UF_NOCACHE,   0x0000_2000),
-        (FileFlag::Hidden,          FREEBSD_UF_HIDDEN,    0x0000_8000),
-        (FileFlag::Archived,        FREEBSD_SF_ARCHIVED,  0x0001_0000),
-        (FileFlag::SystemImmutable, FREEBSD_SF_IMMUTABLE, 0x0002_0000),
-        (FileFlag::SystemAppend,    FREEBSD_SF_APPEND,    0x0004_0000),
-        (FileFlag::SystemNoUnlink,  FREEBSD_SF_NOUNLINK,  0x0010_0000),
-        (FileFlag::Snapshot,        FREEBSD_SF_SNAPSHOT,  0x0020_0000),
+        (FileFlag::NoDump,          FREEBSD_UF_NODUMP,    0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   FREEBSD_UF_IMMUTABLE, 0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::UserAppend,      FREEBSD_UF_APPEND,    0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Opaque,          FREEBSD_UF_OPAQUE,    0x0000_0008, FlagSettability::UserSettable),
+        (FileFlag::UserNoUnlink,    FREEBSD_UF_NOUNLINK,  0x0000_0010, FlagSettability::UserSettable),
+        (FileFlag::System,          FREEBSD_UF_SYSTEM,    0x0000_0080, FlagSettability::UserSettable),
+        (FileFlag::Sparse,          FREEBSD_UF_SPARSE,    0x0000_0100, FlagSettability::UserSettable),
+        (FileFlag::Offline,         FREEBSD_UF_OFFLINE,   0x0000_0200, FlagSettability::UserSettable),
+        (FileFlag::Reparse,         FREEBSD_UF_REPARSE,   0x0000_0400, FlagSettability::UserSettable),
+        (FileFlag::UserArchive,     FREEBSD_UF_ARCHIVE,   0x0000_0800, FlagSettability::UserSettable),
+        (FileFlag::ReadOnly,        FREEBSD_UF_READONLY,  0x0000_1000, FlagSettability::UserSettable),
+        (FileFlag::UserNoCache,     FREEBSD_UF_NOCACHE,   0x0000_2000, FlagSettability::UserSettable),
+        (FileFlag::Hidden,          FREEBSD_UF_HIDDEN,    0x0000_8000, FlagSettability::UserSettable),
+        (FileFlag::Archived,        FREEBSD_SF_ARCHIVED,  0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, FREEBSD_SF_IMMUTABLE, 0x0002_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    FREEBSD_SF_APPEND,    0x0004_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemNoUnlink,  FREEBSD_SF_NOUNLINK,  0x0010_0000, FlagSettability::RootSettable),
+        (FileFlag::Snapshot,        FREEBSD_SF_SNAPSHOT,  0x0020_0000, FlagSettability::KernelOnly),
     ],
     extra_constants: [
         (FREEBSD_UF_SETTABLE,     0x0000_ffff),
@@ -432,16 +451,17 @@ define_platform_flags! {
     map: OPENBSD_FLAG_MAP,
     parse: parse_openbsd_flags,
     to_mask: openbsd_flags_to_mask,
+    settability: openbsd_flag_settability,
     os_id: "openbsd",
     os_name: "OpenBSD",
     flags: [
-        (FileFlag::NoDump,          OPENBSD_UF_NODUMP,    0x0000_0001),
-        (FileFlag::UserImmutable,   OPENBSD_UF_IMMUTABLE, 0x0000_0002),
-        (FileFlag::UserAppend,      OPENBSD_UF_APPEND,    0x0000_0004),
-        (FileFlag::Opaque,          OPENBSD_UF_OPAQUE,    0x0000_0008),
-        (FileFlag::Archived,        OPENBSD_SF_ARCHIVED,  0x0001_0000),
-        (FileFlag::SystemImmutable, OPENBSD_SF_IMMUTABLE, 0x0002_0000),
-        (FileFlag::SystemAppend,    OPENBSD_SF_APPEND,    0x0004_0000),
+        (FileFlag::NoDump,          OPENBSD_UF_NODUMP,    0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   OPENBSD_UF_IMMUTABLE, 0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::UserAppend,      OPENBSD_UF_APPEND,    0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Opaque,          OPENBSD_UF_OPAQUE,    0x0000_0008, FlagSettability::UserSettable),
+        (FileFlag::Archived,        OPENBSD_SF_ARCHIVED,  0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, OPENBSD_SF_IMMUTABLE, 0x0002_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    OPENBSD_SF_APPEND,    0x0004_0000, FlagSettability::RootSettable),
     ],
     extra_constants: [
         (OPENBSD_UF_SETTABLE, 0x0000_ffff),
@@ -589,24 +609,25 @@ define_platform_flags! {
     map: DARWIN_FLAG_MAP,
     parse: parse_darwin_flags,
     to_mask: darwin_flags_to_mask,
+    settability: darwin_flag_settability,
     os_id: "darwin",
     os_name: "Darwin",
     flags: [
-        (FileFlag::NoDump,          DARWIN_UF_NODUMP,     0x0000_0001),
-        (FileFlag::UserImmutable,   DARWIN_UF_IMMUTABLE,  0x0000_0002),
-        (FileFlag::UserAppend,      DARWIN_UF_APPEND,     0x0000_0004),
-        (FileFlag::Opaque,          DARWIN_UF_OPAQUE,     0x0000_0008),
-        (FileFlag::Compressed,      DARWIN_UF_COMPRESSED, 0x0000_0020),
-        (FileFlag::Tracked,         DARWIN_UF_TRACKED,    0x0000_0040),
-        (FileFlag::DataVault,       DARWIN_UF_DATAVAULT,  0x0000_0080),
-        (FileFlag::Hidden,          DARWIN_UF_HIDDEN,     0x0000_8000),
-        (FileFlag::Archived,        DARWIN_SF_ARCHIVED,   0x0001_0000),
-        (FileFlag::SystemImmutable, DARWIN_SF_IMMUTABLE,  0x0002_0000),
-        (FileFlag::SystemAppend,    DARWIN_SF_APPEND,     0x0004_0000),
-        (FileFlag::Restricted,      DARWIN_SF_RESTRICTED, 0x0008_0000),
-        (FileFlag::SystemNoUnlink,  DARWIN_SF_NOUNLINK,   0x0010_0000),
-        (FileFlag::Firmlink,        DARWIN_SF_FIRMLINK,   0x0080_0000),
-        (FileFlag::Dataless,        DARWIN_SF_DATALESS,   0x4000_0000),
+        (FileFlag::NoDump,          DARWIN_UF_NODUMP,     0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   DARWIN_UF_IMMUTABLE,  0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::UserAppend,      DARWIN_UF_APPEND,     0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Opaque,          DARWIN_UF_OPAQUE,     0x0000_0008, FlagSettability::UserSettable),
+        (FileFlag::Compressed,      DARWIN_UF_COMPRESSED, 0x0000_0020, FlagSettability::KernelOnly),
+        (FileFlag::Tracked,         DARWIN_UF_TRACKED,    0x0000_0040, FlagSettability::UserSettable),
+        (FileFlag::DataVault,       DARWIN_UF_DATAVAULT,  0x0000_0080, FlagSettability::AppleSipOnly),
+        (FileFlag::Hidden,          DARWIN_UF_HIDDEN,     0x0000_8000, FlagSettability::UserSettable),
+        (FileFlag::Archived,        DARWIN_SF_ARCHIVED,   0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, DARWIN_SF_IMMUTABLE,  0x0002_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    DARWIN_SF_APPEND,     0x0004_0000, FlagSettability::RootSettable),
+        (FileFlag::Restricted,      DARWIN_SF_RESTRICTED, 0x0008_0000, FlagSettability::AppleSipOnly),
+        (FileFlag::SystemNoUnlink,  DARWIN_SF_NOUNLINK,   0x0010_0000, FlagSettability::RootSettable),
+        (FileFlag::Firmlink,        DARWIN_SF_FIRMLINK,   0x0080_0000, FlagSettability::KernelOnly),
+        (FileFlag::Dataless,        DARWIN_SF_DATALESS,   0x4000_0000, FlagSettability::KernelOnly),
     ],
     extra_constants: [
         (DARWIN_UF_SETTABLE,  0x0000_ffff),
@@ -619,6 +640,141 @@ define_platform_flags! {
 /// Mask of user- and superuser-settable flags on Darwin
 /// (`UF_SETTABLE | SF_SETTABLE`).
 pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
+
+
+
+
+
+
+//NETBSD////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+define_platform_flags! {
+    map: NETBSD_FLAG_MAP,
+    parse: parse_netbsd_flags,
+    to_mask: netbsd_flags_to_mask,
+    settability: netbsd_flag_settability,
+    os_id: "netbsd",
+    os_name: "NetBSD",
+    flags: [
+        (FileFlag::NoDump,          NETBSD_UF_NODUMP,    0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   NETBSD_UF_IMMUTABLE, 0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::UserAppend,      NETBSD_UF_APPEND,    0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Opaque,          NETBSD_UF_OPAQUE,    0x0000_0008, FlagSettability::UserSettable),
+        (FileFlag::Archived,        NETBSD_SF_ARCHIVED,  0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, NETBSD_SF_IMMUTABLE, 0x0002_0000, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    NETBSD_SF_APPEND,    0x0004_0000, FlagSettability::RootSettable),
+    ],
+    extra_constants: [
+        (NETBSD_UF_SETTABLE, 0x0000_ffff),
+        (NETBSD_SF_SETTABLE, 0xffff_0000),
+    ],
+}
+
+/// Mask of settable flags on NetBSD (`UF_SETTABLE | SF_SETTABLE`).
+pub const NETBSD_SETTABLE_MASK: u32 = NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE;
+
+
+
+
+
+
+//LINUX/////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+define_platform_flags! {
+    map: LINUX_FLAG_MAP,
+    parse: parse_linux_flags,
+    to_mask: linux_flags_to_mask,
+    settability: linux_flag_settability,
+    os_id: "linux",
+    os_name: "Linux",
+    flags: [
+        (FileFlag::NoDump,          LINUX_FS_NODUMP_FL,    0x0000_0040, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   LINUX_FS_IMMUTABLE_FL, 0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, LINUX_FS_IMMUTABLE_FL, 0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::UserAppend,      LINUX_FS_APPEND_FL,    0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    LINUX_FS_APPEND_FL,    0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::Compressed,      LINUX_FS_COMPR_FL,     0x0000_0004, FlagSettability::KernelOnly),
+    ],
+    extra_constants: [
+        (LINUX_FS_USER_MODIFIABLE, 0x0000_0070),
+    ],
+}
+
+/// Mask of settable flags on Linux (`FS_NODUMP_FL | FS_IMMUTABLE_FL | FS_APPEND_FL`).
+pub const LINUX_SETTABLE_MASK: u32 =
+    LINUX_FS_NODUMP_FL | LINUX_FS_IMMUTABLE_FL | LINUX_FS_APPEND_FL;
+
+
+
+
+
+
+//WINDOWS///////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+/* From Win32 fileapi.h / WinBase.h:
+ *
+ * #define FILE_ATTRIBUTE_READONLY             0x00000001
+ * #define FILE_ATTRIBUTE_HIDDEN               0x00000002
+ * #define FILE_ATTRIBUTE_SYSTEM               0x00000004
+ * #define FILE_ATTRIBUTE_ARCHIVE              0x00000020
+ * #define FILE_ATTRIBUTE_SPARSE_FILE          0x00000200
+ * #define FILE_ATTRIBUTE_REPARSE_POINT        0x00000400
+ * #define FILE_ATTRIBUTE_COMPRESSED           0x00000800
+ * #define FILE_ATTRIBUTE_OFFLINE              0x00001000
+ */
+
+define_platform_flags! {
+    map: WINDOWS_FLAG_MAP,
+    parse: parse_windows_flags,
+    to_mask: windows_flags_to_mask,
+    settability: windows_flag_settability,
+    os_id: "windows",
+    os_name: "Windows",
+    flags: [
+        (FileFlag::ReadOnly,    WIN_FILE_ATTRIBUTE_READONLY,      0x0000_0001, FlagSettability::UserSettable),
+        (FileFlag::Hidden,      WIN_FILE_ATTRIBUTE_HIDDEN,        0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::System,      WIN_FILE_ATTRIBUTE_SYSTEM,        0x0000_0004, FlagSettability::UserSettable),
+        (FileFlag::Archived,    WIN_FILE_ATTRIBUTE_ARCHIVE,       0x0000_0020, FlagSettability::UserSettable),
+        (FileFlag::UserArchive, WIN_FILE_ATTRIBUTE_ARCHIVE,       0x0000_0020, FlagSettability::UserSettable),
+        (FileFlag::Sparse,      WIN_FILE_ATTRIBUTE_SPARSE_FILE,   0x0000_0200, FlagSettability::UserSettable),
+        (FileFlag::Reparse,     WIN_FILE_ATTRIBUTE_REPARSE_POINT, 0x0000_0400, FlagSettability::KernelOnly),
+        (FileFlag::Compressed,  WIN_FILE_ATTRIBUTE_COMPRESSED,    0x0000_0800, FlagSettability::UserSettable),
+        (FileFlag::Offline,     WIN_FILE_ATTRIBUTE_OFFLINE,       0x0000_1000, FlagSettability::UserSettable),
+    ],
+    extra_constants: [
+        (WIN_SETTABLE_ATTRIBUTES, 0x0000_1a27),
+    ],
+}
+
+/// Returns the settability classification of a file flag on the given OS.
+#[must_use]
+pub const fn flag_settability(flag: FileFlag, os: OsFamily) -> FlagSettability {
+    match os {
+        OsFamily::Darwin => darwin_flag_settability(flag),
+        OsFamily::FreeBSD => freebsd_flag_settability(flag),
+        OsFamily::OpenBSD => openbsd_flag_settability(flag),
+        OsFamily::DragonFly => dragonfly_flag_settability(flag),
+        OsFamily::NetBSD => netbsd_flag_settability(flag),
+        OsFamily::Linux => linux_flag_settability(flag),
+        OsFamily::Windows => windows_flag_settability(flag),
+        OsFamily::Other => FlagSettability::Unsupported,
+    }
+}
 
 
 
@@ -674,27 +830,7 @@ pub fn query_file_flags(
             Err(error) => return Err(error).context("Failed to read file flags"),
         };
 
-        let mut flags = Vec::new();
-        let mut mapped_mask = IFlags::empty();
-
-        if iflags.contains(IFlags::NODUMP) {
-            flags.push(FileFlag::NoDump);
-            mapped_mask |= IFlags::NODUMP;
-        }
-        if iflags.contains(IFlags::IMMUTABLE) {
-            flags.push(FileFlag::UserImmutable);
-            mapped_mask |= IFlags::IMMUTABLE;
-        }
-        if iflags.contains(IFlags::APPEND) {
-            flags.push(FileFlag::UserAppend);
-            mapped_mask |= IFlags::APPEND;
-        }
-        if iflags.contains(IFlags::COMPRESSED) {
-            flags.push(FileFlag::Compressed);
-            mapped_mask |= IFlags::COMPRESSED;
-        }
-
-        let has_unparsed = (iflags.bits() & !mapped_mask.bits()) != 0;
+        let (flags, has_unparsed) = parse_linux_flags(iflags.bits());
         let raw_u64 = u64::from(iflags.bits());
 
         let platform_raw = PlatformRawFlags {
