@@ -993,3 +993,151 @@ mod macos_bundle {
         false
     }
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::{PathBuf};
+
+    #[crate::ctb_test]
+    fn test_from_filesystem_enclosing_path_and_read_time() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let base = temp_dir.path().join("enclosing_base");
+        fs::create_dir_all(&base).unwrap();
+        let sub = base.join("subdir");
+        fs::create_dir_all(&sub).unwrap();
+        let file_path = sub.join("sample.txt");
+        fs::write(&file_path, b"Hello world").unwrap();
+
+        let before = std::time::SystemTime::now();
+
+        // 1. With base_dir
+        let entity_with_base = FileEntity::from_filesystem(&file_path, Some(&base))
+            .expect("read from filesystem with base_dir");
+        assert_eq!(entity_with_base.enclosing_path(), Some(base.as_path()));
+        assert_eq!(
+            entity_with_base.identity.relative_path,
+            PathBuf::from("subdir/sample.txt")
+        );
+        assert_eq!(
+            entity_with_base.identity.full_original_path(),
+            Some(file_path.clone())
+        );
+        let read_t1 = entity_with_base
+            .is_current_as_of()
+            .expect("read_time should be captured");
+        assert!(read_t1 >= before);
+        assert!(read_t1 <= std::time::SystemTime::now());
+
+        // 2. Without base_dir (base_dir is None)
+        let entity_no_base = FileEntity::from_filesystem(&file_path, None)
+            .expect("read from filesystem without base_dir");
+        assert_eq!(entity_no_base.enclosing_path(), Some(sub.as_path()));
+        assert_eq!(
+            entity_no_base.identity.relative_path,
+            PathBuf::from("sample.txt")
+        );
+        assert_eq!(
+            entity_no_base.identity.full_original_path(),
+            Some(file_path)
+        );
+        assert!(entity_no_base.is_current_as_of().is_some());
+    }
+
+    #[crate::ctb_test]
+    fn test_filesystem_type_and_resolution_captured_in_file_entity() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("test_file");
+        fs::write(&path, b"test content").unwrap();
+
+        let entity = FileEntity::from_filesystem(&path, None).unwrap();
+        assert!(entity.metadata.filesystem_type.is_some());
+        let fs_type = entity.metadata.filesystem_type.as_ref().unwrap();
+        assert!(!fs_type.is_empty());
+
+        assert!(entity.metadata.timestamps.resolution_nsec.is_some());
+        let res = entity.metadata.timestamps.resolution_nsec.unwrap();
+        assert!(res > 0);
+    }
+
+    #[crate::ctb_test]
+    fn test_symlink_timestamp_retention_on_read() {
+        let temp = tempfile::tempdir().unwrap();
+        let target = temp.path().join("target.txt");
+        let link = temp.path().join("symlink.lnk");
+
+        std::fs::write(&target, b"test payload").unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        #[cfg(unix)]
+        {
+            use filetime::{FileTime, set_symlink_file_times};
+            let set_atime = FileTime::from_unix_time(1_700_000_000, 0);
+            let set_mtime = FileTime::from_unix_time(1_700_000_100, 0);
+            set_symlink_file_times(&link, set_atime, set_mtime).unwrap();
+
+            // Read entity from filesystem; it inspects the link target
+            let entity = FileEntity::from_filesystem(&link, None).unwrap();
+
+            // Verify that timestamps on disk were restored
+            let post_meta = std::fs::symlink_metadata(&link).unwrap();
+            let post_atime = FileTime::from_last_access_time(&post_meta);
+            assert_eq!(post_atime.unix_seconds(), 1_700_000_000);
+            assert_eq!(entity.metadata.timestamps.mtime_sec, 1_700_000_100);
+        }
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_metadata_only_captures_birthtime_and_streams() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        xattr::set(&path, "user.metadata", b"opaque bytes\xff").unwrap();
+        let entity = FileEntity::from_filesystem_metadata_only(&path, None).unwrap();
+        assert!(entity.metadata.native.is_some());
+        let FileEntityKind::Regular { sha256, extents, .. } = &entity.kind else {
+            panic!("Expected a regular file");
+        };
+        assert_eq!(*sha256, [0; 32]);
+        assert!(!extents.is_empty());
+        assert_eq!(entity.streams[0].data.as_deref(), Some(b"opaque bytes\xff".as_slice()));
+        if let Ok(created) = fs::symlink_metadata(&path).unwrap().created() {
+            let time = filetime::FileTime::from_system_time(created);
+            assert_eq!(entity.metadata.timestamps.birthtime_sec, Some(time.unix_seconds()));
+            assert_eq!(entity.metadata.timestamps.birthtime_nsec, Some(time.nanoseconds()));
+        }
+        #[cfg(target_os = "linux")]
+        assert!(entity.metadata.native.unwrap().values.contains_key("statx.attributes_mask"));
+    }
+
+    #[crate::ctb_test]
+    fn test_bundle_detection_and_environment_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let app_dir = temp.path().join("Sample.app");
+        std::fs::create_dir(&app_dir).unwrap();
+
+        let entity = FileEntity::from_filesystem(&app_dir, None).unwrap();
+
+        // On non-macOS platforms, .app directory must be classified as Directory, not Bundle
+        #[cfg(not(target_os = "macos"))]
+        assert_eq!(entity.kind, FileEntityKind::Directory);
+
+        // Environment metadata must be recorded and accessible
+        let env = entity.environment().expect("environment must be recorded");
+        assert!(!env.os.is_empty());
+        let _ = env.looks_like_gnustep;
+    }
+}
+

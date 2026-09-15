@@ -749,3 +749,175 @@ pub fn native_metadata_differences(
     }
     Ok(differences)
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+    use std::fs;
+
+    #[crate::ctb_test]
+    fn test_file_flag_properties() {
+        assert_eq!(FileFlag::UserImmutable.name(), "uchg");
+        assert_eq!(FileFlag::NoDump.name(), "nodump");
+        assert_eq!(FileFlag::Hidden.name(), "hidden");
+        assert_eq!(
+            FileFlag::UserImmutable.is_user_settable(OsFamily::Darwin),
+            FlagSettability::UserSettable
+        );
+        assert_eq!(
+            FileFlag::SystemImmutable.is_user_settable(OsFamily::Darwin),
+            FlagSettability::RootSettable
+        );
+        assert!(FileFlag::SystemImmutable.is_system_flag(OsFamily::Darwin));
+        assert_eq!(
+            FileFlag::UserImmutable.is_user_settable(OsFamily::Linux),
+            FlagSettability::RootSettable
+        );
+        assert_eq!(
+            FileFlag::NoDump.is_user_settable(OsFamily::Linux),
+            FlagSettability::UserSettable
+        );
+        assert_eq!(
+            FileFlag::DataVault.is_user_settable(OsFamily::Darwin),
+            FlagSettability::AppleSipOnly
+        );
+        assert_eq!(
+            FileFlag::Snapshot.is_user_settable(OsFamily::FreeBSD),
+            FlagSettability::KernelOnly
+        );
+        assert_eq!(
+            FileFlag::UserNoUnlink.is_user_settable(OsFamily::Linux),
+            FlagSettability::Unsupported
+        );
+
+        assert_eq!(
+            FileFlag::from_name("uchg"),
+            Some(FileFlag::UserImmutable)
+        );
+        assert_eq!(FileFlag::from_name("nodump"), Some(FileFlag::NoDump));
+    }
+
+    #[crate::ctb_test]
+    fn test_platform_raw_flags_safety() {
+        let raw = PlatformRawFlags {
+            source_os: OsFamily::Darwin,
+            raw_value: 0x80, // UF_DATAVAULT on Darwin, but UF_SYSTEM on FreeBSD
+            has_unparsed_flags: true,
+        };
+
+        // If target is Linux or FreeBSD, applying Darwin raw flags with strict_lossless must fail!
+        if OsFamily::CURRENT != OsFamily::Darwin {
+            let temp_dir = tempfile::tempdir().unwrap();
+            let test_file = temp_dir.path().join("test.txt");
+            fs::write(&test_file, b"content").unwrap();
+
+            let res = apply_file_flags(
+                &test_file,
+                &[FileFlag::DataVault],
+                Some(&raw),
+                true,
+            );
+            assert!(
+                res.is_err(),
+                "Applying foreign unparsed flags across OS boundaries must fail"
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_birthtime_replication_policy() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        let mut metadata = FileMetadata {
+            native: None, mode: 0o600, uid: 0, gid: 0,
+            timestamps: FileTimestamps {
+                atime_sec: 0, atime_nsec: 0, mtime_sec: 0, mtime_nsec: 0,
+                ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
+                resolution_nsec: None,
+            },
+            flags: Vec::new(), platform_raw_flags: None, read_time: None, filesystem_type: None,
+            environment: None, apple: None,
+        };
+        assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
+        metadata.timestamps.birthtime_sec = None;
+        assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_file_timestamps_resolution_nanos() {
+        let ts = FileTimestamps {
+            atime_sec: 1_700_000_000,
+            atime_nsec: 500,
+            mtime_sec: 1_700_000_001,
+            mtime_nsec: 600,
+            ctime_sec: 1_700_000_002,
+            ctime_nsec: 700,
+            birthtime_sec: Some(1_700_000_000),
+            birthtime_nsec: Some(100),
+            resolution_nsec: Some(100), // Windows FILETIME resolution
+        };
+        let encoded = serde_json::to_string(&ts).unwrap();
+        let decoded: FileTimestamps = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.resolution_nsec, Some(100));
+        assert_eq!(decoded, ts);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[crate::ctb_test]
+    fn test_flag_application_clears_stale_flags_and_rejects_bad_width() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        crate::sys_flags::apply_file_flags(&path, &[FileFlag::NoDump], None, true).unwrap();
+        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.contains(&FileFlag::NoDump));
+        crate::sys_flags::apply_file_flags(&path, &[], None, true).unwrap();
+        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.is_empty());
+        let raw = PlatformRawFlags { source_os: OsFamily::Linux, raw_value: u64::MAX, has_unparsed_flags: true };
+        assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
+    }
+
+    #[cfg(not(unix))]
+    #[crate::ctb_test]
+    fn test_unsupported_fidelity_fails_explicitly() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("source");
+        fs::write(&path, b"original").unwrap();
+        assert!(FileEntity::from_filesystem(&path, None).is_err());
+        assert!(read_and_hash_streams(&path).is_err());
+        assert!(StreamName::from_bytes(b"invalid\xff").to_os_string().is_err());
+        let root = SandboxableDir::open(temp.path()).unwrap();
+        assert!(root.commit_atomic_file(&root.root_fd(), "missing-temp", "source").is_err());
+        assert_eq!(fs::read(path).unwrap(), b"original");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_opaque_native_metadata_replication_policy() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"data").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.metadata.native.as_mut().unwrap().values.insert(
+            "future.attribute".to_owned(), metadata::NativeMetadataValue::Bytes(vec![0, 255, 128]),
+        );
+        assert!(metadata::check_metadata_replication(&path, &entity.metadata, true, false).is_err());
+        assert!(metadata::check_metadata_replication(&path, &entity.metadata, false, false).is_ok());
+        assert!(metadata::check_metadata_replication(&temp.path().join("missing"), &entity.metadata, false, false).is_err());
+        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
+        assert!(audit_entity(&path, &entity, &options).unwrap().iter().any(|diff|
+            matches!(diff, DiffKind::NativeMetadataMismatch { .. })));
+    }
+}
+

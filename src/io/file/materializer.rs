@@ -1251,3 +1251,433 @@ fn try_update_existing_regular_entity(
         skipped_identical: true,
     }))
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+    use ctb_formats_checksum::Sha256Stream;
+    use std::fs;
+    use std::path::{PathBuf};
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_materialize_and_verify_regular_file() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest_root");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let payload_bytes = b"Testing robust file abstraction pipeline with SHA-256";
+        let mut hasher = Sha256Stream::new();
+        hasher.update(payload_bytes);
+        let sha256 = hasher.finalize();
+        let size = u64::try_from(payload_bytes.len()).unwrap();
+
+        let rel_path = PathBuf::from("nested/test_file.bin");
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
+                raw_filename: b"test_file.bin".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: nix::unistd::getuid().as_raw(),
+                gid: nix::unistd::getgid().as_raw(),
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data { offset: 0, length: size }],
+            },
+            streams: Vec::new(),
+        };
+
+        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let options = MaterializeOptions::default();
+
+        let dest_dir = SandboxableDir::open(&dest_root).unwrap();
+        let receipt = materialize_entity(
+            &entity,
+            Some(&mut payload),
+            &dest_dir,
+            &options,
+        )
+        .expect("materialize regular file");
+
+        assert_eq!(receipt.bytes_written, size);
+        assert_eq!(receipt.sha256, Some(sha256));
+
+        // Independent verify pass
+        let target_path = dest_root.join(&rel_path);
+        verify_materialized_entity(&target_path, &entity, true)
+            .expect("independent verification of materialized entity");
+
+        for (is_sparse, extents, bytes) in [
+            (false, Vec::new(), payload_bytes[..4].to_vec()),
+            (false, Vec::new(), vec![1_u8; payload_bytes.len() + 1]),
+            (true, vec![Extent::Data { offset: 0, length: size }], payload_bytes[..4].to_vec()),
+            (true, vec![Extent::Hole { offset: 1, length: size }], payload_bytes.to_vec()),
+            (true, Vec::new(), payload_bytes.to_vec()),
+        ] {
+            let mut invalid_entity = entity.clone();
+            invalid_entity.kind = FileEntityKind::Regular {
+                size,
+                sha256: [0_u8; 32],
+                is_sparse,
+                extents,
+            };
+            let mut invalid_payload = MemoryPayloadSource::new(bytes).unwrap();
+            assert!(materialize_entity(
+                &invalid_entity,
+                Some(&mut invalid_payload),
+                &dest_dir,
+                &options,
+            ).is_err());
+            assert_eq!(fs::read(&target_path).unwrap(), payload_bytes);
+            assert_eq!(fs::read_dir(target_path.parent().unwrap()).unwrap().count(), 1);
+        }
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_materialize_entity_skips_identical_payload_and_updates_metadata() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let payload_bytes = b"Antigravity smart materialization payload";
+        let size = u64::try_from(payload_bytes.len()).unwrap();
+        let mut hasher = Sha256Stream::new();
+        hasher.update(payload_bytes);
+        let sha256 = hasher.finalize();
+
+        let rel_path = PathBuf::from("docs/report.txt");
+
+        // 1. Initial materialization: writes payload to disk
+        let mut entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
+                raw_filename: b"report.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o600,
+                uid: nix::unistd::getuid().as_raw(),
+                gid: nix::unistd::getgid().as_raw(),
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data { offset: 0, length: size }],
+            },
+            streams: Vec::new(),
+        };
+
+        let mut payload = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let dest_dir = SandboxableDir::open(&dest_root).unwrap();
+        let options = MaterializeOptions::default();
+
+        let receipt1 = entity
+            .materialize(Some(&mut payload), &dest_dir, &options)
+            .expect("first materialization");
+        assert_eq!(receipt1.bytes_written, size);
+        assert!(!receipt1.skipped_identical);
+
+        let target_path = dest_root.join(&rel_path);
+        let meta1 = fs::metadata(&target_path).unwrap();
+        assert_eq!(meta1.permissions().mode() & 0o7777, 0o600);
+
+        // 2. Second materialization with updated permissions (0o644) and mtime
+        entity.metadata.mode = 0o644;
+        entity.metadata.timestamps.mtime_sec = 1_700_050_000;
+        let mut payload2 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+
+        let receipt2 = entity
+            .materialize(Some(&mut payload2), &dest_dir, &options)
+            .expect("second smart materialization");
+        assert_eq!(receipt2.bytes_written, 0);
+        assert!(receipt2.skipped_identical);
+
+        let meta2 = fs::metadata(&target_path).unwrap();
+        assert_eq!(meta2.permissions().mode() & 0o7777, 0o644);
+        assert_eq!(meta2.mtime(), 1_700_050_000);
+
+        // Independent verification of the in-place updated entity
+        verify_materialized_entity(&target_path, &entity, true)
+            .expect("verification of smart-updated entity");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_materialize_entity_force_overwrite() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let payload_bytes = b"Payload for force overwrite test";
+        let size = u64::try_from(payload_bytes.len()).unwrap();
+        let mut hasher = Sha256Stream::new();
+        hasher.update(payload_bytes);
+        let sha256 = hasher.finalize();
+
+        let rel_path = PathBuf::from("forced.bin");
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
+                raw_filename: b"forced.bin".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: nix::unistd::getuid().as_raw(),
+                gid: nix::unistd::getgid().as_raw(),
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data { offset: 0, length: size }],
+            },
+            streams: Vec::new(),
+        };
+
+        let dest_dir = SandboxableDir::open(&dest_root).unwrap();
+        let mut p1 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let r1 = entity
+            .materialize(Some(&mut p1), &dest_dir, &MaterializeOptions::default())
+            .expect("initial write");
+        assert_eq!(r1.bytes_written, size);
+        assert!(!r1.skipped_identical);
+
+        // Overwrite with force_overwrite = true
+        let mut forced_options = MaterializeOptions::default();
+        forced_options.force_overwrite = true;
+
+        let mut p2 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
+        let r2 = entity
+            .materialize(Some(&mut p2), &dest_dir, &forced_options)
+            .expect("forced rewrite");
+        assert_eq!(r2.bytes_written, size);
+        assert!(!r2.skipped_identical);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_materialize_entity_payload_mismatch_rewrites_atomic() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let rel_path = PathBuf::from("mismatch.txt");
+        let dest_file = dest_root.join(&rel_path);
+        // Pre-create destination with different content of the same length
+        fs::write(&dest_file, b"Old contentAAAA").unwrap();
+
+        let new_bytes = b"New contentBBBB";
+        let size = u64::try_from(new_bytes.len()).unwrap();
+        let mut hasher = Sha256Stream::new();
+        hasher.update(new_bytes);
+        let sha256 = hasher.finalize();
+
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
+                raw_filename: b"mismatch.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: nix::unistd::getuid().as_raw(),
+                gid: nix::unistd::getgid().as_raw(),
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents: vec![Extent::Data { offset: 0, length: size }],
+            },
+            streams: Vec::new(),
+        };
+
+        let dest_dir = SandboxableDir::open(&dest_root).unwrap();
+        let mut payload = MemoryPayloadSource::new(new_bytes.to_vec()).unwrap();
+        let receipt = entity
+            .materialize(Some(&mut payload), &dest_dir, &MaterializeOptions::default())
+            .expect("materialize on mismatch");
+
+        assert_eq!(receipt.bytes_written, size);
+        assert!(!receipt.skipped_identical);
+        assert_eq!(fs::read(&dest_file).unwrap(), new_bytes);
+    }
+
+    #[crate::ctb_test]
+    fn test_materialize_entity_sparse_extent_fallback() {
+        let temp = tempfile::tempdir().unwrap();
+        let src_path = temp.path().join("sparse_src.bin");
+        let dest_path = temp.path().join("sparse_dest.bin");
+
+        // Create a 100-byte test file
+        let mut data = vec![0_u8; 100];
+        for (i, byte) in data.iter_mut().enumerate() {
+            // Safe truncated u8 value for test pattern
+            *byte = u8::try_from(i % 251).unwrap_or(0);
+        }
+        std::fs::write(&src_path, &data).unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
+        // Artificially corrupt extent map so it fails validation (claims file is sparse, but extents total only 50 bytes)
+        if let FileEntityKind::Regular {
+            ref mut is_sparse,
+            ref mut extents,
+            ..
+        } = entity.kind
+        {
+            *is_sparse = true;
+            *extents = vec![
+                Extent::Data {
+                    offset: 0,
+                    length: 30,
+                },
+                Extent::Hole {
+                    offset: 30,
+                    length: 20,
+                },
+            ];
+        }
+        entity.identity.relative_path = PathBuf::from("sparse_dest.bin");
+
+        let mut payload = DiskPayloadSource::open(&src_path).unwrap();
+        let options = MaterializeOptions {
+            dry_run: false,
+            strict_lossless: false,
+            symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
+            path_policy: PathTraversalPolicy::StrictSandboxed,
+            copy_specials: false,
+            force_overwrite: true,
+            apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
+            apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
+        };
+
+        let dest_dir = SandboxableDir::open(temp.path()).unwrap();
+        // Materialization should fall back to linear copy and succeed completely without failing
+        materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+
+        let read_back = std::fs::read(&dest_path).unwrap();
+        assert_eq!(read_back, data);
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_failed_node_replacement_preserves_destination() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("destination");
+        fs::write(&path, b"keep this data").unwrap();
+        let root = SandboxableDir::open(temp.path()).unwrap();
+        assert!(root.create_hardlink(PathBuf::from("missing").as_path(), &root.root_fd(), "destination").is_err());
+        assert!(root.create_symlink(&root.root_fd(), "destination", b"invalid\0target", SymlinkValidationPolicy::PreserveVerbatim).is_err());
+        assert!(root.create_special(&root.root_fd(), "destination", &FileEntityKind::Socket, 0o600).is_err());
+        assert_eq!(fs::read(path).unwrap(), b"keep this data");
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+    }
+}
+

@@ -594,3 +594,69 @@ fn win32_error_code(err: &std::io::Error) -> u32 {
     // Reason for fallback: Negative OS error codes do not correspond to Win32 error IDs; default to 0.
     u32::try_from(code).unwrap_or(0)
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[crate::ctb_test]
+    fn test_windows_security_descriptor_metadata_tracking() {
+        let mut values = std::collections::BTreeMap::new();
+        values.insert(
+            "security.descriptor".to_owned(),
+            metadata::NativeMetadataValue::Bytes(vec![1, 0, 4, 128, 20, 0, 0, 0]),
+        );
+        values.insert(
+            "security.sddl".to_owned(),
+            metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()),
+        );
+        values.insert(
+            "security.info_flags".to_owned(),
+            metadata::NativeMetadataValue::Unsigned(7),
+        );
+        let native = metadata::NativeMetadata {
+            source_os: OsFamily::Windows,
+            values,
+        };
+        let meta = FileMetadata {
+            native: Some(native),
+            mode: 0o644,
+            uid: 0,
+            gid: 0,
+            timestamps: FileTimestamps {
+                atime_sec: 0,
+                atime_nsec: 0,
+                mtime_sec: 0,
+                mtime_nsec: 0,
+                ctime_sec: 0,
+                ctime_nsec: 0,
+                birthtime_sec: None,
+                birthtime_nsec: None,
+                resolution_nsec: Some(100),
+            },
+            flags: Vec::new(),
+            platform_raw_flags: None,
+            read_time: None,
+            filesystem_type: None,
+            environment: None,
+            apple: None,
+        };
+        let serialized = serde_json::to_string(&meta).unwrap();
+        let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(
+            deserialized.native.as_ref().unwrap().values.get("security.sddl"),
+            Some(&metadata::NativeMetadataValue::Bytes(b"O:AOG:DAD:(A;;FA;;;WD)".to_vec()))
+        );
+    }
+}
+

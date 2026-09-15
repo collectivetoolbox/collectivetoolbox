@@ -1104,4 +1104,132 @@ pub(crate) fn is_timestamp_acceptable_best_effort(
     );
     sec_diff.abs() <= sec_tol
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+    use std::fs;
+    #[cfg(unix)]
+    use std::os::unix::fs::{PermissionsExt};
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_best_effort_never_hides_payload_corruption() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("payload");
+        fs::write(&path, b"original").unwrap();
+        let expected = FileEntity::from_filesystem(&path, None).unwrap();
+        fs::write(&path, b"tampered").unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap();
+        assert!(verify_materialized_entity(&path, &expected, false).is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_is_timestamp_acceptable_best_effort() {
+        // Tolerates up to 2 seconds drift by default in best effort mode
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_002, 0, 1_000
+        ));
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 100, 1_000, 150, 100
+        ));
+        assert!(!verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_003, 0, 1_000
+        ));
+
+        // Coarser resolution volumes (e.g. 3s) allow larger tolerance
+        assert!(verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_003, 0, 3_000_000_000
+        ));
+        assert!(!verifier::is_timestamp_acceptable_best_effort(
+            1_000, 0, 1_004, 0, 3_000_000_000
+        ));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_strict_verification_fails_on_sub100ns_timestamp_difference() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("sub100ns_test");
+        fs::write(&path, b"timestamp data").unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        // Shift mtime by 15 nanoseconds (sub-100ns difference)
+        entity.metadata.timestamps.mtime_nsec = entity
+            .metadata
+            .timestamps
+            .mtime_nsec
+            .saturating_add(15);
+
+        // Strict verification must fail on any unpreserved nanosecond difference
+        let strict_options = EntityAuditOptions {
+            best_effort: false,
+            ..Default::default()
+        };
+        let diffs = audit_entity(&path, &entity, &strict_options).unwrap();
+        assert!(
+            diffs
+                .iter()
+                .any(|d| matches!(d, DiffKind::MtimeMismatch { .. }))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_noatime_tracked_and_verified() {
+        let temp = tempfile::tempdir().unwrap();
+        let src_path = temp.path().join("noatime_src.txt");
+        let dest_path = temp.path().join("noatime_dest.txt");
+        std::fs::write(&src_path, b"test noatime data").unwrap();
+
+        #[cfg(target_os = "linux")]
+        {
+            use filetime::{FileTime, set_file_times};
+            let atime = FileTime::from_unix_time(1_650_000_000, 0);
+            let mtime = FileTime::from_unix_time(1_650_000_100, 0);
+            set_file_times(&src_path, atime, mtime).unwrap();
+
+            let payload = DiskPayloadSource::open(&src_path).unwrap();
+            assert!(payload.opened_with_noatime());
+
+            let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
+            assert!(entity.used_noatime());
+            entity.identity.relative_path = std::path::PathBuf::from("noatime_dest.txt");
+            entity.metadata.timestamps.birthtime_sec = None;
+            entity.metadata.timestamps.birthtime_nsec = None;
+
+            let mut payload = DiskPayloadSource::open(&src_path).unwrap();
+            let dest_dir = sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();
+            let options = MaterializeOptions {
+                dry_run: false,
+                strict_lossless: true,
+                symlink_policy: SymlinkValidationPolicy::PreserveVerbatim,
+                path_policy: PathTraversalPolicy::StrictSandboxed,
+                copy_specials: false,
+                force_overwrite: true,
+                apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
+                apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
+            };
+
+            materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
+
+            // Destination atime must match and pass verification when checked
+            verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).unwrap();
+
+            // When destination atime is modified, verification with check_atime must fail
+            let bad_atime = FileTime::from_unix_time(1_700_000_000, 0);
+            set_file_times(&dest_path, bad_atime, mtime).unwrap();
+            assert!(verifier::verify_materialized_entity_ext(&dest_path, &entity, true, true, false).is_err());
+        }
+    }
+}
 

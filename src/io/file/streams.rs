@@ -501,3 +501,123 @@ pub fn remove_stream(path: &Path, name: &std::ffi::OsStr) -> Result<()> {
         )
     }
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+    use std::fs;
+
+    #[crate::ctb_test]
+    fn test_stream_names_retain_native_encoding() {
+        for name in [
+            StreamName::from_bytes(b"user.raw\xff\x80"),
+            StreamName::from_windows_utf16(&[0x003a, 0xd800, 0x0061, 0xdc00]),
+            StreamName::from_windows_utf16(&[0x0061, 0]),
+        ] {
+            let encoded = serde_json::to_vec(&name).unwrap();
+            let restored: StreamName = serde_json::from_slice(&encoded).unwrap();
+            assert_eq!(restored, name);
+            #[cfg(windows)]
+            if matches!(name, StreamName::WindowsUtf16(_)) {
+                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+            }
+            #[cfg(unix)]
+            if matches!(name, StreamName::Bytes(_)) {
+                assert_eq!(StreamName::from_os_str(&name.to_os_string().unwrap()), name);
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[crate::ctb_test]
+    fn test_windows_stream_capture_retains_unpaired_surrogate() {
+        use std::os::windows::ffi::OsStringExt;
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"main payload").unwrap();
+        let mut units = vec![0x003a, 0xd800];
+        units.extend(":$DATA".encode_utf16());
+        let mut stream_path = path.as_os_str().to_os_string();
+        stream_path.push(std::ffi::OsString::from_wide(&units));
+        fs::write(PathBuf::from(stream_path), b"stream payload").unwrap();
+        let streams = crate::streams::read_and_hash_streams(&path).unwrap();
+        assert_eq!(streams.len(), 1);
+        assert_eq!(streams[0].name, Some(StreamName::from_windows_utf16(&units)));
+        assert_eq!(streams[0].data.as_deref(), Some(b"stream payload".as_slice()));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_portable_stream_name_recreation_and_collision() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        xattr::set(&path, "user.portable", b"metadata").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        entity.streams[0].name = Some(StreamName::from_windows_utf16(&"user.portable".encode_utf16().collect::<Vec<_>>()));
+        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
+        let options = EntityAuditOptions { best_effort: true, ..Default::default() };
+        let diffs = audit_entity(&path, &entity, &options).unwrap();
+        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
+        let mut duplicate = entity.streams[0].clone();
+        duplicate.name = Some(StreamName::from_str("user.portable"));
+        entity.streams.push(duplicate);
+        assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+        assert!(audit_entity(&path, &entity, &options).is_err());
+        entity.streams[0].name = Some(StreamName::from_windows_utf16(&[0xd800]));
+        assert!(crate::streams::write_streams(&path, None, &entity.streams, false).is_err());
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_nameless_stream_and_resource_fork() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("file");
+        fs::write(&path, b"payload").unwrap();
+        let mut entity = FileEntity::from_filesystem(&path, None).unwrap();
+        let rsrc_stream = crate::streams::AttachedStream::from_data(
+            None,
+            crate::streams::StreamKind::MacOsResourceFork,
+            b"resource fork contents".to_vec(),
+        ).unwrap();
+        assert_eq!(rsrc_stream.name, None);
+        assert_eq!(rsrc_stream.kind, crate::streams::StreamKind::MacOsResourceFork);
+        assert_eq!(rsrc_stream.to_string_lossy(), "(resource fork)");
+
+        entity.streams.push(rsrc_stream);
+        crate::streams::write_streams(&path, None, &entity.streams, true).unwrap();
+
+        let options = EntityAuditOptions { best_effort: false, ..Default::default() };
+        let diffs = audit_entity(&path, &entity, &options).unwrap();
+        assert!(!diffs.iter().any(|diff| matches!(diff, DiffKind::StreamMismatch { .. })));
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_stream_corruption_and_special_type_mismatch() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("source");
+        let destination = temp.path().join("destination");
+        fs::write(&source, b"payload").unwrap();
+        fs::write(&destination, b"old data").unwrap();
+        xattr::set(&source, "user.stream", b"original").unwrap();
+        let mut entity = FileEntity::from_filesystem(&source, None).unwrap();
+        let mut streams = entity.streams.clone();
+        streams[0].data = Some(b"tampered".to_vec());
+        assert!(write_streams(&destination, None, &streams, false).is_err());
+        assert!(xattr::get(&destination, "user.stream").unwrap().is_none());
+        entity.kind = FileEntityKind::Fifo;
+        assert!(verify_materialized_entity(&source, &entity, false).is_err());
+    }
+}
+

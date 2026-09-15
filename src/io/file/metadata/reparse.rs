@@ -303,3 +303,81 @@ fn extract_utf16_str(
     }
     Ok(Some(String::from_utf16_lossy(&units)))
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use crate::*;
+
+    #[crate::ctb_test]
+    fn test_windows_reparse_buffer_symlink_roundtrip() {
+        use crate::metadata::reparse::{
+            IO_REPARSE_TAG_SYMLINK, SYMLINK_FLAG_RELATIVE,
+            build_symlink_reparse_buffer, parse_reparse_buffer,
+        };
+        use std::collections::BTreeMap;
+
+        let sub_name = "target\\subfolder\\file.txt";
+        let print_name = "target\\subfolder\\file.txt";
+        let buf = build_symlink_reparse_buffer(sub_name, print_name, true).unwrap();
+
+        let mut values = BTreeMap::new();
+        let tag = parse_reparse_buffer(&buf, &mut values).unwrap();
+        assert_eq!(tag, Some(IO_REPARSE_TAG_SYMLINK));
+        assert_eq!(
+            values.get("reparse.tag"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_SYMLINK)))
+        );
+        assert_eq!(
+            values.get("reparse.symlink.flags"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(SYMLINK_FLAG_RELATIVE)))
+        );
+        assert_eq!(
+            values.get("reparse.substitute_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+        );
+        assert_eq!(
+            values.get("reparse.print_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_reparse_buffer_mount_point_roundtrip() {
+        use crate::metadata::reparse::{
+            IO_REPARSE_TAG_MOUNT_POINT, build_mount_point_reparse_buffer,
+            parse_reparse_buffer,
+        };
+        use std::collections::BTreeMap;
+
+        let sub_name = "\\??\\C:\\Volume{1234}\\junction";
+        let print_name = "C:\\junction";
+        let buf = build_mount_point_reparse_buffer(sub_name, print_name).unwrap();
+
+        let mut values = BTreeMap::new();
+        let tag = parse_reparse_buffer(&buf, &mut values).unwrap();
+        assert_eq!(tag, Some(IO_REPARSE_TAG_MOUNT_POINT));
+        assert_eq!(
+            values.get("reparse.tag"),
+            Some(&metadata::NativeMetadataValue::Unsigned(u64::from(IO_REPARSE_TAG_MOUNT_POINT)))
+        );
+        assert_eq!(
+            values.get("reparse.substitute_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(sub_name.as_bytes().to_vec()))
+        );
+        assert_eq!(
+            values.get("reparse.print_name"),
+            Some(&metadata::NativeMetadataValue::Bytes(print_name.as_bytes().to_vec()))
+        );
+    }
+}
+

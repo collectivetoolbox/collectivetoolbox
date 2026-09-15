@@ -340,3 +340,147 @@ pub fn resolve_existing_ancestors(path: &Path) -> Result<PathBuf> {
         Err(error) => Err(error).with_context(|| format!("Failed to resolve {}", path.display())),
     }
 }
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::{PathBuf};
+
+    #[crate::ctb_test]
+    fn test_symlink_policy_verbatim_vs_restricted() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let symlink_path = dest_root.join("sub").join("link");
+        let escaping_target = b"../../secret.txt";
+
+        // PreserveVerbatim allows escaping target
+        assert!(
+            validate_symlink_target(
+                &dest_root,
+                &symlink_path,
+                escaping_target,
+                SymlinkValidationPolicy::PreserveVerbatim,
+            )
+            .is_ok()
+        );
+
+        // RejectEscapingSymlinks catches it
+        let res = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            escaping_target,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(res.is_err());
+    }
+
+    #[crate::ctb_test]
+    fn test_symlink_non_utf8_target_verification() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let symlink_path = dest_root.join("sub").join("link");
+
+        // Invalid UTF-8 bytes in target pointing outside
+        let escaping_non_utf8 = b"../../\xFF\xFE\xFD_outside";
+        let res_escaping = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            escaping_non_utf8,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(res_escaping.is_err(), "Must detect escape even with non-UTF-8 bytes");
+
+        // Invalid UTF-8 bytes in target contained safely inside
+        let contained_non_utf8 = b"internal/\xFF\xFE\xFD_safe";
+        let res_contained = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            contained_non_utf8,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(
+            res_contained.is_ok(),
+            "Must verify contained symlink even with non-UTF-8 bytes"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_reject_all_symlinks_policy() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        fs::create_dir_all(&dest_root).unwrap();
+
+        let symlink_path = dest_root.join("sub").join("link");
+        let safe_target = b"sub/other.txt";
+
+        let res = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            safe_target,
+            SymlinkValidationPolicy::RejectAllSymlinks,
+        );
+        assert!(
+            res.is_err(),
+            "RejectAllSymlinks policy must reject any symlink creation"
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_resolve_and_validate_path_normalization() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+
+        let rel = PathBuf::from("a/b/../c/./d");
+        let resolved = resolve_and_validate_path(&dest_root, &rel, PathTraversalPolicy::StrictSandboxed)
+            .expect("valid relative path with dots");
+        assert_eq!(resolved, dest_root.join("a").join("c").join("d"));
+
+        let escaping = PathBuf::from("a/../../escaped");
+        let res = resolve_and_validate_path(&dest_root, &escaping, PathTraversalPolicy::StrictSandboxed);
+        assert!(res.is_err(), "Must reject path escaping root via ..");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_symlink_target_nonexistent_leaf_with_poisoned_ancestor() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let dest_root = temp_dir.path().join("dest");
+        let outside_dir = temp_dir.path().join("outside_target");
+        fs::create_dir_all(&dest_root).unwrap();
+        fs::create_dir_all(&outside_dir).unwrap();
+
+        // Create a symlink inside dest_root pointing outside
+        let poisoned_link = dest_root.join("poisoned_dir");
+        std::os::unix::fs::symlink(&outside_dir, &poisoned_link).unwrap();
+
+        let symlink_path = dest_root.join("test_symlink");
+        // Target points through poisoned_link to a file that does not exist yet on disk
+        let target_bytes = b"poisoned_dir/nonexistent_file.txt";
+
+        let res = validate_symlink_target(
+            &dest_root,
+            &symlink_path,
+            target_bytes,
+            SymlinkValidationPolicy::RejectEscapingSymlinks,
+        );
+        assert!(
+            res.is_err(),
+            "Must reject symlink whose nonexistent target has an ancestor symlink escaping dest_root"
+        );
+    }
+}
+
