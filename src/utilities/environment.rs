@@ -517,17 +517,26 @@ pub fn is_windows() -> bool {
 }
 
 /// Is running on macOS (not classic)?
-pub fn is_macos() -> bool {
+pub fn is_mac_os_10_or_newer() -> bool {
     env::consts::OS == "macos"
+}
+/// There does not seem to be a separate iPadOS value for env::consts::OS.
+pub fn is_apple_ios() -> bool {
+    env::consts::OS == "ios"
+}
+pub fn is_watchos() -> bool {
+    env::consts::OS == "watchos"
+}
+pub fn is_tvos() -> bool {
+    env::consts::OS == "tvos"
+}
+pub fn is_visionos() -> bool {
+    env::consts::OS == "visionos"
 }
 
 /// Is running on Darwin family OS?
 pub fn is_darwin() -> bool {
-    cfg!(target_vendor = "apple")
-        || matches!(
-            env::consts::OS,
-            "macos" | "ios" | "watchos" | "tvos" | "visionos" | "darwin"
-        )
+    is_mac_os_10_or_newer() || is_apple_ios() || is_watchos() || is_tvos() || is_visionos()
 }
 
 /// Does it look like it's running in a GNUstep environment? A guess, not
@@ -964,7 +973,7 @@ pub struct EnvDescription {
     pub is_windows: bool,
 
     #[serde(skip_serializing_if = "is_false")]
-    pub is_macos: bool,
+    pub is_mac_os_10_or_newer: bool,
 
     #[serde(skip_serializing_if = "is_false")]
     pub is_darwin: bool,
@@ -1090,7 +1099,11 @@ impl EnvDescription {
             is_unix: is_unix(),
             is_linux: is_linux(),
             is_windows: is_windows(),
-            is_macos: is_macos(),
+            is_mac_os_10_or_newer: is_mac_os_10_or_newer(),
+            is_apple_ios: is_apple_ios(),
+            is_tvos: is_tvos(),
+            is_watchos: is_watchos(),
+            is_visionos: is_visionos(),
             is_darwin: is_darwin(),
             looks_like_gnustep: looks_like_gnustep(),
             looks_like_nextstep_or_openstep: looks_like_nextstep_or_openstep(),
@@ -1241,7 +1254,7 @@ mod tests {
     fn test_os_and_environment_detection() {
         if is_linux() {
             assert!(!is_windows());
-            assert!(!is_macos());
+            assert!(!is_mac_os_10_or_newer());
             assert!(!is_darwin());
             assert!(!is_bsd());
             assert!(!is_openbsd());
