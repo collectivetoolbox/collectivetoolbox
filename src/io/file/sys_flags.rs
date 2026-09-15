@@ -168,7 +168,7 @@ macro_rules! define_platform_flags {
         os_id: $os_id:literal,
         os_name: $os_name:literal,
         flags: [
-            $( ($flag:expr, $const_name:ident, $val:expr, $settability:expr) ),* $(,)?
+            $( ($flag:path, $const_name:ident, $val:expr, $settability:expr) ),* $(,)?
         ] $(,
         extra_constants: [
             $( ($extra_name:ident, $extra_val:expr) ),* $(,)?
@@ -698,12 +698,12 @@ define_platform_flags! {
     os_id: "linux",
     os_name: "Linux",
     flags: [
-        (FileFlag::NoDump,          LINUX_FS_NODUMP_FL,    0x0000_0040, FlagSettability::UserSettable),
-        (FileFlag::UserImmutable,   LINUX_FS_IMMUTABLE_FL, 0x0000_0010, FlagSettability::RootSettable),
-        (FileFlag::SystemImmutable, LINUX_FS_IMMUTABLE_FL, 0x0000_0010, FlagSettability::RootSettable),
-        (FileFlag::UserAppend,      LINUX_FS_APPEND_FL,    0x0000_0020, FlagSettability::RootSettable),
-        (FileFlag::SystemAppend,    LINUX_FS_APPEND_FL,    0x0000_0020, FlagSettability::RootSettable),
-        (FileFlag::Compressed,      LINUX_FS_COMPR_FL,     0x0000_0004, FlagSettability::KernelOnly),
+        (FileFlag::NoDump,          LINUX_FS_NODUMP_FL,          0x0000_0040, FlagSettability::UserSettable),
+        (FileFlag::UserImmutable,   LINUX_FS_IMMUTABLE_FL,       0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable, LINUX_FS_IMMUTABLE_FL_ALIAS, 0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::UserAppend,      LINUX_FS_APPEND_FL,          0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,    LINUX_FS_APPEND_FL_ALIAS,    0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::Compressed,      LINUX_FS_COMPR_FL,           0x0000_0004, FlagSettability::KernelOnly),
     ],
     extra_constants: [
         (LINUX_FS_USER_MODIFIABLE, 0x0000_0070),
@@ -750,7 +750,7 @@ define_platform_flags! {
         (FileFlag::Hidden,      WIN_FILE_ATTRIBUTE_HIDDEN,        0x0000_0002, FlagSettability::UserSettable),
         (FileFlag::System,      WIN_FILE_ATTRIBUTE_SYSTEM,        0x0000_0004, FlagSettability::UserSettable),
         (FileFlag::Archived,    WIN_FILE_ATTRIBUTE_ARCHIVE,       0x0000_0020, FlagSettability::UserSettable),
-        (FileFlag::UserArchive, WIN_FILE_ATTRIBUTE_ARCHIVE,       0x0000_0020, FlagSettability::UserSettable),
+        (FileFlag::UserArchive, WIN_FILE_ATTRIBUTE_ARCHIVE_ALIAS, 0x0000_0020, FlagSettability::UserSettable),
         (FileFlag::Sparse,      WIN_FILE_ATTRIBUTE_SPARSE_FILE,   0x0000_0200, FlagSettability::UserSettable),
         (FileFlag::Reparse,     WIN_FILE_ATTRIBUTE_REPARSE_POINT, 0x0000_0400, FlagSettability::KernelOnly),
         (FileFlag::Compressed,  WIN_FILE_ATTRIBUTE_COMPRESSED,    0x0000_0800, FlagSettability::UserSettable),
@@ -1460,6 +1460,317 @@ mod tests {
                 0
             );
         }
+    }
+
+    #[crate::ctb_test]
+    fn test_netbsd_flags_table_mapping() {
+        let mut combined_mask = 0u32;
+        let mut all_flags = Vec::new();
+        for entry in NETBSD_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_netbsd_flags(entry.mask);
+            assert_eq!(parsed, vec![entry.flag]);
+            assert!(!has_unparsed);
+
+            let mask = netbsd_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
+
+            combined_mask |= entry.mask;
+            all_flags.push(entry.flag);
+        }
+
+        let (parsed_all, has_unparsed_all) = parse_netbsd_flags(combined_mask);
+        assert_eq!(parsed_all.len(), NETBSD_FLAG_MAP.len());
+        assert!(!has_unparsed_all);
+
+        let encoded_all = netbsd_flags_to_mask(&all_flags, true, Path::new("test")).unwrap();
+        assert_eq!(encoded_all, combined_mask);
+
+        // Unknown bit sets has_unparsed
+        let (_, unparsed) = parse_netbsd_flags(combined_mask | 0x0000_0010);
+        assert!(unparsed);
+
+        // Flags documented as unsupported for NetBSD
+        let netbsd_unsupported = [
+            FileFlag::Hidden,
+            FileFlag::SystemNoUnlink,
+            FileFlag::UserNoUnlink,
+            FileFlag::Compressed,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Sparse,
+            FileFlag::System,
+            FileFlag::Snapshot,
+            FileFlag::UserArchive,
+            FileFlag::UserNoCache,
+            FileFlag::UserNoHistory,
+            FileFlag::UserCache,
+            FileFlag::UserXlink,
+            FileFlag::SystemNoHistory,
+            FileFlag::SystemNoCache,
+            FileFlag::SystemXlink,
+        ];
+        for unsupported in netbsd_unsupported {
+            assert!(
+                netbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on NetBSD in strict_lossless mode"
+            );
+            assert_eq!(
+                netbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_linux_flags_table_mapping() {
+        for entry in LINUX_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_linux_flags(entry.mask);
+            assert!(!has_unparsed);
+            assert!(parsed.contains(&entry.flag));
+
+            let mask = linux_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
+        }
+
+        // Unknown bit sets has_unparsed
+        let (_, unparsed) = parse_linux_flags(0x8000_0000);
+        assert!(unparsed);
+
+        // Flags unsupported on Linux
+        let linux_unsupported = [
+            FileFlag::Opaque,
+            FileFlag::Hidden,
+            FileFlag::Archived,
+            FileFlag::SystemNoUnlink,
+            FileFlag::UserNoUnlink,
+            FileFlag::System,
+            FileFlag::Sparse,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Snapshot,
+            FileFlag::UserArchive,
+            FileFlag::UserNoCache,
+            FileFlag::UserNoHistory,
+            FileFlag::UserCache,
+            FileFlag::UserXlink,
+            FileFlag::SystemNoHistory,
+            FileFlag::SystemNoCache,
+            FileFlag::SystemXlink,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+        ];
+        for unsupported in linux_unsupported {
+            assert!(
+                linux_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on Linux in strict_lossless mode"
+            );
+            assert_eq!(
+                linux_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_windows_flags_table_mapping() {
+        for entry in WINDOWS_FLAG_MAP {
+            let (parsed, has_unparsed) = parse_windows_flags(entry.mask);
+            assert!(!has_unparsed);
+            assert!(parsed.contains(&entry.flag));
+
+            let mask = windows_flags_to_mask(&[entry.flag], true, Path::new("test")).unwrap();
+            assert_eq!(mask, entry.mask);
+        }
+
+        // Unknown bit sets has_unparsed
+        let (_, unparsed) = parse_windows_flags(0x8000_0000);
+        assert!(unparsed);
+
+        // Flags unsupported on Windows
+        let windows_unsupported = [
+            FileFlag::NoDump,
+            FileFlag::UserImmutable,
+            FileFlag::SystemImmutable,
+            FileFlag::UserAppend,
+            FileFlag::SystemAppend,
+            FileFlag::Opaque,
+            FileFlag::SystemNoUnlink,
+            FileFlag::UserNoUnlink,
+            FileFlag::Snapshot,
+            FileFlag::UserNoCache,
+            FileFlag::UserNoHistory,
+            FileFlag::UserCache,
+            FileFlag::UserXlink,
+            FileFlag::SystemNoHistory,
+            FileFlag::SystemNoCache,
+            FileFlag::SystemXlink,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+        ];
+        for unsupported in windows_unsupported {
+            assert!(
+                windows_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                "Flag {unsupported:?} should be rejected on Windows in strict_lossless mode"
+            );
+            assert_eq!(
+                windows_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                0
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_flag_settability_invariants() {
+        const ALL_FLAGS: [FileFlag; 30] = [
+            FileFlag::NoDump,
+            FileFlag::UserImmutable,
+            FileFlag::UserAppend,
+            FileFlag::Opaque,
+            FileFlag::Hidden,
+            FileFlag::Archived,
+            FileFlag::SystemImmutable,
+            FileFlag::SystemAppend,
+            FileFlag::SystemNoUnlink,
+            FileFlag::UserNoUnlink,
+            FileFlag::System,
+            FileFlag::Sparse,
+            FileFlag::Offline,
+            FileFlag::ReadOnly,
+            FileFlag::Reparse,
+            FileFlag::Snapshot,
+            FileFlag::UserArchive,
+            FileFlag::UserNoCache,
+            FileFlag::UserNoHistory,
+            FileFlag::UserCache,
+            FileFlag::UserXlink,
+            FileFlag::SystemNoHistory,
+            FileFlag::SystemNoCache,
+            FileFlag::SystemXlink,
+            FileFlag::Compressed,
+            FileFlag::Tracked,
+            FileFlag::DataVault,
+            FileFlag::Restricted,
+            FileFlag::Firmlink,
+            FileFlag::Dataless,
+        ];
+
+        let platforms: [(OsFamily, &[FlagMapping], Option<(u32, u32)>); 7] = [
+            (
+                OsFamily::Darwin,
+                DARWIN_FLAG_MAP,
+                Some((DARWIN_UF_SETTABLE, DARWIN_SF_SETTABLE)),
+            ),
+            (
+                OsFamily::FreeBSD,
+                FREEBSD_FLAG_MAP,
+                Some((FREEBSD_UF_SETTABLE, FREEBSD_SF_SETTABLE)),
+            ),
+            (
+                OsFamily::OpenBSD,
+                OPENBSD_FLAG_MAP,
+                Some((OPENBSD_UF_SETTABLE, OPENBSD_SF_SETTABLE)),
+            ),
+            (
+                OsFamily::DragonFly,
+                DRAGONFLY_FLAG_MAP,
+                Some((DRAGONFLY_UF_SETTABLE, DRAGONFLY_SF_SETTABLE)),
+            ),
+            (
+                OsFamily::NetBSD,
+                NETBSD_FLAG_MAP,
+                Some((NETBSD_UF_SETTABLE, NETBSD_SF_SETTABLE)),
+            ),
+            (OsFamily::Linux, LINUX_FLAG_MAP, None),
+            (OsFamily::Windows, WINDOWS_FLAG_MAP, None),
+        ];
+
+        for (os, map, bsd_masks) in platforms {
+            for entry in map {
+                let s_direct = flag_settability(entry.flag, os);
+                let s_flag = entry.flag.settability(os);
+                assert_eq!(s_direct, entry.settability);
+                assert_eq!(s_flag, entry.settability);
+
+                if let Some((uf_settable, sf_settable)) = bsd_masks {
+                    match entry.settability {
+                        FlagSettability::UserSettable => {
+                            assert_eq!(
+                                entry.mask & uf_settable,
+                                entry.mask,
+                                "{:?} on {:?} should be in UF_SETTABLE",
+                                entry.flag,
+                                os
+                            );
+                        }
+                        FlagSettability::RootSettable => {
+                            assert_eq!(
+                                entry.mask & sf_settable,
+                                entry.mask,
+                                "{:?} on {:?} should be in SF_SETTABLE",
+                                entry.flag,
+                                os
+                            );
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            for flag in ALL_FLAGS {
+                let in_map = map.iter().any(|e| e.flag == flag);
+                if !in_map {
+                    assert_eq!(
+                        flag.settability(os),
+                        FlagSettability::Unsupported,
+                        "{flag:?} should be Unsupported on {os:?}"
+                    );
+                }
+            }
+        }
+
+        // Check OsFamily::Other
+        for flag in ALL_FLAGS {
+            assert_eq!(flag.settability(OsFamily::Other), FlagSettability::Unsupported);
+        }
+
+        // Test FlagSettability helper methods
+        assert!(FlagSettability::UserSettable.is_user_settable());
+        assert!(!FlagSettability::UserSettable.is_root_settable());
+        assert!(FlagSettability::UserSettable.is_settable());
+        assert!(FlagSettability::UserSettable.is_supported());
+
+        assert!(!FlagSettability::RootSettable.is_user_settable());
+        assert!(FlagSettability::RootSettable.is_root_settable());
+        assert!(FlagSettability::RootSettable.is_settable());
+        assert!(FlagSettability::RootSettable.is_supported());
+
+        assert!(!FlagSettability::AppleSipOnly.is_user_settable());
+        assert!(!FlagSettability::AppleSipOnly.is_root_settable());
+        assert!(!FlagSettability::AppleSipOnly.is_settable());
+        assert!(FlagSettability::AppleSipOnly.is_supported());
+
+        assert!(!FlagSettability::KernelOnly.is_user_settable());
+        assert!(!FlagSettability::KernelOnly.is_root_settable());
+        assert!(!FlagSettability::KernelOnly.is_settable());
+        assert!(FlagSettability::KernelOnly.is_supported());
+
+        assert!(!FlagSettability::Unsupported.is_user_settable());
+        assert!(!FlagSettability::Unsupported.is_root_settable());
+        assert!(!FlagSettability::Unsupported.is_settable());
+        assert!(!FlagSettability::Unsupported.is_supported());
     }
 }
 
