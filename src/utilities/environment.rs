@@ -928,6 +928,24 @@ pub struct EnvDescription {
     #[serde(skip_serializing_if = "is_false")]
     pub is_official_signed_build: bool,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_ipv4: Option<Ipv4Addr>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_ipv6: Option<Ipv6Addr>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_ipv4: Option<Ipv4Addr>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub public_ipv6: Option<Ipv6Addr>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub system_time_resolution_nanos: Option<u128>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_system_time_offset_nanos: Option<i128>,
+
     #[serde(
         flatten,
         default,
@@ -937,8 +955,9 @@ pub struct EnvDescription {
 }
 
 impl EnvDescription {
-    /// Capture a snapshot of the current execution environment.
-    pub fn capture() -> Self {
+    /// Capture a quick snapshot of the current execution environment, omitting
+    /// network-dependent checks that are not instantaneous.
+    pub fn capture_quick() -> Self {
         Self {
             os: os(),
             usize_width: usize(),
@@ -981,8 +1000,25 @@ impl EnvDescription {
             is_in_test: is_in_test(),
             is_branded_build: is_branded_build(),
             is_official_signed_build: is_official_signed_build(),
+            local_ipv4: local_ipv4().ok(),
+            local_ipv6: local_ipv6().ok(),
+            public_ipv4: None,
+            public_ipv6: None,
+            system_time_resolution_nanos: unix_system_time_resolution().ok(),
+            server_system_time_offset_nanos: None,
             extra: BTreeMap::new(),
         }
+    }
+
+    /// Capture a full snapshot of the current execution environment, including
+    /// network discovery for public IP and server time offset.
+    pub fn capture() -> Self {
+        let mut desc = Self::capture_quick();
+        desc.public_ipv4 = public_ipv4().ok();
+        desc.public_ipv6 = public_ipv6().ok();
+        desc.server_system_time_offset_nanos =
+            server_system_time_offset_nanos().ok();
+        desc
     }
 
     /// Alias for [`Self::capture`].
@@ -1017,6 +1053,12 @@ impl EnvDescription {
 /// [`EnvDescription`].
 pub fn capture() -> EnvDescription {
     EnvDescription::capture()
+}
+
+/// Capture a quick snapshot of the current execution environment as an
+/// [`EnvDescription`], omitting slow or network-dependent queries.
+pub fn capture_quick() -> EnvDescription {
+    EnvDescription::capture_quick()
 }
 
 #[cfg(test)]
@@ -1067,6 +1109,15 @@ mod tests {
         assert_eq!(desc.os, os());
         assert_eq!(desc.usize_width, usize());
         assert_eq!(desc.is_linux, is_linux());
+
+        // Test capture_quick
+        let quick = EnvDescription::capture_quick();
+        assert_eq!(quick.os, os());
+        assert_eq!(quick.usize_width, usize());
+        assert!(quick.public_ipv4.is_none());
+        assert!(quick.public_ipv6.is_none());
+        assert!(quick.server_system_time_offset_nanos.is_none());
+        assert!(quick.system_time_resolution_nanos.is_some());
 
         // Test compact JSON serialization
         let json = desc.to_json().expect("failed to serialize EnvDescription");
