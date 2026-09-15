@@ -115,6 +115,54 @@ impl OsFamily {
     }
 }
 
+/// Operating system permission or privilege level required to alter a file
+/// flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FlagSettability {
+    /// Flag can be set and cleared by the unprivileged file owner.
+    UserSettable,
+    /// Flag requires superuser (root or `CAP_LINUX_IMMUTABLE`) privileges to
+    /// alter.
+    RootSettable,
+    /// Protected by Apple System Integrity Protection (SIP) and requires
+    /// special entitlements.
+    AppleSipOnly,
+    /// Kernel-managed, read-only, or synthetic flag; cannot be altered from
+    /// userspace via flag syscalls.
+    KernelOnly,
+    /// Flag is not supported or defined on this operating system.
+    Unsupported,
+}
+
+impl FlagSettability {
+    /// Returns true if the flag can be set or cleared by an unprivileged file
+    /// owner.
+    #[must_use]
+    pub const fn is_user_settable(&self) -> bool {
+        matches!(self, Self::UserSettable)
+    }
+
+    /// Returns true if the flag requires root or superuser capability to set
+    /// or clear.
+    #[must_use]
+    pub const fn is_root_settable(&self) -> bool {
+        matches!(self, Self::RootSettable)
+    }
+
+    /// Returns true if the flag can be altered from userspace (either by owner
+    /// or root).
+    #[must_use]
+    pub const fn is_settable(&self) -> bool {
+        matches!(self, Self::UserSettable | Self::RootSettable)
+    }
+
+    /// Returns true if the flag is supported on the target operating system.
+    #[must_use]
+    pub const fn is_supported(&self) -> bool {
+        !matches!(self, Self::Unsupported)
+    }
+}
+
 /// Semantic file flag / attribute independent of platform bit encoding.
 #[derive(
     Debug,
@@ -235,47 +283,148 @@ impl FileFlag {
         }
     }
 
-    /// Whether this flag can be set or cleared by the file owner.
+    /// Returns the settability classification of this flag for the given
+    /// operating system.
     #[must_use]
-    pub const fn is_user_settable(&self) -> bool {
-        match self {
-            Self::NoDump
-            | Self::UserImmutable
-            | Self::UserAppend
-            | Self::Opaque
-            | Self::Hidden
-            | Self::UserNoUnlink
-            | Self::System
-            | Self::Sparse
-            | Self::Offline
-            | Self::ReadOnly
-            | Self::Reparse
-            | Self::UserArchive
-            | Self::UserNoCache
-            | Self::UserNoHistory
-            | Self::UserCache
-            | Self::UserXlink
-            | Self::Compressed
-            | Self::Tracked
-            | Self::DataVault => true,
-            Self::Archived
-            | Self::SystemImmutable
-            | Self::SystemAppend
-            | Self::SystemNoUnlink
-            | Self::Snapshot
-            | Self::SystemNoHistory
-            | Self::SystemNoCache
-            | Self::SystemXlink
-            | Self::Restricted
-            | Self::Firmlink
-            | Self::Dataless => false,
+    pub const fn settability(&self, os: OsFamily) -> FlagSettability {
+        match os {
+            OsFamily::Darwin => match self {
+                Self::NoDump
+                | Self::UserImmutable
+                | Self::UserAppend
+                | Self::Opaque
+                | Self::Hidden
+                | Self::Tracked => FlagSettability::UserSettable,
+                Self::Archived
+                | Self::SystemImmutable
+                | Self::SystemAppend
+                | Self::SystemNoUnlink => FlagSettability::RootSettable,
+                Self::DataVault | Self::Restricted => FlagSettability::AppleSipOnly,
+                Self::Compressed | Self::Firmlink | Self::Dataless => {
+                    FlagSettability::KernelOnly
+                }
+                Self::UserNoUnlink
+                | Self::System
+                | Self::Sparse
+                | Self::Offline
+                | Self::ReadOnly
+                | Self::Reparse
+                | Self::Snapshot
+                | Self::UserArchive
+                | Self::UserNoCache
+                | Self::UserNoHistory
+                | Self::UserCache
+                | Self::UserXlink
+                | Self::SystemNoHistory
+                | Self::SystemNoCache
+                | Self::SystemXlink => FlagSettability::Unsupported,
+            },
+            OsFamily::FreeBSD => match self {
+                Self::NoDump
+                | Self::UserImmutable
+                | Self::UserAppend
+                | Self::Opaque
+                | Self::Hidden
+                | Self::UserNoUnlink
+                | Self::System
+                | Self::Sparse
+                | Self::Offline
+                | Self::ReadOnly
+                | Self::Reparse
+                | Self::UserArchive
+                | Self::UserNoCache => FlagSettability::UserSettable,
+                Self::Archived
+                | Self::SystemImmutable
+                | Self::SystemAppend
+                | Self::SystemNoUnlink => FlagSettability::RootSettable,
+                Self::Snapshot => FlagSettability::KernelOnly,
+                Self::UserNoHistory
+                | Self::UserCache
+                | Self::UserXlink
+                | Self::SystemNoHistory
+                | Self::SystemNoCache
+                | Self::SystemXlink
+                | Self::Compressed
+                | Self::Tracked
+                | Self::DataVault
+                | Self::Restricted
+                | Self::Firmlink
+                | Self::Dataless => FlagSettability::Unsupported,
+            },
+            OsFamily::OpenBSD => match self {
+                Self::NoDump | Self::UserImmutable | Self::UserAppend => {
+                    FlagSettability::UserSettable
+                }
+                Self::Archived
+                | Self::SystemImmutable
+                | Self::SystemAppend => FlagSettability::RootSettable,
+                _ => FlagSettability::Unsupported,
+            },
+            OsFamily::DragonFly => match self {
+                Self::NoDump
+                | Self::UserImmutable
+                | Self::UserAppend
+                | Self::Opaque
+                | Self::UserNoUnlink
+                | Self::UserNoHistory
+                | Self::UserCache
+                | Self::UserXlink => FlagSettability::UserSettable,
+                Self::Archived
+                | Self::SystemImmutable
+                | Self::SystemAppend
+                | Self::SystemNoUnlink
+                | Self::SystemNoHistory
+                | Self::SystemNoCache
+                | Self::SystemXlink => FlagSettability::RootSettable,
+                _ => FlagSettability::Unsupported,
+            },
+            OsFamily::NetBSD => match self {
+                Self::NoDump
+                | Self::UserImmutable
+                | Self::UserAppend
+                | Self::Opaque => FlagSettability::UserSettable,
+                Self::Archived
+                | Self::SystemImmutable
+                | Self::SystemAppend => FlagSettability::RootSettable,
+                _ => FlagSettability::Unsupported,
+            },
+            OsFamily::Linux => match self {
+                Self::NoDump => FlagSettability::UserSettable,
+                Self::UserImmutable
+                | Self::SystemImmutable
+                | Self::UserAppend
+                | Self::SystemAppend => FlagSettability::RootSettable,
+                Self::Compressed => FlagSettability::KernelOnly,
+                _ => FlagSettability::Unsupported,
+            },
+            OsFamily::Windows => match self {
+                Self::ReadOnly
+                | Self::Hidden
+                | Self::System
+                | Self::Archived
+                | Self::UserArchive
+                | Self::Offline
+                | Self::Sparse
+                | Self::Compressed => FlagSettability::UserSettable,
+                Self::Reparse => FlagSettability::KernelOnly,
+                _ => FlagSettability::Unsupported,
+            },
+            OsFamily::Other => FlagSettability::Unsupported,
         }
     }
 
-    /// Whether this flag requires superuser (root) privileges to alter.
+    /// Returns the settability status of this flag on the specified operating
+    /// system.
     #[must_use]
-    pub const fn is_system_flag(&self) -> bool {
-        !self.is_user_settable()
+    pub const fn is_user_settable(&self, os: OsFamily) -> FlagSettability {
+        self.settability(os)
+    }
+
+    /// Whether this flag requires superuser (root) privileges to alter on the
+    /// specified operating system.
+    #[must_use]
+    pub const fn is_system_flag(&self, os: OsFamily) -> bool {
+        matches!(self.settability(os), FlagSettability::RootSettable)
     }
 
     /// Parses a standard symbolic name into a `FileFlag`.

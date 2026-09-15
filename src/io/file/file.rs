@@ -63,7 +63,9 @@ pub use materializer::{
     materialize_entity_at_path, verify_directory_filenames_exact,
     verify_filename_exact_bytes,
 };
-pub use metadata::{FileFlag, FileMetadata, FileTimestamps, OsFamily, PlatformRawFlags};
+pub use metadata::{
+    FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily, PlatformRawFlags,
+};
 pub use path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all, normalize_path,
     path_has_trailing_slash, resolve_and_validate_path, resolve_existing_ancestors,
@@ -112,9 +114,35 @@ mod tests {
         assert_eq!(FileFlag::UserImmutable.name(), "uchg");
         assert_eq!(FileFlag::NoDump.name(), "nodump");
         assert_eq!(FileFlag::Hidden.name(), "hidden");
-        assert!(FileFlag::UserImmutable.is_user_settable());
-        assert!(!FileFlag::SystemImmutable.is_user_settable());
-        assert!(FileFlag::SystemImmutable.is_system_flag());
+        assert_eq!(
+            FileFlag::UserImmutable.is_user_settable(OsFamily::Darwin),
+            FlagSettability::UserSettable
+        );
+        assert_eq!(
+            FileFlag::SystemImmutable.is_user_settable(OsFamily::Darwin),
+            FlagSettability::RootSettable
+        );
+        assert!(FileFlag::SystemImmutable.is_system_flag(OsFamily::Darwin));
+        assert_eq!(
+            FileFlag::UserImmutable.is_user_settable(OsFamily::Linux),
+            FlagSettability::RootSettable
+        );
+        assert_eq!(
+            FileFlag::NoDump.is_user_settable(OsFamily::Linux),
+            FlagSettability::UserSettable
+        );
+        assert_eq!(
+            FileFlag::DataVault.is_user_settable(OsFamily::Darwin),
+            FlagSettability::AppleSipOnly
+        );
+        assert_eq!(
+            FileFlag::Snapshot.is_user_settable(OsFamily::FreeBSD),
+            FlagSettability::KernelOnly
+        );
+        assert_eq!(
+            FileFlag::UserNoUnlink.is_user_settable(OsFamily::Linux),
+            FlagSettability::Unsupported
+        );
 
         assert_eq!(
             FileFlag::from_name("uchg"),
