@@ -1341,13 +1341,14 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_looks_like_gnustep() {
-        #[clippy::allow("unsafe", reason="safer to test it")]
+        // SAFETY: Test runs in controlled single-threaded test harness or restores variable
         unsafe {
             env::set_var("GNUSTEP_USER_ROOT", "/tmp/fake_gnustep");
         }
         assert!(looks_like_gnustep());
-        #[clippy::allow("unsafe", reason="safer to test it")]
+        // SAFETY: Test restores environment variable
         unsafe {
             env::remove_var("GNUSTEP_USER_ROOT");
         }
