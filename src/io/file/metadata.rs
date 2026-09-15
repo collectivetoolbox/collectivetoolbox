@@ -27,9 +27,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::SystemTime;
 
+use ctb_utilities::environment::EnvDescription;
+
 /// Operating system family where raw bits or file descriptors originated.
+/// You may want to consider using the `FileMetadata` `environment` instead.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OsFamily {
     /// Apple macOS / Darwin.
@@ -372,9 +376,26 @@ pub struct FileMetadata {
     /// Originating filesystem type, if known (e.g. "ext4", "ntfs", "vfat", "apfs").
     #[serde(default)]
     pub filesystem_type: Option<String>,
+    /// Execution environment where this file was observed or captured.
+    ///
+    /// Wrapped in [`Arc`] to allow millions of file records to share a single
+    /// environment description in memory with zero deduplication overhead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<Arc<EnvDescription>>,
 }
 
 impl FileMetadata {
+    /// Returns a reference to the originating environment description, if attached.
+    #[must_use]
+    pub fn environment(&self) -> Option<&EnvDescription> {
+        self.environment.as_deref()
+    }
+
+    /// Attaches a shared execution environment snapshot to this file metadata.
+    pub fn set_environment(&mut self, env: Arc<EnvDescription>) {
+        self.environment = Some(env);
+    }
+
     /// Returns the timestamp documenting when this file record was
     /// read/inspected from the filesystem (current as of).
     #[must_use]

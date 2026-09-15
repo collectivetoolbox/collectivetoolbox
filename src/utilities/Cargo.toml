@@ -21,7 +21,7 @@ tracing-core = "0.1.36"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter", "ansi", "tracing-log", "registry"] }
 tracing-appender = "0.2.4"
 anyhow = "1.0.100"
-serde = "1.0.228"
+serde = { version = "1.0.228", features = ["rc"] }
 serde_json = { version = "1.0.149", features = ["arbitrary_precision"] }
 yansi = "1.0.1"
 jaq-core = "2.2"

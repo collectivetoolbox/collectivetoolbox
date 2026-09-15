@@ -312,6 +312,7 @@ impl AttachedStream {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,

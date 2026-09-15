@@ -256,6 +256,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -390,6 +391,7 @@ mod tests {
                 resolution_nsec: None,
             },
             flags: Vec::new(), platform_raw_flags: None, read_time: None, filesystem_type: None,
+            environment: None,
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
@@ -740,6 +742,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -857,6 +860,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -945,6 +949,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1023,6 +1028,7 @@ mod tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1164,6 +1170,7 @@ mod tests {
             platform_raw_flags: None,
             read_time: None,
             filesystem_type: None,
+            environment: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
@@ -1286,6 +1293,7 @@ mod tests {
             platform_raw_flags: None,
             read_time: None,
             filesystem_type: None,
+            environment: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();

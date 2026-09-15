@@ -223,9 +223,10 @@ pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
             None
         };
         let src_name = derive_source_name(j_path, explicit_name);
-        let src_id = get_or_create_source(&conn, &src_name, j_path).await?;
-
         let snapshot = read_journal_snapshot(j_path)?;
+        let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
+        let src_id = get_or_create_source(&conn, &src_name, j_path, env_json.as_deref()).await?;
+
         let count = ingest_journal_snapshot(
             &conn,
             src_id,
@@ -438,11 +439,28 @@ pub(crate) async fn init_database_schema(conn: &Connection) -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             journal_path TEXT NOT NULL,
-            indexed_at INTEGER NOT NULL
+            indexed_at INTEGER NOT NULL,
+            environment TEXT
         )",
         (),
     )
     .await?;
+
+    // Check if `environment` column exists in `sources` table, and add it if absent
+    let mut stmt = conn.prepare("PRAGMA table_info(sources)").await?;
+    let mut rows = stmt.query(()).await?;
+    let mut has_env_col = false;
+    while let Some(row) = rows.next().await? {
+        if let Ok(Value::Text(col)) = row.get_value(1) {
+            if col == "environment" {
+                has_env_col = true;
+                break;
+            }
+        }
+    }
+    if !has_env_col {
+        let _ = conn.execute("ALTER TABLE sources ADD COLUMN environment TEXT", ()).await;
+    }
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS entries (
@@ -500,12 +518,23 @@ async fn get_or_create_source(
     conn: &Connection,
     source_name: &str,
     journal_path: &Path,
+    environment: Option<&str>,
 ) -> Result<i64> {
-    let mut stmt = conn.prepare("SELECT id FROM sources WHERE name = ?").await?;
+    let mut stmt = conn.prepare("SELECT id, environment FROM sources WHERE name = ?").await?;
     let mut rows = stmt.query(vec![Value::Text(source_name.to_string())]).await?;
 
     if let Some(row) = rows.next().await? {
         if let Ok(Value::Integer(id)) = row.get_value(0) {
+            if let Some(env_str) = environment {
+                let current_env = row.get_value(1).ok();
+                let is_null = matches!(current_env, Some(Value::Null) | None);
+                if is_null {
+                    let _ = conn.execute(
+                        "UPDATE sources SET environment = ? WHERE id = ?",
+                        vec![Value::Text(env_str.to_string()), Value::Integer(id)],
+                    ).await;
+                }
+            }
             return Ok(id);
         }
     }
@@ -518,11 +547,12 @@ async fn get_or_create_source(
     )?;
 
     conn.execute(
-        "INSERT INTO sources (name, journal_path, indexed_at) VALUES (?, ?, ?)",
+        "INSERT INTO sources (name, journal_path, indexed_at, environment) VALUES (?, ?, ?, ?)",
         vec![
             Value::Text(source_name.to_string()),
             Value::Text(journal_path.to_string_lossy().to_string()),
             Value::Integer(now_sec),
+            environment.map_or(Value::Null, |s| Value::Text(s.to_string())),
         ],
     )
     .await?;

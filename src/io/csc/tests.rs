@@ -1219,6 +1219,7 @@ mod csc_tests {
                 platform_raw_flags: None,
                 read_time: Some(read_time_expected),
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1259,6 +1260,7 @@ mod csc_tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1399,6 +1401,7 @@ mod csc_tests {
                 platform_raw_flags: None,
                 read_time: Some(pre_epoch_time),
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -2637,6 +2640,7 @@ mod csc_tests {
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             };
 
             let err = ctb_io::file::apply_entity_metadata(
@@ -3421,6 +3425,164 @@ mod csc_tests {
             desc_content.contains("NoatimeUsed: true"),
             "Descriptor should record NoatimeUsed: true when file owner copies file"
         );
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_journal_and_index_environment_metadata() {
+        use crate::journal::{JournalWriter, read_journal_snapshot};
+        use ctb_io::file::entity::{FileEntity, FileEntityKind};
+        use ctb_io::file::identity::{FileIdentity, FileOrigin};
+        use ctb_io::file::metadata::{FileMetadata, FileTimestamps};
+        use std::sync::Arc;
+        use turso::{Builder, Value};
+
+        let temp = tempdir().expect("tempdir");
+        let journal_path = temp.path().join("test_env.cscjournal");
+        let desc_path = temp.path().join("test_env.cscdesc");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&dest).expect("create dest");
+
+        // 1. Create journal and verify environment is initialized
+        let mut writer = JournalWriter::create_at_path(
+            &journal_path,
+            &desc_path,
+            &[src.clone()],
+            &dest,
+        ).expect("create_at_path");
+
+        assert!(writer.environment.is_some(), "JournalWriter should initialize environment");
+
+        let rel_path = PathBuf::from("file_a.txt");
+        let entity = FileEntity {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: rel_path.clone(),
+                enclosing_path: None,
+                raw_relative_path: b"file_a.txt".to_vec(),
+                raw_filename: b"file_a.txt".to_vec(),
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: 0o644,
+                uid: 1000,
+                gid: 1000,
+                timestamps: FileTimestamps {
+                    atime_sec: 1_700_000_000,
+                    atime_nsec: 0,
+                    mtime_sec: 1_700_000_000,
+                    mtime_nsec: 0,
+                    ctime_sec: 1_700_000_000,
+                    ctime_nsec: 0,
+                    birthtime_sec: None,
+                    birthtime_nsec: None,
+                    resolution_nsec: None,
+                },
+                flags: Vec::new(),
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+            },
+            kind: FileEntityKind::Regular {
+                size: 25,
+                sha256: [0x11; 32],
+                is_sparse: false,
+                extents: Vec::new(),
+            },
+            streams: Vec::new(),
+        };
+
+        writer.record_entity(&entity);
+        writer.commit_batch().expect("commit_batch");
+        writer.mark_completed().expect("mark_completed");
+
+        // 2. Read snapshot and verify environment attached to entity deduplicated
+        let snapshot = read_journal_snapshot(&journal_path).expect("read snapshot");
+        assert!(snapshot.environment.is_some(), "Snapshot should have decoded environment");
+        let snap_env = snapshot.environment.as_ref().unwrap();
+
+        let committed = snapshot.committed_entities.get(b"file_a.txt".as_slice())
+            .expect("committed entity");
+        assert!(committed.metadata.environment.is_some(), "Entity should inherit deduplicated environment");
+        assert!(
+            Arc::ptr_eq(snap_env, committed.metadata.environment.as_ref().unwrap()),
+            "Arc pointer should be shared (deduplicated)"
+        );
+
+        // 3. Backward compatibility: reading a synthetic journal without TAG_SESSION_ENV
+        let legacy_journal_path = temp.path().join("legacy.cscjournal");
+        let mut legacy_bytes = Vec::new();
+        legacy_bytes.extend_from_slice(b"CTBCSCJ\x01");
+        // TAG_SESSION_HEADER = 1, current_platform = 1, sources count = 0, destination = ""
+        legacy_bytes.push(1); // TAG_SESSION_HEADER
+        legacy_bytes.push(1); // platform
+        legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // src_count = 0
+        legacy_bytes.extend_from_slice(&0_u32.to_le_bytes()); // dest_len = 0
+        legacy_bytes.push(4); // TAG_JOB_COMPLETED
+        fs::write(&legacy_journal_path, legacy_bytes).expect("write legacy journal");
+
+        let legacy_snapshot = read_journal_snapshot(&legacy_journal_path).expect("read legacy snapshot");
+        assert!(legacy_snapshot.environment.is_none(), "Legacy journal should yield None environment");
+
+        // 4. Test SQLite database schema initialization, migration, and sources environment column
+        let db_path = temp.path().join("env_test.cscindex.sqlite");
+        let db = Builder::new_local(db_path.to_str().expect("valid path"))
+            .experimental_index_method(true)
+            .build()
+            .await
+            .expect("open db");
+        let conn = db.connect().expect("connect db");
+
+        crate::index_engine::init_database_schema(&conn).await.expect("init database schema");
+
+        // Verify environment column exists in sources table
+        let mut pragma_stmt = conn.prepare("PRAGMA table_info(sources)").await.expect("prepare pragma");
+        let mut pragma_rows = pragma_stmt.query(()).await.expect("query pragma");
+        let mut has_env_col = false;
+        while let Some(row) = pragma_rows.next().await.expect("row") {
+            if let Ok(Value::Text(col)) = row.get_value(1) {
+                if col == "environment" {
+                    has_env_col = true;
+                    break;
+                }
+            }
+        }
+        assert!(has_env_col, "sources table must have environment column");
+
+        // Ingest snapshot into database
+        let progress = crate::index_meta::Progress::new(false);
+        let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
+        let src_id = crate::index_engine::get_or_create_source(
+            &conn,
+            "test_source",
+            &journal_path,
+            env_json.as_deref(),
+        ).await.expect("get_or_create_source");
+
+        let ingested = crate::index_engine::ingest_journal_snapshot(
+            &conn,
+            src_id,
+            &snapshot,
+            100,
+            &progress,
+            None,
+        ).await.expect("ingest");
+        assert_eq!(ingested, 1);
+
+        // Verify the environment JSON in sources row
+        let mut select_stmt = conn.prepare("SELECT environment FROM sources WHERE id = ?").await.expect("prepare");
+        let mut select_rows = select_stmt.query(vec![Value::Integer(src_id)]).await.expect("query");
+        let row = select_rows.next().await.expect("next").expect("row present");
+        let stored_env = row.get_value(0).expect("get value");
+        if let Value::Text(json_str) = stored_env {
+            assert!(json_str.contains("os_family"), "Stored JSON should contain os_family");
+        } else {
+            panic!("Expected Value::Text for sources.environment");
+        }
     }
 }
 

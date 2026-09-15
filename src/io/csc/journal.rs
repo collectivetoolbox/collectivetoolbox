@@ -31,12 +31,14 @@ use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
+use ctb_utilities::environment::EnvDescription;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const JOURNAL_MAGIC: &[u8; 8] = b"CTBCSCJ\x01";
@@ -45,6 +47,7 @@ const TAG_SESSION_HEADER: u8 = 1;
 const TAG_ENTITY: u8 = 2;
 const TAG_BATCH_COMMIT: u8 = 3;
 const TAG_JOB_COMPLETED: u8 = 4;
+const TAG_SESSION_ENV: u8 = 5;
 
 pub const PLATFORM_LINUX: u8 = 1;
 pub const PLATFORM_MACOS: u8 = 2;
@@ -75,6 +78,7 @@ pub struct JournalSnapshot {
     pub last_batch_id: u64,
     pub valid_length: u64,
     pub noatime_used: bool,
+    pub environment: Option<Arc<EnvDescription>>,
 }
 
 impl JournalSnapshot {
@@ -97,6 +101,7 @@ pub struct JournalWriter {
     total_committed_files: u64,
     total_committed_bytes: u64,
     noatime_used: bool,
+    pub environment: Option<Arc<EnvDescription>>,
     snapshot: Option<JournalSnapshot>,
 }
 
@@ -125,6 +130,7 @@ impl JournalWriter {
         let mut writer = BufWriter::new(file);
         writer.write_all(JOURNAL_MAGIC)?;
 
+        let env = Arc::new(ctb_utilities::environment::capture_quick());
         let mut jw = Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -136,10 +142,12 @@ impl JournalWriter {
             total_committed_files: 0,
             total_committed_bytes: 0,
             noatime_used: false,
+            environment: Some(env),
             snapshot: None,
         };
 
         jw.write_session_header(sources, destination)?;
+        jw.write_session_environment()?;
         jw.update_desc_file("InProgress")?;
         Ok(jw)
     }
@@ -201,6 +209,7 @@ impl JournalWriter {
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
             noatime_used: snapshot.noatime_used,
+            environment: snapshot.environment.clone(),
             snapshot: Some(snapshot.clone()),
         })
     }
@@ -230,9 +239,23 @@ impl JournalWriter {
         Ok(())
     }
 
+    fn write_session_environment(&mut self) -> Result<()> {
+        if let Some(ref env) = self.environment {
+            let json = env.to_json()?;
+            self.writer.write_all(&[TAG_SESSION_ENV])?;
+            write_bytes(&mut self.writer, json.as_bytes())?;
+            self.writer.flush()?;
+        }
+        Ok(())
+    }
+
     /// Queues a `FileEntity` for transactional commit.
     pub fn record_entity(&mut self, entity: &FileEntity) {
-        self.uncommitted_entities.push(entity.clone());
+        let mut entity = entity.clone();
+        if entity.metadata.environment.is_none() {
+            entity.metadata.environment = self.environment.clone();
+        }
+        self.uncommitted_entities.push(entity);
     }
 
     /// Commits all pending items to disk with an explicit fsync, advancing the transaction.
@@ -390,6 +413,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     let mut last_batch_id = 0_u64;
     let mut is_completed = false;
     let mut valid_length = 0_u64;
+    let mut environment: Option<Arc<EnvDescription>> = None;
 
     let mut tag_buf = [0_u8; 1];
     while reader.read_exact(&mut tag_buf).is_ok() {
@@ -422,6 +446,17 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 };
                 let is_windows = origin_platform == PLATFORM_WINDOWS;
                 destination = resolve_relative_path_for_os(&dest_bytes, is_windows)?;
+                valid_length = reader.stream_position()?;
+            }
+            TAG_SESSION_ENV => {
+                let Ok(env_bytes) = read_bytes(&mut reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&env_bytes) {
+                    if let Ok(env_desc) = EnvDescription::from_json(json_str) {
+                        environment = Some(Arc::new(env_desc));
+                    }
+                }
                 valid_length = reader.stream_position()?;
             }
             TAG_ENTITY => {
@@ -496,6 +531,14 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         false
     };
 
+    if let Some(ref env) = environment {
+        for entity in committed_entities.values_mut() {
+            if entity.metadata.environment.is_none() {
+                entity.metadata.environment = Some(Arc::clone(env));
+            }
+        }
+    }
+
     Ok(JournalSnapshot {
         sources,
         destination,
@@ -505,6 +548,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         last_batch_id,
         valid_length,
         noatime_used,
+        environment,
     })
 }
 
@@ -834,6 +878,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
+                environment: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -911,6 +956,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             platform_raw_flags: None,
             read_time,
             filesystem_type: None,
+            environment: None,
         },
         kind,
         streams,

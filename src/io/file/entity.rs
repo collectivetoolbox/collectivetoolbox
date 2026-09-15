@@ -215,6 +215,20 @@ pub struct FileEntity {
 }
 
 impl FileEntity {
+    /// Returns a reference to the execution environment description, if attached.
+    #[must_use]
+    pub fn environment(&self) -> Option<&ctb_utilities::environment::EnvDescription> {
+        self.metadata.environment()
+    }
+
+    /// Attaches a shared execution environment snapshot to this file entity.
+    pub fn set_environment(
+        &mut self,
+        env: std::sync::Arc<ctb_utilities::environment::EnvDescription>,
+    ) {
+        self.metadata.set_environment(env);
+    }
+
     /// Materializes this entity onto the filesystem within a [`SandboxableDir`].
     pub fn materialize(
         &self,
@@ -383,6 +397,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
+            environment: None,
         };
 
         let kind = if is_symlink {
@@ -591,6 +606,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
+            environment: None,
         };
 
         #[cfg(unix)]
