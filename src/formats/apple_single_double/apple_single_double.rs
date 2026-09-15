@@ -956,6 +956,7 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
                 return TIMESTAMP_UNSET_SENTINEL.to_be_bytes();
             };
             let diff = sec.saturating_sub(SECONDS_1970_TO_2000);
+            // Reason for fallback: timestamps exceeding i32 range clamp to i32::MAX to prevent overflow
             let val = i32::try_from(diff).unwrap_or(i32::MAX);
             val.to_be_bytes()
         };
@@ -1156,7 +1157,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_single_fixtures() -> anyhow::Result<()> {
-        let data1 = get_archive_data("fixtures/AppleSingle/test file.as")
+        let data1 = get_apple_single_double_data("fixtures/AppleSingle/test file.as")
             .context("test file.as fixture missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
@@ -1197,7 +1198,7 @@ mod tests {
         ensure!(parsed1.timestamps == archive1.timestamps);
 
         // Test second AppleSingle fixture with green label
-        let data2 = get_archive_data("fixtures/AppleSingle/test file green2.as")
+        let data2 = get_apple_single_double_data("fixtures/AppleSingle/test file green2.as")
             .context("test file green2.as fixture missing")?;
         let archive2 = read_apple_single_double(&data2)?;
 
@@ -1231,7 +1232,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
-        let data1 = get_archive_data("fixtures/AppleDouble/Alongside/test file/._test file")
+        let data1 = get_apple_single_double_data("fixtures/AppleDouble/Alongside/test file/._test file")
             .context("Alongside ._test file missing")?;
         let archive1 = read_apple_single_double(&data1)?;
 
@@ -1244,7 +1245,7 @@ mod tests {
         ensure!(finfo1.file_creator == "ttxt");
         ensure!(finfo1.label.index == 0);
 
-        let data2 = get_archive_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
+        let data2 = get_apple_single_double_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
             .context("Alongside ._test file green2 missing")?;
         let archive2 = read_apple_single_double(&data2)?;
 
@@ -1275,7 +1276,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_apple_double_brown_bin_fixture() -> anyhow::Result<()> {
-        let data = get_archive_data(
+        let data = get_apple_single_double_data(
             "fixtures/AppleDouble/__MACOSX-style/test file green2 brown.bin/__MACOSX/._test file green2 brown.bin",
         )
         .context("brown.bin fixture missing")?;

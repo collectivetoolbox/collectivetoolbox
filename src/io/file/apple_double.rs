@@ -149,9 +149,13 @@ pub fn get_companion_path(
             parent_dir.join(format!("._{}", name_str))
         }
         AppleDoubleStyle::Zip => {
+            // Reason for fallback: root destination defaults to parent directory when unprovided
             let base = root_dest.unwrap_or(parent_dir);
+            // Reason for fallback: relative path defaults to file name when unprovided
             let rel = relative_path.unwrap_or(file_name);
+            // Reason for fallback: top-level files have no parent directory component, defaulting to empty path
             let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
+            // Reason for fallback: path without a file name component defaults to original file name
             let name_str = rel.file_name().unwrap_or(file_name.as_os_str()).to_string_lossy();
             base.join("__MACOSX").join(rel_parent).join(format!("._{}", name_str))
         }
@@ -272,6 +276,55 @@ impl AppleWriteMode {
     }
 }
 
+/// Extension convention for AppleSingle files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, clap::ValueEnum)]
+pub enum AppleSingleExtension {
+    /// No extension added (bare filename, e.g. `foo`). Default for writing.
+    #[default]
+    WithoutExtension,
+    /// StuffIt style `.as` extension (e.g. `foo.as`).
+    As,
+    /// `.asf` extension (e.g. `foo.asf`).
+    Asf,
+}
+
+impl AppleSingleExtension {
+    /// Canonical string identifier for CLI and serialization.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WithoutExtension => "without-extension",
+            Self::As => "as",
+            Self::Asf => "asf",
+        }
+    }
+
+    /// Appends the extension to a filename if one is configured.
+    #[must_use]
+    pub fn apply_to_name(self, name: &str) -> String {
+        match self {
+            Self::WithoutExtension => name.to_string(),
+            Self::As => format!("{name}.as"),
+            Self::Asf => format!("{name}.asf"),
+        }
+    }
+}
+
+impl std::str::FromStr for AppleSingleExtension {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "without-extension" | "none" | "no" | "bare" => Ok(Self::WithoutExtension),
+            "as" => Ok(Self::As),
+            "asf" => Ok(Self::Asf),
+            other => anyhow::bail!(
+                "Invalid AppleSingle extension '{other}'. Expected 'as', 'asf', or 'without-extension'"
+            ),
+        }
+    }
+}
+
 /// Options controlling which AppleSingle and AppleDouble styles to detect and unpack on read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppleReadOptions {
@@ -281,8 +334,14 @@ pub struct AppleReadOptions {
     pub read_apple_double_zip: bool,
     /// Read Netatalk .AppleDouble/<filename> and .AppleDouble/.Parent companion files. Defaults to false.
     pub read_apple_double_netatalk: bool,
-    /// Read AppleSingle files and decode data fork, resource fork, and Apple metadata. Defaults to false.
+    /// Read bare AppleSingle files without extension. Defaults to false.
+    pub read_apple_single_without_extension: bool,
+    /// Read bare AppleSingle files without extension (compatibility alias). Defaults to false.
     pub read_apple_single: bool,
+    /// Read AppleSingle files with .as extension and strip .as upon decode. Defaults to false.
+    pub read_apple_single_as: bool,
+    /// Read AppleSingle files with .asf extension and strip .asf upon decode. Defaults to false.
+    pub read_apple_single_asf: bool,
 }
 
 impl Default for AppleReadOptions {
@@ -291,8 +350,22 @@ impl Default for AppleReadOptions {
             read_apple_double_alongside: true,
             read_apple_double_zip: false,
             read_apple_double_netatalk: false,
+            read_apple_single_without_extension: false,
             read_apple_single: false,
+            read_apple_single_as: false,
+            read_apple_single_asf: false,
         }
+    }
+}
+
+impl AppleReadOptions {
+    /// Returns true if any AppleSingle read style is enabled.
+    #[must_use]
+    pub fn any_apple_single(&self) -> bool {
+        self.read_apple_single_without_extension
+            || self.read_apple_single
+            || self.read_apple_single_as
+            || self.read_apple_single_asf
     }
 }
 
@@ -306,12 +379,15 @@ pub fn write_apple_double_companion(
     dest_dir_root: &Path,
     style: AppleDoubleStyle,
 ) -> Result<Option<PathBuf>> {
+    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
     if entity.streams.is_empty() && !has_apple_meta {
         return Ok(None);
     }
 
+    // Reason for fallback: destination path without a parent directory defaults to current working directory "."
     let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
+    // Reason for fallback: destination path without a file name component defaults to verbatim OsStr
     let file_name = dest_path.file_name().unwrap_or(dest_path.as_os_str());
     let is_dir = matches!(entity.kind, FileEntityKind::Directory | FileEntityKind::Bundle { .. });
 
@@ -370,6 +446,35 @@ pub fn is_apple_double_file(path: &Path) -> bool {
     magic == APPLEDOUBLE_MAGIC_BE || magic == APPLEDOUBLE_MAGIC_LE
 }
 
+fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix: &str) {
+    let rel = &entity.identity.relative_path;
+    let file_name_opt = rel.file_name().and_then(|n| n.to_str()).map(ToString::to_string);
+    if let Some(file_name) = file_name_opt {
+        let should_strip = if file_name.len() >= ext_suffix.len() {
+            let suffix_start = file_name.len().saturating_sub(ext_suffix.len());
+            // Reason for fallback: slice guaranteed in bounds by length check
+            file_name.get(suffix_start..).is_some_and(|s| s.eq_ignore_ascii_case(ext_suffix))
+        } else {
+            false
+        };
+        if should_strip {
+            let stripped_len = file_name.len().saturating_sub(ext_suffix.len());
+            // Reason for fallback: slice within bounds
+            if let Some(stripped_name) = file_name.get(..stripped_len) {
+                let parent = rel.parent();
+                // Reason for fallback: empty or absent parent defaults to relative file name
+                let new_rel = match parent {
+                    Some(p) if !p.as_os_str().is_empty() => p.join(stripped_name),
+                    _ => PathBuf::from(stripped_name),
+                };
+                entity.identity.relative_path = new_rel.clone();
+                entity.identity.raw_relative_path = new_rel.as_os_str().as_encoded_bytes().to_vec();
+                entity.identity.raw_filename = stripped_name.as_bytes().to_vec();
+            }
+        }
+    }
+}
+
 /// Checks for and joins AppleDouble companion files or AppleSingle archive into `entity`.
 pub fn join_apple_double_or_single(
     entity: &mut FileEntity,
@@ -377,18 +482,56 @@ pub fn join_apple_double_or_single(
     base_dir: Option<&Path>,
     options: &AppleReadOptions,
 ) -> Result<()> {
-    // 1. If read_apple_single is enabled and this is a regular file, check if it's AppleSingle
-    if options.read_apple_single && entity.is_regular() {
-        if let Ok(data) = std::fs::read(file_path) {
-            if let Some(magic_slice) = data.get(..4) {
-                if let Ok(magic_arr) = <[u8; 4]>::try_from(magic_slice) {
-                    let magic = u32::from_be_bytes(magic_arr);
-                    if magic == APPLESINGLE_MAGIC_BE || magic == APPLESINGLE_MAGIC_LE {
-                        if let Ok(archive) = read_apple_single_double(&data) {
-                            if archive.format == AppleFormat::AppleSingle {
-                                unpack_apple_single_into_entity(entity, &archive)?;
-                                return Ok(());
+    // 1. If any AppleSingle read style is enabled and this is a regular file, check if it's AppleSingle
+    if options.any_apple_single() && entity.is_regular() {
+        // Reason for fallback: file path without a file name component defaults to verbatim OsStr
+        let file_name_os = file_path.file_name().unwrap_or(file_path.as_os_str());
+        let file_name_str = file_name_os.to_string_lossy();
+
+        let single_match = if options.read_apple_single_as
+            && (file_name_str.ends_with(".as") || file_name_str.ends_with(".AS"))
+        {
+            Some(AppleSingleExtension::As)
+        } else if options.read_apple_single_asf
+            && (file_name_str.ends_with(".asf") || file_name_str.ends_with(".ASF"))
+        {
+            Some(AppleSingleExtension::Asf)
+        } else if options.read_apple_single_without_extension || options.read_apple_single {
+            Some(AppleSingleExtension::WithoutExtension)
+        } else {
+            None
+        };
+
+        if let Some(matched_ext) = single_match {
+            let is_single_magic = match std::fs::File::open(file_path) {
+                Ok(mut f) => {
+                    use std::io::Read;
+                    let mut magic = [0u8; 4];
+                    if f.read_exact(&mut magic).is_ok() {
+                        let m = u32::from_be_bytes(magic);
+                        m == APPLESINGLE_MAGIC_BE || m == APPLESINGLE_MAGIC_LE
+                    } else {
+                        false
+                    }
+                }
+                Err(_) => false,
+            };
+
+            if is_single_magic {
+                if let Ok(data) = std::fs::read(file_path) {
+                    if let Ok(archive) = read_apple_single_double(&data) {
+                        if archive.format == AppleFormat::AppleSingle {
+                            unpack_apple_single_into_entity(entity, &archive)?;
+                            match matched_ext {
+                                AppleSingleExtension::As => {
+                                    strip_apple_single_extension_from_entity(entity, ".as");
+                                }
+                                AppleSingleExtension::Asf => {
+                                    strip_apple_single_extension_from_entity(entity, ".asf");
+                                }
+                                AppleSingleExtension::WithoutExtension => {}
                             }
+                            return Ok(());
                         }
                     }
                 }
@@ -397,7 +540,9 @@ pub fn join_apple_double_or_single(
     }
 
     // 2. Check for AppleDouble companion files according to enabled read options
+    // Reason for fallback: file path without a parent directory defaults to current working directory "."
     let parent_dir = file_path.parent().unwrap_or(Path::new("."));
+    // Reason for fallback: file path without a file name component defaults to verbatim OsStr
     let file_name = file_path.file_name().unwrap_or(file_path.as_os_str());
     let is_dir = matches!(entity.kind, FileEntityKind::Directory | FileEntityKind::Bundle { .. });
 

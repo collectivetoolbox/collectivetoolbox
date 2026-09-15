@@ -131,7 +131,7 @@ pub fn execute_copy_pipeline(
     let copy_task = progress.start_task("Copying", None);
 
     let strict_lossless = !args.best_effort_metadata && !args.allow_unknown_fs;
-    let apple_write_mode = args.resolve_apple_write_mode()?;
+    let (apple_write_mode, apple_single_write_extension) = args.resolve_apple_write_mode()?;
     let apple_read_options = args.resolve_apple_read_options();
     let options = MaterializeOptions {
         dry_run: args.dry_run,
@@ -141,6 +141,7 @@ pub fn execute_copy_pipeline(
         copy_specials: args.copy_specials_as_specials,
         force_overwrite: args.always_overwrite,
         apple_write_mode,
+        apple_single_write_extension,
     };
 
     // =========================================================================
@@ -209,7 +210,17 @@ pub fn execute_copy_pipeline(
                     .error_policy(ctb_io::file::OnTraversalError::Bail)
                     .apple_read_options(apple_read_options);
 
-                let dir_entries = ctb_io::file::read_dir_safe(&curr_src, &traversal_opts)?;
+                let raw_dir_entries = ctb_io::file::read_dir_safe(&curr_src, &traversal_opts)?;
+                let dir_entries = crate::collision::validate_and_order_directory_entries(
+                    raw_dir_entries,
+                    &curr_src,
+                    &curr_tgt,
+                    tgt_root,
+                    &dir_entity.identity.relative_path,
+                    &apple_read_options,
+                    apple_write_mode,
+                    apple_single_write_extension,
+                )?;
 
                 let mut expected_filenames: Vec<Vec<u8>> = Vec::new();
 
@@ -243,7 +254,7 @@ pub fn execute_copy_pipeline(
                             dest_dir_root: tgt_root.clone(),
                         });
                     } else {
-                        let created = copy_single_item(
+                        let created_path = copy_single_item(
                             &entry_src,
                             &entry_tgt,
                             &entry_rel,
@@ -255,8 +266,10 @@ pub fn execute_copy_pipeline(
                             &mut stats,
                             &mut files_to_verify,
                         )?;
-                        if created {
-                            expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
+                        if let Some(dest) = created_path {
+                            if let Some(fname) = dest.file_name() {
+                                expected_filenames.push(fname.as_encoded_bytes().to_vec());
+                            }
                         }
 
                         uncommitted_count = uncommitted_count.saturating_add(1);
@@ -478,18 +491,56 @@ fn copy_single_item(
     hardlink_map: &mut HashMap<(u64, u64), PathBuf>,
     stats: &mut CopyStats,
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
-) -> Result<bool> {
+) -> Result<Option<PathBuf>> {
     // 2. Discover full entity from filesystem
     let apple_read_options = args.resolve_apple_read_options();
     let mut entity = FileEntity::from_filesystem_with_apple_options(src_path, None, &apple_read_options)?;
     validate_filesystem_known(src_path, entity.metadata.filesystem_type.as_deref(), args)?;
-    entity.identity.relative_path = dest_rel_path.to_path_buf();
-    entity.identity.raw_relative_path = dest_rel_path.as_os_str().as_encoded_bytes().to_vec();
-    if let Some(fname) = dest_rel_path.file_name() {
+
+    // If an AppleSingle extension was stripped on read, update destination relative path
+    let effective_dest_rel = if let Some(dest_fname) = dest_rel_path.file_name().and_then(|f| f.to_str()) {
+        let is_stripped = if apple_read_options.read_apple_single_as
+            && (dest_fname.ends_with(".as") || dest_fname.ends_with(".AS"))
+        {
+            let stripped_len = dest_fname.len().saturating_sub(".as".len());
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename == s.as_bytes())
+        } else if apple_read_options.read_apple_single_asf
+            && (dest_fname.ends_with(".asf") || dest_fname.ends_with(".ASF"))
+        {
+            let stripped_len = dest_fname.len().saturating_sub(".asf".len());
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename == s.as_bytes())
+        } else {
+            false
+        };
+
+        if is_stripped {
+            if let Ok(fname_str) = std::str::from_utf8(&entity.identity.raw_filename) {
+                match dest_rel_path.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => p.join(fname_str),
+                    _ => PathBuf::from(fname_str),
+                }
+            } else {
+                dest_rel_path.to_path_buf()
+            }
+        } else {
+            dest_rel_path.to_path_buf()
+        }
+    } else {
+        dest_rel_path.to_path_buf()
+    };
+    // Reason for fallback: parent path defaults to current directory
+    let parent_path = dest_path.parent().unwrap_or(Path::new("."));
+    // Reason for fallback: file name defaults to verbatim OsStr
+    let file_name = effective_dest_rel.file_name().unwrap_or(effective_dest_rel.as_os_str());
+    let effective_dest_path = parent_path.join(file_name);
+
+    entity.identity.relative_path = effective_dest_rel;
+    entity.identity.raw_relative_path = entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
+    if let Some(fname) = entity.identity.relative_path.file_name() {
         entity.identity.raw_filename = fname.as_encoded_bytes().to_vec();
     }
     if !args.dry_run {
-        record_journal_entry(journal, dest_path, &entity)?;
+        record_journal_entry(journal, &effective_dest_path, &entity)?;
         journal.commit_batch()?;
     }
 
@@ -502,9 +553,9 @@ fn copy_single_item(
 
         if let Some(first_target_rel) = hardlink_map.get(&key) {
             let this_full_path = dest_dir.root_path().join(&entity.identity.relative_path);
-            let is_self = dest_path == first_target_rel
+            let is_self = effective_dest_path == *first_target_rel
                 || this_full_path == *first_target_rel
-                || std::fs::canonicalize(dest_path).ok().as_deref()
+                || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
                     == std::fs::canonicalize(first_target_rel).ok().as_deref();
             if !is_self {
                 let original_entity = entity.clone();
@@ -513,9 +564,9 @@ fn copy_single_item(
                 };
                 materialize_entity(&entity, None, dest_dir, options)?;
                 stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
-                record_journal_entry(journal, dest_path, &entity)?;
-                files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), original_entity));
-                return Ok(true);
+                record_journal_entry(journal, &effective_dest_path, &entity)?;
+                files_to_verify.push((src_path.to_path_buf(), effective_dest_path.clone(), original_entity));
+                return Ok(Some(effective_dest_path));
             }
         }
     }
@@ -555,10 +606,10 @@ fn copy_single_item(
                 stats.special_files_created = stats.special_files_created.saturating_add(1);
                 record_journal_entry(journal, dest_path, &entity)?;
                 files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
-                return Ok(true);
+                return Ok(Some(dest_path.to_path_buf()));
             } else {
                 stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
-                return Ok(false);
+                return Ok(None);
             }
         }
         _ => {}
@@ -575,9 +626,34 @@ fn copy_single_item(
     };
 
     // Materialize payload
+    let apple_single_data = if apple_read_options.any_apple_single() && entity.is_regular() {
+        if let Ok(data) = std::fs::read(src_path) {
+            if let Ok(archive) = ctb_io::file::read_apple_single_double(&data) {
+                if archive.format == ctb_io::file::AppleFormat::AppleSingle {
+                    // Reason for fallback: empty data fork represents empty file payload
+                    Some(archive.data_fork.unwrap_or_default())
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let mut entity = entity;
     let (receipt, file_used_noatime) = if args.dry_run {
         (materialize_entity(&entity, None, dest_dir, options), false)
+    } else if let Some(mem_bytes) = apple_single_data.as_ref() {
+        let mut mem_payload = ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone())?;
+        (
+            materialize_entity(&entity, Some(&mut mem_payload), dest_dir, options),
+            false,
+        )
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
         let mut payload = DiskPayloadSource::open(src_path)?;
         let noatime = payload.opened_with_noatime();
@@ -592,7 +668,7 @@ fn copy_single_item(
         format!(
             "copying '{}' -> '{}'",
             src_path.display(),
-            dest_path.display()
+            effective_dest_path.display()
         )
     })?;
 
@@ -613,10 +689,9 @@ fn copy_single_item(
     let changed = after_meta.mtime() != captured_mtime
         || after_meta.ctime() != captured_ctime
         || after_meta.mtime_nsec() != i64::from(entity.metadata.timestamps.mtime_nsec)
-        || after_meta.ctime_nsec() != i64::from(entity.metadata.timestamps.ctime_nsec)
-        || after_meta.len() != initial_size;
+        || (apple_single_data.is_none() && after_meta.len() != initial_size);
     #[cfg(not(unix))]
-    let changed = after_meta.len() != initial_size
+    let changed = (apple_single_data.is_none() && after_meta.len() != initial_size)
         || filetime::FileTime::from_last_modification_time(&after_meta)
             != filetime::FileTime::from_unix_time(entity.metadata.timestamps.mtime_sec, entity.metadata.timestamps.mtime_nsec);
 
@@ -657,10 +732,11 @@ fn copy_single_item(
         }
     }
 
-    record_journal_entry(journal, dest_path, &entity)?;
-    files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
+    record_journal_entry(journal, &receipt.destination_path, &entity)?;
+    let final_dest = receipt.destination_path;
+    files_to_verify.push((src_path.to_path_buf(), final_dest.clone(), entity));
 
-    Ok(true)
+    Ok(Some(final_dest))
 }
 
 fn compute_journal_relative_path(journal_dest: &Path, dest_path: &Path) -> PathBuf {

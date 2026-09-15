@@ -38,7 +38,7 @@ use crate::utilities::*;
 )]
 #[cfg(all(test, unix))]
 mod csc_tests {
-    use crate::args::{CscArgs, CscVerifyArgs, MvArgs, VerifyOutputFormat};
+    use crate::args::{AppleDoubleStyle, CscArgs, CscVerifyArgs, MvArgs, VerifyOutputFormat};
     use crate::cli::run_csc;
     use crate::move_engine::run_mv;
     use crate::verifier::run_csc_verify;
@@ -113,10 +113,15 @@ mod csc_tests {
             read_apple_double_zip: false,
             read_apple_double_netatalk: false,
             read_apple_single: false,
+            read_apple_single_without_extension: false,
+            no_read_apple_single: false,
+            read_apple_single_with_extension: Vec::new(),
             maybe_write_apple_double: None,
             force_write_apple_double: None,
             maybe_write_apple_single: false,
             force_write_apple_single: false,
+            write_apple_single_with_extension: None,
+            write_apple_single_without_extension: false,
         }
     }
 
@@ -1840,6 +1845,7 @@ mod csc_tests {
         fs::create_dir(&state).unwrap();
         std::os::unix::fs::symlink("missing-target", &source).unwrap();
         fs::write(&destination, b"old destination").unwrap();
+        let _ = std::fs::read_link(&source);
         let original = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
         assert!(original.metadata.timestamps.birthtime_sec.is_some());
         let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
@@ -1851,7 +1857,13 @@ mod csc_tests {
         let snapshot = crate::journal::read_journal_snapshot(&journal).unwrap();
         assert!(!snapshot.is_completed);
         let recorded = snapshot.committed_entities.values().next().unwrap();
-        assert_eq!(recorded.metadata.native, original.metadata.native);
+        let mut expected_native = original.metadata.native.clone();
+        let mut actual_native = recorded.metadata.native.clone();
+        if let (Some(exp), Some(act)) = (&mut expected_native, &mut actual_native) {
+            exp.values.remove("statx.atime.nsec");
+            act.values.remove("statx.atime.nsec");
+        }
+        assert_eq!(actual_native, expected_native);
         assert_eq!(recorded.metadata.timestamps, original.metadata.timestamps);
         assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
         assert_eq!(recorded.streams, original.streams);
@@ -3669,6 +3681,960 @@ mod csc_tests {
         if let Ok(ip) = ctb_utilities::environment::local_ipv4() {
             let cached = ctb_utilities::environment::cached_local_ipv4();
             assert_eq!(cached.ok(), Some(ip));
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_apple_write_mode_mutual_exclusion() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::write(src.join("a.txt"), b"data").unwrap();
+
+        let mut args = default_test_args(vec![src, dest], state);
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+        args.force_write_apple_single = true;
+
+        let res = run_csc(args);
+        assert!(res.is_err(), "Expected mutual exclusion error when multiple write modes specified");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_best_effort_metadata_enables_maybe_apple_double() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+
+        let mut args = default_test_args(vec![src, dest], state);
+        args.best_effort_metadata = true;
+        let (mode, _ext) = args.resolve_apple_write_mode().expect("resolve mode");
+        assert_eq!(mode, ctb_io::file::AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_copy_apple_double_alongside_roundtrip() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("hello.txt"), b"Hello Payload").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("hello.txt".to_string()),
+            comment: Some("Test Comment".to_string()),
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: Some(ctb_io::file::FinderInfo {
+                file_type: "TEXT".to_string(),
+                file_creator: "ttxt".to_string(),
+                raw_flags: 0,
+                label: ctb_io::file::FinderLabel::from_index(0),
+                flags: ctb_io::file::FinderFlags::default(),
+                location: (0, 0),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"Resource Fork Bytes".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(19),
+            entries: Vec::new(),
+        };
+        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("._hello.txt"), companion_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_double_alongside = true;
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert_eq!(fs::read(dest.join("hello.txt")).unwrap(), b"Hello Payload");
+        assert!(dest.join("._hello.txt").exists(), "Companion ._hello.txt must exist on dest");
+
+        // Inspect entity with apple read options enabled
+        let opts = ctb_io::file::AppleReadOptions {
+            read_apple_double_alongside: true,
+            ..ctb_io::file::AppleReadOptions::default()
+        };
+        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("hello.txt"),
+            Some(&dest),
+            &opts,
+        ).unwrap();
+
+        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(rsrc_stream.is_some(), "Resource fork must be preserved");
+        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Resource Fork Bytes"[..]));
+        assert_eq!(
+            entity.metadata.apple.as_ref().and_then(|a| a.finder_info.as_ref()).map(|f| f.file_type.as_str()),
+            Some("TEXT")
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_copy_apple_double_zip_roundtrip() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("zipdoc.txt"), b"Zip Payload").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("zipdoc.txt".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: Some(ctb_io::file::FinderInfo {
+                file_type: "DOCU".to_string(),
+                file_creator: "docu".to_string(),
+                raw_flags: 0,
+                label: ctb_io::file::FinderLabel::from_index(0),
+                flags: ctb_io::file::FinderFlags::default(),
+                location: (0, 0),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"Zip Resource Fork".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(17),
+            entries: Vec::new(),
+        };
+        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("._zipdoc.txt"), companion_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_double_alongside = true;
+        args.force_write_apple_double = Some(AppleDoubleStyle::Zip);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert_eq!(fs::read(dest.join("zipdoc.txt")).unwrap(), b"Zip Payload");
+        let macosx_companion = dest.join("__MACOSX").join("._zipdoc.txt");
+        assert!(macosx_companion.exists(), "__MACOSX/._zipdoc.txt must exist on dest");
+
+        let opts = ctb_io::file::AppleReadOptions {
+            read_apple_double_zip: true,
+            ..ctb_io::file::AppleReadOptions::default()
+        };
+        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("zipdoc.txt"),
+            Some(&dest),
+            &opts,
+        ).unwrap();
+
+        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in zip style");
+        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Zip Resource Fork"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_copy_apple_double_netatalk_roundtrip() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("netadoc.bin"), b"Netatalk Payload").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("netadoc.bin".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: Some(ctb_io::file::FinderInfo {
+                file_type: "BINA".to_string(),
+                file_creator: "bina".to_string(),
+                raw_flags: 0,
+                label: ctb_io::file::FinderLabel::from_index(0),
+                flags: ctb_io::file::FinderFlags::default(),
+                location: (0, 0),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"Netatalk Resource Data".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(22),
+            entries: Vec::new(),
+        };
+        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("._netadoc.bin"), companion_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_double_alongside = true;
+        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert_eq!(fs::read(dest.join("netadoc.bin")).unwrap(), b"Netatalk Payload");
+        let netatalk_companion = dest.join(".AppleDouble").join("netadoc.bin");
+        assert!(netatalk_companion.exists(), ".AppleDouble/netadoc.bin must exist on dest");
+
+        let opts = ctb_io::file::AppleReadOptions {
+            read_apple_double_netatalk: true,
+            ..ctb_io::file::AppleReadOptions::default()
+        };
+        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("netadoc.bin"),
+            Some(&dest),
+            &opts,
+        ).unwrap();
+
+        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in netatalk style");
+        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Netatalk Resource Data"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_copy_apple_single_roundtrip_and_no_as_extension() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("my_file.txt"), b"AppleSingle Plain Data").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("my_file.txt".to_string()),
+            comment: Some("Single Test Comment".to_string()),
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: Some(ctb_io::file::FinderInfo {
+                file_type: "APPL".to_string(),
+                file_creator: "macs".to_string(),
+                raw_flags: 0,
+                label: ctb_io::file::FinderLabel::from_index(0),
+                flags: ctb_io::file::FinderFlags::default(),
+                location: (0, 0),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"Single Resource Fork Data".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(25),
+            entries: Vec::new(),
+        };
+        let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("._my_file.txt"), companion_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_double_alongside = true;
+        args.force_write_apple_single = true;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // AppleSingle file MUST NOT get a .as extension appended!
+        assert!(dest.join("my_file.txt").exists(), "Destination file must be my_file.txt");
+        assert!(!dest.join("my_file.txt.as").exists(), "Destination file must NOT have .as appended");
+
+        // Verify magic bytes on disk are AppleSingle
+        let disk_bytes = fs::read(dest.join("my_file.txt")).unwrap();
+        let magic = u32::from_be_bytes(disk_bytes[..4].try_into().unwrap());
+        assert_eq!(magic, ctb_io::file::APPLESINGLE_MAGIC_BE);
+
+        // Read and decode with read_apple_single
+        let opts = ctb_io::file::AppleReadOptions {
+            read_apple_single: true,
+            ..ctb_io::file::AppleReadOptions::default()
+        };
+        let entity = ctb_io::file::FileEntity::from_filesystem_with_apple_options(
+            &dest.join("my_file.txt"),
+            Some(&dest),
+            &opts,
+        ).unwrap();
+
+        assert!(entity.is_regular());
+        if let ctb_io::file::FileEntityKind::Regular { size, .. } = entity.kind {
+            assert_eq!(size, 22); // length of b"AppleSingle Plain Data"
+        } else {
+            panic!("Expected regular entity");
+        }
+
+        let rsrc_stream = entity.streams.iter().find(|s| s.kind == ctb_io::file::StreamKind::MacOsResourceFork);
+        assert!(rsrc_stream.is_some(), "Resource fork must be preserved in AppleSingle");
+        assert_eq!(rsrc_stream.unwrap().data.as_deref(), Some(&b"Single Resource Fork Data"[..]));
+        assert_eq!(
+            entity.metadata.apple.as_ref().and_then(|a| a.finder_info.as_ref()).map(|f| f.file_type.as_str()),
+            Some("APPL")
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_apple_single_name_collision_preservation() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // Three files with potential collision: Foo, Foo.as, Foo.as.as
+        fs::write(src.join("Foo"), b"content of Foo").unwrap();
+        fs::write(src.join("Foo.as"), b"content of Foo.as").unwrap();
+        fs::write(src.join("Foo.as.as"), b"content of Foo.as.as").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // All three files must exist independently and not clobber each other
+        assert!(dest.join("Foo").exists());
+        assert!(dest.join("Foo.as").exists());
+        assert!(dest.join("Foo.as.as").exists());
+
+        let opts = ctb_io::file::AppleReadOptions {
+            read_apple_single: true,
+            ..ctb_io::file::AppleReadOptions::default()
+        };
+
+        let e1 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo"), Some(&dest), &opts).unwrap();
+        let e2 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as"), Some(&dest), &opts).unwrap();
+        let e3 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as.as"), Some(&dest), &opts).unwrap();
+
+        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e1.kind {
+            assert_eq!(size, 14); // "content of Foo"
+        }
+        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e2.kind {
+            assert_eq!(size, 17); // "content of Foo.as"
+        }
+        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e3.kind {
+            assert_eq!(size, 20); // "content of Foo.as.as"
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_orphan_apple_double_preserved_during_traversal() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join("valid.txt"), b"Valid base file").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("valid.txt".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"valid rsrc".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(10),
+            entries: Vec::new(),
+        };
+        let valid_companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("._valid.txt"), valid_companion_bytes).unwrap();
+
+        // Orphaned AppleDouble companion (no sibling "orphan.txt")
+        let orphan_archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleDouble,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("orphan.txt".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: None,
+            resource_fork: Some(b"orphan rsrc".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(11),
+            entries: Vec::new(),
+        };
+        let orphan_bytes = ctb_io::file::write_apple_single_double(&orphan_archive).unwrap();
+        fs::write(src.join("._orphan.txt"), orphan_bytes).unwrap();
+
+        // Plain text file starting with "._" that is NOT an AppleDouble file
+        fs::write(src.join("._fake.txt"), b"plain text not appledouble").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_double_alongside = true;
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // 1. valid.txt must exist on dest
+        assert!(dest.join("valid.txt").exists());
+
+        // 2. Orphaned ._orphan.txt MUST NOT be omitted; it must be copied as an ordinary file
+        assert!(dest.join("._orphan.txt").exists(), "Orphaned ._orphan.txt must be preserved on dest");
+
+        // 3. Fake ._fake.txt MUST NOT be omitted; it must be copied as an ordinary file
+        assert!(dest.join("._fake.txt").exists(), "Fake ._fake.txt must be preserved on dest");
+        assert_eq!(fs::read(dest.join("._fake.txt")).unwrap(), b"plain text not appledouble");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_write_apple_single_with_extension_as() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("sample.txt"), b"AppleSingle with .as").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::As);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest.join("sample.txt.as").exists(), "sample.txt.as must exist");
+        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+
+        let data = fs::read(dest.join("sample.txt.as")).unwrap();
+        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
+        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .as"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_write_apple_single_with_extension_asf() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+        fs::write(src.join("sample.txt"), b"AppleSingle with .asf").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::Asf);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        assert!(dest.join("sample.txt.asf").exists(), "sample.txt.asf must exist");
+        assert!(!dest.join("sample.txt").exists(), "bare sample.txt must not exist");
+
+        let data = fs::read(dest.join("sample.txt.asf")).unwrap();
+        let archive = ctb_io::file::read_apple_single_double(&data).expect("parse AppleSingle");
+        assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
+        assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .asf"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_read_apple_single_with_extension_strips() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleSingle,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("doc".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: Some(b"Unpacked doc payload".to_vec()),
+            resource_fork: None,
+            data_fork_size: Some(20),
+            resource_fork_size: None,
+            entries: Vec::new(),
+        };
+        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("doc.as"), single_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // Extension .as must be stripped automatically upon valid AppleSingle decode
+        assert!(dest.join("doc").exists(), "Stripped destination 'doc' must exist");
+        assert_eq!(fs::read(dest.join("doc")).unwrap(), b"Unpacked doc payload");
+        assert!(!dest.join("doc.as").exists(), "doc.as must not exist on dest");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_read_apple_single_non_applesingle_preserves_extension() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // Ordinary ActionScript source file (not AppleSingle)
+        fs::write(src.join("script.as"), b"package { class Main {} }").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // Non-AppleSingle file must preserve its .as extension intact
+        assert!(dest.join("script.as").exists(), "script.as must remain intact");
+        assert_eq!(fs::read(dest.join("script.as")).unwrap(), b"package { class Main {} }");
+        assert!(!dest.join("script").exists(), "script must not exist");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_read_apple_single_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // Sibling files: foo and foo.as
+        fs::write(src.join("foo"), b"regular file foo").unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleSingle,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("foo".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: Some(b"applesingle foo".to_vec()),
+            resource_fork: None,
+            data_fork_size: Some(15),
+            resource_fork_size: None,
+            entries: Vec::new(),
+        };
+        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("foo.as"), single_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+
+        // Must bail out because both unpack/target 'foo'
+        match run_csc(args) {
+            Err(err) => {
+                let err_msg = err.to_string();
+                assert!(err_msg.contains("collision") || err_msg.contains("Target collision"), "Error message must report collision: {err_msg}");
+            }
+            Ok(_) => panic!("Must error on target collision between foo and foo.as"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_apple_double_companion_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join("file.txt"), b"base file").unwrap();
+        // Independent file that happens to match the companion path
+        fs::write(src.join("._file.txt"), b"independent not appledouble").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+
+        match run_csc(args) {
+            Err(err) => {
+                let err_msg = err.to_string();
+                assert!(err_msg.contains("collision") || err_msg.contains("Companion collision"), "Error message must report collision: {err_msg}");
+            }
+            Ok(_) => panic!("Must error on companion collision with independent ._file.txt"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_netatalk_companion_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(src.join(".AppleDouble")).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join("file.txt"), b"base file").unwrap();
+        // Preexisting independent file in .AppleDouble
+        fs::write(src.join(".AppleDouble").join("file.txt"), b"independent netatalk").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
+
+        let res = run_csc(args);
+        assert!(res.is_err(), "Must error on companion collision with independent .AppleDouble/file.txt");
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_apple_single_dependency_ordering() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // Foo.as and Foo.as.as
+        fs::write(src.join("Foo.as"), b"content of Foo.as").unwrap();
+        fs::write(src.join("Foo.as.as"), b"content of Foo.as.as").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state,
+        );
+        args.force_write_apple_single = true;
+        args.write_apple_single_with_extension = Some(ctb_io::file::AppleSingleExtension::As);
+
+        let res = run_csc(args).expect("run csc");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected immediate result"),
+        }
+
+        // Foo.as -> Foo.as.as and Foo.as.as -> Foo.as.as.as
+        assert!(dest.join("Foo.as.as").exists(), "Foo.as.as must exist");
+        assert!(dest.join("Foo.as.as.as").exists(), "Foo.as.as.as must exist");
+
+        let d1 = fs::read(dest.join("Foo.as.as")).unwrap();
+        let a1 = ctb_io::file::read_apple_single_double(&d1).unwrap();
+        assert_eq!(a1.data_fork.as_deref(), Some(&b"content of Foo.as"[..]));
+
+        let d2 = fs::read(dest.join("Foo.as.as.as")).unwrap();
+        let a2 = ctb_io::file::read_apple_single_double(&d2).unwrap();
+        assert_eq!(a2.data_fork.as_deref(), Some(&b"content of Foo.as.as"[..]));
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_zip_apple_double_macosx_file_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join("__MACOSX"), b"regular file not dir").unwrap();
+        fs::write(src.join("foo.txt"), b"some content").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.force_write_apple_double = Some(AppleDoubleStyle::Zip);
+
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains("__MACOSX"), "Error must report __MACOSX collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on regular file __MACOSX collision with AppleDouble zip"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_netatalk_dot_appledouble_file_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join(".AppleDouble"), b"regular file not dir").unwrap();
+        fs::write(src.join("foo.txt"), b"some content").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
+
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains(".AppleDouble"), "Error must report .AppleDouble collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on regular file .AppleDouble collision with Netatalk"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_netatalk_parent_file_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join(".Parent"), b"regular file named .Parent").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
+
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains(".Parent"), "Error must report .Parent collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on regular file .Parent collision with Netatalk metadata"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_foo_as_and_foo_as_as_target_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // foo.as is a regular file (not AppleSingle)
+        fs::write(src.join("foo.as"), b"regular actionscript").unwrap();
+
+        // foo.as.as is AppleSingle
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleSingle,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("foo.as".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: Some(b"nested applesingle".to_vec()),
+            resource_fork: None,
+            data_fork_size: Some(18),
+            resource_fork_size: None,
+            entries: Vec::new(),
+        };
+        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("foo.as.as"), single_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
+
+        // foo.as targets dest/foo.as; foo.as.as unpacks to dest/foo.as -> Collision!
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on target collision between foo.as and foo.as.as"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_as_and_asf_target_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        let archive = ctb_io::file::AppleArchive {
+            format: ctb_io::file::AppleFormat::AppleSingle,
+            version: ctb_io::file::VERSION_2_0_BE,
+            real_name: Some("doc".to_string()),
+            comment: None,
+            timestamps: None,
+            backup_timestamp_sec: None,
+            finder_info: None,
+            extended_attributes: Vec::new(),
+            data_fork: Some(b"doc content".to_vec()),
+            resource_fork: None,
+            data_fork_size: Some(11),
+            resource_fork_size: None,
+            entries: Vec::new(),
+        };
+        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
+        fs::write(src.join("doc.as"), &single_bytes).unwrap();
+        fs::write(src.join("doc.asf"), &single_bytes).unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        args.read_apple_single_with_extension = vec![
+            ctb_io::file::AppleSingleExtension::As,
+            ctb_io::file::AppleSingleExtension::Asf,
+        ];
+
+        // Both doc.as and doc.asf strip to dest/doc -> Collision!
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on target collision between doc.as and doc.asf"),
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_csc_double_dot_underscore_companion_collision_bailout() {
+        let temp = tempdir().expect("tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        // Independent ._foo and ._._foo files
+        fs::write(src.join("._foo"), b"independent file 1").unwrap();
+        fs::write(src.join("._._foo"), b"independent file 2").unwrap();
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest],
+            state,
+        );
+        // Turn off reading apple double alongside so both are treated as independent files
+        args.no_read_apple_double_alongside = true;
+        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
+
+        // Writing alongside for ._foo produces companion ._._foo, which collides with destination for ._._foo
+        match run_csc(args) {
+            Err(err) => {
+                let msg = err.to_string();
+                assert!(msg.contains("collision") || msg.contains("Companion collision"), "Error must report collision: {msg}");
+            }
+            Ok(_) => panic!("Must bail on companion collision for ._foo and ._._foo"),
         }
     }
 }

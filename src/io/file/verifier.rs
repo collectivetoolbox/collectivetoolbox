@@ -731,7 +731,10 @@ pub fn audit_entity_detailed(
                 read_apple_double_alongside: true,
                 read_apple_double_zip: true,
                 read_apple_double_netatalk: true,
+                read_apple_single_without_extension: true,
                 read_apple_single: true,
+                read_apple_single_as: true,
+                read_apple_single_asf: true,
             };
             if crate::file::apple_double::join_apple_double_or_single(&mut check_entity, path, None, &all_apple_opts).is_ok() {
                 on_disk_streams = check_entity.streams;
@@ -846,99 +849,156 @@ pub fn audit_entity_detailed(
         ..
     } = expected.kind
     {
-        let actual_size = dest_meta.len();
-        if actual_size != expected_size {
-            diffs.push(DiffKind::SizeMismatch {
-                expected: expected_size,
-                actual: actual_size,
-            });
-        }
-
-        // Open non-invasively: attempt O_NOATIME on Linux
-        #[cfg(target_os = "linux")]
-        let (mut file, opened_with_noatime) = {
-            use std::os::unix::fs::OpenOptionsExt;
-            let mut opts = File::options();
-            opts.read(true);
-            opts.custom_flags(nix::libc::O_NOATIME);
-            match opts.open(path) {
-                Ok(f) => (f, true),
-                Err(_) => {
-                    let f = File::open(path).with_context(|| {
-                        format!("Failed to open file for verification: {}", path.display())
-                    })?;
-                    (f, false)
+        let apple_single_archive = if dest_meta.len() == expected_size {
+            None
+        } else {
+            let is_single = match File::open(path) {
+                Ok(mut f) => {
+                    use std::io::Read;
+                    let mut magic = [0u8; 4];
+                    if f.read_exact(&mut magic).is_ok() {
+                        let m = u32::from_be_bytes(magic);
+                        m == crate::file::apple_double::APPLESINGLE_MAGIC_BE
+                            || m == crate::file::apple_double::APPLESINGLE_MAGIC_LE
+                    } else {
+                        false
+                    }
                 }
+                Err(_) => false,
+            };
+            if is_single {
+                if let Ok(data) = std::fs::read(path) {
+                    if let Ok(archive) = ctb_formats_apple_single_double::read_apple_single_double(&data) {
+                        if archive.format == ctb_formats_apple_single_double::AppleFormat::AppleSingle {
+                            Some(archive)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
             }
         };
-        #[cfg(not(target_os = "linux"))]
-        let (mut file, opened_with_noatime) = {
-            let f = File::open(path).with_context(|| {
-                format!("Failed to open file for verification: {}", path.display())
-            })?;
-            (f, false)
-        };
 
-        if options.drop_caches {
-            evict_fd_cache(&file);
-        }
+        if let Some(ref archive) = apple_single_archive {
+            // Reason for fallback: AppleSingle archive without a data fork entry represents an empty 0-byte file payload
+            let data_fork = archive.data_fork.as_deref().unwrap_or(&[]);
+            let actual_size = u64::try_from(data_fork.len())?;
+            if actual_size != expected_size {
+                diffs.push(DiffKind::SizeMismatch {
+                    expected: expected_size,
+                    actual: actual_size,
+                });
+            }
+            let mut hasher = ctb_formats_checksum::Sha256Stream::new();
+            hasher.update(data_fork);
+            let actual_sha256 = hasher.finalize();
+            if actual_sha256 != expected_sha256 {
+                diffs.push(DiffKind::ContentHashMismatch {
+                    expected_hex: hex_encode(&expected_sha256),
+                    actual_hex: hex_encode(&actual_sha256),
+                });
+            }
+        } else {
+            let actual_size = dest_meta.len();
+            if actual_size != expected_size {
+                diffs.push(DiffKind::SizeMismatch {
+                    expected: expected_size,
+                    actual: actual_size,
+                });
+            }
 
-        if options.check_sparse {
-            let actual_extents = get_file_extents(&file, actual_size)?;
-            let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
-            let expected_has_holes = is_sparse;
-            if actual_has_holes != expected_has_holes {
-                if expected_has_holes && !actual_has_holes && options.best_effort {
-                    let fs_info = crate::file::filesystem::query_filesystem_info(path, &dest_meta);
-                    if fs_info.supports_sparse() != Some(true) {
-                        ignored.sparseness = ignored.sparseness.saturating_add(1);
+            // Open non-invasively: attempt O_NOATIME on Linux
+            #[cfg(target_os = "linux")]
+            let (mut file, opened_with_noatime) = {
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut opts = File::options();
+                opts.read(true);
+                opts.custom_flags(nix::libc::O_NOATIME);
+                match opts.open(path) {
+                    Ok(f) => (f, true),
+                    Err(_) => {
+                        let f = File::open(path).with_context(|| {
+                            format!("Failed to open file for verification: {}", path.display())
+                        })?;
+                        (f, false)
+                    }
+                }
+            };
+            #[cfg(not(target_os = "linux"))]
+            let (mut file, opened_with_noatime) = {
+                let f = File::open(path).with_context(|| {
+                    format!("Failed to open file for verification: {}", path.display())
+                })?;
+                (f, false)
+            };
+
+            if options.drop_caches {
+                evict_fd_cache(&file);
+            }
+
+            if options.check_sparse {
+                let actual_extents = get_file_extents(&file, actual_size)?;
+                let actual_has_holes = actual_extents.iter().any(Extent::is_hole);
+                let expected_has_holes = is_sparse;
+                if actual_has_holes != expected_has_holes {
+                    if expected_has_holes && !actual_has_holes && options.best_effort {
+                        let fs_info = crate::file::filesystem::query_filesystem_info(path, &dest_meta);
+                        if fs_info.supports_sparse() != Some(true) {
+                            ignored.sparseness = ignored.sparseness.saturating_add(1);
+                        } else {
+                            diffs.push(DiffKind::SparseHoleMismatch {
+                                expected_has_holes,
+                                actual_has_holes,
+                            });
+                        }
                     } else {
                         diffs.push(DiffKind::SparseHoleMismatch {
                             expected_has_holes,
                             actual_has_holes,
                         });
                     }
-                } else {
-                    diffs.push(DiffKind::SparseHoleMismatch {
-                        expected_has_holes,
-                        actual_has_holes,
-                    });
                 }
+                file.seek(SeekFrom::Start(0))?;
             }
-            file.seek(SeekFrom::Start(0))?;
-        }
 
-        let actual_extents = if is_sparse {
-            get_file_extents(&file, actual_size)?
-        } else {
-            Vec::new()
-        };
-        let actual_sha256 = crate::file::payload::hash_payload_stream(
-            &mut file,
-            &actual_extents,
-            is_sparse,
-            path,
-        )?;
+            let actual_extents = if is_sparse {
+                get_file_extents(&file, actual_size)?
+            } else {
+                Vec::new()
+            };
+            let actual_sha256 = crate::file::payload::hash_payload_stream(
+                &mut file,
+                &actual_extents,
+                is_sparse,
+                path,
+            )?;
 
-        if actual_sha256 != expected_sha256 {
-            diffs.push(DiffKind::ContentHashMismatch {
-                expected_hex: hex_encode(&expected_sha256),
-                actual_hex: hex_encode(&actual_sha256),
-            });
-        }
+            if actual_sha256 != expected_sha256 {
+                diffs.push(DiffKind::ContentHashMismatch {
+                    expected_hex: hex_encode(&expected_sha256),
+                    actual_hex: hex_encode(&actual_sha256),
+                });
+            }
 
-        // If O_NOATIME was not usable, restore original observed atime/mtime
-        #[cfg(unix)]
-        if !opened_with_noatime {
-            let orig_atime = FileTime::from_unix_time(
-                actual_atime_sec,
-                actual_atime_nsec,
-            );
-            let orig_mtime = FileTime::from_unix_time(
-                actual_mtime_sec,
-                actual_mtime_nsec,
-            );
-            let _ = set_file_times(path, orig_atime, orig_mtime);
+            // If O_NOATIME was not usable, restore original observed atime/mtime
+            #[cfg(unix)]
+            if !opened_with_noatime {
+                let orig_atime = FileTime::from_unix_time(
+                    actual_atime_sec,
+                    actual_atime_nsec,
+                );
+                let orig_mtime = FileTime::from_unix_time(
+                    actual_mtime_sec,
+                    actual_mtime_nsec,
+                );
+                let _ = set_file_times(path, orig_atime, orig_mtime);
+            }
         }
     }
 

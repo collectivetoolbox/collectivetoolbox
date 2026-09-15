@@ -165,10 +165,15 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     read_apple_double_zip: false,
                     read_apple_double_netatalk: false,
                     read_apple_single: false,
+                    read_apple_single_without_extension: false,
+                    no_read_apple_single: false,
+                    read_apple_single_with_extension: Vec::new(),
                     maybe_write_apple_double: None,
                     force_write_apple_double: None,
                     maybe_write_apple_single: false,
                     force_write_apple_single: false,
+                    write_apple_single_with_extension: None,
+                    write_apple_single_without_extension: false,
                 };
 
                 let mut journal = JournalWriter::create_new(

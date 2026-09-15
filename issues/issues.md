@@ -34,9 +34,21 @@
 
 - AppleSingle do not get .as extensions it doesn't look like. I think they should?
 
+Windows-style streams (:Zone.Identifier)
+
 - Testing/handling of name collisions (e.g. if a folder has Foo, Foo.as, and Foo.as.as all in it, and each has a resource fork FinderInfo, etc. to save, and AppleSingle is turned on, making sure no files are lost ore clobbered). This also applies to ._foo, .AppleDouble, __MACOSX, and .Parent - these might preexist, for instance.
 
+- why is collision.rs in csc and not in file? why is file/appledouble.rs not mostly in apple double crate?
+
 - csc tests.rs should be split and attached to relevant modules
+
+- lint to discourage tests.rs as well as mod.js
+
+--full-provenance option for csc and related commands (uses slow environment detection)
+
+How do errors get detected? Things that can't be read, for instance, should be logged in the journal or archive with what the problem was.
+
+- ddrescue type recovery
 
 - Csc archiver with verification pass, quick indexing, and being able to materialize/verify a file into an archive; rsync equivalent by sending an archive and ctb binary and then unpacking it on the other end?
 - Netbsd flags?

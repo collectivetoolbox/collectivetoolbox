@@ -78,6 +78,8 @@ pub struct MaterializeOptions {
     pub force_overwrite: bool,
     /// Policy for writing AppleDouble, AppleSingle, or native streams.
     pub apple_write_mode: AppleWriteMode,
+    /// Extension style when writing AppleSingle archives.
+    pub apple_single_write_extension: crate::file::apple_double::AppleSingleExtension,
 }
 
 impl Default for MaterializeOptions {
@@ -90,6 +92,7 @@ impl Default for MaterializeOptions {
             copy_specials: false,
             force_overwrite: false,
             apple_write_mode: AppleWriteMode::NativeOnly,
+            apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
         }
     }
 }
@@ -439,6 +442,7 @@ pub fn materialize_entity(
                     write_companion = true;
                 }
                 AppleWriteMode::MaybeAppleDouble(_) => {
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
                     let res = write_streams(&dest_path, None, &entity.streams, false);
                     if res.is_err() || has_apple_meta {
@@ -447,6 +451,7 @@ pub fn materialize_entity(
                 }
                 _ => {
                     write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
@@ -542,6 +547,7 @@ pub fn materialize_entity(
             let is_apple_single = options.apple_write_mode == AppleWriteMode::ForceAppleSingle
                 || (options.apple_write_mode == AppleWriteMode::MaybeAppleSingle
                     && (!entity.streams.is_empty()
+                        // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                         || entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty())));
 
             if is_apple_single {
@@ -560,12 +566,19 @@ pub fn materialize_entity(
                         u64::try_from(buf.len())?,
                         initial_size.saturating_sub(read_bytes),
                     );
-                    let n = source.read(&mut buf[..usize::try_from(to_read)?])?;
+                    let read_len = usize::try_from(to_read)?;
+                    let Some(buf_slice) = buf.get_mut(..read_len) else {
+                        anyhow::bail!("Buffer slice out of bounds");
+                    };
+                    let n = source.read(buf_slice)?;
                     if n == 0 {
                         break;
                     }
                     read_bytes = read_bytes.saturating_add(u64::try_from(n)?);
-                    data_fork.extend_from_slice(&buf[..n]);
+                    let Some(read_slice) = buf.get(..n) else {
+                        anyhow::bail!("Read buffer slice out of bounds");
+                    };
+                    data_fork.extend_from_slice(read_slice);
                 }
                 let archive = create_apple_archive_from_entity(
                     entity,
@@ -617,14 +630,37 @@ pub fn materialize_entity(
                 #[cfg(unix)]
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
-                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
+                let actual_file_name = match options.apple_single_write_extension {
+                    crate::file::apple_double::AppleSingleExtension::WithoutExtension => {
+                        file_name.as_os_str().to_os_string()
+                    }
+                    crate::file::apple_double::AppleSingleExtension::As => {
+                        let mut s = file_name.as_os_str().to_os_string();
+                        s.push(".as");
+                        s
+                    }
+                    crate::file::apple_double::AppleSingleExtension::Asf => {
+                        let mut s = file_name.as_os_str().to_os_string();
+                        s.push(".asf");
+                        s
+                    }
+                };
+                let actual_dest_path = if options.apple_single_write_extension
+                    == crate::file::apple_double::AppleSingleExtension::WithoutExtension
+                {
+                    dest_path.clone()
+                } else {
+                    parent_dir.join(&actual_file_name)
+                };
+
+                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &actual_file_name)?;
                 cleanup_guard.active = false;
 
                 #[cfg(unix)]
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
                 return Ok(MaterializeReceipt {
-                    destination_path: dest_path,
+                    destination_path: actual_dest_path,
                     bytes_written: single_size,
                     sha256: Some(single_sha256),
                     skipped_identical: false,
@@ -794,6 +830,7 @@ pub fn materialize_entity(
                     write_companion = true;
                 }
                 AppleWriteMode::MaybeAppleDouble(_) => {
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
                     let streams_res = write_streams(&temp_path, Some(&dest_path), &entity.streams, false);
                     if streams_res.is_err() || has_apple_meta {
@@ -802,6 +839,7 @@ pub fn materialize_entity(
                 }
                 _ => {
                     write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+                    // Reason for fallback: absent AppleMetadata defaults to false (no metadata to preserve)
                     if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
                         anyhow::bail!(
                             "Cannot preserve Apple metadata for {} natively without AppleDouble or AppleSingle",
@@ -1107,6 +1145,7 @@ fn try_update_existing_regular_entity(
     }
 
     if let Some(style) = options.apple_write_mode.double_style() {
+        // Reason for fallback: destination path without a parent directory defaults to current working directory "."
         let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
         write_apple_double_companion(entity, dest_path, parent_dir, style)?;
     } else {

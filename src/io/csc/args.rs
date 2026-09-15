@@ -27,7 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use clap::{Parser, ValueEnum};
-use ctb_io::file::{AppleDoubleStyle, AppleReadOptions, AppleWriteMode};
+pub use ctb_io::file::{
+    AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
+};
 use std::path::PathBuf;
 
 /// Policy for handling detected changes to source files during copying.
@@ -176,8 +178,22 @@ pub struct CscArgs {
     pub read_apple_double_netatalk: bool,
 
     /// Read AppleSingle files and decode data fork, resource fork, and Apple metadata.
-    #[arg(long)]
+    #[arg(long, overrides_with = "no_read_apple_single")]
     pub read_apple_single: bool,
+
+    /// Read bare AppleSingle files without extension (alias for --read-apple-single).
+    #[arg(long, overrides_with = "no_read_apple_single")]
+    pub read_apple_single_without_extension: bool,
+
+    /// Disable reading bare AppleSingle files without extension.
+    #[arg(long, overrides_with = "read_apple_single")]
+    pub no_read_apple_single: bool,
+
+    /// Read AppleSingle files with the specified extension ('as' or 'asf'),
+    /// automatically stripping the extension upon successful decode.
+    /// May be specified multiple times to support multiple extensions.
+    #[arg(long, value_name = "EXT", action = clap::ArgAction::Append)]
+    pub read_apple_single_with_extension: Vec<AppleSingleExtension>,
 
     /// Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved.
     /// Defaults to `alongside` style if passed without a style.
@@ -208,6 +224,14 @@ pub struct CscArgs {
     /// Force writing destination files as AppleSingle archives.
     #[arg(long)]
     pub force_write_apple_single: bool,
+
+    /// Write AppleSingle archive files with specified extension: 'as' or 'asf'.
+    #[arg(long, value_name = "EXT")]
+    pub write_apple_single_with_extension: Option<AppleSingleExtension>,
+
+    /// Write AppleSingle archive files without extension (default).
+    #[arg(long, alias = "write-apple-single")]
+    pub write_apple_single_without_extension: bool,
 }
 
 impl CscArgs {
@@ -261,16 +285,34 @@ impl CscArgs {
             }
         }
 
+        let read_single_bare = (self.read_apple_single || self.read_apple_single_without_extension)
+            && !self.no_read_apple_single;
+
+        let mut read_as = false;
+        let mut read_asf = false;
+        let mut read_bare = read_single_bare;
+
+        for ext in &self.read_apple_single_with_extension {
+            match ext {
+                AppleSingleExtension::As => read_as = true,
+                AppleSingleExtension::Asf => read_asf = true,
+                AppleSingleExtension::WithoutExtension => read_bare = true,
+            }
+        }
+
         AppleReadOptions {
             read_apple_double_alongside: alongside,
             read_apple_double_zip: zip,
             read_apple_double_netatalk: netatalk,
-            read_apple_single: self.read_apple_single,
+            read_apple_single_without_extension: read_bare,
+            read_apple_single: read_bare,
+            read_apple_single_as: read_as,
+            read_apple_single_asf: read_asf,
         }
     }
 
     /// Resolves AppleSingle / AppleDouble write mode, ensuring mutual exclusivity.
-    pub fn resolve_apple_write_mode(&self) -> Result<AppleWriteMode> {
+    pub fn resolve_apple_write_mode(&self) -> Result<(AppleWriteMode, AppleSingleExtension)> {
         let mut count = 0_usize;
         if self.maybe_write_apple_double.is_some() {
             count = count.saturating_add(1);
@@ -281,7 +323,10 @@ impl CscArgs {
         if self.maybe_write_apple_single {
             count = count.saturating_add(1);
         }
-        if self.force_write_apple_single {
+        let is_explicit_force_single = self.force_write_apple_single
+            || self.write_apple_single_without_extension
+            || self.write_apple_single_with_extension.is_some();
+        if is_explicit_force_single {
             count = count.saturating_add(1);
         }
 
@@ -291,24 +336,26 @@ impl CscArgs {
             );
         }
 
-        if let Some(style) = self.force_write_apple_double {
-            return Ok(AppleWriteMode::ForceAppleDouble(style));
-        }
-        if let Some(style) = self.maybe_write_apple_double {
-            return Ok(AppleWriteMode::MaybeAppleDouble(style));
-        }
-        if self.force_write_apple_single {
-            return Ok(AppleWriteMode::ForceAppleSingle);
-        }
-        if self.maybe_write_apple_single {
-            return Ok(AppleWriteMode::MaybeAppleSingle);
-        }
+        // Reason for fallback: default write extension is WithoutExtension
+        let write_ext = self
+            .write_apple_single_with_extension
+            .unwrap_or(AppleSingleExtension::WithoutExtension);
 
-        if self.best_effort_metadata {
-            return Ok(AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside));
-        }
+        let mode = if let Some(style) = self.force_write_apple_double {
+            AppleWriteMode::ForceAppleDouble(style)
+        } else if let Some(style) = self.maybe_write_apple_double {
+            AppleWriteMode::MaybeAppleDouble(style)
+        } else if is_explicit_force_single {
+            AppleWriteMode::ForceAppleSingle
+        } else if self.maybe_write_apple_single {
+            AppleWriteMode::MaybeAppleSingle
+        } else if self.best_effort_metadata {
+            AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside)
+        } else {
+            AppleWriteMode::NativeOnly
+        };
 
-        Ok(AppleWriteMode::NativeOnly)
+        Ok((mode, write_ext))
     }
 }
 

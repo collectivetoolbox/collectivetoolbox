@@ -1003,6 +1003,7 @@ fn is_zip_companion_dir(base_dir: &Path, macosx_dir: &Path) -> bool {
                     let Ok(rel) = path.strip_prefix(macosx_dir) else {
                         return false;
                     };
+                    // Reason for fallback: root files within __MACOSX directory have no parent directory prefix, defaulting to empty path
                     let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
                     let target = base_dir.join(rel_parent).join(base_name);
                     if target.symlink_metadata().is_err()
