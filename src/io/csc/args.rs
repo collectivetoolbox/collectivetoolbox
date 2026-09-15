@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use clap::{Parser, ValueEnum};
+use ctb_io::file::{AppleDoubleStyle, AppleReadOptions, AppleWriteMode};
 use std::path::PathBuf;
 
 /// Policy for handling detected changes to source files during copying.
@@ -146,6 +147,67 @@ pub struct CscArgs {
     /// Perform a dry run without copying or modifying destination files.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
+
+    /// Read AppleDouble companion files and join them into file entities.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub read_apple_double: Option<AppleDoubleStyle>,
+
+    /// Read alongside (._<filename>) AppleDouble companion files (default: enabled).
+    #[arg(long, overrides_with = "no_read_apple_double_alongside")]
+    pub read_apple_double_alongside: bool,
+
+    /// Disable reading alongside (._<filename>) AppleDouble companion files.
+    #[arg(long, overrides_with = "read_apple_double_alongside")]
+    pub no_read_apple_double_alongside: bool,
+
+    /// Read __MACOSX/ directory AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_zip: bool,
+
+    /// Read Netatalk .AppleDouble companion files.
+    #[arg(long)]
+    pub read_apple_double_netatalk: bool,
+
+    /// Read AppleSingle files and decode data fork, resource fork, and Apple metadata.
+    #[arg(long)]
+    pub read_apple_single: bool,
+
+    /// Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub maybe_write_apple_double: Option<AppleDoubleStyle>,
+
+    /// Force writing AppleDouble companion files even if native streams are supported.
+    /// Defaults to `alongside` style if passed without a style.
+    #[arg(
+        long,
+        value_name = "STYLE",
+        num_args = 0..=1,
+        default_missing_value = "alongside",
+        require_equals = false
+    )]
+    pub force_write_apple_double: Option<AppleDoubleStyle>,
+
+    /// Write AppleSingle archive files if native filesystem streams or Apple metadata cannot be preserved.
+    #[arg(long)]
+    pub maybe_write_apple_single: bool,
+
+    /// Force writing destination files as AppleSingle archives.
+    #[arg(long)]
+    pub force_write_apple_single: bool,
 }
 
 impl CscArgs {
@@ -179,6 +241,74 @@ impl CscArgs {
     #[must_use]
     pub fn should_check_ctime(&self) -> bool {
         self.strict || self.check_ctime
+    }
+
+    /// Resolves AppleSingle / AppleDouble read options.
+    #[must_use]
+    pub fn resolve_apple_read_options(&self) -> AppleReadOptions {
+        let mut alongside = !self.no_read_apple_double_alongside;
+        if self.read_apple_double_alongside {
+            alongside = true;
+        }
+        let mut zip = self.read_apple_double_zip;
+        let mut netatalk = self.read_apple_double_netatalk;
+
+        if let Some(style) = self.read_apple_double {
+            match style {
+                AppleDoubleStyle::Alongside => alongside = true,
+                AppleDoubleStyle::Zip => zip = true,
+                AppleDoubleStyle::Netatalk => netatalk = true,
+            }
+        }
+
+        AppleReadOptions {
+            read_apple_double_alongside: alongside,
+            read_apple_double_zip: zip,
+            read_apple_double_netatalk: netatalk,
+            read_apple_single: self.read_apple_single,
+        }
+    }
+
+    /// Resolves AppleSingle / AppleDouble write mode, ensuring mutual exclusivity.
+    pub fn resolve_apple_write_mode(&self) -> Result<AppleWriteMode> {
+        let mut count = 0_usize;
+        if self.maybe_write_apple_double.is_some() {
+            count = count.saturating_add(1);
+        }
+        if self.force_write_apple_double.is_some() {
+            count = count.saturating_add(1);
+        }
+        if self.maybe_write_apple_single {
+            count = count.saturating_add(1);
+        }
+        if self.force_write_apple_single {
+            count = count.saturating_add(1);
+        }
+
+        if count > 1 {
+            anyhow::bail!(
+                "Cannot specify more than one AppleDouble or AppleSingle write mode simultaneously"
+            );
+        }
+
+        if let Some(style) = self.force_write_apple_double {
+            return Ok(AppleWriteMode::ForceAppleDouble(style));
+        }
+        if let Some(style) = self.maybe_write_apple_double {
+            return Ok(AppleWriteMode::MaybeAppleDouble(style));
+        }
+        if self.force_write_apple_single {
+            return Ok(AppleWriteMode::ForceAppleSingle);
+        }
+        if self.maybe_write_apple_single {
+            return Ok(AppleWriteMode::MaybeAppleSingle);
+        }
+
+        if self.best_effort_metadata {
+            return Ok(AppleWriteMode::MaybeAppleDouble(AppleDoubleStyle::Alongside));
+        }
+
+        Ok(AppleWriteMode::NativeOnly)
     }
 }
 

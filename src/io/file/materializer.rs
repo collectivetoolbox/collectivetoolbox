@@ -26,6 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::file::apple_double::{
+    AppleFormat, AppleWriteMode, create_apple_archive_from_entity,
+    write_apple_double_companion, write_apple_single_double,
+};
 use crate::file::entity::{FileEntity, FileEntityKind};
 use crate::file::identity::resolve_relative_path_for_os;
 use crate::file::metadata::FileMetadata;
@@ -72,6 +76,8 @@ pub struct MaterializeOptions {
     /// If true, always overwrite the destination by recreating the payload and metadata atomically,
     /// skipping any in-place reuse even if payload checksums match.
     pub force_overwrite: bool,
+    /// Policy for writing AppleDouble, AppleSingle, or native streams.
+    pub apple_write_mode: AppleWriteMode,
 }
 
 impl Default for MaterializeOptions {
@@ -83,6 +89,7 @@ impl Default for MaterializeOptions {
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
             force_overwrite: false,
+            apple_write_mode: AppleWriteMode::NativeOnly,
         }
     }
 }
@@ -426,7 +433,33 @@ pub fn materialize_entity(
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
             let _dir_fd =
                 dest_dir.ensure_dir_all(&entity.identity.relative_path, options.path_policy)?;
-            write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+            let mut write_companion = false;
+            match options.apple_write_mode {
+                AppleWriteMode::ForceAppleDouble(_) => {
+                    write_companion = true;
+                }
+                AppleWriteMode::MaybeAppleDouble(_) => {
+                    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+                    let res = write_streams(&dest_path, None, &entity.streams, false);
+                    if res.is_err() || has_apple_meta {
+                        write_companion = true;
+                    }
+                }
+                _ => {
+                    write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for directory {} natively without AppleDouble or AppleSingle",
+                            dest_path.display()
+                        );
+                    }
+                }
+            }
+            if write_companion {
+                if let Some(style) = options.apple_write_mode.double_style() {
+                    write_apple_double_companion(entity, &dest_path, dest_dir.root_path(), style)?;
+                }
+            }
             apply_entity_metadata(
                 &dest_path,
                 None,
@@ -504,6 +537,98 @@ pub fn materialize_entity(
                 )? {
                     return Ok(receipt);
                 }
+            }
+
+            let is_apple_single = options.apple_write_mode == AppleWriteMode::ForceAppleSingle
+                || (options.apple_write_mode == AppleWriteMode::MaybeAppleSingle
+                    && (!entity.streams.is_empty()
+                        || entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty())));
+
+            if is_apple_single {
+                let Some(source) = payload else {
+                    anyhow::bail!(
+                        "PayloadSource required to materialize AppleSingle file: {}",
+                        dest_path.display()
+                    );
+                };
+                let mut data_fork = Vec::new();
+                let initial_size = *size;
+                let mut buf = vec![0_u8; 65536];
+                let mut read_bytes = 0_u64;
+                while read_bytes < initial_size {
+                    let to_read = std::cmp::min(
+                        u64::try_from(buf.len())?,
+                        initial_size.saturating_sub(read_bytes),
+                    );
+                    let n = source.read(&mut buf[..usize::try_from(to_read)?])?;
+                    if n == 0 {
+                        break;
+                    }
+                    read_bytes = read_bytes.saturating_add(u64::try_from(n)?);
+                    data_fork.extend_from_slice(&buf[..n]);
+                }
+                let archive = create_apple_archive_from_entity(
+                    entity,
+                    AppleFormat::AppleSingle,
+                    Some(data_fork),
+                )?;
+                let single_bytes = write_apple_single_double(&archive)?;
+                let mut hasher = Sha256Stream::new();
+                hasher.update(&single_bytes);
+                let single_sha256 = hasher.finalize();
+                let single_size = u64::try_from(single_bytes.len())?;
+
+                let pid = std::process::id();
+                let nanos = match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+                    Ok(dur) => dur.subsec_nanos(),
+                    Err(_) => 0,
+                };
+                let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
+
+                let mut temp_file = dest_dir.create_temp_file(
+                    &parent_dir_fd.as_fd(),
+                    &temp_name,
+                    entity.metadata.mode,
+                )?;
+                let mut cleanup_guard = TempFileCleanupGuard {
+                    parent_fd: parent_dir_fd.as_fd(),
+                    temp_name: temp_name.clone(),
+                    active: true,
+                };
+                temp_file.write_all(&single_bytes)?;
+                temp_file.sync_all()?;
+                drop(temp_file);
+
+                let parent_dir = match dest_path.parent() {
+                    Some(p) if !p.as_os_str().is_empty() => p,
+                    _ => Path::new("."),
+                };
+                let temp_path = parent_dir.join(&temp_name);
+                apply_entity_metadata(
+                    &temp_path,
+                    Some(&dest_path),
+                    &entity.metadata,
+                    false,
+                    false,
+                    options.strict_lossless,
+                )?;
+
+                #[cfg(unix)]
+                sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
+
+                dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
+                cleanup_guard.active = false;
+
+                #[cfg(unix)]
+                sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
+
+                return Ok(MaterializeReceipt {
+                    destination_path: dest_path,
+                    bytes_written: single_size,
+                    sha256: Some(single_sha256),
+                    skipped_identical: false,
+                });
             }
 
             let Some(source) = payload else {
@@ -663,8 +788,28 @@ pub fn materialize_entity(
             };
             let temp_path = parent_dir.join(&temp_name);
 
-            // Write attached streams (xattrs, resource forks)
-            write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+            let mut write_companion = false;
+            match options.apple_write_mode {
+                AppleWriteMode::ForceAppleDouble(_) => {
+                    write_companion = true;
+                }
+                AppleWriteMode::MaybeAppleDouble(_) => {
+                    let has_apple_meta = entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty());
+                    let streams_res = write_streams(&temp_path, Some(&dest_path), &entity.streams, false);
+                    if streams_res.is_err() || has_apple_meta {
+                        write_companion = true;
+                    }
+                }
+                _ => {
+                    write_streams(&temp_path, Some(&dest_path), &entity.streams, options.strict_lossless)?;
+                    if options.strict_lossless && entity.metadata.apple.as_ref().map_or(false, |a| !a.is_empty()) {
+                        anyhow::bail!(
+                            "Cannot preserve Apple metadata for {} natively without AppleDouble or AppleSingle",
+                            dest_path.display()
+                        );
+                    }
+                }
+            }
 
             // Apply ownership, permissions, and timestamps to temp file (defer flags until after rename)
             apply_entity_metadata(
@@ -703,6 +848,12 @@ pub fn materialize_entity(
             // Atomic rename inside parent directory
             dest_dir.commit_atomic_file(&parent_dir_fd.as_fd(), &temp_name, &file_name)?;
             cleanup_guard.active = false;
+
+            if write_companion {
+                if let Some(style) = options.apple_write_mode.double_style() {
+                    write_apple_double_companion(entity, &dest_path, dest_dir.root_path(), style)?;
+                }
+            }
 
             #[cfg(unix)]
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
@@ -955,26 +1106,31 @@ fn try_update_existing_regular_entity(
         }
     }
 
-    // Write missing or mismatched streams
-    for stream in &entity.streams {
-        let matches_on_disk = on_disk_streams.iter().any(|d| {
-            d.name == stream.name
-                && match (&d.entity.kind, &stream.entity.kind) {
-                    (
-                        FileEntityKind::Regular { sha256: d_hash, .. },
-                        FileEntityKind::Regular { sha256: s_hash, .. },
-                    ) => d_hash == s_hash,
-                    _ => false,
-                }
-        });
+    if let Some(style) = options.apple_write_mode.double_style() {
+        let parent_dir = dest_path.parent().unwrap_or(Path::new("."));
+        write_apple_double_companion(entity, dest_path, parent_dir, style)?;
+    } else {
+        // Write missing or mismatched streams
+        for stream in &entity.streams {
+            let matches_on_disk = on_disk_streams.iter().any(|d| {
+                d.name == stream.name
+                    && match (&d.entity.kind, &stream.entity.kind) {
+                        (
+                            FileEntityKind::Regular { sha256: d_hash, .. },
+                            FileEntityKind::Regular { sha256: s_hash, .. },
+                        ) => d_hash == s_hash,
+                        _ => false,
+                    }
+            });
 
-        if !matches_on_disk {
-            write_streams(
-                dest_path,
-                Some(dest_path),
-                std::slice::from_ref(stream),
-                options.strict_lossless,
-            )?;
+            if !matches_on_disk {
+                write_streams(
+                    dest_path,
+                    Some(dest_path),
+                    std::slice::from_ref(stream),
+                    options.strict_lossless,
+                )?;
+            }
         }
     }
 

@@ -30,6 +30,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use crate::file::apple_double::AppleReadOptions;
 use crate::file::entity::FileEntity;
 use crate::file::identity::InodeKey;
 use std::collections::{HashSet, VecDeque};
@@ -93,6 +94,8 @@ pub struct TraversalOptions {
     pub max_depth: Option<usize>,
     /// Error handling policy for I/O errors encountered during traversal.
     pub error_policy: OnTraversalError,
+    /// Options controlling AppleDouble / AppleSingle discovery and joining on read.
+    pub apple_read_options: AppleReadOptions,
 }
 
 impl Default for TraversalOptions {
@@ -105,6 +108,7 @@ impl Default for TraversalOptions {
             yield_root: false,
             max_depth: None,
             error_policy: OnTraversalError::Bail,
+            apple_read_options: AppleReadOptions::default(),
         }
     }
 }
@@ -162,6 +166,13 @@ impl TraversalOptions {
     #[must_use]
     pub fn error_policy(mut self, policy: OnTraversalError) -> Self {
         self.error_policy = policy;
+        self
+    }
+
+    /// Sets the AppleDouble / AppleSingle read options.
+    #[must_use]
+    pub fn apple_read_options(mut self, options: AppleReadOptions) -> Self {
+        self.apple_read_options = options;
         self
     }
 }
@@ -251,10 +262,28 @@ impl DirEntryItem {
     /// If `compute_hash` is `true`, reads and hashes the file payload (if regular file).
     /// If `false`, captures metadata and attached streams only without reading the payload.
     pub fn to_file_entity(&self, base_dir: Option<&Path>, compute_hash: bool) -> Result<FileEntity> {
+        self.to_file_entity_with_apple_options(
+            base_dir,
+            compute_hash,
+            &AppleReadOptions::default(),
+        )
+    }
+
+    /// Inspects and captures this item as a complete [`FileEntity`], applying custom [`AppleReadOptions`].
+    pub fn to_file_entity_with_apple_options(
+        &self,
+        base_dir: Option<&Path>,
+        compute_hash: bool,
+        apple_options: &AppleReadOptions,
+    ) -> Result<FileEntity> {
         if compute_hash {
-            FileEntity::from_filesystem(&self.path, base_dir)
+            FileEntity::from_filesystem_with_apple_options(&self.path, base_dir, apple_options)
         } else {
-            FileEntity::from_filesystem_metadata_only(&self.path, base_dir)
+            FileEntity::from_filesystem_metadata_only_with_apple_options(
+                &self.path,
+                base_dir,
+                apple_options,
+            )
         }
     }
 }
@@ -332,6 +361,19 @@ pub fn read_dir_safe(
         let is_symlink = sym_meta.is_symlink();
         let is_dir = sym_meta.is_dir();
         let file_name = entry.file_name();
+        let name_str = file_name.to_string_lossy();
+
+        // FIXME: These three cases are not correct, because it doesn't confirm that they actually are being used as AppleDouble. It should still traverse them here if they are not actually associated with an AppleDouble file being copied, or else they'll be omitted.
+        if options.apple_read_options.read_apple_double_alongside && name_str.starts_with("._") {
+            continue;
+        }
+        if options.apple_read_options.read_apple_double_zip && name_str == "__MACOSX" {
+            continue;
+        }
+        if options.apple_read_options.read_apple_double_netatalk && name_str == ".AppleDouble" {
+            continue;
+        }
+
         let rel_path = PathBuf::from(&file_name);
 
         items.push(DirEntryItem {
@@ -506,6 +548,18 @@ impl DirTraverser {
             }
 
             let file_name = entry.file_name();
+            let name_str = file_name.to_string_lossy();
+
+            if self.options.apple_read_options.read_apple_double_alongside && name_str.starts_with("._") {
+                continue;
+            }
+            if self.options.apple_read_options.read_apple_double_zip && name_str == "__MACOSX" {
+                continue;
+            }
+            if self.options.apple_read_options.read_apple_double_netatalk && name_str == ".AppleDouble" {
+                continue;
+            }
+
             let entry_rel = if dir_rel.as_os_str().is_empty() {
                 PathBuf::from(&file_name)
             } else {

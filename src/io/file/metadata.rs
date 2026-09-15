@@ -429,6 +429,17 @@ pub struct AppleMetadata {
     pub backup_timestamp_sec: Option<i64>,
 }
 
+impl AppleMetadata {
+    /// Returns true if all metadata fields are None.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.finder_info.is_none()
+            && self.real_name.is_none()
+            && self.comment.is_none()
+            && self.backup_timestamp_sec.is_none()
+    }
+}
+
 impl FileMetadata {
     /// Returns a reference to the originating environment description, if attached.
     #[must_use]

@@ -258,14 +258,56 @@ impl FileEntity {
     /// If `base_dir` is provided, `identity.relative_path` is calculated relative
     /// to `base_dir`. Otherwise, it uses the entry's filename.
     pub fn from_filesystem(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
-        Self::from_filesystem_internal(path, base_dir, true)
+        Self::from_filesystem_with_apple_options(
+            path,
+            base_dir,
+            &crate::file::apple_double::AppleReadOptions::default(),
+        )
+    }
+
+    /// Inspects an existing filesystem entry at `path` and builds a full `FileEntity`,
+    /// applying custom [`AppleReadOptions`].
+    pub fn from_filesystem_with_apple_options(
+        path: &Path,
+        base_dir: Option<&Path>,
+        apple_options: &crate::file::apple_double::AppleReadOptions,
+    ) -> Result<Self> {
+        let mut entity = Self::from_filesystem_internal(path, base_dir, true)?;
+        crate::file::apple_double::join_apple_double_or_single(
+            &mut entity,
+            path,
+            base_dir,
+            apple_options,
+        )?;
+        Ok(entity)
     }
 
     /// Inspects an existing filesystem entry at `path` and builds a `FileEntity`
     /// without reading or hashing the main file payload. Attached metadata and
     /// streams are still read and hashed in full.
     pub fn from_filesystem_metadata_only(path: &Path, base_dir: Option<&Path>) -> Result<Self> {
-        Self::from_filesystem_internal(path, base_dir, false)
+        Self::from_filesystem_metadata_only_with_apple_options(
+            path,
+            base_dir,
+            &crate::file::apple_double::AppleReadOptions::default(),
+        )
+    }
+
+    /// Inspects an existing filesystem entry at `path` and builds a `FileEntity`
+    /// without reading or hashing payload bytes, applying custom [`AppleReadOptions`].
+    pub fn from_filesystem_metadata_only_with_apple_options(
+        path: &Path,
+        base_dir: Option<&Path>,
+        apple_options: &crate::file::apple_double::AppleReadOptions,
+    ) -> Result<Self> {
+        let mut entity = Self::from_filesystem_internal(path, base_dir, false)?;
+        crate::file::apple_double::join_apple_double_or_single(
+            &mut entity,
+            path,
+            base_dir,
+            apple_options,
+        )?;
+        Ok(entity)
     }
 
     #[cfg(not(any(unix, windows)))]

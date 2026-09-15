@@ -48,8 +48,9 @@ pub mod traversal;
 pub mod verifier;
 
 pub use apple_double::{
-    AppleArchiveExt, AppleDoubleStyle, AppleMetadata, create_apple_archive_from_entity,
-    get_companion_path, serialize_apple_double_for_entity,
+    AppleArchiveExt, AppleDoubleStyle, AppleMetadata, AppleReadOptions, AppleWriteMode,
+    create_apple_archive_from_entity, get_companion_path, serialize_apple_double_for_entity,
+    write_apple_double_companion,
 };
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{
@@ -1507,6 +1508,7 @@ mod tests {
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
             force_overwrite: true,
+            apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
         };
 
         let dest_dir = SandboxableDir::open(temp.path()).unwrap();
@@ -1577,6 +1579,7 @@ mod tests {
                 path_policy: PathTraversalPolicy::StrictSandboxed,
                 copy_specials: false,
                 force_overwrite: true,
+                apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
             };
 
             materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();
