@@ -1553,6 +1553,8 @@ mod tests {
             let mut entity = FileEntity::from_filesystem(&src_path, None).unwrap();
             assert!(entity.used_noatime());
             entity.identity.relative_path = std::path::PathBuf::from("noatime_dest.txt");
+            entity.metadata.timestamps.birthtime_sec = None;
+            entity.metadata.timestamps.birthtime_nsec = None;
 
             let mut payload = DiskPayloadSource::open(&src_path).unwrap();
             let dest_dir = sandboxable_dir::SandboxableDir::open(temp.path()).unwrap();

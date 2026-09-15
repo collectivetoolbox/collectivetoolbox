@@ -1675,7 +1675,8 @@ mod tests {
             FileFlag::Dataless,
         ];
 
-        let platforms: [(OsFamily, &[FlagMapping], Option<(u32, u32)>); 7] = [
+        type PlatformSpec<'a> = (OsFamily, &'a [FlagMapping], Option<(u32, u32)>);
+        let platforms: [PlatformSpec<'_>; 7] = [
             (
                 OsFamily::Darwin,
                 DARWIN_FLAG_MAP,
