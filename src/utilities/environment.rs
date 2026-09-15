@@ -23,7 +23,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! TODO: A number of these are unimplemented.
 //! TODO: How will this interact with subprocesses? If things are checking the CLI directly, it won't work (a subprocess should still be considered to be running as GUI or CLI for instance even if it's not actually running those itself).
 
+use std::collections::BTreeMap;
 use std::env;
+
+use serde::{Deserialize, Serialize};
 
 use crate::bin2hex;
 use crate::pc_settings;
@@ -110,6 +113,17 @@ pub fn usize() -> u8 {
 pub fn os() -> String {
     env::consts::OS.to_string()
 }
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};use std::sync::OnceLock;use std::time::{Duration, SystemTime, UNIX_EPOCH};
+static CACHED_IPV4: OnceLock<u32> = OnceLock::new();static CACHED_IPV6: OnceLock<u128> = OnceLock::new();
+pub fn cached_public_ipv4() -> u32 {    *CACHED_IPV4.get_or_init(|| {        discover_outbound_ipv4()            .map(u32::from)            .unwrap_or(0)    })}
+pub fn cached_public_ipv6() -> u128 {    *CACHED_IPV6.get_or_init(|| {        discover_outbound_ipv6()            .map(u128::from)            .unwrap_or(0)    })}
+pub fn cached_local_ipv4() -> u32 {    *CACHED_IPV4.get_or_init(|| {        discover_outbound_ipv4()            .map(u32::from)            .unwrap_or(0)    })}
+pub fn cached_local_ipv6() -> u128 {    *CACHED_IPV6.get_or_init(|| {        discover_outbound_ipv6()            .map(u128::from)            .unwrap_or(0)    })}
+pub fn unix_system_time_now() -> u128 {    SystemTime::now()        .duration_since(UNIX_EPOCH)        .unwrap_or(Duration::ZERO)        .as_nanos()}
+pub fn unix_system_time_resolution() -> u128 {    let mut last = unix_system_time_now();    loop {        let now = unix_system_time_now();        if now > last {            return now - last;        }        std::hint::spin_loop();        last = now;    }}
+fn discover_outbound_ipv4() -> Option<Ipv4Addr> {    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;    socket.connect(("8.8.8.8", 80)).ok()?;    match socket.local_addr().ok()?.ip() {        IpAddr::V4(ip) => Some(ip),        _ => None,    }}
+fn discover_outbound_ipv6() -> Option<Ipv6Addr> {    let socket = UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 0)).ok()?;    socket        .connect(("2001:4860:4860::8888".parse::<Ipv6Addr>().ok()?, 80))        .ok()?;    match socket.local_addr().ok()?.ip() {        IpAddr::V6(ip) => Some(ip),        _ => None,    }}
+
 
 /// Is running on Unix-ish OS?
 pub fn is_unix() -> bool {
@@ -507,6 +521,236 @@ fn verify_official_signature_in_thread() -> bool {
     })
 }
 
+fn is_false(val: &bool) -> bool {
+    !*val
+}
+
+fn is_zero_u8(val: &u8) -> bool {
+    *val == 0
+}
+
+/// Detailed snapshot of the current application and platform environment.
+///
+/// Serializes to a compact format where omitted fields assume default
+/// values, and unknown fields are preserved during roundtrips for forward
+/// and backward extensibility.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct EnvDescription {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub os: String,
+
+    #[serde(skip_serializing_if = "is_zero_u8")]
+    pub usize_width: u8,
+
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub ctb_version: String,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_cli_lightweight: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_workspace: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_workspace_main_process: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_service_subprocess: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_browser_vm: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_browser_vm_fullscreen: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_browser_vm_mobile: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_v86: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_pwa: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_pwa_mobile: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_unix: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_linux: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_windows: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_macos: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_darwin: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub looks_like_gnustep: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub looks_like_nextstep_or_openstep: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_bsd: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_openbsd: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_dragonfly: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_freebsd: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_netbsd: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_public_website: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_official_public_website: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_local: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_webui: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_webui_in_system_browser: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_webui_in_webview: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_gui: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_cli: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_cli_tty: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_cli_videoterminal: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_release_build: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_debug_build: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_cargo_target_binary: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_in_test: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_branded_build: bool,
+
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_official_signed_build: bool,
+
+    #[serde(
+        flatten,
+        default,
+        skip_serializing_if = "std::collections::BTreeMap::is_empty"
+    )]
+    pub extra: BTreeMap<String, serde_json::Value>,
+}
+
+impl EnvDescription {
+    /// Capture a snapshot of the current execution environment.
+    pub fn capture() -> Self {
+        Self {
+            os: os(),
+            usize_width: usize(),
+            ctb_version: ctb_version().to_string(),
+            is_cli_lightweight: is_cli_lightweight(),
+            is_workspace: is_workspace(),
+            is_workspace_main_process: is_workspace_main_process(),
+            is_service_subprocess: is_service_subprocess(),
+            is_browser_vm: is_browser_vm(),
+            is_browser_vm_fullscreen: is_browser_vm_fullscreen(),
+            is_browser_vm_mobile: is_browser_vm_mobile(),
+            is_v86: is_v86(),
+            is_pwa: is_pwa(),
+            is_pwa_mobile: is_pwa_mobile(),
+            is_unix: is_unix(),
+            is_linux: is_linux(),
+            is_windows: is_windows(),
+            is_macos: is_macos(),
+            is_darwin: is_darwin(),
+            looks_like_gnustep: looks_like_gnustep(),
+            looks_like_nextstep_or_openstep: looks_like_nextstep_or_openstep(),
+            is_bsd: is_bsd(),
+            is_openbsd: is_openbsd(),
+            is_dragonfly: is_dragonfly(),
+            is_freebsd: is_freebsd(),
+            is_netbsd: is_netbsd(),
+            is_public_website: is_public_website(),
+            is_official_public_website: is_official_public_website(),
+            is_local: is_local(),
+            is_webui: is_webui(),
+            is_webui_in_system_browser: is_webui_in_system_browser(),
+            is_webui_in_webview: is_webui_in_webview(),
+            is_gui: is_gui(),
+            is_cli: is_cli(),
+            is_cli_tty: is_cli_tty(),
+            is_cli_videoterminal: is_cli_videoterminal(),
+            is_release_build: is_release_build(),
+            is_debug_build: is_debug_build(),
+            is_cargo_target_binary: is_cargo_target_binary(),
+            is_in_test: is_in_test(),
+            is_branded_build: is_branded_build(),
+            is_official_signed_build: is_official_signed_build(),
+            extra: BTreeMap::new(),
+        }
+    }
+
+    /// Alias for [`Self::capture`].
+    pub fn current() -> Self {
+        Self::capture()
+    }
+
+    /// Parse `ctb_version` as a semver [`semver::Version`].
+    pub fn ctb_version_semver(&self) -> semver::Version {
+        // Reason for fallback: unparseable version string falls back to 0.0.0 semver
+        semver::Version::parse(&self.ctb_version)
+            .unwrap_or_else(|_| semver::Version::new(0, 0, 0))
+    }
+
+    /// Serialize this environment description to a compact JSON string.
+    pub fn to_json(&self) -> anyhow::Result<String> {
+        serde_json::to_string(self).map_err(Into::into)
+    }
+
+    /// Serialize this environment description to a pretty-printed JSON string.
+    pub fn to_json_pretty(&self) -> anyhow::Result<String> {
+        serde_json::to_string_pretty(self).map_err(Into::into)
+    }
+
+    /// Deserialize an environment description from a JSON string.
+    pub fn from_json(json: &str) -> anyhow::Result<Self> {
+        serde_json::from_str(json).map_err(Into::into)
+    }
+}
+
+/// Capture a snapshot of the current execution environment as an
+/// [`EnvDescription`].
+pub fn capture() -> EnvDescription {
+    EnvDescription::capture()
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -546,7 +790,57 @@ mod tests {
 
         let _ = is_darwin();
         let _ = looks_like_gnustep();
-        let _ = looks_like_nextstep();
-        let _ = looks_like_openstep();
+        let _ = looks_like_nextstep_or_openstep();
+    }
+
+    #[crate::ctb_test]
+    fn test_env_description_capture_and_serialization() {
+        let desc = EnvDescription::capture();
+        assert_eq!(desc.os, os());
+        assert_eq!(desc.usize_width, usize());
+        assert_eq!(desc.is_linux, is_linux());
+
+        // Test compact JSON serialization
+        let json = desc.to_json().expect("failed to serialize EnvDescription");
+        // False fields should be omitted from compact JSON
+        if !desc.is_windows {
+            assert!(!json.contains("\"is_windows\""));
+        }
+        if desc.is_linux {
+            assert!(json.contains("\"is_linux\":true"));
+        }
+
+        // Test roundtrip
+        let deserialized = EnvDescription::from_json(&json)
+            .expect("failed to deserialize EnvDescription");
+        assert_eq!(desc, deserialized);
+
+        // Test semver parsing helper
+        let semver = desc.ctb_version_semver();
+        assert_eq!(semver, ctb_version_semver());
+
+        // Test empty JSON deserializes to default values
+        let empty_desc = EnvDescription::from_json("{}")
+            .expect("failed to deserialize empty JSON");
+        assert_eq!(empty_desc, EnvDescription::default());
+
+        // Test extensibility with unknown/future fields
+        let extended_json = r#"{"os":"linux","future_flag":true,"future_num":42}"#;
+        let mut parsed = EnvDescription::from_json(extended_json)
+            .expect("failed to deserialize extended JSON");
+        assert_eq!(parsed.os, "linux");
+        assert_eq!(
+            parsed.extra.get("future_flag"),
+            Some(&serde_json::Value::Bool(true))
+        );
+        assert_eq!(
+            parsed.extra.get("future_num"),
+            Some(&serde_json::json!(42))
+        );
+
+        // Unknown fields should roundtrip in serialization
+        let reserialized = parsed.to_json().expect("reserialization failed");
+        assert!(reserialized.contains("\"future_flag\":true"));
+        assert!(reserialized.contains("\"future_num\":42"));
     }
 }
