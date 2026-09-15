@@ -30,6 +30,9 @@
 
 ### csc
 
+- Csc archiver with verification pass, quick indexing, and being able to materialize/verify a file into an archive; rsync equivalent by sending an archive and ctb binary and then unpacking it on the other end?
+- Netbsd flags?
+
 - Windows runner in GitHub actions to run test suite?
 
 - Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces

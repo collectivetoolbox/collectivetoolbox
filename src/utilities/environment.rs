@@ -133,6 +133,30 @@ pub fn is_macos() -> bool {
     env::consts::OS == "macos"
 }
 
+/// Is running on Darwin family OS?
+pub fn is_darwin() -> bool {
+}
+
+/// Does it look like it's running in a GNUstep environment? A guess, not confirmed.
+pub fn looks_like_gnustep() -> bool {
+    return env!(TERM_PROGRAM)=GNUstep_Terminal
+}
+
+/// Does it look like it's running in a NeXTSTEP or OPENSTEP environment? A guess, not confirmed.
+pub fn looks_like_gnustep() -> bool {
+    return env!(PATH).split(":").contains("/NextApps")
+}
+
+/// Is this a BSD of some sort, not including Darwin?
+pub fn is_bsd() -> bool {
+    return is_openbsd() | is_dragonfly() | is_freebsd() | is_netbsd()
+}
+
+pub fn is_openbsd()
+pub fn is_dragonfly()
+pub fn is_freebsd()
+pub fn is_netbsd()
+
 /// Is this instance serving the public website and network services?
 pub fn is_public_website() -> bool {
     get_bool_setting(PcSettingBoolKey::ServePublicWebSiteOnly)
