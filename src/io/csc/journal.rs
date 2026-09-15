@@ -253,7 +253,7 @@ impl JournalWriter {
     pub fn record_entity(&mut self, entity: &FileEntity) {
         let mut entity = entity.clone();
         if let Some(ref env) = self.environment {
-            attach_session_environment_if_none(&mut entity, env);
+            attach_session_environment(&mut entity, env);
         }
         self.uncommitted_entities.push(entity);
     }
@@ -551,18 +551,11 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 }
 
 fn attach_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
-    entity.metadata.environment = Some(Arc::clone(env));
-    for stream in &mut entity.streams {
-        attach_session_environment(&mut stream.entity, env);
-    }
-}
-
-fn attach_session_environment_if_none(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
-    if entity.metadata.environment.is_none() {
+    if !entity.metadata.environment.as_ref().is_some_and(|e| Arc::ptr_eq(e, env)) {
         entity.metadata.environment = Some(Arc::clone(env));
     }
     for stream in &mut entity.streams {
-        attach_session_environment_if_none(&mut stream.entity, env);
+        attach_session_environment(&mut stream.entity, env);
     }
 }
 

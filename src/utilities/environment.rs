@@ -23,9 +23,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! TODO: A number of these are unimplemented.
 //! TODO: How will this interact with subprocesses? If things are checking the CLI directly, it won't work (a subprocess should still be considered to be running as GUI or CLI for instance even if it's not actually running those itself).
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
+use std::sync::atomic::{AtomicU64, AtomicU8, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -65,17 +67,16 @@ impl ProcessRole {
     }
 }
 
-static PROCESS_ROLE: std::sync::atomic::AtomicU8 =
-    std::sync::atomic::AtomicU8::new(0);
+static PROCESS_ROLE: AtomicU8 = AtomicU8::new(0);
 
 /// Set the current process role.
 pub fn set_process_role(role: ProcessRole) {
-    PROCESS_ROLE.store(role.to_u8(), std::sync::atomic::Ordering::Release);
+    PROCESS_ROLE.store(role.to_u8(), Ordering::Release);
 }
 
 /// Reset the process role (primarily used for unit testing).
 pub fn reset_process_role_for_testing() {
-    PROCESS_ROLE.store(0, std::sync::atomic::Ordering::Release);
+    PROCESS_ROLE.store(0, Ordering::Release);
 }
 
 /// Get the current process role.
@@ -1136,14 +1137,148 @@ pub fn capture_quick() -> EnvDescription {
     EnvDescription::capture_quick()
 }
 
+static GLOBAL_OPERATION_ENV: RwLock<Option<Arc<EnvDescription>>> =
+    RwLock::new(None);
+static OPERATION_EPOCH: AtomicU64 = AtomicU64::new(1);
+
+thread_local! {
+    static ACTIVE_SCOPE: RefCell<Option<Arc<EnvDescription>>> =
+        const { RefCell::new(None) };
+    static EPOCH_CACHE: RefCell<(u64, Option<Arc<EnvDescription>>)> =
+        const { RefCell::new((0, None)) };
+}
+
+/// An RAII guard that establishes an active [`EnvDescription`] scope for the
+/// current thread's operation.
+///
+/// While this scope is active, calls to [`capture_quick_arc()`] will return this
+/// exact [`Arc<EnvDescription>`] without re-probing or allocating.
+#[derive(Debug)]
+pub struct EnvironmentScope {
+    previous: Option<Arc<EnvDescription>>,
+}
+
+impl EnvironmentScope {
+    /// Enters a new thread-local environment scope with the given environment.
+    pub fn enter(env: Arc<EnvDescription>) -> Self {
+        let previous =
+            ACTIVE_SCOPE.with(|scope| scope.borrow_mut().replace(env));
+        Self { previous }
+    }
+
+    /// Captures a fresh quick environment snapshot and enters a thread-local
+    /// scope.
+    pub fn enter_fresh() -> Self {
+        Self::enter(Arc::new(capture_quick()))
+    }
+}
+
+impl Drop for EnvironmentScope {
+    fn drop(&mut self) {
+        ACTIVE_SCOPE.with(|scope| {
+            *scope.borrow_mut() = self.previous.take();
+        });
+    }
+}
+
+/// An RAII guard that establishes an active [`EnvDescription`] process-wide for
+/// multi-threaded operations (such as parallel directory traversal).
+#[derive(Debug)]
+pub struct GlobalEnvironmentScope {
+    previous: Option<Arc<EnvDescription>>,
+}
+
+impl GlobalEnvironmentScope {
+    /// Enters a process-wide environment scope with the given environment.
+    pub fn enter(env: Arc<EnvDescription>) -> Self {
+        let previous = if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
+            lock.replace(env)
+        } else {
+            None
+        };
+        Self { previous }
+    }
+
+    /// Captures a fresh quick environment snapshot and enters a process-wide
+    /// scope.
+    pub fn enter_fresh() -> Self {
+        Self::enter(Arc::new(capture_quick()))
+    }
+}
+
+impl Drop for GlobalEnvironmentScope {
+    fn drop(&mut self) {
+        if let Ok(mut lock) = GLOBAL_OPERATION_ENV.write() {
+            *lock = self.previous.take();
+        }
+    }
+}
+
+/// Executes a closure within an active thread-local [`EnvironmentScope`].
+pub fn with_environment_scope<F, R>(env: Arc<EnvDescription>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let _guard = EnvironmentScope::enter(env);
+    f()
+}
+
+/// Executes a closure within an active process-wide [`GlobalEnvironmentScope`].
+pub fn with_global_environment_scope<F, R>(env: Arc<EnvDescription>, f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    let _guard = GlobalEnvironmentScope::enter(env);
+    f()
+}
+
+/// Increments the operation epoch, causing any subsequent unscoped calls to
+/// [`capture_quick_arc()`] to capture a fresh [`EnvDescription`] snapshot.
+///
+/// Note that this does NOT reset or clear global slow/network caches (such as
+/// public/local IPv4 or server time offset), which remain cached across
+/// operations.
+pub fn advance_operation_epoch() -> u64 {
+    OPERATION_EPOCH.fetch_add(1, Ordering::SeqCst).wrapping_add(1)
+}
+
+/// Invalidate the unscoped quick environment snapshot cache without resetting
+/// slow network-sourced caches.
+pub fn reset_quick_env_cache() {
+    let _ = advance_operation_epoch();
+}
+
 /// Returns a shared [`Arc<EnvDescription>`] snapshot of the current
 /// environment.
 ///
-/// Lazily cached using [`OnceLock`] so repeated calls avoid re-reading the
-/// environment and allocating new descriptions.
+/// Prioritizes:
+/// 1. An active thread-local [`EnvironmentScope`].
+/// 2. An active process-wide [`GlobalEnvironmentScope`].
+/// 3. An unscoped thread-local epoch cache (invalidated per-operation via
+///    [`advance_operation_epoch()`] or [`reset_quick_env_cache()`]).
 pub fn capture_quick_arc() -> Arc<EnvDescription> {
-    static QUICK_DESC: OnceLock<Arc<EnvDescription>> = OnceLock::new();
-    QUICK_DESC.get_or_init(|| Arc::new(capture_quick())).clone()
+    if let Some(env) = ACTIVE_SCOPE.with(|scope| scope.borrow().clone()) {
+        return env;
+    }
+
+    if let Ok(lock) = GLOBAL_OPERATION_ENV.read() {
+        if let Some(ref env) = *lock {
+            return Arc::clone(env);
+        }
+    }
+
+    let current_epoch = OPERATION_EPOCH.load(Ordering::Relaxed);
+    EPOCH_CACHE.with(|cache| {
+        let mut borrow = cache.borrow_mut();
+        if borrow.0 == current_epoch {
+            if let Some(ref env) = borrow.1 {
+                return Arc::clone(env);
+            }
+        }
+        let fresh = Arc::new(capture_quick());
+        *borrow = (current_epoch, Some(Arc::clone(&fresh)));
+        fresh
+    })
 }
 
 #[cfg(test)]
@@ -1334,10 +1469,46 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_capture_quick_arc() {
+        // Repeated calls within the same epoch share the exact same Arc
         let arc1 = capture_quick_arc();
         let arc2 = capture_quick_arc();
         assert!(Arc::ptr_eq(&arc1, &arc2));
         assert_eq!(arc1.os, os());
+
+        // Advancing the operation epoch forces a fresh Arc snapshot for subsequent operations
+        let _ = advance_operation_epoch();
+        let arc3 = capture_quick_arc();
+        assert!(!Arc::ptr_eq(&arc1, &arc3));
+        let arc4 = capture_quick_arc();
+        assert!(Arc::ptr_eq(&arc3, &arc4));
+
+        // Thread-local EnvironmentScope overrides unscoped caching
+        let custom_env = Arc::new(capture_quick());
+        {
+            let _scope = EnvironmentScope::enter(Arc::clone(&custom_env));
+            let scoped = capture_quick_arc();
+            assert!(Arc::ptr_eq(&scoped, &custom_env));
+        }
+        // Exiting the scope restores previous behavior
+        let after_scope = capture_quick_arc();
+        assert!(!Arc::ptr_eq(&after_scope, &custom_env));
+
+        // GlobalEnvironmentScope works across threads
+        let global_custom = Arc::new(capture_quick());
+        {
+            let _global_scope = GlobalEnvironmentScope::enter(Arc::clone(&global_custom));
+            let current = capture_quick_arc();
+            assert!(Arc::ptr_eq(&current, &global_custom));
+        }
+
+        // Verify that advancing the operation epoch does NOT clear slow network caches
+        if let Ok(ip) = local_ipv4() {
+            let cached = CACHED_LOCAL_IPV4.read().unwrap();
+            assert_eq!(*cached, Some(ip));
+            let _ = advance_operation_epoch();
+            let cached_after = CACHED_LOCAL_IPV4.read().unwrap();
+            assert_eq!(*cached_after, Some(ip));
+        }
     }
 
     #[crate::ctb_test]

@@ -221,12 +221,16 @@ impl FileEntity {
         self.metadata.environment()
     }
 
-    /// Attaches a shared execution environment snapshot to this file entity.
+    /// Attaches a shared execution environment snapshot to this file entity and
+    /// its attached streams.
     pub fn set_environment(
         &mut self,
         env: std::sync::Arc<ctb_utilities::environment::EnvDescription>,
     ) {
-        self.metadata.set_environment(env);
+        self.metadata.set_environment(std::sync::Arc::clone(&env));
+        for stream in &mut self.streams {
+            stream.entity.set_environment(std::sync::Arc::clone(&env));
+        }
     }
 
     /// Materializes this entity onto the filesystem within a [`SandboxableDir`].

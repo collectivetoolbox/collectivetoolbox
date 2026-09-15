@@ -8,7 +8,7 @@ Built with a focus on user respect and transparency. Free‑software licensing f
 
 ## Disclaimer
 
-Please note: this is currently a hobby project provided "as is" (see the license for the full disclaimer) and is not suited for use for security critical, business critical, other important purposes.
+Please note: this is currently a hobby project provided "as is" (see the license for the full disclaimer) and is not suited for use for security critical, business critical, or other important purposes.
 
 ## Licensing
 

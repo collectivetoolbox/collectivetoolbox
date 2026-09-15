@@ -44,6 +44,8 @@ use std::time::Instant;
 /// copy pipeline (`csc --delete-manifest-after`) and unlinks source entities
 /// only after verification completes successfully.
 pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
+    let _env_scope =
+        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
     let start_time = Instant::now();
     anyhow::ensure!(
         args.paths.len() >= 2,

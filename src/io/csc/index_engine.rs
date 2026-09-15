@@ -61,6 +61,8 @@ pub fn derive_source_name(journal_path: &Path, explicit_name: Option<&str>) -> S
 /// Executes directory indexing into a .cscjournal and/or compiles journals into
 /// an indexed SQLite database.
 pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
+    let _env_scope =
+        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
     let mut targets = args.targets.clone();
     if targets.is_empty() {
         if let Some(ref jp) = args.journal_path {

@@ -37,6 +37,8 @@ use std::time::Instant;
 
 /// Main entry point for the `csc` command called by CLI routing.
 pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
+    let _env_scope =
+        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
     let start_time = Instant::now();
 
     // 1. Startup root / privilege check and warning
