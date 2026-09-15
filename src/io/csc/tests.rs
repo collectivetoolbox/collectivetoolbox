@@ -107,6 +107,16 @@ mod csc_tests {
             recursive: true,
             archive: true,
             dry_run: false,
+            read_apple_double: None,
+            read_apple_double_alongside: false,
+            no_read_apple_double_alongside: false,
+            read_apple_double_zip: false,
+            read_apple_double_netatalk: false,
+            read_apple_single: false,
+            maybe_write_apple_double: None,
+            force_write_apple_double: None,
+            maybe_write_apple_single: false,
+            force_write_apple_single: false,
         }
     }
 
@@ -1220,6 +1230,7 @@ mod csc_tests {
                 read_time: Some(read_time_expected),
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size: 42,
@@ -1261,6 +1272,7 @@ mod csc_tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Hardlink {
                 target_relative_path: b"hello.txt".to_vec(),
@@ -1406,6 +1418,7 @@ mod csc_tests {
                 read_time: Some(pre_epoch_time),
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -2645,6 +2658,7 @@ mod csc_tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             };
 
             let err = ctb_io::file::apply_entity_metadata(
@@ -3490,6 +3504,7 @@ mod csc_tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size: 25,

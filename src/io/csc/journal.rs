@@ -886,6 +886,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size: 0,
@@ -964,6 +965,7 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             read_time,
             filesystem_type: None,
             environment: None,
+            apple: None,
         },
         kind,
         streams,

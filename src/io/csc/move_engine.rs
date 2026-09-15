@@ -159,6 +159,16 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     recursive: true,
                     archive: true,
                     dry_run: false,
+                    read_apple_double: None,
+                    read_apple_double_alongside: false,
+                    no_read_apple_double_alongside: false,
+                    read_apple_double_zip: false,
+                    read_apple_double_netatalk: false,
+                    read_apple_single: false,
+                    maybe_write_apple_double: None,
+                    force_write_apple_double: None,
+                    maybe_write_apple_single: false,
+                    force_write_apple_single: false,
                 };
 
                 let mut journal = JournalWriter::create_new(

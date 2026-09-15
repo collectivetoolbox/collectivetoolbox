@@ -723,7 +723,20 @@ pub fn audit_entity_detailed(
 
     // 6. Streams and Extended Attributes
     if !options.ignore_xattrs {
-        let on_disk_streams = read_and_hash_streams(path)?;
+        let mut on_disk_streams = read_and_hash_streams(path)?;
+        if on_disk_streams.is_empty() && !expected.streams.is_empty() {
+            let mut check_entity = expected.clone();
+            check_entity.streams.clear();
+            let all_apple_opts = crate::file::apple_double::AppleReadOptions {
+                read_apple_double_alongside: true,
+                read_apple_double_zip: true,
+                read_apple_double_netatalk: true,
+                read_apple_single: true,
+            };
+            if crate::file::apple_double::join_apple_double_or_single(&mut check_entity, path, None, &all_apple_opts).is_ok() {
+                on_disk_streams = check_entity.streams;
+            }
+        }
         let mut expected_map = HashMap::new();
         for s in &expected.streams {
             let hash = match &s.entity.kind {

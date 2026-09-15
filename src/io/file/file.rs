@@ -49,8 +49,8 @@ pub mod verifier;
 
 pub use apple_double::{
     AppleArchiveExt, AppleDoubleStyle, AppleMetadata, AppleReadOptions, AppleWriteMode,
-    create_apple_archive_from_entity, get_companion_path, serialize_apple_double_for_entity,
-    write_apple_double_companion,
+    create_apple_archive_from_entity, get_companion_path, is_apple_double_file,
+    serialize_apple_double_for_entity, write_apple_double_companion,
 };
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{

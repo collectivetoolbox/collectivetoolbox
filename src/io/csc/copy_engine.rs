@@ -131,6 +131,8 @@ pub fn execute_copy_pipeline(
     let copy_task = progress.start_task("Copying", None);
 
     let strict_lossless = !args.best_effort_metadata && !args.allow_unknown_fs;
+    let apple_write_mode = args.resolve_apple_write_mode()?;
+    let apple_read_options = args.resolve_apple_read_options();
     let options = MaterializeOptions {
         dry_run: args.dry_run,
         strict_lossless,
@@ -138,6 +140,7 @@ pub fn execute_copy_pipeline(
         path_policy: PathTraversalPolicy::StrictSandboxed,
         copy_specials: args.copy_specials_as_specials,
         force_overwrite: args.always_overwrite,
+        apple_write_mode,
     };
 
     // =========================================================================
@@ -181,7 +184,7 @@ pub fn execute_copy_pipeline(
                 vec![(src_root.clone(), tgt_root.clone())];
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
-                let dir_entity = FileEntity::from_filesystem(&curr_src, Some(src_root))?;
+                let dir_entity = FileEntity::from_filesystem_with_apple_options(&curr_src, Some(src_root), &apple_read_options)?;
                 validate_filesystem_known(&curr_src, dir_entity.metadata.filesystem_type.as_deref(), args)?;
 
                 if !args.dry_run {
@@ -203,7 +206,8 @@ pub fn execute_copy_pipeline(
 
                 let traversal_opts = ctb_io::file::TraversalOptions::new()
                     .one_file_system(args.one_file_system)
-                    .error_policy(ctb_io::file::OnTraversalError::Bail);
+                    .error_policy(ctb_io::file::OnTraversalError::Bail)
+                    .apple_read_options(apple_read_options);
 
                 let dir_entries = ctb_io::file::read_dir_safe(&curr_src, &traversal_opts)?;
 
@@ -226,7 +230,7 @@ pub fn execute_copy_pipeline(
                     } else if item.is_symlink {
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         let mut sym_entity =
-                            FileEntity::from_filesystem(&entry_src, Some(src_root))?;
+                            FileEntity::from_filesystem_with_apple_options(&entry_src, Some(src_root), &apple_read_options)?;
                         validate_filesystem_known(&entry_src, sym_entity.metadata.filesystem_type.as_deref(), args)?;
                         sym_entity.identity.relative_path = entry_rel;
                         sym_entity.identity.raw_relative_path =
@@ -476,7 +480,8 @@ fn copy_single_item(
     files_to_verify: &mut Vec<(PathBuf, PathBuf, FileEntity)>,
 ) -> Result<bool> {
     // 2. Discover full entity from filesystem
-    let mut entity = FileEntity::from_filesystem(src_path, None)?;
+    let apple_read_options = args.resolve_apple_read_options();
+    let mut entity = FileEntity::from_filesystem_with_apple_options(src_path, None, &apple_read_options)?;
     validate_filesystem_known(src_path, entity.metadata.filesystem_type.as_deref(), args)?;
     entity.identity.relative_path = dest_rel_path.to_path_buf();
     entity.identity.raw_relative_path = dest_rel_path.as_os_str().as_encoded_bytes().to_vec();

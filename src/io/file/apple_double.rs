@@ -347,6 +347,29 @@ pub fn write_apple_double_companion(
     Ok(Some(companion_path))
 }
 
+/// Returns whether the file at `path` is a regular file starting with AppleDouble magic bytes.
+pub fn is_apple_double_file(path: &Path) -> bool {
+    let Ok(meta) = path.symlink_metadata() else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    use std::io::Read;
+    let mut header = [0u8; 4];
+    if file.read_exact(&mut header).is_err() {
+        return false;
+    }
+    let Ok(magic_arr) = <[u8; 4]>::try_from(&header[..4]) else {
+        return false;
+    };
+    let magic = u32::from_be_bytes(magic_arr);
+    magic == APPLEDOUBLE_MAGIC_BE || magic == APPLEDOUBLE_MAGIC_LE
+}
+
 /// Checks for and joins AppleDouble companion files or AppleSingle archive into `entity`.
 pub fn join_apple_double_or_single(
     entity: &mut FileEntity,
