@@ -135,27 +135,68 @@ pub fn is_macos() -> bool {
 
 /// Is running on Darwin family OS?
 pub fn is_darwin() -> bool {
+    cfg!(target_vendor = "apple")
+        || matches!(
+            env::consts::OS,
+            "macos" | "ios" | "watchos" | "tvos" | "visionos" | "darwin"
+        )
 }
 
-/// Does it look like it's running in a GNUstep environment? A guess, not confirmed.
+/// Does it look like it's running in a GNUstep environment? A guess, not
+/// confirmed.
 pub fn looks_like_gnustep() -> bool {
-    return env!(TERM_PROGRAM)=GNUstep_Terminal
+    // Using GNUstep Terminal -> probably GNUstep environment
+    if let Ok(term) = env::var("TERM_PROGRAM") {
+        if term == "GNUstep_Terminal" {
+            return true;
+        }
+    }
+    if let Ok(wmaker) = env::var("WMAKER_USER_ROOT") {
+        if wmaker != "" {
+            return true;
+        }
+    }
+    // Multiple LLMs suggest you can use these, but I couldn't confirm it and it
+    // doesn't appear to be the case on my system (though I haven't tried a
+    // dedicated WindowMaker session):
+    // env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
+    //     || env::var_os("GNUSTEP_USER_ROOT").is_some()
+    false
 }
 
-/// Does it look like it's running in a NeXTSTEP or OPENSTEP environment? A guess, not confirmed.
-pub fn looks_like_gnustep() -> bool {
-    return env!(PATH).split(":").contains("/NextApps")
+/// Does it look like it's running in a NeXTSTEP or OPENSTEP environment? A
+/// guess, not confirmed.
+pub fn looks_like_nextstep_or_openstep() -> bool {
+    let Ok(path) = env::var("PATH") else {
+        return false;
+    };
+    path.split(':').any(|entry| entry.trim_end_matches('/') == "/NextApps")
 }
 
 /// Is this a BSD of some sort, not including Darwin?
 pub fn is_bsd() -> bool {
-    return is_openbsd() | is_dragonfly() | is_freebsd() | is_netbsd()
+    is_openbsd() || is_dragonfly() || is_freebsd() || is_netbsd()
 }
 
-pub fn is_openbsd()
-pub fn is_dragonfly()
-pub fn is_freebsd()
-pub fn is_netbsd()
+/// Is running on OpenBSD?
+pub fn is_openbsd() -> bool {
+    env::consts::OS == "openbsd"
+}
+
+/// Is running on DragonFly BSD?
+pub fn is_dragonfly() -> bool {
+    env::consts::OS == "dragonfly"
+}
+
+/// Is running on FreeBSD?
+pub fn is_freebsd() -> bool {
+    env::consts::OS == "freebsd"
+}
+
+/// Is running on NetBSD?
+pub fn is_netbsd() -> bool {
+    env::consts::OS == "netbsd"
+}
 
 /// Is this instance serving the public website and network services?
 pub fn is_public_website() -> bool {
@@ -483,5 +524,29 @@ mod tests {
     #[crate::ctb_test]
     fn test_is_official_signed_build_defaults_to_false() {
         assert!(!is_official_signed_build());
+    }
+
+    #[crate::ctb_test]
+    fn test_os_and_environment_detection() {
+        if is_linux() {
+            assert!(!is_windows());
+            assert!(!is_macos());
+            assert!(!is_darwin());
+            assert!(!is_bsd());
+            assert!(!is_openbsd());
+            assert!(!is_dragonfly());
+            assert!(!is_freebsd());
+            assert!(!is_netbsd());
+        }
+
+        assert_eq!(
+            is_bsd(),
+            is_openbsd() || is_dragonfly() || is_freebsd() || is_netbsd()
+        );
+
+        let _ = is_darwin();
+        let _ = looks_like_gnustep();
+        let _ = looks_like_nextstep();
+        let _ = looks_like_openstep();
     }
 }
