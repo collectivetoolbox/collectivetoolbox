@@ -162,6 +162,8 @@ pub fn build_routes(state: AppState) -> Router {
         )
         // --- updates controller routes ---
         .route("/api/update-status", get(updates::get_update_status))
+        // --- environment IP controller route ---
+        .route("/api/ip", get(web::get_client_ip))
         // --- base controller routes (docs, css, static, fallback) ---
         .route("/app.css", get(base::get_app_css))
         .route("/docs", get(base::get_doc_index))

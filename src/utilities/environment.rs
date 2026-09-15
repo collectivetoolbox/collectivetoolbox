@@ -25,7 +25,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
 use std::env;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
+use std::sync::{OnceLock, RwLock};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
 use crate::bin2hex;
@@ -113,16 +117,280 @@ pub fn usize() -> u8 {
 pub fn os() -> String {
     env::consts::OS.to_string()
 }
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};use std::sync::OnceLock;use std::time::{Duration, SystemTime, UNIX_EPOCH};
-static CACHED_IPV4: OnceLock<u32> = OnceLock::new();static CACHED_IPV6: OnceLock<u128> = OnceLock::new();
-pub fn cached_public_ipv4() -> u32 {    *CACHED_IPV4.get_or_init(|| {        discover_outbound_ipv4()            .map(u32::from)            .unwrap_or(0)    })}
-pub fn cached_public_ipv6() -> u128 {    *CACHED_IPV6.get_or_init(|| {        discover_outbound_ipv6()            .map(u128::from)            .unwrap_or(0)    })}
-pub fn cached_local_ipv4() -> u32 {    *CACHED_IPV4.get_or_init(|| {        discover_outbound_ipv4()            .map(u32::from)            .unwrap_or(0)    })}
-pub fn cached_local_ipv6() -> u128 {    *CACHED_IPV6.get_or_init(|| {        discover_outbound_ipv6()            .map(u128::from)            .unwrap_or(0)    })}
-pub fn unix_system_time_now() -> u128 {    SystemTime::now()        .duration_since(UNIX_EPOCH)        .unwrap_or(Duration::ZERO)        .as_nanos()}
-pub fn unix_system_time_resolution() -> u128 {    let mut last = unix_system_time_now();    loop {        let now = unix_system_time_now();        if now > last {            return now - last;        }        std::hint::spin_loop();        last = now;    }}
-fn discover_outbound_ipv4() -> Option<Ipv4Addr> {    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;    socket.connect(("8.8.8.8", 80)).ok()?;    match socket.local_addr().ok()?.ip() {        IpAddr::V4(ip) => Some(ip),        _ => None,    }}
-fn discover_outbound_ipv6() -> Option<Ipv6Addr> {    let socket = UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 0)).ok()?;    socket        .connect(("2001:4860:4860::8888".parse::<Ipv6Addr>().ok()?, 80))        .ok()?;    match socket.local_addr().ok()?.ip() {        IpAddr::V6(ip) => Some(ip),        _ => None,    }}
+static CACHED_TIME_RESOLUTION: OnceLock<u128> = OnceLock::new();
+static CACHED_LOCAL_IPV4: RwLock<Option<Ipv4Addr>> = RwLock::new(None);
+static CACHED_LOCAL_IPV6: RwLock<Option<Ipv6Addr>> = RwLock::new(None);
+static CACHED_PUBLIC_IPV4: RwLock<Option<Ipv4Addr>> = RwLock::new(None);
+static CACHED_PUBLIC_IPV6: RwLock<Option<Ipv6Addr>> = RwLock::new(None);
+
+#[derive(Deserialize)]
+struct ServerIpResponse {
+    ip: String,
+    server_time_nanos: u128,
+}
+
+/// Return the current system time in nanoseconds since the Unix epoch.
+pub fn unix_system_time_now() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        // Reason for fallback: system clocks set before the Unix epoch clamp to zero elapsed duration
+        .unwrap_or(Duration::ZERO)
+        .as_nanos()
+}
+
+/// Detect the resolution of the system clock in nanoseconds.
+///
+/// On POSIX systems, this queries `clock_getres(CLOCK_REALTIME)`. On Windows,
+/// it assumes high-precision timer increments (100 ns). In fallback or
+/// virtualized environments, it computes the minimum non-zero delta across
+/// multiple bounded samples to avoid pegging the CPU.
+pub fn unix_system_time_resolution() -> Result<u128> {
+    if let Some(&res) = CACHED_TIME_RESOLUTION.get() {
+        return Ok(res);
+    }
+
+    let detected = detect_system_time_resolution()?;
+    let _ = CACHED_TIME_RESOLUTION.set(detected);
+    Ok(detected)
+}
+
+fn detect_system_time_resolution() -> Result<u128> {
+    #[cfg(unix)]
+    {
+        if let Ok(ts) =
+            nix::time::clock_getres(nix::time::ClockId::CLOCK_REALTIME)
+        {
+            let nanos = Duration::from(ts).as_nanos();
+            if nanos > 0 {
+                return Ok(nanos);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return Ok(100);
+    }
+
+    sample_system_time_resolution()
+}
+
+fn sample_system_time_resolution() -> Result<u128> {
+    let mut min_delta = u128::MAX;
+    let mut samples = 0_usize;
+    let mut last = unix_system_time_now();
+    let mut iterations = 0_usize;
+
+    while samples < 10 && iterations < 1_000 {
+        iterations = iterations.saturating_add(1);
+        let now = unix_system_time_now();
+        if now > last {
+            let delta = now.saturating_sub(last);
+            if delta < min_delta {
+                min_delta = delta;
+            }
+            samples = samples.saturating_add(1);
+            last = now;
+        } else if now < last {
+            // Protect against NTP / backward clock steps
+            last = now;
+        }
+        std::hint::spin_loop();
+    }
+
+    if min_delta < u128::MAX && min_delta > 0 {
+        Ok(min_delta)
+    } else {
+        Ok(1_000)
+    }
+}
+
+/// Discover the local outbound IPv4 address by querying the routing table.
+pub fn local_ipv4() -> Result<Ipv4Addr> {
+    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
+        .context("Failed to bind UDP socket for local IPv4 discovery")?;
+    socket
+        .connect(("8.8.8.8", 80))
+        .context("Failed to route to target for local IPv4 discovery")?;
+    match socket.local_addr()?.ip() {
+        IpAddr::V4(ip) => Ok(ip),
+        IpAddr::V6(_) => bail!("Expected IPv4 address, got IPv6"),
+    }
+}
+
+/// Discover the local outbound IPv6 address by querying the routing table.
+pub fn local_ipv6() -> Result<Ipv6Addr> {
+    let socket = UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 0))
+        .context("Failed to bind UDP socket for local IPv6 discovery")?;
+    let target = "2001:4860:4860::8888"
+        .parse::<Ipv6Addr>()
+        .context("Invalid IPv6 target address")?;
+    socket
+        .connect((target, 80))
+        .context("Failed to route to target for local IPv6 discovery")?;
+    match socket.local_addr()?.ip() {
+        IpAddr::V6(ip) => Ok(ip),
+        IpAddr::V4(_) => bail!("Expected IPv6 address, got IPv4"),
+    }
+}
+
+/// Return cached local outbound IPv4 address, discovering if not cached.
+pub fn cached_local_ipv4() -> Result<Ipv4Addr> {
+    if let Ok(lock) = CACHED_LOCAL_IPV4.read() {
+        if let Some(ip) = *lock {
+            return Ok(ip);
+        }
+    }
+    let ip = local_ipv4()?;
+    if let Ok(mut lock) = CACHED_LOCAL_IPV4.write() {
+        *lock = Some(ip);
+    }
+    Ok(ip)
+}
+
+/// Return cached local outbound IPv6 address, discovering if not cached.
+pub fn cached_local_ipv6() -> Result<Ipv6Addr> {
+    if let Ok(lock) = CACHED_LOCAL_IPV6.read() {
+        if let Some(ip) = *lock {
+            return Ok(ip);
+        }
+    }
+    let ip = local_ipv6()?;
+    if let Ok(mut lock) = CACHED_LOCAL_IPV6.write() {
+        *lock = Some(ip);
+    }
+    Ok(ip)
+}
+
+/// Return cached local outbound IPv4 address as u32, or 0 if discovery fails.
+pub fn cached_local_ipv4_u32() -> u32 {
+    // Reason for fallback: numeric representation defaults to 0 (0.0.0.0) on network failure or offline
+    cached_local_ipv4().map(u32::from).unwrap_or(0)
+}
+
+/// Return cached local outbound IPv6 address as u128, or 0 if discovery fails.
+pub fn cached_local_ipv6_u128() -> u128 {
+    // Reason for fallback: numeric representation defaults to 0 (::) on network failure or offline
+    cached_local_ipv6().map(u128::from).unwrap_or(0)
+}
+
+fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
+    let url_string = url.to_string();
+    let handle = std::thread::spawn(
+        move || -> Result<(IpAddr, u128, u128, u128)> {
+            let options = crate::https::ClientOptions {
+                connect_timeout: Some(Duration::from_secs(3)),
+                timeout: Some(Duration::from_secs(5)),
+                user_agent: None,
+            };
+            let client = crate::https::blocking_client(options)?;
+            let t0 = unix_system_time_now();
+            let resp = client.get(&url_string)?;
+            let t1 = unix_system_time_now();
+            let body = resp.text()?;
+            let parsed: ServerIpResponse = serde_json::from_str(&body)
+                .context("Failed to parse server IP response")?;
+            let ip: IpAddr = parsed
+                .ip
+                .parse()
+                .context("Failed to parse IP address in server response")?;
+            Ok((ip, parsed.server_time_nanos, t0, t1))
+        },
+    );
+
+    handle
+        .join()
+        .map_err(|_| anyhow::anyhow!("IP query worker thread panicked"))?
+}
+
+/// Discover public IPv4 address by querying the official server IPv4 endpoint.
+pub fn public_ipv4() -> Result<Ipv4Addr> {
+    let domain = crate::branding::official_domain();
+    let url = format!("https://ipv4.{domain}/api/ip");
+    let (ip, _, _, _) = query_ip_endpoint(&url)?;
+    match ip {
+        IpAddr::V4(ipv4) => Ok(ipv4),
+        IpAddr::V6(_) => bail!("Expected IPv4 address from server, got IPv6"),
+    }
+}
+
+/// Discover public IPv6 address by querying the official server IPv6 endpoint.
+pub fn public_ipv6() -> Result<Ipv6Addr> {
+    let domain = crate::branding::official_domain();
+    let url = format!("https://ipv6.{domain}/api/ip");
+    let (ip, _, _, _) = query_ip_endpoint(&url)?;
+    match ip {
+        IpAddr::V6(ipv6) => Ok(ipv6),
+        IpAddr::V4(_) => bail!("Expected IPv6 address from server, got IPv4"),
+    }
+}
+
+/// Return cached public IPv4 address, discovering if not cached.
+pub fn cached_public_ipv4() -> Result<Ipv4Addr> {
+    if let Ok(lock) = CACHED_PUBLIC_IPV4.read() {
+        if let Some(ip) = *lock {
+            return Ok(ip);
+        }
+    }
+    let ip = public_ipv4()?;
+    if let Ok(mut lock) = CACHED_PUBLIC_IPV4.write() {
+        *lock = Some(ip);
+    }
+    Ok(ip)
+}
+
+/// Return cached public IPv6 address, discovering if not cached.
+pub fn cached_public_ipv6() -> Result<Ipv6Addr> {
+    if let Ok(lock) = CACHED_PUBLIC_IPV6.read() {
+        if let Some(ip) = *lock {
+            return Ok(ip);
+        }
+    }
+    let ip = public_ipv6()?;
+    if let Ok(mut lock) = CACHED_PUBLIC_IPV6.write() {
+        *lock = Some(ip);
+    }
+    Ok(ip)
+}
+
+/// Return cached public IPv4 address as u32, or 0 if discovery fails.
+pub fn cached_public_ipv4_u32() -> u32 {
+    // Reason for fallback: numeric representation defaults to 0 (0.0.0.0) on network failure or offline
+    cached_public_ipv4().map(u32::from).unwrap_or(0)
+}
+
+/// Return cached public IPv6 address as u128, or 0 if discovery fails.
+pub fn cached_public_ipv6_u128() -> u128 {
+    // Reason for fallback: numeric representation defaults to 0 (::) on network failure or offline
+    cached_public_ipv6().map(u128::from).unwrap_or(0)
+}
+
+/// Query the official server and return the estimated difference between
+/// the client's clock and the server's clock in nanoseconds.
+///
+/// Positive value indicates client's clock is ahead of server's clock;
+/// negative value indicates client's clock is behind server's clock.
+pub fn server_system_time_offset_nanos() -> Result<i128> {
+    let domain = crate::branding::official_domain();
+    let url = format!("https://{domain}/api/ip");
+    let (_, server_nanos, t0, t1) = query_ip_endpoint(&url)?;
+
+    let rtt = t1.saturating_sub(t0);
+    // Reason for fallback: dividing by non-zero constant 2 cannot fail, default to zero on overflow
+    let half_rtt = rtt.checked_div(2).unwrap_or(0);
+    let client_est = t0.saturating_add(half_rtt);
+
+    let client_i128 = i128::try_from(client_est)
+        .context("Client timestamp exceeds i128 range")?;
+    let server_i128 = i128::try_from(server_nanos)
+        .context("Server timestamp exceeds i128 range")?;
+
+    let diff = client_i128
+        .checked_sub(server_i128)
+        .context("Clock difference arithmetic overflow")?;
+
+    Ok(diff)
+}
 
 
 /// Is running on Unix-ish OS?
@@ -843,4 +1111,39 @@ mod tests {
         assert!(reserialized.contains("\"future_flag\":true"));
         assert!(reserialized.contains("\"future_num\":42"));
     }
+
+    #[crate::ctb_test]
+    fn test_system_time_resolution() {
+        let now = unix_system_time_now();
+        assert!(now > 0);
+
+        let resolution = unix_system_time_resolution()
+            .expect("Failed to get system time resolution");
+        assert!(resolution > 0);
+
+        // Subsequent calls should hit memoized cache
+        let resolution_cached = unix_system_time_resolution()
+            .expect("Failed to get cached system time resolution");
+        assert_eq!(resolution, resolution_cached);
+    }
+
+    #[crate::ctb_test]
+    fn test_local_ip_discovery() {
+        // Local IPv4 discovery succeeds when an outbound route is configured
+        if let Ok(ip) = local_ipv4() {
+            assert!(!ip.is_unspecified());
+            let cached = cached_local_ipv4().expect("cached_local_ipv4 failed");
+            assert_eq!(ip, cached);
+            assert_ne!(cached_local_ipv4_u32(), 0);
+        }
+
+        // Local IPv6 discovery succeeds when an outbound IPv6 route is configured
+        if let Ok(ip) = local_ipv6() {
+            assert!(!ip.is_unspecified());
+            let cached = cached_local_ipv6().expect("cached_local_ipv6 failed");
+            assert_eq!(ip, cached);
+            assert_ne!(cached_local_ipv6_u128(), 0);
+        }
+    }
 }
+

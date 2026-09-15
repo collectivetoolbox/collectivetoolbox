@@ -99,6 +99,48 @@ async fn redirect_www_to_non_www_middleware(
     axum::response::Redirect::permanent(&redirect_url).into_response()
 }
 
+async fn redirect_ip_subdomains_middleware(
+    req: axum::http::Request<axum::body::Body>,
+    next: middleware::Next,
+) -> Response {
+    let Some(host_header) = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+    else {
+        return next.run(req).await;
+    };
+
+    let host_header = host_header.trim();
+    let is_ipv4 = host_header.starts_with("ipv4.");
+    let is_ipv6 = host_header.starts_with("ipv6.");
+
+    if is_ipv4 || is_ipv6 {
+        // Exception: allow /api/ip on ipv4. and ipv6. subdomains without redirect
+        if req.uri().path() == "/api/ip" {
+            return next.run(req).await;
+        }
+
+        #[expect(
+            clippy::expect_used,
+            reason = "host_header established to start with ipv4. or ipv6. (5 ASCII bytes) above"
+        )]
+        let host_without_prefix = host_header
+            .get(5..)
+            .expect("Checked starts with ipv4. or ipv6. above");
+
+        if !host_without_prefix.is_empty() {
+            // Reason for fallback: URI without PathAndQuery component redirects to root path "/"
+            let path_and_query =
+                req.uri().path_and_query().map_or("/", |pq| pq.as_str());
+            let redirect_url = format!("//{host_without_prefix}{path_and_query}");
+            return axum::response::Redirect::permanent(&redirect_url).into_response();
+        }
+    }
+
+    next.run(req).await
+}
+
 async fn clear_invalid_session_middleware(
     req: axum::http::Request<axum::body::Body>,
     next: middleware::Next,
@@ -186,6 +228,7 @@ pub fn build_app_router(state: AppState) -> Router {
             CompressionWithRangeLayer::new().compress_when(predicate)
         })
         .layer(CorsLayer::permissive())
+        .layer(middleware::from_fn(redirect_ip_subdomains_middleware))
         .layer(middleware::from_fn(redirect_www_to_non_www_middleware))
         .layer(middleware::from_fn(clear_invalid_session_middleware))
         .layer(middleware::from_fn(
@@ -815,7 +858,92 @@ mod tests {
         )
         .expect("failed to build ServerConfig with client auth");
     }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_redirect_ip_subdomains_middleware() {
+        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+        use crate::test_helpers::TestApp;
+
+        let test_app = TestApp::new();
+
+        // 1. Non-api path on ipv4. should redirect
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Host",
+            HeaderValue::from_static("ipv4.collectivetoolbox.com"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/robots.txt",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
+        let location = resp.headers().get("location").unwrap().to_str().unwrap();
+        assert_eq!(location, "//collectivetoolbox.com/robots.txt");
+
+        // 2. Non-api path on ipv6. with port should redirect
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Host",
+            HeaderValue::from_static("ipv6.collectivetoolbox.com:8080"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/robots.txt",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::PERMANENT_REDIRECT);
+        let location = resp.headers().get("location").unwrap().to_str().unwrap();
+        assert_eq!(location, "//collectivetoolbox.com:8080/robots.txt");
+
+        // 3. /api/ip on ipv4. should NOT redirect
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Host",
+            HeaderValue::from_static("ipv4.collectivetoolbox.com"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/api/ip",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // 4. /api/ip on ipv6. should NOT redirect
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Host",
+            HeaderValue::from_static("ipv6.collectivetoolbox.com"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/api/ip",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
 }
+
 
 /*
 Code from axum-extra is used under the following license:

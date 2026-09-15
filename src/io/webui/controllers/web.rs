@@ -274,6 +274,63 @@ pub async fn post_subscribe_account(
     redirect_temporary(req.is_js_request, "/home/subscribe")
 }
 
+/// Response returned by the `/api/ip` endpoint.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ClientIpResponse {
+    /// Detected public IP address of the client.
+    pub ip: String,
+    /// Server's current system time in nanoseconds since Unix epoch.
+    pub server_time_nanos: u128,
+}
+
+/// Endpoint handler for `GET /api/ip`.
+///
+/// Detects the remote client IP from reverse proxy headers (e.g.
+/// `CF-Connecting-IP`, `X-Forwarded-For`, `X-Real-IP`) or
+/// `ConnectInfo<SocketAddr>`, and reports the current server system time in
+/// nanoseconds.
+pub async fn get_client_ip(
+    req: axum::extract::Request,
+) -> axum::Json<ClientIpResponse> {
+    let headers = req.headers();
+    let cloudflare_ip = headers
+        .get("CF-Connecting-IP")
+        .and_then(|h| h.to_str().ok())
+        .map(str::trim);
+
+    let x_forwarded_for = headers
+        .get("X-Forwarded-For")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(str::trim);
+
+    let x_real_ip = headers
+        .get("X-Real-IP")
+        .and_then(|h| h.to_str().ok())
+        .map(str::trim);
+
+    let connect_ip = req
+        .extensions()
+        .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+        .map(|c| c.0.ip().to_string());
+
+    // Reason for fallback: when no remote address or proxy header is available,
+    // default to loopback
+    let ip = cloudflare_ip
+        .or(x_forwarded_for)
+        .or(x_real_ip)
+        .map(ToString::to_string)
+        .or(connect_ip)
+        .unwrap_or_else(|| "127.0.0.1".to_string());
+
+    let server_time_nanos = ctb_utilities::environment::unix_system_time_now();
+
+    axum::Json(ClientIpResponse {
+        ip,
+        server_time_nanos,
+    })
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -481,4 +538,76 @@ mod tests {
         assert_eq!(status, StatusCode::SEE_OTHER);
         assert_eq!(location, newsletter_url());
     }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_get_client_ip() {
+        use axum::http::{HeaderMap, HeaderValue, Method, StatusCode};
+        use crate::test_helpers::TestApp;
+        use super::ClientIpResponse;
+
+        let test_app = TestApp::new();
+
+        // 1. Basic request
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/api/ip",
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = crate::test_helpers::body_to_text(resp).await;
+        let parsed: ClientIpResponse =
+            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        assert!(!parsed.ip.is_empty());
+        assert!(parsed.server_time_nanos > 0);
+
+        // 2. CF-Connecting-IP header
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "CF-Connecting-IP",
+            HeaderValue::from_static("198.51.100.25"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/api/ip",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = crate::test_helpers::body_to_text(resp).await;
+        let parsed: ClientIpResponse =
+            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        assert_eq!(parsed.ip, "198.51.100.25");
+
+        // 3. X-Forwarded-For header
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "X-Forwarded-For",
+            HeaderValue::from_static("203.0.113.50, 10.0.0.1"),
+        );
+        let resp = test_app
+            .request_get_response::<()>(
+                Method::GET,
+                "/api/ip",
+                Some(headers),
+                None,
+                None,
+                None,
+            )
+            .await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = crate::test_helpers::body_to_text(resp).await;
+        let parsed: ClientIpResponse =
+            serde_json::from_str(&body).expect("Failed to parse ClientIpResponse");
+        assert_eq!(parsed.ip, "203.0.113.50");
+    }
 }
+
