@@ -64,22 +64,22 @@ pub fn is_service_subprocess() -> bool {
 /// potentially later other VMs.) Don't rely on these VM-related methods to
 /// check the bit width, the OS, or the display server. It is useful for telling
 /// what UI constraints (e.g. available keys - browsers capture some keys) we're
-/// working with.
+/// working with. TODO STUB
 pub fn is_browser_vm() -> bool {
     false
 }
 
-/// Is the workspace UI running in a VM in a browser in fullscreen mode?
+/// Is the workspace UI running in a VM in a browser in fullscreen mode? TODO STUB
 pub fn is_browser_vm_fullscreen() -> bool {
     false
 }
 
-/// Is the workspace UI running in a VM in a mobile browser?
+/// Is the workspace UI running in a VM in a mobile browser? TODO STUB
 pub fn is_browser_vm_mobile() -> bool {
     false
 }
 
-/// Is the workspace UI running in v86 in the browser?
+/// Is the workspace UI running in v86 in the browser? TODO STUB
 pub fn is_v86() -> bool {
     false
 }
@@ -303,9 +303,9 @@ fn query_ip_endpoint(url: &str) -> Result<(IpAddr, u128, u128, u128)> {
         .map_err(|_| anyhow::anyhow!("IP query worker thread panicked"))?
 }
 
-/// Discover public IPv4 address by querying the official server IPv4 endpoint.
+/// Discover public IPv4 address by querying the default server IPv4 endpoint.
 pub fn public_ipv4() -> Result<Ipv4Addr> {
-    let domain = crate::branding::official_domain();
+    let domain = crate::branding::default_domain();
     let url = format!("https://ipv4.{domain}/api/ip");
     let (ip, _, _, _) = query_ip_endpoint(&url)?;
     match ip {
@@ -314,9 +314,9 @@ pub fn public_ipv4() -> Result<Ipv4Addr> {
     }
 }
 
-/// Discover public IPv6 address by querying the official server IPv6 endpoint.
+/// Discover public IPv6 address by querying the default server IPv6 endpoint.
 pub fn public_ipv6() -> Result<Ipv6Addr> {
-    let domain = crate::branding::official_domain();
+    let domain = crate::branding::default_domain();
     let url = format!("https://ipv6.{domain}/api/ip");
     let (ip, _, _, _) = query_ip_endpoint(&url)?;
     match ip {
@@ -371,7 +371,7 @@ pub fn cached_public_ipv6_u128() -> u128 {
 /// Positive value indicates client's clock is ahead of server's clock;
 /// negative value indicates client's clock is behind server's clock.
 pub fn server_system_time_offset_nanos() -> Result<i128> {
-    let domain = crate::branding::official_domain();
+    let domain = crate::branding::default_domain();
     let url = format!("https://{domain}/api/ip");
     let (_, server_nanos, t0, t1) = query_ip_endpoint(&url)?;
 
