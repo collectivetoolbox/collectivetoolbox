@@ -252,8 +252,8 @@ impl JournalWriter {
     /// Queues a `FileEntity` for transactional commit.
     pub fn record_entity(&mut self, entity: &FileEntity) {
         let mut entity = entity.clone();
-        if entity.metadata.environment.is_none() {
-            entity.metadata.environment = self.environment.clone();
+        if let Some(ref env) = self.environment {
+            attach_session_environment_if_none(&mut entity, env);
         }
         self.uncommitted_entities.push(entity);
     }
@@ -533,7 +533,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
     if let Some(ref env) = environment {
         for entity in committed_entities.values_mut() {
-            entity.metadata.environment = Some(Arc::clone(env));
+            attach_session_environment(entity, env);
         }
     }
 
@@ -548,6 +548,22 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         noatime_used,
         environment,
     })
+}
+
+fn attach_session_environment(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
+    entity.metadata.environment = Some(Arc::clone(env));
+    for stream in &mut entity.streams {
+        attach_session_environment(&mut stream.entity, env);
+    }
+}
+
+fn attach_session_environment_if_none(entity: &mut FileEntity, env: &Arc<EnvDescription>) {
+    if entity.metadata.environment.is_none() {
+        entity.metadata.environment = Some(Arc::clone(env));
+    }
+    for stream in &mut entity.streams {
+        attach_session_environment_if_none(&mut stream.entity, env);
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

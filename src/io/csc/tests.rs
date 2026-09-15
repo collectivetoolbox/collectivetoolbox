@@ -1309,6 +1309,9 @@ mod csc_tests {
             None, ctb_io::file::StreamKind::MacOsResourceFork, vec![1, 2, 3, 4],
         ).unwrap());
         file_entity.metadata.environment = writer.environment.clone();
+        for stream in &mut file_entity.streams {
+            stream.entity.metadata.environment = writer.environment.clone();
+        }
         writer.record_entity(&file_entity);
         writer.record_entity(&link_entity);
         writer.commit_batch().expect("commit batch");

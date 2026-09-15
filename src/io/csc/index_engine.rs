@@ -552,6 +552,7 @@ pub(crate) async fn get_or_create_source(
             Value::Text(source_name.to_string()),
             Value::Text(journal_path.to_string_lossy().to_string()),
             Value::Integer(now_sec),
+            // Reason for fallback: absent environment metadata stores SQL NULL in the sources table
             environment.map_or(Value::Null, |s| Value::Text(s.to_string())),
         ],
     )
