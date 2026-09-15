@@ -39,11 +39,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
+    reason = "Standard workspace crate prelude"
 )]
-use crate::utilities::*;
+pub(crate) use ctb_utilities::*;
 
-use ctb_io_file::{AttachedStream, FileFlag, FileTimestamps, StreamKind, StreamName};
+use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 
 /// AppleSingle magic number in big-endian byte order.
@@ -165,6 +165,28 @@ impl EntryType {
             Self::AfpFileInfo => "AFP File Info",
             Self::DirectoryId => "Directory ID",
             Self::Unknown(_) => "Unknown Entry",
+        }
+    }
+
+    /// Maps this entry type to its standard 32-bit entry ID.
+    #[must_use]
+    pub const fn to_u32(&self) -> u32 {
+        match self {
+            Self::DataFork => 1,
+            Self::ResourceFork => 2,
+            Self::RealName => 3,
+            Self::Comment => 4,
+            Self::IconBw => 5,
+            Self::IconColor => 6,
+            Self::FileDatesInfo => 8,
+            Self::FinderInfo => 9,
+            Self::MacintoshFileInfo => 10,
+            Self::ProdosFileInfo => 11,
+            Self::MsdosFileInfo => 12,
+            Self::AfpShortName => 13,
+            Self::AfpFileInfo => 14,
+            Self::DirectoryId => 15,
+            Self::Unknown(other) => *other,
         }
     }
 }
@@ -295,6 +317,21 @@ pub struct AppleExtendedAttribute {
     pub size: usize,
 }
 
+/// Complete timestamps record for AppleSingle / AppleDouble file dates entry (ID 7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppleDatesInfo {
+    /// Creation time / birth time in seconds since Unix epoch (1970-01-01), if recorded.
+    pub birthtime_sec: Option<i64>,
+    /// Modification time in seconds since Unix epoch.
+    pub mtime_sec: i64,
+    /// Status / metadata change time in seconds since Unix epoch.
+    pub ctime_sec: i64,
+    /// Access time in seconds since Unix epoch.
+    pub atime_sec: i64,
+    /// Backup timestamp in seconds since Unix epoch, if recorded.
+    pub backup_sec: Option<i64>,
+}
+
 /// Decoded AppleSingle or AppleDouble archive.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AppleArchive {
@@ -306,14 +343,12 @@ pub struct AppleArchive {
     pub real_name: Option<String>,
     /// File comment, if present.
     pub comment: Option<String>,
-    /// Complete timestamps record mapped to `ctb_io_file::FileTimestamps`.
-    pub timestamps: Option<FileTimestamps>,
+    /// Complete timestamps record.
+    pub timestamps: Option<AppleDatesInfo>,
     /// Backup timestamp in seconds since Unix epoch, if recorded.
     pub backup_timestamp_sec: Option<i64>,
     /// Decoded Macintosh Finder information.
     pub finder_info: Option<FinderInfo>,
-    /// High-level semantic flags mapped to `ctb_io_file::FileFlag`.
-    pub semantic_flags: Vec<FileFlag>,
     /// Extended attributes decoded from modern OS X `ATTR` header.
     pub extended_attributes: Vec<AppleExtendedAttribute>,
     /// Raw data fork payload (AppleSingle only).
@@ -346,33 +381,6 @@ impl AppleArchive {
     pub fn to_json_value(&self) -> Result<serde_json::Value> {
         serde_json::to_value(self)
             .context("Failed to convert AppleArchive to serde_json::Value")
-    }
-
-    /// Converts resource fork and extended attributes into `AttachedStream`s.
-    pub fn to_attached_streams(&self) -> Result<Vec<AttachedStream>> {
-        let mut streams = Vec::new();
-
-        if let Some(ref rsrc) = self.resource_fork {
-            let stream_name = StreamName::from_str("com.apple.ResourceFork");
-            let attached = AttachedStream::from_data(
-                Some(stream_name),
-                StreamKind::MacOsResourceFork,
-                rsrc.clone(),
-            )?;
-            streams.push(attached);
-        }
-
-        for attr in &self.extended_attributes {
-            let stream_name = StreamName::from_str(&attr.name);
-            let attached = AttachedStream::from_data(
-                Some(stream_name),
-                StreamKind::ExtendedAttribute,
-                attr.data.clone(),
-            )?;
-            streams.push(attached);
-        }
-
-        Ok(streams)
     }
 }
 
@@ -417,7 +425,6 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
     let mut timestamps = None;
     let mut backup_timestamp_sec = None;
     let mut finder_info = None;
-    let mut semantic_flags = Vec::new();
     let mut extended_attributes = Vec::new();
     let mut data_fork = None;
     let mut resource_fork = None;
@@ -457,9 +464,8 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
                 backup_timestamp_sec = backup;
             }
             EntryType::FinderInfo => {
-                let (finfo, flags, xattrs) = parse_finder_info(slice, bytes, is_big_endian)?;
+                let (finfo, xattrs) = parse_finder_info(slice, bytes, is_big_endian)?;
                 finder_info = Some(finfo);
-                semantic_flags = flags;
                 extended_attributes = xattrs;
             }
             _ => {}
@@ -477,7 +483,6 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
         timestamps,
         backup_timestamp_sec,
         finder_info,
-        semantic_flags,
         extended_attributes,
         data_fork,
         resource_fork,
@@ -487,7 +492,7 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
     })
 }
 
-fn parse_dates_info(slice: &[u8]) -> Result<(FileTimestamps, Option<i64>)> {
+fn parse_dates_info(slice: &[u8]) -> Result<(AppleDatesInfo, Option<i64>)> {
     ensure!(
         slice.len() >= 4,
         "FileDatesInfo too short (minimum 4 bytes required)"
@@ -526,16 +531,12 @@ fn parse_dates_info(slice: &[u8]) -> Result<(FileTimestamps, Option<i64>)> {
     let atime_sec = convert_timestamp(access_raw).unwrap_or(mtime_sec);
     let backup_sec = convert_timestamp(backup_raw);
 
-    let timestamps = FileTimestamps {
-        atime_sec,
-        atime_nsec: 0,
-        mtime_sec,
-        mtime_nsec: 0,
-        ctime_sec: mtime_sec,
-        ctime_nsec: 0,
+    let timestamps = AppleDatesInfo {
         birthtime_sec,
-        birthtime_nsec: birthtime_sec.map(|_| 0),
-        resolution_nsec: Some(1_000_000_000),
+        mtime_sec,
+        ctime_sec: mtime_sec,
+        atime_sec,
+        backup_sec,
     };
 
     Ok((timestamps, backup_sec))
@@ -545,7 +546,7 @@ fn parse_finder_info(
     slice: &[u8],
     file_bytes: &[u8],
     is_big_endian: bool,
-) -> Result<(FinderInfo, Vec<FileFlag>, Vec<AppleExtendedAttribute>)> {
+) -> Result<(FinderInfo, Vec<AppleExtendedAttribute>)> {
     ensure!(
         slice.len() >= 16,
         "FinderInfo must be at least 16 bytes for FInfo"
@@ -600,14 +601,6 @@ fn parse_finder_info(
         is_alias: (raw_flags & 0x8000) != 0,
     };
 
-    let mut semantic_flags = Vec::new();
-    if flags.is_invisible {
-        semantic_flags.push(FileFlag::Hidden);
-    }
-    if flags.name_locked {
-        semantic_flags.push(FileFlag::ReadOnly);
-    }
-
     let extended = if slice.len() >= 32 {
         parse_extended_finder_info(slice, is_big_endian)?
     } else {
@@ -632,7 +625,7 @@ fn parse_finder_info(
         extended,
     };
 
-    Ok((finfo, semantic_flags, extended_attributes))
+    Ok((finfo, extended_attributes))
 }
 
 fn parse_apple_double_xattrs(
@@ -892,6 +885,251 @@ fn parse_extended_finder_info(
         comment,
         put_away,
     }))
+}
+
+/// Serializes an [`AppleArchive`] to a raw byte buffer (AppleSingle or AppleDouble).
+pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
+    let magic = match archive.format {
+        AppleFormat::AppleSingle => APPLESINGLE_MAGIC_BE,
+        AppleFormat::AppleDouble => APPLEDOUBLE_MAGIC_BE,
+    };
+    let version = if archive.version != 0 {
+        archive.version
+    } else {
+        VERSION_2_0_BE
+    };
+
+    struct RawEntry {
+        raw_id: u32,
+        data: Vec<u8>,
+    }
+
+    let mut raw_entries: Vec<RawEntry> = Vec::new();
+
+    // 1. Data Fork (Entry ID 1, AppleSingle only)
+    if archive.format == AppleFormat::AppleSingle {
+        if let Some(ref data) = archive.data_fork {
+            raw_entries.push(RawEntry {
+                raw_id: EntryType::DataFork.to_u32(),
+                data: data.clone(),
+            });
+        }
+    }
+
+    // 2. Resource Fork (Entry ID 2)
+    if let Some(ref rsrc) = archive.resource_fork {
+        raw_entries.push(RawEntry {
+            raw_id: EntryType::ResourceFork.to_u32(),
+            data: rsrc.clone(),
+        });
+    }
+
+    // 3. Real Name (Entry ID 3)
+    if let Some(ref name) = archive.real_name {
+        raw_entries.push(RawEntry {
+            raw_id: EntryType::RealName.to_u32(),
+            data: name.as_bytes().to_vec(),
+        });
+    }
+
+    // 4. Comment (Entry ID 4)
+    if let Some(ref comment) = archive.comment {
+        raw_entries.push(RawEntry {
+            raw_id: EntryType::Comment.to_u32(),
+            data: comment.as_bytes().to_vec(),
+        });
+    }
+
+    // 5. File Dates Info (Entry ID 8)
+    if let Some(ref ts) = archive.timestamps {
+        let mut dates_bytes = Vec::with_capacity(16);
+        let encode_ts = |sec_opt: Option<i64>| -> [u8; 4] {
+            let Some(sec) = sec_opt else {
+                return TIMESTAMP_UNSET_SENTINEL.to_be_bytes();
+            };
+            let diff = sec.saturating_sub(SECONDS_1970_TO_2000);
+            let val = i32::try_from(diff).unwrap_or(i32::MAX);
+            val.to_be_bytes()
+        };
+
+        dates_bytes.extend_from_slice(&encode_ts(ts.birthtime_sec));
+        dates_bytes.extend_from_slice(&encode_ts(Some(ts.mtime_sec)));
+        dates_bytes.extend_from_slice(&encode_ts(ts.backup_sec.or(archive.backup_timestamp_sec)));
+        dates_bytes.extend_from_slice(&encode_ts(Some(ts.atime_sec)));
+
+        raw_entries.push(RawEntry {
+            raw_id: EntryType::FileDatesInfo.to_u32(),
+            data: dates_bytes,
+        });
+    }
+
+    // 6. Finder Info (Entry ID 9)
+    if archive.finder_info.is_some() || !archive.extended_attributes.is_empty() {
+        let mut finfo_bytes = vec![0u8; 32];
+        if let Some(ref finfo) = archive.finder_info {
+            let type_bytes = finfo.file_type.as_bytes();
+            for (i, &b) in type_bytes.iter().take(4).enumerate() {
+                if let Some(slot) = finfo_bytes.get_mut(i) {
+                    *slot = b;
+                }
+            }
+            let creator_bytes = finfo.file_creator.as_bytes();
+            for (i, &b) in creator_bytes.iter().take(4).enumerate() {
+                if let Some(slot) = finfo_bytes.get_mut(4_usize.saturating_add(i)) {
+                    *slot = b;
+                }
+            }
+
+            let raw_flags = if finfo.raw_flags != 0 {
+                finfo.raw_flags
+            } else {
+                let mut fl = (u16::from(finfo.label.index & 0x07)) << 1;
+                if finfo.flags.is_on_desk { fl |= 0x0001; }
+                if finfo.flags.is_shared { fl |= 0x0040; }
+                if finfo.flags.has_been_inited { fl |= 0x0100; }
+                if finfo.flags.has_custom_icon { fl |= 0x0400; }
+                if finfo.flags.is_stationery { fl |= 0x0800; }
+                if finfo.flags.name_locked { fl |= 0x1000; }
+                if finfo.flags.has_bundle { fl |= 0x2000; }
+                if finfo.flags.is_invisible { fl |= 0x4000; }
+                if finfo.flags.is_alias { fl |= 0x8000; }
+                fl
+            };
+
+            if let Some(slot) = finfo_bytes.get_mut(8..10) {
+                slot.copy_from_slice(&raw_flags.to_be_bytes());
+            }
+            if let Some(slot) = finfo_bytes.get_mut(10..12) {
+                slot.copy_from_slice(&finfo.location.0.to_be_bytes());
+            }
+            if let Some(slot) = finfo_bytes.get_mut(12..14) {
+                slot.copy_from_slice(&finfo.location.1.to_be_bytes());
+            }
+            if let Some(slot) = finfo_bytes.get_mut(14..16) {
+                slot.copy_from_slice(&finfo.folder_id.to_be_bytes());
+            }
+
+            if let Some(ref ext) = finfo.extended {
+                if let Some(slot) = finfo_bytes.get_mut(16..18) {
+                    slot.copy_from_slice(&ext.icon_id.to_be_bytes());
+                }
+                if let Some(slot) = finfo_bytes.get_mut(24) {
+                    *slot = u8::from_be_bytes(ext.script.to_be_bytes());
+                }
+                if let Some(slot) = finfo_bytes.get_mut(25) {
+                    *slot = ext.xflags;
+                }
+                if let Some(slot) = finfo_bytes.get_mut(26..28) {
+                    slot.copy_from_slice(&ext.comment.to_be_bytes());
+                }
+                if let Some(slot) = finfo_bytes.get_mut(28..32) {
+                    slot.copy_from_slice(&ext.put_away.to_be_bytes());
+                }
+            }
+        }
+
+        raw_entries.push(RawEntry {
+            raw_id: EntryType::FinderInfo.to_u32(),
+            data: finfo_bytes,
+        });
+    }
+
+    let num_entries = u16::try_from(raw_entries.len())
+        .context("Too many archive entries to fit in u16")?;
+    let header_and_descriptors_len = 26_usize
+        .checked_add(usize::from(num_entries).checked_mul(12).context("Descriptors length overflow")?)
+        .context("Header length overflow")?;
+
+    if !archive.extended_attributes.is_empty() {
+        if let Some(finfo_idx) = raw_entries.iter().position(|e| e.raw_id == EntryType::FinderInfo.to_u32()) {
+            let mut entry_finder_start = header_and_descriptors_len;
+            for i in 0..finfo_idx {
+                if let Some(e) = raw_entries.get(i) {
+                    entry_finder_start = entry_finder_start.saturating_add(e.data.len());
+                }
+            }
+
+            let mut attr_block = Vec::new();
+            attr_block.extend_from_slice(&[0u8, 0u8]); // 2 bytes padding to offset 34
+            attr_block.extend_from_slice(&ATTR_MAGIC_BE.to_be_bytes()); // 4 bytes magic (offset 34..38)
+            attr_block.extend_from_slice(&[0u8; 28]); // 28 bytes header (offset 38..66)
+            attr_block.extend_from_slice(&[0u8, 0u8]); // 2 bytes debug/flags (offset 66..68)
+            let num_attrs = u16::try_from(archive.extended_attributes.len())
+                .context("Too many extended attributes")?;
+            attr_block.extend_from_slice(&num_attrs.to_be_bytes()); // 2 bytes num_attrs (offset 68..70)
+
+            let mut descriptors_total_len = 0_usize;
+            for attr in &archive.extended_attributes {
+                let namelen = u8::try_from(attr.name.len())
+                    .context("Extended attribute name exceeds 255 bytes")?;
+                let total_desc = usize::from(namelen).saturating_add(11);
+                let rem = total_desc & 3;
+                let pad = if rem == 0 { 0 } else { 4_usize.saturating_sub(rem) };
+                descriptors_total_len = descriptors_total_len
+                    .saturating_add(total_desc)
+                    .saturating_add(pad);
+            }
+
+            let first_payload_rel = 70_usize.saturating_add(descriptors_total_len);
+            let mut running_payload_offset = entry_finder_start.saturating_add(first_payload_rel);
+
+            let mut payloads = Vec::new();
+            for attr in &archive.extended_attributes {
+                let namelen = u8::try_from(attr.name.len())
+                    .context("Extended attribute name exceeds 255 bytes")?;
+                let entry_offset_u32 = u32::try_from(running_payload_offset)
+                    .context("Attribute offset exceeds u32")?;
+                let entry_len_u32 = u32::try_from(attr.data.len())
+                    .context("Attribute length exceeds u32")?;
+
+                attr_block.extend_from_slice(&entry_offset_u32.to_be_bytes());
+                attr_block.extend_from_slice(&entry_len_u32.to_be_bytes());
+                attr_block.extend_from_slice(&0u16.to_be_bytes()); // flags
+                attr_block.push(namelen);
+                attr_block.extend_from_slice(attr.name.as_bytes());
+
+                let total_desc = usize::from(namelen).saturating_add(11);
+                let rem = total_desc & 3;
+                let pad = if rem == 0 { 0 } else { 4_usize.saturating_sub(rem) };
+                for _ in 0..pad {
+                    attr_block.push(0);
+                }
+
+                running_payload_offset = running_payload_offset.saturating_add(attr.data.len());
+                payloads.extend_from_slice(&attr.data);
+            }
+
+            attr_block.extend_from_slice(&payloads);
+
+            if let Some(entry) = raw_entries.get_mut(finfo_idx) {
+                entry.data.extend_from_slice(&attr_block);
+            }
+        }
+    }
+
+    let mut out = Vec::with_capacity(header_and_descriptors_len);
+    out.extend_from_slice(&magic.to_be_bytes());
+    out.extend_from_slice(&version.to_be_bytes());
+    out.extend_from_slice(b"Mac OS X        ");
+    out.extend_from_slice(&num_entries.to_be_bytes());
+
+    let mut current_offset = header_and_descriptors_len;
+    for entry in &raw_entries {
+        let entry_len = u32::try_from(entry.data.len())
+            .context("Entry payload exceeds u32")?;
+        let entry_off = u32::try_from(current_offset)
+            .context("Entry offset exceeds u32")?;
+        out.extend_from_slice(&entry.raw_id.to_be_bytes());
+        out.extend_from_slice(&entry_off.to_be_bytes());
+        out.extend_from_slice(&entry_len.to_be_bytes());
+        current_offset = current_offset.saturating_add(entry.data.len());
+    }
+
+    for entry in &raw_entries {
+        out.extend_from_slice(&entry.data);
+    }
+
+    Ok(out)
 }
 
 /* Licensing details for TheUnarchiver, from License.txt:
@@ -1805,3 +2043,250 @@ PURPOSE.
 The End
 
 */
+
+static ARCHIVE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+/// Retrieves embedded archive asset data by path key.
+#[must_use]
+pub fn get_archive_data(key: &str) -> Option<Vec<u8>> {
+    get_embedded_asset(&ARCHIVE_DATA_DIR, key)
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_apple_single_fixtures() -> anyhow::Result<()> {
+        let data1 = get_archive_data("fixtures/AppleSingle/test file.as")
+            .context("test file.as fixture missing")?;
+        let archive1 = read_apple_single_double(&data1)?;
+
+        ensure!(archive1.format == AppleFormat::AppleSingle);
+        ensure!(archive1.version == VERSION_2_0_BE);
+        ensure!(archive1.real_name.as_deref() == Some("test file"));
+        ensure!(archive1.data_fork.as_deref() == Some(b"test file".as_slice()));
+        ensure!(archive1.data_fork_size == Some(9));
+        ensure!(archive1.resource_fork_size == Some(332));
+
+        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo1.file_type == "TEXT");
+        ensure!(finfo1.file_creator == "ttxt");
+        ensure!(finfo1.label.index == 0);
+        ensure!(finfo1.label.classic_color == "Black");
+        ensure!(finfo1.label.osx_color == "None");
+        ensure!(finfo1.flags.has_been_inited);
+
+        let ts1 = archive1.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(ts1.birthtime_sec == Some(1_789_356_839));
+        ensure!(ts1.mtime_sec == 1_789_356_839);
+
+        // Test JSON export
+        let json1 = archive1.to_json()?;
+        ensure!(json1.contains("\"format\":\"AppleSingle\""));
+        ensure!(json1.contains("\"real_name\":\"test file\""));
+        let json_val1: serde_json::Value = serde_json::from_str(&json1)?;
+        ensure!(json_val1["format"] == "AppleSingle");
+
+        // Test roundtrip serialization
+        let written1 = write_apple_single_double(&archive1)?;
+        let parsed1 = read_apple_single_double(&written1)?;
+        ensure!(parsed1.format == AppleFormat::AppleSingle);
+        ensure!(parsed1.real_name == archive1.real_name);
+        ensure!(parsed1.data_fork == archive1.data_fork);
+        ensure!(parsed1.resource_fork == archive1.resource_fork);
+        ensure!(parsed1.finder_info == archive1.finder_info);
+        ensure!(parsed1.timestamps == archive1.timestamps);
+
+        // Test second AppleSingle fixture with green label
+        let data2 = get_archive_data("fixtures/AppleSingle/test file green2.as")
+            .context("test file green2.as fixture missing")?;
+        let archive2 = read_apple_single_double(&data2)?;
+
+        ensure!(archive2.format == AppleFormat::AppleSingle);
+        ensure!(archive2.real_name.as_deref() == Some("test file green2"));
+        ensure!(archive2.data_fork.as_deref() == Some(b"test file\x01".as_slice()));
+        ensure!(archive2.data_fork_size == Some(10));
+        ensure!(archive2.resource_fork_size == Some(372));
+
+        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo2.file_type == "TEXT");
+        ensure!(finfo2.file_creator == "ttxt");
+        ensure!(finfo2.label.index == 2);
+        ensure!(finfo2.label.classic_color == "Green");
+        ensure!(finfo2.label.osx_color == "Green");
+
+        let ts2 = archive2.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(ts2.birthtime_sec == Some(1_789_356_860));
+        ensure!(ts2.mtime_sec == 1_789_356_875);
+
+        // Test roundtrip serialization of archive2
+        let written2 = write_apple_single_double(&archive2)?;
+        let parsed2 = read_apple_single_double(&written2)?;
+        ensure!(parsed2.format == AppleFormat::AppleSingle);
+        ensure!(parsed2.real_name == archive2.real_name);
+        ensure!(parsed2.data_fork == archive2.data_fork);
+        ensure!(parsed2.resource_fork == archive2.resource_fork);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_alongside_fixtures() -> anyhow::Result<()> {
+        let data1 = get_archive_data("fixtures/AppleDouble/Alongside/test file/._test file")
+            .context("Alongside ._test file missing")?;
+        let archive1 = read_apple_single_double(&data1)?;
+
+        ensure!(archive1.format == AppleFormat::AppleDouble);
+        ensure!(archive1.data_fork.is_none());
+        ensure!(archive1.resource_fork_size == Some(332));
+
+        let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo1.file_type == "TEXT");
+        ensure!(finfo1.file_creator == "ttxt");
+        ensure!(finfo1.label.index == 0);
+
+        let data2 = get_archive_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
+            .context("Alongside ._test file green2 missing")?;
+        let archive2 = read_apple_single_double(&data2)?;
+
+        ensure!(archive2.format == AppleFormat::AppleDouble);
+        ensure!(archive2.data_fork.is_none());
+        ensure!(archive2.resource_fork_size == Some(372));
+
+        let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo2.file_type == "TEXT");
+        ensure!(finfo2.file_creator == "ttxt");
+        ensure!(finfo2.label.index == 2);
+        ensure!(finfo2.label.classic_color == "Green");
+        ensure!(finfo2.location == (88, 220));
+
+        // Test roundtrip serialization of AppleDouble
+        let written2 = write_apple_single_double(&archive2)?;
+        let parsed2 = read_apple_single_double(&written2)?;
+        ensure!(parsed2.format == AppleFormat::AppleDouble);
+        ensure!(parsed2.resource_fork == archive2.resource_fork);
+        let parsed_finfo2 = parsed2.finder_info.as_ref().context("missing parsed finfo")?;
+        ensure!(parsed_finfo2.file_type == finfo2.file_type);
+        ensure!(parsed_finfo2.file_creator == finfo2.file_creator);
+        ensure!(parsed_finfo2.label.index == finfo2.label.index);
+        ensure!(parsed_finfo2.location == finfo2.location);
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_brown_bin_fixture() -> anyhow::Result<()> {
+        let data = get_archive_data(
+            "fixtures/AppleDouble/__MACOSX-style/test file green2 brown.bin/__MACOSX/._test file green2 brown.bin",
+        )
+        .context("brown.bin fixture missing")?;
+        let archive = read_apple_single_double(&data)?;
+
+        ensure!(archive.format == AppleFormat::AppleDouble);
+        ensure!(archive.entries.len() == 1);
+        ensure!(archive.entries[0].entry_type == EntryType::FinderInfo);
+        ensure!(archive.resource_fork.is_none());
+
+        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo.file_type == "BINA");
+        ensure!(finfo.file_creator == "SITx");
+        ensure!(finfo.label.index == 1);
+        ensure!(finfo.label.classic_name == "Project 2");
+        ensure!(finfo.label.classic_color == "Brown");
+        ensure!(finfo.label.osx_color == "Gray");
+        ensure!(finfo.location == (448, 129));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_with_xattrs_roundtrip() -> anyhow::Result<()> {
+        let archive = AppleArchive {
+            format: AppleFormat::AppleDouble,
+            version: VERSION_2_0_BE,
+            real_name: Some("example.txt".to_string()),
+            comment: Some("Test comment".to_string()),
+            timestamps: Some(AppleDatesInfo {
+                birthtime_sec: Some(1_700_000_000),
+                mtime_sec: 1_700_001_000,
+                ctime_sec: 1_700_001_000,
+                atime_sec: 1_700_002_000,
+                backup_sec: Some(1_700_000_500),
+            }),
+            backup_timestamp_sec: Some(1_700_000_500),
+            finder_info: Some(FinderInfo {
+                file_type: "TEXT".to_string(),
+                file_creator: "ttxt".to_string(),
+                raw_flags: 0,
+                label: FinderLabel::from_index(3),
+                flags: FinderFlags {
+                    is_on_desk: false,
+                    is_shared: false,
+                    has_been_inited: true,
+                    has_custom_icon: false,
+                    is_stationery: false,
+                    name_locked: false,
+                    has_bundle: false,
+                    is_invisible: false,
+                    is_alias: false,
+                },
+                location: (100, 200),
+                folder_id: 0,
+                extended: None,
+            }),
+            extended_attributes: vec![
+                AppleExtendedAttribute {
+                    name: "com.apple.metadata:kMDItemWhereFroms".to_string(),
+                    data: b"https://example.com/download".to_vec(),
+                    size: 28,
+                },
+                AppleExtendedAttribute {
+                    name: "user.custom.note".to_string(),
+                    data: b"important payload".to_vec(),
+                    size: 17,
+                },
+            ],
+            data_fork: None,
+            resource_fork: Some(b"mock resource fork binary data".to_vec()),
+            data_fork_size: None,
+            resource_fork_size: Some(30),
+            entries: Vec::new(),
+        };
+
+        let bytes = write_apple_single_double(&archive)?;
+        let parsed = read_apple_single_double(&bytes)?;
+
+        ensure!(parsed.format == AppleFormat::AppleDouble);
+        ensure!(parsed.real_name == archive.real_name);
+        ensure!(parsed.comment == archive.comment);
+        ensure!(parsed.resource_fork == archive.resource_fork);
+
+        let parsed_ts = parsed.timestamps.as_ref().context("missing timestamps")?;
+        ensure!(parsed_ts.birthtime_sec == archive.timestamps.as_ref().unwrap().birthtime_sec);
+        ensure!(parsed_ts.mtime_sec == archive.timestamps.as_ref().unwrap().mtime_sec);
+
+        let parsed_finfo = parsed.finder_info.as_ref().context("missing finfo")?;
+        ensure!(parsed_finfo.file_type == "TEXT");
+        ensure!(parsed_finfo.file_creator == "ttxt");
+        ensure!(parsed_finfo.location == (100, 200));
+
+        ensure!(parsed.extended_attributes.len() == 2);
+        ensure!(parsed.extended_attributes[0].name == "com.apple.metadata:kMDItemWhereFroms");
+        ensure!(parsed.extended_attributes[0].data == b"https://example.com/download");
+        ensure!(parsed.extended_attributes[1].name == "user.custom.note");
+        ensure!(parsed.extended_attributes[1].data == b"important payload");
+
+        Ok(())
+    }
+}

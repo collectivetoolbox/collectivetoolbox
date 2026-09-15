@@ -2642,6 +2642,7 @@ name = "ctb-formats"
 version = "0.0.0"
 dependencies = [
  "ctb-formats-alias",
+ "ctb-formats-apple-single-double",
  "ctb-formats-applescript",
  "ctb-formats-archive",
  "ctb-formats-base16b",
@@ -2703,6 +2704,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-apple-single-double"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "include_dir",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "ctb-formats-applescript"
 version = "0.0.0"
 dependencies = [
@@ -2715,6 +2727,7 @@ dependencies = [
 name = "ctb-formats-archive"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-apple-single-double",
  "ctb-formats-utilities",
  "ctb-io-file",
  "ctb-utilities",
@@ -3398,6 +3411,7 @@ dependencies = [
  "anyhow",
  "cfg-if",
  "clap",
+ "ctb-formats-apple-single-double",
  "ctb-formats-checksum",
  "ctb-formats-text-extraction",
  "ctb-formats-time",
@@ -3796,6 +3810,7 @@ dependencies = [
  "ctb-cli",
  "ctb-formats",
  "ctb-formats-alias",
+ "ctb-formats-apple-single-double",
  "ctb-formats-applescript",
  "ctb-formats-archive",
  "ctb-formats-base16b",

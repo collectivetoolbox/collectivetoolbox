@@ -408,6 +408,25 @@ pub struct FileMetadata {
     /// environment description in memory with zero deduplication overhead.
     #[serde(default, skip_serializing)]
     pub environment: Option<Arc<EnvDescription>>,
+    /// Preserved AppleSingle / AppleDouble / Mac metadata.
+    #[serde(default)]
+    pub apple: Option<AppleMetadata>,
+}
+
+pub use ctb_formats_apple_single_double::FinderInfo;
+
+/// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
+/// or macOS extended attributes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AppleMetadata {
+    /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
+    pub finder_info: Option<FinderInfo>,
+    /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
+    pub real_name: Option<String>,
+    /// Standard file comment (Entry ID 4).
+    pub comment: Option<String>,
+    /// Backup timestamp in seconds since Unix epoch (Entry ID 8/Dates).
+    pub backup_timestamp_sec: Option<i64>,
 }
 
 impl FileMetadata {

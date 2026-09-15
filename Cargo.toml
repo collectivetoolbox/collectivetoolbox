@@ -82,6 +82,7 @@ ctb-build-support = { path = "src/build_support" }
 ctb-cli = { path = "src/cli" }
 ctb-formats = { path = "src/formats" }
 ctb-formats-alias = { path = "src/formats/alias" }
+ctb-formats-apple-single-double = { path = "src/formats/apple_single_double" }
 ctb-formats-applescript = { path = "src/formats/applescript" }
 ctb-formats-archive = { path = "src/formats/archive" }
 ctb-formats-base16b = { path = "src/formats/base16b" }

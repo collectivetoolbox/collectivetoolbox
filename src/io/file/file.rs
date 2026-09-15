@@ -31,6 +31,7 @@ pub(crate) mod file {
     pub use crate::*;
 }
 
+pub mod apple_double;
 pub mod block_device_size;
 pub mod clean_name;
 pub mod entity;
@@ -46,6 +47,10 @@ pub mod sys_flags;
 pub mod traversal;
 pub mod verifier;
 
+pub use apple_double::{
+    AppleArchiveExt, AppleDoubleStyle, AppleMetadata, create_apple_archive_from_entity,
+    get_companion_path, serialize_apple_double_for_entity,
+};
 pub use block_device_size::query_block_device_size;
 pub use clean_name::{
     MAX_FILENAME_BYTES, clean_file_name, clean_file_name_unix,
@@ -285,6 +290,7 @@ mod tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -419,7 +425,7 @@ mod tests {
                 resolution_nsec: None,
             },
             flags: Vec::new(), platform_raw_flags: None, read_time: None, filesystem_type: None,
-            environment: None,
+            environment: None, apple: None,
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
@@ -771,6 +777,7 @@ mod tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -889,6 +896,7 @@ mod tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -978,6 +986,7 @@ mod tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1057,6 +1066,7 @@ mod tests {
                 read_time: None,
                 filesystem_type: None,
                 environment: None,
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,
@@ -1199,6 +1209,7 @@ mod tests {
             read_time: None,
             filesystem_type: None,
             environment: None,
+            apple: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();
@@ -1322,6 +1333,7 @@ mod tests {
             read_time: None,
             filesystem_type: None,
             environment: None,
+            apple: None,
         };
         let serialized = serde_json::to_string(&meta).unwrap();
         let deserialized: FileMetadata = serde_json::from_str(&serialized).unwrap();

@@ -313,6 +313,7 @@ impl AttachedStream {
                 read_time: None,
                 filesystem_type: None,
                 environment: Some(ctb_utilities::environment::capture_quick_arc()),
+                apple: None,
             },
             kind: FileEntityKind::Regular {
                 size,

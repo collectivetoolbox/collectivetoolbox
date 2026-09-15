@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-unicode = { path = "../../formats/unicode" }
+ctb-formats-apple-single-double = { path = "../../formats/apple_single_double" }
 ctb-formats-checksum = { path = "../../formats/checksum" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }

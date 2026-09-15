@@ -38,6 +38,7 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub use ctb_formats_alias as alias;
+pub use ctb_formats_apple_single_double as apple_single_double;
 pub use ctb_formats_archive as archive;
 pub use ctb_formats_applescript as applescript;
 pub use ctb_formats_base16b as base16b;

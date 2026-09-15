@@ -402,6 +402,7 @@ impl FileEntity {
             read_time,
             filesystem_type: Some(fs_info.fs_type),
             environment: Some(ctb_utilities::environment::capture_quick_arc()),
+            apple: None,
         };
 
         let kind = if is_symlink {
@@ -611,6 +612,7 @@ impl FileEntity {
             read_time,
             filesystem_type: Some(fs_info.fs_type),
             environment: Some(ctb_utilities::environment::capture_quick_arc()),
+            apple: None,
         };
 
         #[cfg(unix)]
