@@ -363,14 +363,7 @@ pub fn read_dir_safe(
         let file_name = entry.file_name();
         let name_str = file_name.to_string_lossy();
 
-        // FIXME: These three cases are not correct, because it doesn't confirm that they actually are being used as AppleDouble. It should still traverse them here if they are not actually associated with an AppleDouble file being copied, or else they'll be omitted.
-        if options.apple_read_options.read_apple_double_alongside && name_str.starts_with("._") {
-            continue;
-        }
-        if options.apple_read_options.read_apple_double_zip && name_str == "__MACOSX" {
-            continue;
-        }
-        if options.apple_read_options.read_apple_double_netatalk && name_str == ".AppleDouble" {
+        if should_skip_apple_companion(dir, &name_str, &entry_path, &sym_meta, &options.apple_read_options) {
             continue;
         }
 
@@ -550,13 +543,13 @@ impl DirTraverser {
             let file_name = entry.file_name();
             let name_str = file_name.to_string_lossy();
 
-            if self.options.apple_read_options.read_apple_double_alongside && name_str.starts_with("._") {
-                continue;
-            }
-            if self.options.apple_read_options.read_apple_double_zip && name_str == "__MACOSX" {
-                continue;
-            }
-            if self.options.apple_read_options.read_apple_double_netatalk && name_str == ".AppleDouble" {
+            if should_skip_apple_companion(
+                dir_abs,
+                &name_str,
+                &entry_path,
+                &sym_meta,
+                &self.options.apple_read_options,
+            ) {
                 continue;
             }
 
@@ -874,6 +867,154 @@ fn extract_inode_key(meta: &Metadata) -> Option<InodeKey> {
     {
         None
     }
+}
+
+fn should_skip_apple_companion(
+    dir_path: &Path,
+    name_str: &str,
+    entry_path: &Path,
+    sym_meta: &std::fs::Metadata,
+    options: &AppleReadOptions,
+) -> bool {
+    if options.read_apple_double_alongside {
+        if let Some(base_name) = name_str.strip_prefix("._") {
+            if !base_name.is_empty() {
+                let sibling = dir_path.join(base_name);
+                if sibling.symlink_metadata().is_ok()
+                    && crate::file::apple_double::is_apple_double_file(entry_path)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    if options.read_apple_double_netatalk {
+        if name_str == ".AppleDouble" && sym_meta.is_dir() {
+            if is_netatalk_companion_dir(dir_path, entry_path) {
+                return true;
+            }
+        } else if let Some(parent_name) = dir_path.file_name() {
+            if parent_name == ".AppleDouble" {
+                if let Some(grandparent) = dir_path.parent() {
+                    if name_str == ".Parent" {
+                        if crate::file::apple_double::is_apple_double_file(entry_path) {
+                            return true;
+                        }
+                    } else if grandparent.join(name_str).symlink_metadata().is_ok()
+                        && crate::file::apple_double::is_apple_double_file(entry_path)
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    if options.read_apple_double_zip {
+        if name_str == "__MACOSX" && sym_meta.is_dir() {
+            if is_zip_companion_dir(dir_path, entry_path) {
+                return true;
+            }
+        } else if dir_path.components().any(|c| c.as_os_str() == "__MACOSX") {
+            if let Some(base_name) = name_str.strip_prefix("._") {
+                if !base_name.is_empty() {
+                    if let Some((base_dir, rel_path)) = split_macosx_path(dir_path) {
+                        let target = base_dir.join(rel_path).join(base_name);
+                        if target.symlink_metadata().is_ok()
+                            && crate::file::apple_double::is_apple_double_file(entry_path)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+fn is_netatalk_companion_dir(dir_path: &Path, dot_appledouble: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dot_appledouble) else {
+        return false;
+    };
+    let mut has_entries = false;
+    for entry in entries.flatten() {
+        has_entries = true;
+        let child_name = entry.file_name();
+        let child_str = child_name.to_string_lossy();
+        let child_path = entry.path();
+        let is_companion = if child_str == ".Parent" {
+            crate::file::apple_double::is_apple_double_file(&child_path)
+        } else {
+            dir_path.join(&child_name).symlink_metadata().is_ok()
+                && crate::file::apple_double::is_apple_double_file(&child_path)
+        };
+        if !is_companion {
+            return false;
+        }
+    }
+    has_entries
+}
+
+fn split_macosx_path(dir_path: &Path) -> Option<(PathBuf, PathBuf)> {
+    let mut base = PathBuf::new();
+    let mut rel = PathBuf::new();
+    let mut found = false;
+    for component in dir_path.components() {
+        if found {
+            rel.push(component);
+        } else if component.as_os_str() == "__MACOSX" {
+            found = true;
+        } else {
+            base.push(component);
+        }
+    }
+    if found {
+        Some((base, rel))
+    } else {
+        None
+    }
+}
+
+fn is_zip_companion_dir(base_dir: &Path, macosx_dir: &Path) -> bool {
+    let mut stack = vec![macosx_dir.to_path_buf()];
+    let mut has_entries = false;
+    while let Some(current) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            return false;
+        };
+        for entry in entries.flatten() {
+            has_entries = true;
+            let path = entry.path();
+            if let Ok(meta) = path.symlink_metadata() {
+                if meta.is_dir() {
+                    stack.push(path);
+                } else {
+                    let fname = entry.file_name();
+                    let fname_str = fname.to_string_lossy();
+                    let Some(base_name) = fname_str.strip_prefix("._") else {
+                        return false;
+                    };
+                    if base_name.is_empty() {
+                        return false;
+                    }
+                    let Ok(rel) = path.strip_prefix(macosx_dir) else {
+                        return false;
+                    };
+                    let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
+                    let target = base_dir.join(rel_parent).join(base_name);
+                    if target.symlink_metadata().is_err()
+                        || !crate::file::apple_double::is_apple_double_file(&path)
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    has_entries
 }
 
 #[cfg(test)]
