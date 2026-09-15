@@ -1353,5 +1353,56 @@ mod tests {
             assert_ne!(cached_local_ipv6_u128(), 0);
         }
     }
+
+    #[crate::ctb_test]
+    fn test_process_role_tracking() {
+        reset_process_role_for_testing();
+        assert_eq!(get_process_role(), ProcessRole::Unknown);
+        assert!(!is_cli_lightweight());
+        assert!(!is_workspace());
+        assert!(!is_workspace_main_process());
+        assert!(!is_service_subprocess());
+
+        set_process_role(ProcessRole::LightweightCli);
+        assert_eq!(get_process_role(), ProcessRole::LightweightCli);
+        assert!(is_cli_lightweight());
+        assert!(!is_workspace());
+        assert!(!is_workspace_main_process());
+        assert!(!is_service_subprocess());
+
+        set_process_role(ProcessRole::WorkspaceMain);
+        assert_eq!(get_process_role(), ProcessRole::WorkspaceMain);
+        assert!(!is_cli_lightweight());
+        assert!(is_workspace());
+        assert!(is_workspace_main_process());
+        assert!(!is_service_subprocess());
+
+        set_process_role(ProcessRole::ServiceSubprocess);
+        assert_eq!(get_process_role(), ProcessRole::ServiceSubprocess);
+        assert!(!is_cli_lightweight());
+        assert!(is_workspace());
+        assert!(!is_workspace_main_process());
+        assert!(is_service_subprocess());
+
+        reset_process_role_for_testing();
+        assert_eq!(get_process_role(), ProcessRole::Unknown);
+    }
+
+    #[crate::ctb_test]
+    fn test_env_cache_reset() {
+        // Calling env_cache_reset flushes and refills caches
+        env_cache_reset();
+
+        // If local IPv4 is available, cached should be present
+        if let Ok(ip) = local_ipv4() {
+            let cached = CACHED_LOCAL_IPV4.read().unwrap();
+            assert_eq!(*cached, Some(ip));
+        }
+
+        // Quick capture should now reflect cached values if available
+        let quick = capture_quick();
+        assert_eq!(quick.os, os());
+        assert!(quick.system_time_resolution_nanos.is_some());
+    }
 }
 
