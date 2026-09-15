@@ -514,7 +514,7 @@ pub async fn check_has_full_text(conn: &Connection) -> Result<bool> {
 }
 
 /// Retrieves or inserts a source entry, returning its integer `source_id`.
-async fn get_or_create_source(
+pub(crate) async fn get_or_create_source(
     conn: &Connection,
     source_name: &str,
     journal_path: &Path,
@@ -569,7 +569,7 @@ async fn get_or_create_source(
 }
 
 /// Ingests all committed entities from a journal snapshot into the SQLite database.
-async fn ingest_journal_snapshot(
+pub(crate) async fn ingest_journal_snapshot(
     conn: &Connection,
     source_id: i64,
     snapshot: &JournalSnapshot,

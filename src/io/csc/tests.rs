@@ -1308,6 +1308,7 @@ mod csc_tests {
         file_entity.streams.push(ctb_io::file::AttachedStream::from_data(
             None, ctb_io::file::StreamKind::MacOsResourceFork, vec![1, 2, 3, 4],
         ).unwrap());
+        file_entity.metadata.environment = writer.environment.clone();
         writer.record_entity(&file_entity);
         writer.record_entity(&link_entity);
         writer.commit_batch().expect("commit batch");
@@ -3554,7 +3555,7 @@ mod csc_tests {
         assert!(has_env_col, "sources table must have environment column");
 
         // Ingest snapshot into database
-        let progress = crate::index_meta::Progress::new(false);
+        let progress = ctb_utilities::Progress::new(false);
         let env_json = snapshot.environment.as_ref().and_then(|e| e.to_json().ok());
         let src_id = crate::index_engine::get_or_create_source(
             &conn,
@@ -3579,7 +3580,11 @@ mod csc_tests {
         let row = select_rows.next().await.expect("next").expect("row present");
         let stored_env = row.get_value(0).expect("get value");
         if let Value::Text(json_str) = stored_env {
-            assert!(json_str.contains("os_family"), "Stored JSON should contain os_family");
+            assert!(json_str.contains("\"os\":"), "Stored JSON should contain os");
+            assert!(
+                json_str.contains("\"is_linux\":") || json_str.contains("\"is_windows\":"),
+                "Stored JSON should contain platform flags"
+            );
         } else {
             panic!("Expected Value::Text for sources.environment");
         }

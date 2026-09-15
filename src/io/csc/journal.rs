@@ -533,9 +533,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
     if let Some(ref env) = environment {
         for entity in committed_entities.values_mut() {
-            if entity.metadata.environment.is_none() {
-                entity.metadata.environment = Some(Arc::clone(env));
-            }
+            entity.metadata.environment = Some(Arc::clone(env));
         }
     }
 

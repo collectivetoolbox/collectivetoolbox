@@ -380,7 +380,7 @@ pub struct FileMetadata {
     ///
     /// Wrapped in [`Arc`] to allow millions of file records to share a single
     /// environment description in memory with zero deduplication overhead.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing)]
     pub environment: Option<Arc<EnvDescription>>,
 }
 
