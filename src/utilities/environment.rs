@@ -1342,7 +1342,15 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_looks_like_gnustep() {
-        let _ = looks_like_gnustep();
+        #[clippy::allow("unsafe", reason="safer to test it")]
+        unsafe {
+            env::set_var("GNUSTEP_USER_ROOT", "/tmp/fake_gnustep");
+        }
+        assert!(looks_like_gnustep());
+        #[clippy::allow("unsafe", reason="safer to test it")]
+        unsafe {
+            env::remove_var("GNUSTEP_USER_ROOT");
+        }
     }
 }
 

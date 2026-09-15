@@ -397,7 +397,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
-            environment: None,
+            environment: Some(ctb_utilities::environment::capture_quick_arc()),
         };
 
         let kind = if is_symlink {
@@ -606,7 +606,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
-            environment: None,
+            environment: Some(ctb_utilities::environment::capture_quick_arc()),
         };
 
         #[cfg(unix)]
@@ -632,20 +632,14 @@ impl FileEntity {
         let kind = if let Some(target) = symlink_target {
             FileEntityKind::Symlink { target }
         } else if file_type.is_dir() {
-            // Check if directory is a macOS bundle (e.g. .app, .framework)
-            if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
-                if ext.eq_ignore_ascii_case("app")
-                    || ext.eq_ignore_ascii_case("pages")
-                    || ext.eq_ignore_ascii_case("framework")
-                    || ext.eq_ignore_ascii_case("bundle")
-                    || ext.eq_ignore_ascii_case("rtfd")
-                {
-                    FileEntityKind::Bundle {
-                        bundle_type: ext.to_lowercase(),
-                    }
-                } else {
-                    FileEntityKind::Directory
-                }
+            if macos_bundle::is_package(path) {
+                // Reason for fallback: package without an extension defaults to generic "bundle" type
+                let bundle_type = path
+                    .extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_lowercase())
+                    .unwrap_or_else(|| "bundle".to_string());
+                FileEntityKind::Bundle { bundle_type }
             } else {
                 FileEntityKind::Directory
             }
@@ -851,5 +845,103 @@ fn canonicalize_entity_path(path: &Path, is_symlink: bool) -> PathBuf {
         // rather than failing ingestion of a valid file.
         // Reason for fallback: retain verbatim path if canonicalization fails
         std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+    }
+}
+
+#[cfg(target_os = "macos")]
+mod macos_bundle {
+    use std::os::unix::ffi::OsStrExt;
+    use std::path::Path;
+
+    #[repr(C)]
+    struct __CFURL(std::ffi::c_void);
+    #[repr(C)]
+    struct __CFString(std::ffi::c_void);
+    #[repr(C)]
+    struct __CFError(std::ffi::c_void);
+
+    type CFURLRef = *const __CFURL;
+    type CFStringRef = *const __CFString;
+    type CFErrorRef = *mut __CFError;
+    type CFTypeRef = *const std::ffi::c_void;
+    type Boolean = std::ffi::c_uchar;
+
+    #[link(name = "CoreFoundation", kind = "framework")]
+    extern "C" {
+        static kCFURLIsPackageKey: CFStringRef;
+        static kCFBooleanTrue: CFTypeRef;
+
+        fn CFURLCreateFromFileSystemRepresentation(
+            allocator: CFTypeRef,
+            buffer: *const u8,
+            buffer_len: isize,
+            is_directory: Boolean,
+        ) -> CFURLRef;
+
+        fn CFURLCopyResourcePropertyForKey(
+            url: CFURLRef,
+            key: CFStringRef,
+            property_value_type_ref_ptr: *mut CFTypeRef,
+            error: *mut CFErrorRef,
+        ) -> Boolean;
+
+        fn CFRelease(cf: CFTypeRef);
+    }
+
+    /// Checks whether `path` is recognized by macOS LaunchServices / Finder as a
+    /// package or bundle using `kCFURLIsPackageKey`.
+    #[expect(
+        unsafe_code,
+        clippy::undocumented_unsafe_blocks,
+        reason = "CoreFoundation FFI for package inspection"
+    )]
+    pub fn is_package(path: &Path) -> bool {
+        let bytes = path.as_os_str().as_bytes();
+        let Ok(len) = isize::try_from(bytes.len()) else {
+            return false;
+        };
+
+        unsafe {
+            let url = CFURLCreateFromFileSystemRepresentation(
+                std::ptr::null(),
+                bytes.as_ptr(),
+                len,
+                1, // is_directory = true
+            );
+            if url.is_null() {
+                return false;
+            }
+
+            let mut value: CFTypeRef = std::ptr::null();
+            let mut error: CFErrorRef = std::ptr::null_mut();
+            let success = CFURLCopyResourcePropertyForKey(
+                url,
+                kCFURLIsPackageKey,
+                &mut value,
+                &mut error,
+            );
+
+            let is_pkg = success != 0 && value == kCFBooleanTrue;
+
+            if !value.is_null() {
+                CFRelease(value);
+            }
+            if !error.is_null() {
+                CFRelease(error.cast());
+            }
+            CFRelease(url.cast());
+
+            is_pkg
+        }
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+mod macos_bundle {
+    use std::path::Path;
+
+    #[inline]
+    pub fn is_package(_path: &Path) -> bool {
+        false
     }
 }
