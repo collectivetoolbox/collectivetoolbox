@@ -908,170 +908,68 @@ fn verify_official_signature_in_thread() -> bool {
     })
 }
 
-fn is_false(val: &bool) -> bool {
-    !*val
-}
-
-fn is_zero_u8(val: &u8) -> bool {
-    *val == 0
-}
-
 /// Detailed snapshot of the current application and platform environment.
 ///
-/// Serializes to a compact format where omitted fields assume default
-/// values, and unknown fields are preserved during roundtrips for forward
-/// and backward extensibility.
+/// Serializes to a format where omitted fields assume default values on
+/// deserialization, and unknown fields are preserved during roundtrips for
+/// forward and backward extensibility.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct EnvDescription {
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub os: String,
-
-    #[serde(skip_serializing_if = "is_zero_u8")]
     pub usize_width: u8,
-
-    #[serde(skip_serializing_if = "String::is_empty")]
     pub ctb_version: String,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_cli_lightweight: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_workspace: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_workspace_main_process: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_service_subprocess: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_browser_vm: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_browser_vm_fullscreen: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_browser_vm_mobile: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_v86: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_pwa: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_pwa_mobile: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_unix: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_linux: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_windows: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_mac_os_10_or_newer: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
+    pub is_apple_ios: bool,
+    pub is_watchos: bool,
+    pub is_tvos: bool,
+    pub is_visionos: bool,
     pub is_darwin: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub looks_like_gnustep: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub looks_like_nextstep_or_openstep: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_bsd: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_openbsd: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_dragonfly: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_freebsd: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_netbsd: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_public_website: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_official_public_website: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_local: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_webui: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_webui_in_system_browser: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_webui_in_webview: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_gui: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_cli: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_cli_tty: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_cli_videoterminal: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_release_build: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_debug_build: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_cargo_target_binary: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_in_test: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_branded_build: bool,
-
-    #[serde(skip_serializing_if = "is_false")]
     pub is_official_signed_build: bool,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_ipv4: Option<Ipv4Addr>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub local_ipv6: Option<Ipv6Addr>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub public_ipv4: Option<Ipv4Addr>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub public_ipv6: Option<Ipv6Addr>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_time_resolution_nanos: Option<u128>,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_system_time_offset_nanos: Option<i128>,
-
     pub cwd: Option<String>,
 
-    #[serde(
-        flatten,
-        default,
-        skip_serializing_if = "std::collections::BTreeMap::is_empty"
-    )]
+    #[serde(flatten, default)]
     pub extra: BTreeMap<String, serde_json::Value>,
 }
 
@@ -1289,11 +1187,10 @@ mod tests {
         assert!(quick.server_system_time_offset_nanos.is_none());
         assert!(quick.system_time_resolution_nanos.is_some());
 
-        // Test compact JSON serialization
+        // Test JSON serialization
         let json = desc.to_json().expect("failed to serialize EnvDescription");
-        // False fields should be omitted from compact JSON
         if !desc.is_windows {
-            assert!(!json.contains("\"is_windows\""));
+            assert!(json.contains("\"is_windows\":false"));
         }
         if desc.is_linux {
             assert!(json.contains("\"is_linux\":true"));
