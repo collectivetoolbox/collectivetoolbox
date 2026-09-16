@@ -2802,6 +2802,7 @@ version = "0.0.0"
 dependencies = [
  "csv",
  "ctb-formats-unicode",
+ "ctb-formats-utf-8e-128",
  "ctb-formats-utilities",
  "ctb-storage-minimal",
  "ctb-utilities",

@@ -30,6 +30,7 @@ pub(crate) use ctb_utilities::*;
 pub use crate as ctb_formats_dc_data;
 
 pub mod dc;
+pub mod dc_char;
 pub mod dc_def;
 pub mod format;
 pub mod layout;
@@ -40,8 +41,13 @@ pub mod syntax;
 pub mod updater;
 pub mod validation;
 
+pub use dc_char::DcChar;
 pub use dc::{
-    GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
+    DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,
+    DC_END_ENCAPSULATION_BINARY, DC_END_ENCAPSULATION_UTF8, DC_END_NUMBER,
+    DC_ESCAPE, DC_ESCAPE_NEXT, DC_FORMAT_199, DC_LONG_DC, DC_NEGATIVE,
+    DC_POSITIVE, DC_REPLACEMENT_UNAVAIL_DC, DC_REPLACEMENT_UNAVAIL_UNICODE,
+    DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8,
     SHORT_DC_REGION_END, SHORT_DC_REGION_START, long_to_short_dc,
     short_to_long_dc,
 };

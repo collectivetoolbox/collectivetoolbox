@@ -35,7 +35,10 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut, Index, RangeFull};
 
-use ctb_formats_dcdata::dc::SHORT_DC_REGION_START;
+use ctb_formats_dcdata::dc::{
+    DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
+    SHORT_DC_REGION_START,
+};
 use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
 use sha2::{Digest, Sha256};
 
@@ -67,11 +70,9 @@ pub const TYPE_BINARY_SHA256: u8 = 3;
 /// SHA-256 checksum.
 pub const TYPE_DCUTF_SHA256: u8 = 4;
 
-/// Short Dc identifier for start of binary encapsulation (`Dc 203`).
-pub const DC_START_ENCAPSULATION_BINARY: u32 = 203;
-
-/// Short Dc identifier for end of binary encapsulation (`Dc 204`).
-pub const DC_END_ENCAPSULATION_BINARY: u32 = 204;
+pub use ctb_formats_dcdata::dc::{
+    DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
+};
 
 /// Pre-computed UTF-8e-128 byte sequence for `Dc 203` (`SHORT_DC_REGION_START + 203`).
 pub const DC_203_BYTES: [u8; 6] = [0xFF, 0x84, 0x84, 0x90, 0x83, 0x8B];
@@ -461,33 +462,24 @@ impl DcMstr {
     /// Returns error if base64 encoding fails.
     pub fn to_dc_string(&self) -> Result<DcString> {
         let mut out = DcString::new();
-        let dc_203 = DcChar::from_u128(
-            SHORT_DC_REGION_START.saturating_add(u128::from(DC_START_ENCAPSULATION_BINARY)),
-        );
-        let dc_204 = DcChar::from_u128(
-            SHORT_DC_REGION_START.saturating_add(u128::from(DC_END_ENCAPSULATION_BINARY)),
-        );
-
         for chunk in self.chunks() {
             match chunk {
                 DcMixed::Text(text) => {
                     out.push_dc_str(text);
                 }
                 DcMixed::Binary { data, .. } => {
-                    out.push(dc_203);
+                    out.push(DC_START_ENCAPSULATION_BINARY);
                     let raw_shorts =
                         ctb_formats_eite::dc::bytes_to_dc_encapsulated_raw(data)?;
                     for short_id in raw_shorts {
-                        out.push(DcChar::from_u128(
-                            SHORT_DC_REGION_START.saturating_add(u128::from(short_id)),
-                        ));
+                        out.push(DcChar::from_short(short_id));
                     }
-                    out.push(dc_204);
+                    out.push(DC_END_ENCAPSULATION_BINARY);
                 }
                 DcMixed::DcUtf { data, .. } => {
-                    out.push(dc_203);
+                    out.push(DC_START_ENCAPSULATION_BINARY);
                     out.push_dc_str(data);
-                    out.push(dc_204);
+                    out.push(DC_END_ENCAPSULATION_BINARY);
                 }
             }
         }
@@ -640,13 +632,13 @@ impl DcMst {
 
         while i < chars.len() {
             let Some(&ch) = chars.get(i) else { break };
-            if ch.to_short_dc() == Some(DC_START_ENCAPSULATION_BINARY) {
+            if ch == DC_START_ENCAPSULATION_BINARY {
                 // Find closing Dc 204
                 let mut j = i.saturating_add(1);
                 let mut found_end = false;
                 while j < chars.len() {
                     let Some(&cur) = chars.get(j) else { break };
-                    if cur.to_short_dc() == Some(DC_END_ENCAPSULATION_BINARY) {
+                    if cur == DC_END_ENCAPSULATION_BINARY {
                         found_end = true;
                         break;
                     }
@@ -1131,7 +1123,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_dc_203_bytes_constant() {
-        let encoded = DcChar(SHORT_DC_REGION_START + 203).encode();
+        let encoded = DC_START_ENCAPSULATION_BINARY.encode();
         assert_eq!(encoded, DC_203_BYTES.to_vec());
     }
 

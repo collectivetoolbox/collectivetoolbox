@@ -30,15 +30,48 @@ pub use ctb_storage_minimal::global_graph_layout::{
     SHORT_DC_REGION_END, SHORT_DC_REGION_START,
 };
 
-/// Short Dc ID for embedding long (global graph) Dc IDs (Dc 308).
-pub const SHORT_DC_LONG_DC: u32 = 308;
-/// Global Graph ID for Dc 308 (`1_114_420`).
-pub const GID_LONG_DC: u128 = 1_114_420;
+pub use crate::dc_char::DcChar;
 
-/// Short Dc ID for escape / ignore following Dc (Dc 255).
-pub const SHORT_DC_ESCAPE: u32 = 255;
-/// Global Graph ID for Dc 255 (`1_114_367`).
-pub const GID_ESCAPE: u128 = 1_114_367;
+/// Start encapsulation of binary or non-text data (Dc 203).
+pub const DC_START_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(203);
+/// End encapsulation of binary or non-text data (Dc 204).
+pub const DC_END_ENCAPSULATION_BINARY: DcChar = DcChar::from_short(204);
+
+/// Start encapsulation of UTF-8 data (Dc 191).
+pub const DC_START_ENCAPSULATION_UTF8: DcChar = DcChar::from_short(191);
+/// End encapsulation of UTF-8 data (Dc 192).
+pub const DC_END_ENCAPSULATION_UTF8: DcChar = DcChar::from_short(192);
+
+/// Replacement for incoming character with value not mapped to a Dc (Dc 207).
+pub const DC_REPLACEMENT_UNAVAIL_DC: DcChar = DcChar::from_short(207);
+/// Replacement for incoming character with value unknown or unrepresentable in Unicode (Dc 206).
+pub const DC_REPLACEMENT_UNAVAIL_UNICODE: DcChar = DcChar::from_short(206);
+
+/// Document Character for escape / ignore following Dc (Dc 255).
+pub const DC_ESCAPE: DcChar = DcChar::from_short(255);
+/// Alias for `DC_ESCAPE`.
+pub const DC_ESCAPE_NEXT: DcChar = DC_ESCAPE;
+
+/// Document Character for embedding long (global graph) Dc IDs (Dc 308).
+pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
+
+/// Begin number in Dc stream (Dc 6).
+pub const DC_BEGIN_NUMBER: DcChar = DcChar::from_short(6);
+/// End number in Dc stream (Dc 7).
+pub const DC_END_NUMBER: DcChar = DcChar::from_short(7);
+/// Positive number sign in Dc stream (Dc 10).
+pub const DC_POSITIVE: DcChar = DcChar::from_short(10);
+/// Negative number sign in Dc stream (Dc 11).
+pub const DC_NEGATIVE: DcChar = DcChar::from_short(11);
+/// Format 199 in Dc stream.
+pub const DC_FORMAT_199: DcChar = DcChar::from_format(199);
+
+/// First Base64 encapsulation digit (digit 0 = 'A' = Dc 127).
+pub const DC_BASE64_START: DcChar = DcChar::from_short(127);
+/// Last Base64 encapsulation digit (digit 63 = '/' = Dc 190).
+pub const DC_BASE64_END: DcChar = DcChar::from_short(190);
+/// Base64 encapsulation padding character ('=' = Dc 195).
+pub const DC_BASE64_PADDING: DcChar = DcChar::from_short(195);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]
