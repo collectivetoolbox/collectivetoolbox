@@ -43,6 +43,7 @@ pub use ctb_formats_dcdata::dc::{
     DC_REPLACEMENT_UNAVAIL_DC, DC_REPLACEMENT_UNAVAIL_UNICODE,
     DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8, DcChar,
 };
+pub use ctb_formats_dcdata::dc_number_minimal::is_dc_base64_encapsulation_char;
 
 /* ===== Dc classification & queries ===== */
 
@@ -217,10 +218,7 @@ fn describe_general_category(type_code: &str) -> String {
 }
 
 pub fn is_dc_base64_encapsulation_character(dc: u32) -> bool {
-    let start = DC_BASE64_START.to_short().unwrap_or(127);
-    let end = DC_BASE64_END.to_short().unwrap_or(190);
-    let padding = DC_BASE64_PADDING.to_short().unwrap_or(195);
-    (start..=end).contains(&dc) || dc == padding
+    is_dc_base64_encapsulation_char(DcChar::from_short(dc))
 }
 
 pub fn string_to_dc_encapsulated_utf8(input: &str) -> Result<Vec<u32>> {

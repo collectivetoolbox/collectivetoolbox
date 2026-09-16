@@ -46,7 +46,8 @@ use const_default::ConstDefault;
 
 use crate::dc::{
     DC_END_ENCAPSULATION_UTF8, DC_ESCAPE_NEXT, DC_START_ENCAPSULATION_UTF8,
-    bytes_as_dc_encapsulated_utf8, dc_encapsulated_raw_to_bytes,
+    DcChar, bytes_as_dc_encapsulated_utf8, dc_encapsulated_raw_to_bytes,
+    is_dc_base64_encapsulation_char,
     is_dc_base64_encapsulation_character,
 };
 use crate::eite_state::EiteState;
@@ -141,22 +142,20 @@ pub fn dca_to_utf8(
 
     let len = dc_array.len();
     let mut i: usize = 0;
-    let escape_next_id = DC_ESCAPE_NEXT.to_short()?;
-    let start_enc_utf8_id = DC_START_ENCAPSULATION_UTF8.to_short()?;
-    let end_enc_utf8_id = DC_END_ENCAPSULATION_UTF8.to_short()?;
 
     while i < len {
-        let dc = dc_array
+        let raw_dc = dc_array
             .get(i)
             .copied()
             .ok_or_else(|| anyhow!("Index out of bounds"))?;
+        let dc = DcChar::from_short(raw_dc);
 
         // Manage escape flags
         if escape_next {
             escape_next = false;
             escape_this = true;
         }
-        if dc == escape_next_id {
+        if dc == DC_ESCAPE_NEXT {
             escape_next = true;
         }
 
@@ -169,7 +168,7 @@ pub fn dca_to_utf8(
         // reprocessing that subsequence with utf8_base64_embed_enabled turned off.
         if utf8_base64_embed_enabled
             && !escape_this
-            && dc == start_enc_utf8_id
+            && dc == DC_START_ENCAPSULATION_UTF8
         {
             #[cfg(debug_assertions)]
             {
@@ -183,15 +182,16 @@ pub fn dca_to_utf8(
 
             // Scan forward for a valid end marker, ensuring all characters in between are valid.
             while j < len {
-                let cur = dc_array
+                let cur_raw = dc_array
                     .get(j)
                     .copied()
                     .ok_or_else(|| anyhow!("Index out of bounds"))?;
-                if cur == end_enc_utf8_id {
+                let cur = DcChar::from_short(cur_raw);
+                if cur == DC_END_ENCAPSULATION_UTF8 {
                     truncated = false;
                     break;
                 }
-                if !is_dc_base64_encapsulation_character(cur) {
+                if !is_dc_base64_encapsulation_char(cur) {
                     // Invalid character => treat as truncated (do not consume invalid char).
                     truncated = true;
                     break;
@@ -327,25 +327,25 @@ pub fn dca_to_utf8(
 
         // Standard Dc mapping path (original logic preserved / reorganized).
         let mut mapped: Vec<u8> = Vec::new();
-        let (dc_mapped, dc_log) = dc_to_format("utf8", dc)?;
+        let (dc_mapped, dc_log) = dc_to_format("utf8", raw_dc)?;
         mapped.extend(dc_mapped);
         log.merge(&dc_log);
 
         if debug {
             log.debug(&format!(
-                "dca_to_utf8: idx {i}, current_dc {dc}, mapped {mapped:?}"
+                "dca_to_utf8: idx {i}, current_dc {raw_dc}, mapped {mapped:?}"
             ));
         }
 
         // Unmappable? (empty mapped vector)
         if mapped.is_empty() {
             if dc_basenb_enabled {
-                unmappables.push(dc);
+                unmappables.push(raw_dc);
             } else {
                 // Reason for fallback: loop index i is u32-bounded in standard files, but fallback to 0 safely avoids panic if file index exceeds u32::MAX when logging warning.
                 log.export_warning(
                     i.try_into().unwrap_or(0),
-                    &format!("Dc {dc} has no UTF-8 mapping"),
+                    &format!("Dc {raw_dc} has no UTF-8 mapping"),
                 );
                 if !settings.skip_unmappable {
                     mapped.extend_from_slice(UTF8_REPLACEMENT_CHARACTER);

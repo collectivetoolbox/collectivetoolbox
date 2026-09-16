@@ -37,6 +37,7 @@ pub mod layout;
 pub mod lookup;
 pub mod report;
 pub mod shared;
+pub mod dc_number_minimal;
 pub mod syntax;
 pub mod updater;
 pub mod validation;
@@ -50,6 +51,11 @@ pub use dc::{
     DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8,
     SHORT_DC_REGION_END, SHORT_DC_REGION_START, long_to_short_dc,
     short_to_long_dc,
+};
+pub use dc_number_minimal::{
+    dc_base64_char_to_digit, dc_base64_digit_to_char,
+    is_dc_base64_encapsulation_char, u128_to_dc_number_chars,
+    u128_to_dc_number_short,
 };
 pub use dc_def::{DcDefn, FormatDetails};
 pub use format::{

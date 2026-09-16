@@ -35,23 +35,6 @@ use ctb_storage_minimal::global_graph_layout::{
     SHORT_DC_REGION_START,
 };
 
-/// Short Dc ID for embedding long (global graph) Dc IDs (Dc 308).
-const SHORT_DC_LONG_DC_ID: u32 = 308;
-/// Global Graph ID for Dc 308 (`1_114_420`).
-const GID_LONG_DC_ID: u128 = 1_114_420;
-/// Short Dc ID for escape / ignore following Dc (Dc 255).
-const SHORT_DC_ESCAPE_ID: u32 = 255;
-/// Global Graph ID for Dc 255 (`1_114_367`).
-const GID_ESCAPE_ID: u128 = 1_114_367;
-
-/// Short Dc ID for `Begin number` (Dc 6).
-const SHORT_DC_BEGIN_NUMBER_ID: u32 = 6;
-/// Short Dc ID for `End number` (Dc 7).
-const SHORT_DC_END_NUMBER_ID: u32 = 7;
-/// Short Format ID for Format 199.
-const SHORT_ID_FORMAT_199_ID: u32 = 199;
-/// Short Dc ID for Base64 digit 0 (Dc 127).
-const SHORT_DC_BASE64_START_ID: u32 = 127;
 
 /// A single Document Character (Dc) or Unicode codepoint, represented as a
 /// 128-bit integer.
@@ -127,33 +110,19 @@ impl DcChar {
     ///   embedded via Dc 308: `[308, 6, 199, ...digits..., 7]`.
     #[must_use]
     pub fn to_short_vec(self) -> Vec<u32> {
-        if self.0 == GID_LONG_DC_ID {
-            vec![SHORT_DC_ESCAPE_ID, SHORT_DC_LONG_DC_ID]
-        } else if self.0 == GID_ESCAPE_ID {
-            vec![SHORT_DC_ESCAPE_ID, SHORT_DC_ESCAPE_ID]
+        let escape = crate::dc::DC_ESCAPE.to_short().unwrap_or(255);
+        let long_dc = crate::dc::DC_LONG_DC.to_short().unwrap_or(308);
+
+        if self == crate::dc::DC_LONG_DC {
+            vec![escape, long_dc]
+        } else if self == crate::dc::DC_ESCAPE {
+            vec![escape, escape]
         } else if let Ok(short_id) = self.to_short() {
             vec![short_id]
         } else {
             let mut out = Vec::new();
-            out.push(SHORT_DC_LONG_DC_ID);
-            out.push(SHORT_DC_BEGIN_NUMBER_ID);
-            out.push(SHORT_ID_FORMAT_199_ID);
-
-            let mut digits = Vec::new();
-            let mut val = self.0;
-            if val == 0 {
-                digits.push(SHORT_DC_BASE64_START_ID);
-            } else {
-                while val > 0 {
-                    let rem = val.checked_rem(64).unwrap_or(0);
-                    let rem_u32 = u32::try_from(rem).unwrap_or(0);
-                    digits.push(SHORT_DC_BASE64_START_ID.saturating_add(rem_u32));
-                    val = val.checked_div(64).unwrap_or(0);
-                }
-                digits.reverse();
-            }
-            out.extend(digits);
-            out.push(SHORT_DC_END_NUMBER_ID);
+            out.push(long_dc);
+            out.extend(crate::dc_number_minimal::u128_to_dc_number_short(self.0));
             out
         }
     }
