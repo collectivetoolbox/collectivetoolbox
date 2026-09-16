@@ -40,10 +40,12 @@ pub mod filesystem;
 pub mod identity;
 pub mod materializer;
 pub mod metadata;
+pub mod metadata_json;
 pub mod name_collisions;
 pub mod path_policy;
 pub mod payload;
 pub mod sandboxable_dir;
+pub mod serde_helpers;
 pub mod streams;
 pub mod sys_flags;
 pub mod traversal;
@@ -76,6 +78,10 @@ pub use materializer::{
 };
 pub use metadata::{
     FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily, PlatformRawFlags,
+};
+pub use metadata_json::{
+    FileMetadataJson, export_file_metadata_json,
+    rematerialize_from_metadata_json,
 };
 pub use name_collisions::{PlannedItemAction, validate_and_order_directory_entries};
 pub use path_policy::{

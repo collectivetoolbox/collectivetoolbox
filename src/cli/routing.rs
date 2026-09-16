@@ -75,6 +75,8 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "stagel-bootstrap-parse"
             | "stagel-bootstrap-convert"
             | "pan2parsejson"
+            | "file2metadatajson"
+            | "metadatajson2file"
             | "pdf2txt"
             | "pdf2json"
             | "pdf2md"
@@ -463,6 +465,29 @@ pub enum Command {
     Pdf2Md {
         /// Input PDF file path (or - for stdin)
         pdf_file: PathBuf,
+    },
+    /// Read a file and export comprehensive metadata from io/file to JSON
+    #[command(name = "file2metadatajson")]
+    File2MetadataJson {
+        /// Include file body content (base64-encoded) in JSON
+        #[arg(long)]
+        body: bool,
+
+        /// Omit extended attributes, resource forks, and alternate streams
+        #[arg(long)]
+        no_streams: bool,
+
+        /// Input file path to inspect
+        file: PathBuf,
+    },
+    /// Read file metadata JSON and rematerialize the file to the given path
+    #[command(name = "metadatajson2file")]
+    MetadataJson2File {
+        /// Path to metadata JSON file (or - for stdin)
+        metadata_file: PathBuf,
+
+        /// Destination path to rematerialize the file to
+        path: PathBuf,
     },
     /// WARC archiving tool
     #[command(
@@ -1107,6 +1132,31 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             let output = ctb_formats_pdf::pdf2md(&data)?;
             Ok(ToolResult::immediate_ok(output.into_bytes()))
         }
+        Command::File2MetadataJson {
+            body,
+            no_streams,
+            file,
+        } => {
+            let json = ctb_io_file::export_file_metadata_json(
+                file.as_path(),
+                *body,
+                !*no_streams,
+            )?;
+            Ok(ToolResult::immediate_ok(json.into_bytes()))
+        }
+        Command::MetadataJson2File {
+            metadata_file,
+            path,
+        } => {
+            let data = read_file_or_stdin(metadata_file.as_path())?;
+            let json_str = std::str::from_utf8(&data)
+                .context("Metadata JSON input is not valid UTF-8")?;
+            ctb_io_file::rematerialize_from_metadata_json(
+                json_str,
+                path.as_path(),
+            )?;
+            Ok(ToolResult::immediate_ok(Vec::new()))
+        }
         Command::Warcat { args } => {
             let mut warcat_args = vec!["warcat".to_string()];
             warcat_args.extend(args.clone());
@@ -1426,6 +1476,8 @@ mod tests {
             "x86-instruction-sets",
             "json-escape",
             "jq",
+            "file2metadatajson",
+            "metadatajson2file",
         ];
         for cmd_name in lightweight_commands {
             assert!(

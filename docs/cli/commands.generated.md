@@ -40,6 +40,8 @@ Commands:
   pdf2txt                    Convert a PDF file to text output. Not yet implemented
   pdf2json                   Convert a PDF file to JSON output. Not yet implemented
   pdf2md                     Convert a PDF file to Markdown output. Not yet implemented
+  file2metadatajson          Read a file and export comprehensive metadata from io/file to JSON
+  metadatajson2file          Read file metadata JSON and rematerialize the file to the given path
   warcat                     WARC archiving tool
   ctb-asset-bundle-extract   Extract a ctoolbox asset bundle to a directory tree
   js-lint                    Lint JavaScript and TypeScript sources
@@ -353,6 +355,40 @@ Options:
           Archive mode (preserves metadata, symlinks, and recurses; default for csc; accepted for cp compatibility)
   -n, --dry-run
           Perform a dry run without copying or modifying destination files
+      --read-apple-double [<STYLE>]
+          Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --read-apple-double-alongside
+          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+      --no-read-apple-double-alongside
+          Disable reading alongside (._<filename>) AppleDouble companion files
+      --read-apple-double-zip
+          Read __MACOSX/ directory AppleDouble companion files
+      --read-apple-double-netatalk
+          Read Netatalk .AppleDouble companion files
+      --read-apple-single
+          Read AppleSingle files and decode data fork, resource fork, and Apple metadata
+      --read-apple-single-without-extension
+          Read bare AppleSingle files without extension (alias for --read-apple-single)
+      --no-read-apple-single
+          Disable reading bare AppleSingle files without extension
+      --read-apple-single-with-extension <EXT>
+          Read AppleSingle files with the specified extension ('as' or 'asf'), automatically stripping the extension upon successful decode. May be specified multiple times to support multiple extensions [possible values: without-extension, as, asf]
+      --maybe-write-apple-double [<STYLE>]
+          Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --force-write-apple-double [<STYLE>]
+          Force writing AppleDouble companion files even if native streams are supported. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --maybe-write-apple-single
+          Write AppleSingle archive files if native filesystem streams or Apple metadata cannot be preserved
+      --force-write-apple-single
+          Force writing destination files as AppleSingle archives
+      --write-apple-single-with-extension <EXT>
+          Write AppleSingle archive files with specified extension: 'as' or 'asf' [possible values: without-extension, as, asf]
+      --write-apple-single-without-extension
+          Write AppleSingle archive files without extension (default)
+      --full-provenance
+          Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
+      --continue-on-error
+          Continue copying remaining files when an item cannot be read, copied, or materialized. Errors are logged into the journal and descriptor instead of aborting the operation
   -h, --help
           Print help (see more with '--help')
 ```
@@ -412,6 +448,40 @@ Options:
           Archive mode (preserves metadata, symlinks, and recurses; default for csc; accepted for cp compatibility)
   -n, --dry-run
           Perform a dry run without copying or modifying destination files
+      --read-apple-double [<STYLE>]
+          Read AppleDouble companion files and join them into file entities. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --read-apple-double-alongside
+          Read alongside (._<filename>) AppleDouble companion files (default: enabled)
+      --no-read-apple-double-alongside
+          Disable reading alongside (._<filename>) AppleDouble companion files
+      --read-apple-double-zip
+          Read __MACOSX/ directory AppleDouble companion files
+      --read-apple-double-netatalk
+          Read Netatalk .AppleDouble companion files
+      --read-apple-single
+          Read AppleSingle files and decode data fork, resource fork, and Apple metadata
+      --read-apple-single-without-extension
+          Read bare AppleSingle files without extension (alias for --read-apple-single)
+      --no-read-apple-single
+          Disable reading bare AppleSingle files without extension
+      --read-apple-single-with-extension <EXT>
+          Read AppleSingle files with the specified extension ('as' or 'asf'), automatically stripping the extension upon successful decode. May be specified multiple times to support multiple extensions [possible values: without-extension, as, asf]
+      --maybe-write-apple-double [<STYLE>]
+          Write AppleDouble companion files if native filesystem streams or Apple metadata cannot be preserved. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --force-write-apple-double [<STYLE>]
+          Force writing AppleDouble companion files even if native streams are supported. Defaults to `alongside` style if passed without a style [possible values: alongside, zip, netatalk]
+      --maybe-write-apple-single
+          Write AppleSingle archive files if native filesystem streams or Apple metadata cannot be preserved
+      --force-write-apple-single
+          Force writing destination files as AppleSingle archives
+      --write-apple-single-with-extension <EXT>
+          Write AppleSingle archive files with specified extension: 'as' or 'asf' [possible values: without-extension, as, asf]
+      --write-apple-single-without-extension
+          Write AppleSingle archive files without extension (default)
+      --full-provenance
+          Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
+      --continue-on-error
+          Continue copying remaining files when an item cannot be read, copied, or materialized. Errors are logged into the journal and descriptor instead of aborting the operation
   -h, --help
           Print help (see more with '--help')
 ```
@@ -445,6 +515,7 @@ Options:
       --best-effort       Verify in best-effort mode: tolerates timestamp precision differences up to 2 seconds and ignores ownership mismatches if running unprivileged
       --strict            Enforce strictest verification settings, enabling --check-atime and --check-ctime
       --allow-incomplete  Allow verifying against a manifest that failed, was aborted, or has not completed verification
+      --full-provenance   Record full provenance environment information using slow environment detection
   -h, --help              Print help (see more with '--help')
 ```
 
@@ -672,6 +743,22 @@ Supported compression formats:
   lzo: LZO compression
 ```
 
+### `ctoolbox file2metadatajson`
+
+```text
+Read a file and export comprehensive metadata from io/file to JSON
+
+Usage: ctoolbox file2metadatajson [OPTIONS] <FILE>
+
+Arguments:
+  <FILE>  Input file path to inspect
+
+Options:
+      --body        Include file body content (base64-encoded) in JSON
+      --no-streams  Omit extended attributes, resource forks, and alternate streams
+  -h, --help        Print help
+```
+
 ### `ctoolbox fsearch`
 
 ```text
@@ -777,6 +864,7 @@ Options:
       --encrypt                      Password-protect the SQLite index using Turso native page-level encryption (aegis256) and store metadata in *.cscidxmeta
       --password-file <FILE>         Read password from the specified file instead of prompting
       --password-stdin               Read password from standard input instead of prompting
+      --full-provenance              Record full provenance environment information using slow environment detection (e.g. network discovery for public IP addresses and server time synchronization)
   -h, --help                         Print help
 ```
 
@@ -1324,6 +1412,21 @@ Options:
   -h, --help                     Print help
 ```
 
+### `ctoolbox metadatajson2file`
+
+```text
+Read file metadata JSON and rematerialize the file to the given path
+
+Usage: ctoolbox metadatajson2file <METADATA_FILE> <PATH>
+
+Arguments:
+  <METADATA_FILE>  Path to metadata JSON file (or - for stdin)
+  <PATH>           Destination path to rematerialize the file to
+
+Options:
+  -h, --help  Print help
+```
+
 ### `ctoolbox mv`
 
 ```text
@@ -1344,6 +1447,7 @@ Options:
       --allow-unknown-fs      Allow operation even if the filesystem type cannot be detected
   -f, --force                 Force overwrite destination without prompt (accepted for mv compatibility)
   -n, --dry-run               Perform a dry run without moving or deleting files
+      --full-provenance       Record full provenance environment information using slow environment detection when falling back to verified copy
   -h, --help                  Print help
 ```
 

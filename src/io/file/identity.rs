@@ -26,10 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Unique filesystem inode identifier across mounts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct InodeKey {
     /// Device identifier (`st_dev`).
     pub device_id: u64,
@@ -38,7 +39,7 @@ pub struct InodeKey {
 }
 
 /// The origin source where a file was discovered or extracted from.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileOrigin {
     /// Residing on a local filesystem.
     Filesystem {
@@ -68,7 +69,7 @@ pub enum FileOrigin {
 }
 
 /// Multifaceted identity information for a file entity.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileIdentity {
     /// Origin locator where the file was discovered.
     pub origin: FileOrigin,
@@ -78,8 +79,10 @@ pub struct FileIdentity {
     /// resolved, if applicable.
     pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
+    #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
     pub raw_relative_path: Vec<u8>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
+    #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
     pub raw_filename: Vec<u8>,
     /// Link count on the source filesystem.
     pub nlink: u64,

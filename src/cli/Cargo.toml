@@ -30,6 +30,7 @@ ctb-formats-x86 = { path = "../formats/x86" }
 ctb-storage = { path = "../storage" }
 ctb-installer = { path = "../installer" }
 ctb-io-csc = { path = "../io/csc" }
+ctb-io-file = { path = "../io/file" }
 
 clap = { version = "4.5.54", features = ["cargo", "derive", "unicode"] }
 termsize = "0.1"

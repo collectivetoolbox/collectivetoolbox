@@ -2628,6 +2628,7 @@ dependencies = [
  "ctb-formats-x86",
  "ctb-installer",
  "ctb-io-csc",
+ "ctb-io-file",
  "ctb-storage",
  "ctb-utilities",
  "futures",
@@ -3410,6 +3411,7 @@ name = "ctb-io-file"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "cfg-if",
  "clap",
  "ctb-formats-apple-single-double",

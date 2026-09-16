@@ -36,6 +36,7 @@ use crate::file::sys_flags::query_file_flags;
 use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use filetime::set_symlink_file_times;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -43,13 +44,14 @@ use std::time::SystemTime;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 
 /// The concrete filesystem or archive kind of a file entity.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileEntityKind {
     /// A regular file with size, extents, and payload digest.
     Regular {
         /// Logical file size in bytes.
         size: u64,
         /// SHA-256 cryptographic digest of payload.
+        #[serde(with = "crate::file::serde_helpers::hex_sha256")]
         sha256: [u8; 32],
         /// True if any sparse extents (holes) exist.
         is_sparse: bool,
@@ -61,11 +63,13 @@ pub enum FileEntityKind {
     /// A symbolic link pointing to raw target bytes.
     Symlink {
         /// Exact target bytes (not lossily decoded).
+        #[serde(with = "crate::file::serde_helpers::text_or_base64")]
         target: Vec<u8>,
     },
     /// A hardlink to an existing path or inode in the session.
     Hardlink {
         /// Relative path to the original linked file in raw bytes.
+        #[serde(with = "crate::file::serde_helpers::text_or_base64")]
         target_relative_path: Vec<u8>,
     },
     /// A named pipe (FIFO).
@@ -92,7 +96,7 @@ pub enum FileEntityKind {
 }
 
 /// Canonical categorical type of a file entity without payload details.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum FileEntityType {
     /// Regular file.
     Regular,
@@ -202,7 +206,7 @@ impl FileEntityKind {
 
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileEntity {
     /// Multifaceted identity and origin.
     pub identity: FileIdentity,

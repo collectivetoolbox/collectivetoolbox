@@ -197,7 +197,7 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
@@ -210,6 +210,7 @@ pub struct AttachedStream {
     /// The stream represented as a full `FileEntity`.
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
+    #[serde(default, with = "crate::file::serde_helpers::opt_base64")]
     pub data: Option<Vec<u8>>,
 }
 
