@@ -2841,6 +2841,7 @@ dependencies = [
  "ctb-storage-minimal",
  "ctb-utilities",
  "malachite",
+ "sha2 0.10.9",
  "tempfile",
 ]
 

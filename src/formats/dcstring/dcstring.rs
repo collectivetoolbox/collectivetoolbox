@@ -32,6 +32,7 @@ pub mod cli;
 pub mod cli_identifiers;
 pub mod converters;
 pub mod dc_char;
+pub mod dc_mixed;
 pub mod dc_number;
 pub mod dc_str;
 pub mod dcstring_impl;
@@ -40,6 +41,10 @@ pub mod error;
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
 pub use dc_char::DcChar;
+pub use dc_mixed::{
+    DcMixed, DcMixedChunk, DcMixedError, DcMixedOwned, DcMst, DcMstr,
+    DcMstring, DcMstSlice, validate_dcmst,
+};
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dcstring_impl::DcString;
 pub use error::DcUtfError;
