@@ -674,7 +674,7 @@ pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
 #define	UF_APPEND	0x00000004	/* writes to file may only append */
 #define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
 /*	UF_NOUNLINK	0x00000010	   [NOT IMPLEMENTED] */
-*
+ *
  * Super-user changeable flags.
  *
 #define	SF_SETTABLE	0xffff0000	/* mask of superuser changeable flags */
@@ -703,15 +703,23 @@ define_platform_flags! {
         (FileFlag::Archived,        NETBSD_SF_ARCHIVED,  0x0001_0000, FlagSettability::RootSettable),
         (FileFlag::SystemImmutable, NETBSD_SF_IMMUTABLE, 0x0002_0000, FlagSettability::RootSettable),
         (FileFlag::SystemAppend,    NETBSD_SF_APPEND,    0x0004_0000, FlagSettability::RootSettable),
+        (FileFlag::Snapshot,        NETBSD_SF_SNAPSHOT,  0x0020_0000, FlagSettability::KernelOnly),
+        (FileFlag::SystemLog,       NETBSD_SF_LOG,       0x0040_0000, FlagSettability::KernelOnly),
+        (FileFlag::SnapshotInvalid, NETBSD_SF_SNAPINVAL, 0x0080_0000, FlagSettability::KernelOnly),
     ],
     extra_constants: [
-        (NETBSD_UF_SETTABLE, 0x0000_ffff),
-        (NETBSD_SF_SETTABLE, 0xffff_0000),
+        (NETBSD_UF_SETTABLE,  0x0000_ffff),
+        (NETBSD_UF_NOUNLINK,  0x0000_0010), // unimplemented by NetBSD
+        (NETBSD_SF_SETTABLE,  0xffff_0000),
+        (NETBSD_SF_NOUNLINK,  0x0010_0000), // unimplemented by NetBSD
     ],
 }
 
-/// Mask of settable flags on NetBSD (`UF_SETTABLE | SF_SETTABLE`).
-pub const NETBSD_SETTABLE_MASK: u32 = NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE;
+/// Mask of settable flags on NetBSD (`UF_SETTABLE | SF_SETTABLE`, excluding
+/// system-maintained flags).
+pub const NETBSD_SETTABLE_MASK: u32 =
+    (NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE)
+        & !(NETBSD_SF_SNAPSHOT | NETBSD_SF_LOG | NETBSD_SF_SNAPINVAL);
 
 
 
@@ -723,7 +731,7 @@ pub const NETBSD_SETTABLE_MASK: u32 = NETBSD_UF_SETTABLE | NETBSD_SF_SETTABLE;
 
 
 
-
+// No nice documentation for these as it's GPL-2-only and can't be included here.
 
 define_platform_flags! {
     map: LINUX_FLAG_MAP,
@@ -733,21 +741,60 @@ define_platform_flags! {
     os_id: "linux",
     os_name: "Linux",
     flags: [
-        (FileFlag::NoDump,          LINUX_FS_NODUMP_FL,          0x0000_0040, FlagSettability::UserSettable),
-        (FileFlag::UserImmutable,   LINUX_FS_IMMUTABLE_FL,       0x0000_0010, FlagSettability::RootSettable),
-        (FileFlag::SystemImmutable, LINUX_FS_IMMUTABLE_FL_ALIAS, 0x0000_0010, FlagSettability::RootSettable),
-        (FileFlag::UserAppend,      LINUX_FS_APPEND_FL,          0x0000_0020, FlagSettability::RootSettable),
-        (FileFlag::SystemAppend,    LINUX_FS_APPEND_FL_ALIAS,    0x0000_0020, FlagSettability::RootSettable),
-        (FileFlag::Compressed,      LINUX_FS_COMPR_FL,           0x0000_0004, FlagSettability::KernelOnly),
+        (FileFlag::SecureRemoval,    LINUX_FS_SECRM_FL,           0x0000_0001, FlagSettability::RootSettable),
+        (FileFlag::Undelete,         LINUX_FS_UNRM_FL,            0x0000_0002, FlagSettability::UserSettable),
+        (FileFlag::Compressed,       LINUX_FS_COMPR_FL,           0x0000_0004, FlagSettability::KernelOnly),
+        (FileFlag::Sync,             LINUX_FS_SYNC_FL,            0x0000_0008, FlagSettability::RootSettable),
+        (FileFlag::UserImmutable,    LINUX_FS_IMMUTABLE_FL,       0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::SystemImmutable,  LINUX_FS_IMMUTABLE_FL_ALIAS, 0x0000_0010, FlagSettability::RootSettable),
+        (FileFlag::UserAppend,       LINUX_FS_APPEND_FL,          0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::SystemAppend,     LINUX_FS_APPEND_FL_ALIAS,    0x0000_0020, FlagSettability::RootSettable),
+        (FileFlag::NoDump,           LINUX_FS_NODUMP_FL,          0x0000_0040, FlagSettability::UserSettable),
+        (FileFlag::NoAtime,          LINUX_FS_NOATIME_FL,         0x0000_0080, FlagSettability::UserSettable),
+        (FileFlag::Dirty,            LINUX_FS_DIRTY_FL,           0x0000_0100, FlagSettability::KernelOnly),
+        (FileFlag::CompressedBlocks, LINUX_FS_COMPRBLK_FL,        0x0000_0200, FlagSettability::KernelOnly),
+        (FileFlag::NoCompress,       LINUX_FS_NOCOMP_FL,          0x0000_0400, FlagSettability::KernelOnly),
+        (FileFlag::Encrypted,        LINUX_FS_ENCRYPT_FL,         0x0000_0800, FlagSettability::KernelOnly),
+        (FileFlag::IndexedDirectory, LINUX_FS_INDEX_FL,           0x0000_1000, FlagSettability::KernelOnly),
+        (FileFlag::Btree,            LINUX_FS_BTREE_FL,           0x0000_1000, FlagSettability::KernelOnly),
+        (FileFlag::Imagic,           LINUX_FS_IMAGIC_FL,          0x0000_2000, FlagSettability::KernelOnly),
+        (FileFlag::JournalData,      LINUX_FS_JOURNAL_DATA_FL,    0x0000_4000, FlagSettability::RootSettable),
+        (FileFlag::NoTail,           LINUX_FS_NOTAIL_FL,          0x0000_8000, FlagSettability::UserSettable),
+        (FileFlag::DirSync,          LINUX_FS_DIRSYNC_FL,         0x0001_0000, FlagSettability::RootSettable),
+        (FileFlag::TopDir,           LINUX_FS_TOPDIR_FL,          0x0002_0000, FlagSettability::UserSettable),
+        (FileFlag::HugeFile,         LINUX_FS_HUGE_FILE_FL,       0x0004_0000, FlagSettability::KernelOnly),
+        (FileFlag::Extent,           LINUX_FS_EXTENT_FL,          0x0008_0000, FlagSettability::KernelOnly),
+        (FileFlag::Verity,           LINUX_FS_VERITY_FL,          0x0010_0000, FlagSettability::KernelOnly),
+        (FileFlag::EaInode,          LINUX_FS_EA_INODE_FL,        0x0020_0000, FlagSettability::KernelOnly),
+        (FileFlag::EofBlocks,        LINUX_FS_EOFBLOCKS_FL,       0x0040_0000, FlagSettability::KernelOnly),
+        (FileFlag::NoCow,            LINUX_FS_NOCOW_FL,           0x0080_0000, FlagSettability::UserSettable),
+        (FileFlag::Dax,              LINUX_FS_DAX_FL,             0x0200_0000, FlagSettability::RootSettable),
+        (FileFlag::InlineData,       LINUX_FS_INLINE_DATA_FL,     0x1000_0000, FlagSettability::KernelOnly),
+        (FileFlag::ProjectInherit,   LINUX_FS_PROJINHERIT_FL,     0x2000_0000, FlagSettability::RootSettable),
+        (FileFlag::Casefold,         LINUX_FS_CASEFOLD_FL,        0x4000_0000, FlagSettability::RootSettable),
+        (FileFlag::ReservedForExt2,         LINUX_FS_RESERVED_FL,        0x8000_0000, FlagSettability::KernelOnly),
     ],
     extra_constants: [
-        (LINUX_FS_USER_MODIFIABLE, 0x0000_0070),
+        (LINUX_FS_FL_USER_VISIBLE,    0x0003_dfff),
+        (LINUX_FS_FL_USER_MODIFIABLE, 0x0003_80ff),
     ],
 }
 
-/// Mask of settable flags on Linux (`FS_NODUMP_FL | FS_IMMUTABLE_FL | FS_APPEND_FL`).
-pub const LINUX_SETTABLE_MASK: u32 =
-    LINUX_FS_NODUMP_FL | LINUX_FS_IMMUTABLE_FL | LINUX_FS_APPEND_FL;
+/// Mask of settable flags on Linux (`FS_FL_USER_MODIFIABLE` plus extended settable flags).
+pub const LINUX_SETTABLE_MASK: u32 = LINUX_FS_FL_USER_MODIFIABLE
+    | LINUX_FS_JOURNAL_DATA_FL
+    | LINUX_FS_NOCOW_FL
+    | LINUX_FS_DAX_FL
+    | LINUX_FS_PROJINHERIT_FL
+    | LINUX_FS_CASEFOLD_FL;
+
+/// Mask of flags settable by an unprivileged user/file owner on Linux.
+pub const LINUX_USER_SETTABLE_MASK: u32 = LINUX_FS_NODUMP_FL
+    | LINUX_FS_NOATIME_FL
+    | LINUX_FS_UNRM_FL
+    | LINUX_FS_NOTAIL_FL
+    | LINUX_FS_TOPDIR_FL
+    | LINUX_FS_NOCOW_FL;
 
 
 
@@ -1072,21 +1119,19 @@ fn apply_file_flags_native(
             }
         };
 
-        let mut target_iflags = IFlags::empty();
-        let user_modifiable = (IFlags::NODUMP
-            | IFlags::IMMUTABLE | IFlags::APPEND | IFlags::COMPRESSED
-            | IFlags::SYNC | IFlags::DIRSYNC | IFlags::NOATIME).bits();
+        let mut target_mask: u32 = 0;
+        let mut has_linux_raw = false;
 
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::Linux {
                 let bits = u32::try_from(raw_info.raw_value).context("Invalid Linux file flag width")?;
-                target_iflags = IFlags::from_bits_retain(bits & user_modifiable);
+                target_mask = bits & LINUX_SETTABLE_MASK;
+                has_linux_raw = true;
             }
         }
 
-        if target_iflags.is_empty() {
-            let mask = linux_flags_to_mask(flags, strict_lossless, path)?;
-            target_iflags = IFlags::from_bits_retain(mask);
+        if !has_linux_raw {
+            target_mask = linux_flags_to_mask(flags, strict_lossless, path)? & LINUX_SETTABLE_MASK;
         }
 
         let current = match ioctl_getflags(&f) {
@@ -1094,9 +1139,67 @@ fn apply_file_flags_native(
             Err(error) if error == rustix::io::Errno::NOTTY || error == rustix::io::Errno::OPNOTSUPP => return Ok(()),
             Err(error) => return Err(error).context("Failed to read destination flags"),
         };
-        target_iflags |= IFlags::from_bits_retain(current & !user_modifiable);
-        if current != target_iflags.bits() {
+        let target_bits = target_mask | (current & !LINUX_SETTABLE_MASK);
+        if current != target_bits {
+            let target_iflags = IFlags::from_bits_retain(target_bits);
             if let Err(e) = ioctl_setflags(&f, target_iflags) {
+                if !strict_lossless {
+                    let mut current_accum = current;
+
+                    // 1. Grouped user-settable attempt
+                    let user_bits = (target_mask & LINUX_USER_SETTABLE_MASK)
+                        | (current & !LINUX_USER_SETTABLE_MASK);
+                    if user_bits != current {
+                        let user_target = IFlags::from_bits_retain(user_bits);
+                        if ioctl_setflags(&f, user_target).is_ok() {
+                            current_accum = user_bits;
+                        }
+                    }
+
+                    // 2. Individual bit-by-bit retry for any remaining differing bits
+                    if current_accum != target_bits {
+                        // Crucial: test immutable and append last to prevent lockout
+                        let is_lockout = |b: u32| {
+                            b == LINUX_FS_IMMUTABLE_FL || b == LINUX_FS_APPEND_FL
+                        };
+
+                        let mut diff_bits = Vec::new();
+                        for i in 0u8..32 {
+                            if let Some(bit) = 1u32.checked_shl(u32::from(i)) {
+                                if (target_bits & bit) != (current_accum & bit) {
+                                    diff_bits.push(bit);
+                                }
+                            }
+                        }
+                        diff_bits.sort_by_key(|&b| is_lockout(b));
+
+                        for bit in diff_bits {
+                            let candidate = (current_accum & !bit) | (target_bits & bit);
+                            if candidate != current_accum {
+                                let cand_target = IFlags::from_bits_retain(candidate);
+                                if ioctl_setflags(&f, cand_target).is_ok() {
+                                    current_accum = candidate;
+                                }
+                            }
+                        }
+                    }
+
+                    if current_accum != current {
+                        log_fmt!(
+                            "ioctl_setflags partially applied flags ({:#x} of {:#x}) for {}",
+                            current_accum,
+                            target_bits,
+                            path.display()
+                        );
+                        return Ok(());
+                    } else if (e == rustix::io::Errno::PERM || e == rustix::io::Errno::ACCESS)
+                        && (target_bits & !LINUX_USER_SETTABLE_MASK) != 0
+                    {
+                        // All requested changes were privileged flags that cannot be set unprivileged.
+                        return Ok(());
+                    }
+                }
+
                 if strict_lossless {
                     anyhow::bail!(
                         "Failed to set file flags via ioctl for {}: {e}",
@@ -1125,14 +1228,16 @@ fn apply_file_flags_native(
         use std::os::unix::ffi::OsStrExt;
 
         let mut target_mask: u32 = 0;
+        let mut has_bsd_raw = false;
 
         if let Some(raw_info) = raw {
             if raw_info.source_os == OsFamily::CURRENT {
                 target_mask = u32::try_from(raw_info.raw_value).context("Invalid BSD file flag width")?;
+                has_bsd_raw = true;
             }
         }
 
-        if target_mask == 0 {
+        if !has_bsd_raw {
             #[cfg(target_vendor = "apple")]
             {
                 target_mask = darwin_flags_to_mask(flags, strict_lossless, path)?;
@@ -1207,6 +1312,121 @@ fn apply_file_flags_native(
                             return Ok(());
                         }
                     }
+
+                    // Fallback to user-only flags if superuser flags (SF_*) caused failure
+                    #[cfg(target_vendor = "apple")]
+                    let user_mask = target_mask & DARWIN_UF_SETTABLE;
+                    #[cfg(target_os = "freebsd")]
+                    let user_mask = target_mask & FREEBSD_UF_SETTABLE;
+                    #[cfg(target_os = "openbsd")]
+                    let user_mask = target_mask & OPENBSD_UF_SETTABLE;
+                    #[cfg(target_os = "dragonfly")]
+                    let user_mask = target_mask & DRAGONFLY_UF_SETTABLE;
+
+                    if user_mask != settable_mask && user_mask != 0 {
+                        #[cfg(target_vendor = "apple")]
+                        let user_retry =
+                            unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
+                        #[cfg(target_os = "freebsd")]
+                        let user_retry = unsafe {
+                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
+                        };
+                        #[cfg(target_os = "openbsd")]
+                        let user_retry =
+                            unsafe { libc::chflags(c_path.as_ptr(), user_mask) };
+                        #[cfg(target_os = "dragonfly")]
+                        let user_retry = unsafe {
+                            libc::chflags(c_path.as_ptr(), libc::c_ulong::from(user_mask))
+                        };
+
+                        if user_retry == 0 {
+                            log_fmt!(
+                                "chflags partially applied user-settable flags ({:#x} of {:#x}) for {}",
+                                user_mask,
+                                target_mask,
+                                path.display()
+                            );
+                            return Ok(());
+                        }
+                    }
+
+                    // 3. Individual bit-by-bit retry for any remaining differing bits
+                    let init_mask = current
+                        .as_ref()
+                        .and_then(|r| u32::try_from(r.raw_value).ok())
+                        .unwrap_or(0);
+                    let mut current_mask = init_mask;
+
+                    #[cfg(target_vendor = "apple")]
+                    let is_lockout = |b: u32| {
+                        b == DARWIN_UF_IMMUTABLE
+                            || b == DARWIN_SF_IMMUTABLE
+                            || b == DARWIN_UF_APPEND
+                            || b == DARWIN_SF_APPEND
+                    };
+                    #[cfg(target_os = "freebsd")]
+                    let is_lockout = |b: u32| {
+                        b == FREEBSD_UF_IMMUTABLE
+                            || b == FREEBSD_SF_IMMUTABLE
+                            || b == FREEBSD_UF_APPEND
+                            || b == FREEBSD_SF_APPEND
+                    };
+                    #[cfg(target_os = "openbsd")]
+                    let is_lockout = |b: u32| {
+                        b == OPENBSD_UF_IMMUTABLE
+                            || b == OPENBSD_SF_IMMUTABLE
+                            || b == OPENBSD_UF_APPEND
+                            || b == OPENBSD_SF_APPEND
+                    };
+                    #[cfg(target_os = "dragonfly")]
+                    let is_lockout = |b: u32| {
+                        b == DRAGONFLY_UF_IMMUTABLE
+                            || b == DRAGONFLY_SF_IMMUTABLE
+                            || b == DRAGONFLY_UF_APPEND
+                            || b == DRAGONFLY_SF_APPEND
+                    };
+
+                    let mut diff_bits = Vec::new();
+                    for i in 0u8..32 {
+                        if let Some(bit) = 1u32.checked_shl(u32::from(i)) {
+                            if (target_mask & bit) != (current_mask & bit) {
+                                diff_bits.push(bit);
+                            }
+                        }
+                    }
+                    diff_bits.sort_by_key(|&b| is_lockout(b));
+
+                    for bit in diff_bits {
+                        let candidate = (current_mask & !bit) | (target_mask & bit);
+                        if candidate != current_mask {
+                            #[cfg(target_vendor = "apple")]
+                            let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
+                            #[cfg(target_os = "freebsd")]
+                            let b_res = unsafe {
+                                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
+                            };
+                            #[cfg(target_os = "openbsd")]
+                            let b_res = unsafe { libc::chflags(c_path.as_ptr(), candidate) };
+                            #[cfg(target_os = "dragonfly")]
+                            let b_res = unsafe {
+                                libc::chflags(c_path.as_ptr(), libc::c_ulong::from(candidate))
+                            };
+
+                            if b_res == 0 {
+                                current_mask = candidate;
+                            }
+                        }
+                    }
+
+                    if current_mask != init_mask {
+                        log_fmt!(
+                            "chflags partially applied individual flags ({:#x} of {:#x}) for {}",
+                            current_mask,
+                            target_mask,
+                            path.display()
+                        );
+                        return Ok(());
+                    }
                 }
 
                 let err = std::io::Error::last_os_error();
@@ -1263,6 +1483,67 @@ mod tests {
     use super::*;
     use std::path::Path;
 
+    const ALL_FLAGS: [FileFlag; 58] = [
+        FileFlag::NoDump,
+        FileFlag::UserImmutable,
+        FileFlag::UserAppend,
+        FileFlag::Opaque,
+        FileFlag::Hidden,
+        FileFlag::Archived,
+        FileFlag::SystemImmutable,
+        FileFlag::SystemAppend,
+        FileFlag::SystemNoUnlink,
+        FileFlag::UserNoUnlink,
+        FileFlag::System,
+        FileFlag::Sparse,
+        FileFlag::Offline,
+        FileFlag::ReadOnly,
+        FileFlag::Reparse,
+        FileFlag::Snapshot,
+        FileFlag::UserArchive,
+        FileFlag::UserNoCache,
+        FileFlag::UserNoHistory,
+        FileFlag::UserCache,
+        FileFlag::UserXlink,
+        FileFlag::SystemNoHistory,
+        FileFlag::SystemNoCache,
+        FileFlag::SystemXlink,
+        FileFlag::Compressed,
+        FileFlag::Tracked,
+        FileFlag::DataVault,
+        FileFlag::Restricted,
+        FileFlag::Firmlink,
+        FileFlag::Dataless,
+        FileFlag::SystemLog,
+        FileFlag::SnapshotInvalid,
+        FileFlag::SecureRemoval,
+        FileFlag::Undelete,
+        FileFlag::Sync,
+        FileFlag::NoAtime,
+        FileFlag::Dirty,
+        FileFlag::CompressedBlocks,
+        FileFlag::NoCompress,
+        FileFlag::Encrypted,
+        FileFlag::IndexedDirectory,
+        FileFlag::Btree,
+        FileFlag::Imagic,
+        FileFlag::JournalData,
+        FileFlag::NoTail,
+        FileFlag::DirSync,
+        FileFlag::TopDir,
+        FileFlag::HugeFile,
+        FileFlag::Extent,
+        FileFlag::Verity,
+        FileFlag::EaInode,
+        FileFlag::EofBlocks,
+        FileFlag::NoCow,
+        FileFlag::Dax,
+        FileFlag::InlineData,
+        FileFlag::ProjectInherit,
+        FileFlag::Casefold,
+        FileFlag::ReservedForExt2,
+    ];
+
     #[crate::ctb_test]
     fn test_darwin_flags_table_mapping() {
         let mut combined_mask = 0u32;
@@ -1290,33 +1571,17 @@ mod tests {
         let (_, unparsed) = parse_darwin_flags(combined_mask | 0x8000_0000);
         assert!(unparsed);
 
-        // Flags documented as unsupported for Darwin
-        let darwin_unsupported = [
-            FileFlag::UserNoUnlink,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Sparse,
-            FileFlag::System,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-        ];
-        for unsupported in darwin_unsupported {
-            assert!(
-                darwin_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on Darwin in strict_lossless mode"
-            );
-            assert_eq!(
-                darwin_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !DARWIN_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    darwin_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on Darwin in strict_lossless mode"
+                );
+                assert_eq!(
+                    darwin_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1347,30 +1612,17 @@ mod tests {
         let (_, unparsed) = parse_freebsd_flags(combined_mask | 0x0040_0000);
         assert!(unparsed);
 
-        // Flags documented as unsupported for FreeBSD
-        let freebsd_unsupported = [
-            FileFlag::Compressed,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-        ];
-        for unsupported in freebsd_unsupported {
-            assert!(
-                freebsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on FreeBSD in strict_lossless mode"
-            );
-            assert_eq!(
-                freebsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !FREEBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    freebsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on FreeBSD in strict_lossless mode"
+                );
+                assert_eq!(
+                    freebsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1401,41 +1653,17 @@ mod tests {
         let (_, unparsed) = parse_openbsd_flags(combined_mask | 0x0000_0010);
         assert!(unparsed);
 
-        // Flags documented as unsupported for OpenBSD
-        let openbsd_unsupported = [
-            FileFlag::Hidden,
-            FileFlag::SystemNoUnlink,
-            FileFlag::Compressed,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-            FileFlag::UserNoUnlink,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Sparse,
-            FileFlag::System,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-        ];
-        for unsupported in openbsd_unsupported {
-            assert!(
-                openbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on OpenBSD in strict_lossless mode"
-            );
-            assert_eq!(
-                openbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !OPENBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    openbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on OpenBSD in strict_lossless mode"
+                );
+                assert_eq!(
+                    openbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1467,33 +1695,17 @@ mod tests {
         let (_, unparsed) = parse_dragonfly_flags(combined_mask | DRAGONFLY_UF_UNUSED5);
         assert!(unparsed);
 
-        // Flags not supported on DragonFly BSD
-        let dragonfly_unsupported = [
-            FileFlag::Hidden,
-            FileFlag::Compressed,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-            FileFlag::System,
-            FileFlag::Sparse,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-        ];
-        for unsupported in dragonfly_unsupported {
-            assert!(
-                dragonfly_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on DragonFly BSD in strict_lossless mode"
-            );
-            assert_eq!(
-                dragonfly_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !DRAGONFLY_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    dragonfly_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on DragonFly BSD in strict_lossless mode"
+                );
+                assert_eq!(
+                    dragonfly_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1524,41 +1736,17 @@ mod tests {
         let (_, unparsed) = parse_netbsd_flags(combined_mask | 0x0000_0010);
         assert!(unparsed);
 
-        // Flags documented as unsupported for NetBSD
-        let netbsd_unsupported = [
-            FileFlag::Hidden,
-            FileFlag::SystemNoUnlink,
-            FileFlag::UserNoUnlink,
-            FileFlag::Compressed,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Sparse,
-            FileFlag::System,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-        ];
-        for unsupported in netbsd_unsupported {
-            assert!(
-                netbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on NetBSD in strict_lossless mode"
-            );
-            assert_eq!(
-                netbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !NETBSD_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    netbsd_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on NetBSD in strict_lossless mode"
+                );
+                assert_eq!(
+                    netbsd_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1579,45 +1767,20 @@ mod tests {
         assert_eq!(parsed_app, vec![FileFlag::UserAppend]);
 
         // Unknown bit sets has_unparsed
-        let (_, unparsed) = parse_linux_flags(0x8000_0000);
+        let (_, unparsed) = parse_linux_flags(0x0100_0000);
         assert!(unparsed);
 
-        // Flags unsupported on Linux
-        let linux_unsupported = [
-            FileFlag::Opaque,
-            FileFlag::Hidden,
-            FileFlag::Archived,
-            FileFlag::SystemNoUnlink,
-            FileFlag::UserNoUnlink,
-            FileFlag::System,
-            FileFlag::Sparse,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-        ];
-        for unsupported in linux_unsupported {
-            assert!(
-                linux_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on Linux in strict_lossless mode"
-            );
-            assert_eq!(
-                linux_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !LINUX_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    linux_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on Linux in strict_lossless mode"
+                );
+                assert_eq!(
+                    linux_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
@@ -1639,76 +1802,22 @@ mod tests {
         let (_, unparsed) = parse_windows_flags(0x8000_0000);
         assert!(unparsed);
 
-        // Flags unsupported on Windows
-        let windows_unsupported = [
-            FileFlag::NoDump,
-            FileFlag::UserImmutable,
-            FileFlag::SystemImmutable,
-            FileFlag::UserAppend,
-            FileFlag::SystemAppend,
-            FileFlag::Opaque,
-            FileFlag::SystemNoUnlink,
-            FileFlag::UserNoUnlink,
-            FileFlag::Snapshot,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-        ];
-        for unsupported in windows_unsupported {
-            assert!(
-                windows_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
-                "Flag {unsupported:?} should be rejected on Windows in strict_lossless mode"
-            );
-            assert_eq!(
-                windows_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
-                0
-            );
+        for unsupported in ALL_FLAGS {
+            if !WINDOWS_FLAG_MAP.iter().any(|e| e.flag == unsupported) {
+                assert!(
+                    windows_flags_to_mask(&[unsupported], true, Path::new("test")).is_err(),
+                    "Flag {unsupported:?} should be rejected on Windows in strict_lossless mode"
+                );
+                assert_eq!(
+                    windows_flags_to_mask(&[unsupported], false, Path::new("test")).unwrap(),
+                    0
+                );
+            }
         }
     }
 
     #[crate::ctb_test]
     fn test_flag_settability_invariants() {
-        const ALL_FLAGS: [FileFlag; 30] = [
-            FileFlag::NoDump,
-            FileFlag::UserImmutable,
-            FileFlag::UserAppend,
-            FileFlag::Opaque,
-            FileFlag::Hidden,
-            FileFlag::Archived,
-            FileFlag::SystemImmutable,
-            FileFlag::SystemAppend,
-            FileFlag::SystemNoUnlink,
-            FileFlag::UserNoUnlink,
-            FileFlag::System,
-            FileFlag::Sparse,
-            FileFlag::Offline,
-            FileFlag::ReadOnly,
-            FileFlag::Reparse,
-            FileFlag::Snapshot,
-            FileFlag::UserArchive,
-            FileFlag::UserNoCache,
-            FileFlag::UserNoHistory,
-            FileFlag::UserCache,
-            FileFlag::UserXlink,
-            FileFlag::SystemNoHistory,
-            FileFlag::SystemNoCache,
-            FileFlag::SystemXlink,
-            FileFlag::Compressed,
-            FileFlag::Tracked,
-            FileFlag::DataVault,
-            FileFlag::Restricted,
-            FileFlag::Firmlink,
-            FileFlag::Dataless,
-        ];
 
         type PlatformSpec<'a> = (OsFamily, &'a [FlagMapping], Option<(u32, u32)>);
         let platforms: [PlatformSpec<'_>; 7] = [
@@ -1782,6 +1891,34 @@ mod tests {
                         "{flag:?} should be Unsupported on {os:?}"
                     );
                 }
+            }
+        }
+
+        for entry in LINUX_FLAG_MAP {
+            match entry.settability {
+                FlagSettability::UserSettable => {
+                    assert_eq!(
+                        entry.mask & LINUX_USER_SETTABLE_MASK,
+                        entry.mask,
+                        "{:?} on Linux should be in LINUX_USER_SETTABLE_MASK",
+                        entry.flag
+                    );
+                    assert_eq!(
+                        entry.mask & LINUX_SETTABLE_MASK,
+                        entry.mask,
+                        "{:?} on Linux should be in LINUX_SETTABLE_MASK",
+                        entry.flag
+                    );
+                }
+                FlagSettability::RootSettable => {
+                    assert_eq!(
+                        entry.mask & LINUX_SETTABLE_MASK,
+                        entry.mask,
+                        "{:?} on Linux should be in LINUX_SETTABLE_MASK",
+                        entry.flag
+                    );
+                }
+                _ => {}
             }
         }
 
@@ -2075,7 +2212,6 @@ License for parts derived from Swift:
  *	@(#)stat.h	8.12 (Berkeley) 6/16/95
  * $FreeBSD: src/sys/sys/stat.h,v 1.20 1999/12/29 04:24:47 peter Exp $
  */
-*/
 
 /* License for parts derived from FreeBSD:
  *-

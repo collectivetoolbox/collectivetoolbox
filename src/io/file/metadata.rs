@@ -243,6 +243,66 @@ pub enum FileFlag {
     Firmlink,
     /// APFS dataless file (`SF_DATALESS`).
     Dataless,
+
+    // NetBSD specific
+    /// NetBSD WAPBL log file inode (`SF_LOG` / `slog`).
+    SystemLog,
+    /// NetBSD invalid snapshot inode (`SF_SNAPINVAL` / `snapinval`).
+    SnapshotInvalid,
+
+    // Linux specific
+    /// Secure deletion (`FS_SECRM_FL` / `secrm`).
+    SecureRemoval,
+    /// Undelete (`FS_UNRM_FL` / `unrm`).
+    Undelete,
+    /// Synchronous file updates (`FS_SYNC_FL` / `sync`).
+    Sync,
+    /// Do not update access time (`FS_NOATIME_FL` / `noatime`).
+    NoAtime,
+    /// Dirty compressed file (`FS_DIRTY_FL` / `dirty`).
+    Dirty,
+    /// Compressed cluster/blocks (`FS_COMPRBLK_FL` / `comprblk`).
+    CompressedBlocks,
+    /// Do not compress (`FS_NOCOMP_FL` / `nocomp`).
+    NoCompress,
+    /// Encrypted file (`FS_ENCRYPT_FL` / `encrypt`).
+    Encrypted,
+    /// Hash-indexed directory (`FS_INDEX_FL` / `index`).
+    IndexedDirectory,
+    /// Btree format directory (`FS_BTREE_FL` / `btree`).
+    Btree,
+    /// AFS magic directory inode (`FS_IMAGIC_FL` / `imagic`).
+    Imagic,
+    /// Journal file data (`FS_JOURNAL_DATA_FL` / `journal`).
+    JournalData,
+    /// Do not merge tail (`FS_NOTAIL_FL` / `notail`).
+    NoTail,
+    /// Synchronous directory updates (`FS_DIRSYNC_FL` / `dirsync`).
+    DirSync,
+    /// Top of directory hierarchy (`FS_TOPDIR_FL` / `topdir`).
+    TopDir,
+    /// Huge file format (`FS_HUGE_FILE_FL` / `hugefile`).
+    HugeFile,
+    /// Extents format (`FS_EXTENT_FL` / `extent`).
+    Extent,
+    /// fs-verity enabled (`FS_VERITY_FL` / `verity`).
+    Verity,
+    /// Large extended attribute inode (`FS_EA_INODE_FL` / `eainode`).
+    EaInode,
+    /// Blocks allocated beyond EOF (`FS_EOFBLOCKS_FL` / `eofblocks`).
+    EofBlocks,
+    /// Do not copy-on-write (`FS_NOCOW_FL` / `nocow`).
+    NoCow,
+    /// Direct access DAX mode (`FS_DAX_FL` / `dax`).
+    Dax,
+    /// Inode contains inline data (`FS_INLINE_DATA_FL` / `inlinedata`).
+    InlineData,
+    /// Project inheritance (`FS_PROJINHERIT_FL` / `projinherit`).
+    ProjectInherit,
+    /// Directory casefolding (`FS_CASEFOLD_FL` / `casefold`).
+    Casefold,
+    /// Reserved flag (`FS_RESERVED_FL` / `reservedforext2`).
+    ReservedForExt2,
 }
 
 impl FileFlag {
@@ -280,6 +340,34 @@ impl FileFlag {
             Self::Restricted => "restricted",
             Self::Firmlink => "firmlink",
             Self::Dataless => "dataless",
+            Self::SystemLog => "slog",
+            Self::SnapshotInvalid => "snapinval",
+            Self::SecureRemoval => "secrm",
+            Self::Undelete => "unrm",
+            Self::Sync => "sync",
+            Self::NoAtime => "noatime",
+            Self::Dirty => "dirty",
+            Self::CompressedBlocks => "comprblk",
+            Self::NoCompress => "nocomp",
+            Self::Encrypted => "encrypt",
+            Self::IndexedDirectory => "index",
+            Self::Btree => "btree",
+            Self::Imagic => "imagic",
+            Self::JournalData => "journal",
+            Self::NoTail => "notail",
+            Self::DirSync => "dirsync",
+            Self::TopDir => "topdir",
+            Self::HugeFile => "hugefile",
+            Self::Extent => "extent",
+            Self::Verity => "verity",
+            Self::EaInode => "eainode",
+            Self::EofBlocks => "eofblocks",
+            Self::NoCow => "nocow",
+            Self::Dax => "dax",
+            Self::InlineData => "inlinedata",
+            Self::ProjectInherit => "projinherit",
+            Self::Casefold => "casefold",
+            Self::ReservedForExt2 => "reservedforext2",
         }
     }
 
@@ -338,6 +426,34 @@ impl FileFlag {
             "restricted" => Some(Self::Restricted),
             "firmlink" => Some(Self::Firmlink),
             "dataless" => Some(Self::Dataless),
+            "slog" | "log" => Some(Self::SystemLog),
+            "snapinval" | "snapinvalid" => Some(Self::SnapshotInvalid),
+            "secrm" | "secure_removal" => Some(Self::SecureRemoval),
+            "unrm" | "undelete" => Some(Self::Undelete),
+            "sync" => Some(Self::Sync),
+            "noatime" => Some(Self::NoAtime),
+            "dirty" => Some(Self::Dirty),
+            "comprblk" => Some(Self::CompressedBlocks),
+            "nocomp" => Some(Self::NoCompress),
+            "encrypt" | "encrypted" => Some(Self::Encrypted),
+            "index" | "indexed" => Some(Self::IndexedDirectory),
+            "btree" => Some(Self::Btree),
+            "imagic" => Some(Self::Imagic),
+            "journal" | "journal_data" => Some(Self::JournalData),
+            "notail" => Some(Self::NoTail),
+            "dirsync" => Some(Self::DirSync),
+            "topdir" => Some(Self::TopDir),
+            "hugefile" => Some(Self::HugeFile),
+            "extent" | "extents" => Some(Self::Extent),
+            "verity" => Some(Self::Verity),
+            "eainode" => Some(Self::EaInode),
+            "eofblocks" => Some(Self::EofBlocks),
+            "nocow" => Some(Self::NoCow),
+            "dax" => Some(Self::Dax),
+            "inlinedata" => Some(Self::InlineData),
+            "projinherit" => Some(Self::ProjectInherit),
+            "casefold" => Some(Self::Casefold),
+            "reservedforext2" | "reserved" => Some(Self::ReservedForExt2),
             _ => None,
         }
     }
@@ -805,6 +921,15 @@ mod tests {
             Some(FileFlag::UserImmutable)
         );
         assert_eq!(FileFlag::from_name("nodump"), Some(FileFlag::NoDump));
+        assert_eq!(FileFlag::SystemLog.name(), "slog");
+        assert_eq!(FileFlag::SnapshotInvalid.name(), "snapinval");
+        assert_eq!(FileFlag::SecureRemoval.name(), "secrm");
+        assert_eq!(FileFlag::Sync.name(), "sync");
+        assert_eq!(FileFlag::Btree.name(), "btree");
+        assert_eq!(FileFlag::from_name("btree"), Some(FileFlag::Btree));
+        assert_eq!(FileFlag::from_name("slog"), Some(FileFlag::SystemLog));
+        assert_eq!(FileFlag::from_name("secrm"), Some(FileFlag::SecureRemoval));
+        assert_eq!(FileFlag::from_name("nocow"), Some(FileFlag::NoCow));
     }
 
     #[crate::ctb_test]
