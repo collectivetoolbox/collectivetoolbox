@@ -61,6 +61,9 @@ impl FilesystemInfo {
 static FS_CACHE: LazyLock<RwLock<HashMap<u64, FilesystemInfo>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
+/// Global test lock for synchronizing tests that mutate `FS_CACHE`.
+pub static FS_CACHE_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Queries filesystem type and timestamp resolution for a path and metadata.
 ///
 /// Looks up cached information by volume/device ID. If not found in the

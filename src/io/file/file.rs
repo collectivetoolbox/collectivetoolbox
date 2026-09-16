@@ -64,7 +64,7 @@ pub use clean_name::{
 };
 pub use entity::{FileEntity, FileEntityKind, FileEntityType};
 pub use filesystem::{
-    FilesystemInfo, clear_filesystem_cache, extract_device_id, is_cross_device_error,
+    FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache, extract_device_id, is_cross_device_error,
     query_filesystem_info, query_filesystem_resolution, query_filesystem_type,
     set_cached_filesystem_info,
 };

@@ -1263,6 +1263,7 @@ mod tests {
         use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
         use std::io::{Seek, SeekFrom, Write};
 
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src_sparse");
         let dest = temp.path().join("dest_sparse");

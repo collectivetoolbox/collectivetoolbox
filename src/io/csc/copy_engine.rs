@@ -2044,6 +2044,7 @@ mod tests {
     fn test_unknown_filesystem_error_and_allow_flags() {
         use ctb_io::file::{clear_filesystem_cache, extract_device_id, set_cached_filesystem_info, FilesystemInfo};
 
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
@@ -2987,6 +2988,106 @@ mod tests {
             }
             Ok(_) => panic!("Must bail on companion collision for ._foo and ._._foo"),
         }
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_csc_continue_on_error_copies_remaining_and_records_errors_and_warnings() {
+        if nix::unistd::geteuid().as_raw() == 0 {
+            return;
+        }
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let readable_file = src.join("readable.txt");
+        let unreadable_file = src.join("unreadable.txt");
+        fs::write(&readable_file, b"readable content").expect("write readable");
+        fs::write(&unreadable_file, b"unreadable content").expect("write unreadable");
+
+        fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o000)).expect("chmod 000");
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        args.continue_on_error = true;
+
+        let res = run_csc(args);
+        let _ = fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o644));
+
+        let res = res.expect("run_csc with continue_on_error must succeed");
+        match res {
+            ctb_utilities::cli::ToolResult::Immediate { stdout, exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+                let out = String::from_utf8_lossy(&stdout);
+                assert!(out.contains("Errors recorded:"));
+            }
+            _ => panic!("Expected Immediate ToolResult"),
+        }
+
+        assert_eq!(
+            fs::read(dest.join("readable.txt")).expect("read copied file"),
+            b"readable content"
+        );
+        assert!(!dest.join("unreadable.txt").exists(), "unreadable file must not be copied");
+
+        let journal_path = crate::journal::find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
+        assert_eq!(snapshot.errors.len(), 1);
+        let err = &snapshot.errors[0];
+        assert_eq!(err.stage, crate::journal::JournalErrorStage::PayloadOpen);
+        assert!(err.path.to_string_lossy().contains("unreadable.txt"));
+
+        assert!(!snapshot.warnings.is_empty(), "Warnings must be recorded in journal");
+
+        let desc_path = journal_path.with_extension("cscdesc");
+        let desc_content = fs::read_to_string(&desc_path).expect("read desc");
+        assert!(desc_content.contains("ErrorsCount: 1"), "desc must report ErrorsCount: 1: {desc_content}");
+        assert!(desc_content.contains("unreadable.txt"), "desc must contain error path");
+        assert!(desc_content.contains("WarningsCount:"), "desc must report WarningsCount");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_csc_aborts_and_records_error_without_continue_on_error() {
+        if nix::unistd::geteuid().as_raw() == 0 {
+            return;
+        }
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let unreadable_file = src.join("bad.txt");
+        fs::write(&unreadable_file, b"cannot read").expect("write bad");
+        fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o000)).expect("chmod 000");
+
+        let mut args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        args.continue_on_error = false;
+
+        let res = run_csc(args);
+        let _ = fs::set_permissions(&unreadable_file, fs::Permissions::from_mode(0o644));
+
+        assert!(res.is_err(), "Must abort on unreadable file when continue_on_error is false");
+
+        let journal_path = crate::journal::find_cscjournal(&state);
+        let snapshot = crate::journal::read_journal_snapshot(&journal_path).expect("read journal snapshot");
+        assert_eq!(snapshot.errors.len(), 1);
+        assert_eq!(snapshot.errors[0].stage, crate::journal::JournalErrorStage::PayloadOpen);
+
+        let desc_path = journal_path.with_extension("cscdesc");
+        let desc_content = fs::read_to_string(&desc_path).expect("read desc");
+        assert!(desc_content.contains("Status: Failed:"), "desc must record Failed status: {desc_content}");
+        assert!(desc_content.contains("ErrorsCount: 1"), "desc must record ErrorsCount: 1");
     }
 }
 

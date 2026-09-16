@@ -1254,5 +1254,18 @@ mod tests {
         assert_eq!(archive.format, ctb_io::file::AppleFormat::AppleSingle);
         assert_eq!(archive.data_fork.as_deref(), Some(&b"AppleSingle with .asf"[..]));
     }
+
+    #[crate::ctb_test]
+    fn test_csc_continue_on_error_args_parsing() {
+        use clap::Parser;
+        let parsed = CscArgs::try_parse_from(["csc", "src", "dest", "--continue-on-error"]).unwrap();
+        assert!(parsed.continue_on_error);
+
+        let parsed_alias = CscArgs::try_parse_from(["csc", "src", "dest", "--ignore-errors"]).unwrap();
+        assert!(parsed_alias.continue_on_error);
+
+        let default_parsed = CscArgs::try_parse_from(["csc", "src", "dest"]).unwrap();
+        assert!(!default_parsed.continue_on_error);
+    }
 }
 

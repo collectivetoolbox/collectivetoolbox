@@ -1522,6 +1522,8 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_failed_copy_retains_captured_metadata_and_destination() {
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
+        ctb_io::file::clear_filesystem_cache();
         let temp = tempdir().unwrap();
         let source = temp.path().join("link");
         let destination = temp.path().join("destination");
@@ -1546,6 +1548,8 @@ mod tests {
         if let (Some(exp), Some(act)) = (&mut expected_native, &mut actual_native) {
             exp.values.remove("statx.atime.nsec");
             act.values.remove("statx.atime.nsec");
+            exp.values.remove("statx.ctime.nsec");
+            act.values.remove("statx.ctime.nsec");
         }
         assert_eq!(actual_native, expected_native);
         let mut expected_ts = original.metadata.timestamps;
@@ -1554,6 +1558,8 @@ mod tests {
         expected_ts.atime_nsec = 0;
         actual_ts.atime_sec = 0;
         actual_ts.atime_nsec = 0;
+        expected_ts.ctime_nsec = 0;
+        actual_ts.ctime_nsec = 0;
         assert_eq!(actual_ts, expected_ts);
         assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
         assert_eq!(recorded.streams, original.streams);

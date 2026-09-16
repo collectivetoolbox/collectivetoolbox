@@ -32,8 +32,6 @@
 
 Windows-style streams (:Zone.Identifier)
 
-How do errors get detected? Things that can't be read, for instance, should be logged in the journal or archive with what the problem was.
-
 - ddrescue type recovery
 
 - Csc archiver with verification pass, quick indexing, and being able to materialize/verify a file into an archive; rsync equivalent by sending an archive and ctb binary and then unpacking it on the other end?
@@ -45,8 +43,6 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size_eos.generated.rs: cannot parse string into token stream
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size.generated.rs: cannot parse string into token stream
-
-- AppleDouble/AppleSingle support for file materialization
 
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
@@ -65,8 +61,6 @@ use one of the float conversion helpers from utilities? Also the     clippy::as_
 - Kaitai should use Result (bail on violated invariants) and remove all panicking code
 
 - kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
-
-- Not all generated files have .generated in their name
 
 - Regenerate Guix packaging in CI
 
