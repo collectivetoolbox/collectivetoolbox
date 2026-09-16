@@ -30,8 +30,6 @@
 
 ### csc
 
-- AppleDouble fixme:         // FIXME: These three cases are not correct, because it doesn't confirm that they actually are being used as AppleDouble. It should still traverse them here if they are not actually associated with an AppleDouble file being copied, or else they'll be omitted
-
 Windows-style streams (:Zone.Identifier)
 
 --full-provenance option for csc and related commands (uses slow environment detection)

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later AND Apache-2.0 AND BSD-3-Clause AND PSF-2.0 AND 0BSD
 // SPDX-License-Identifier for parts derived from Swift System: Apache-2.0
-// SPDX-License-Identifier for parts derived from DragonFly BSD, FreeBSD, and OpenBSD: BSD-3-Clause
+// SPDX-License-Identifier for parts derived from DragonFly BSD, FreeBSD, NetBSD, and OpenBSD: BSD-3-Clause
 // SPDX-License-Identifier for parts derived from CPython: PSF-2.0 AND 0BSD
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
@@ -51,6 +51,17 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See full license details at end of this file
 
 /* License information for parts derived from OpenBSD:
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ */
+// See full license details at end of this file
+
+/* License information for parts derived from NetBSD:
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -652,6 +663,30 @@ pub const DARWIN_SETTABLE_MASK: u32 = DARWIN_UF_SETTABLE | DARWIN_SF_SETTABLE;
 
 
 
+
+/* From NetBSD sys/sys/stat.h:
+ *
+ * Super-user and owner changeable flags.
+ *
+#define	UF_SETTABLE	0x0000ffff	/* mask of owner changeable flags */
+#define	UF_NODUMP	0x00000001	/* do not dump file */
+#define	UF_IMMUTABLE	0x00000002	/* file may not be changed */
+#define	UF_APPEND	0x00000004	/* writes to file may only append */
+#define UF_OPAQUE	0x00000008	/* directory is opaque wrt. union */
+/*	UF_NOUNLINK	0x00000010	   [NOT IMPLEMENTED] */
+*
+ * Super-user changeable flags.
+ *
+#define	SF_SETTABLE	0xffff0000	/* mask of superuser changeable flags */
+#define	SF_ARCHIVED	0x00010000	/* file is archived */
+#define	SF_IMMUTABLE	0x00020000	/* file may not be changed */
+#define	SF_APPEND	0x00040000	/* writes to file may only append */
+/*	SF_NOUNLINK	0x00100000	   [NOT IMPLEMENTED] */
+#define	SF_SNAPSHOT	0x00200000	/* snapshot inode */
+#define	SF_LOG		0x00400000	/* WAPBL log file inode */
+#define	SF_SNAPINVAL	0x00800000	/* snapshot is invalid */
+
+ */
 
 define_platform_flags! {
     map: NETBSD_FLAG_MAP,
@@ -2004,7 +2039,7 @@ License for parts derived from Swift:
 
 
 /* License for parts derived from DragonFly BSD:
-/*-
+ *-
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -2080,7 +2115,7 @@ License for parts derived from Swift:
  */
 
 /* License for parts derived from OpenBSD:
-*-
+ *-
  * Copyright (c) 1982, 1986, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
@@ -2114,6 +2149,44 @@ License for parts derived from Swift:
  * SUCH DAMAGE.
  *
  *	@(#)stat.h	8.9 (Berkeley) 8/17/94
+ */
+
+
+/*License for parts derived from NetBSD:
+ *-
+ * Copyright (c) 1982, 1986, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
+ * All or some portions of this file are derived from material licensed
+ * to the University of California by American Telephone and Telegraph
+ * Co. or Unix System Laboratories, Inc. and are reproduced herein with
+ * the permission of UNIX System Laboratories, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ *	@(#)stat.h	8.12 (Berkeley) 8/17/94
  */
 
  /* Full license details for parts derived from Python:
