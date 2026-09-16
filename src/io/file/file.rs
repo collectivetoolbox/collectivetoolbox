@@ -31,7 +31,8 @@ pub(crate) mod file {
     pub use crate::*;
 }
 
-pub mod apple_double;
+pub mod apple_single_double;
+pub use apple_single_double as apple_double;
 pub mod block_device_size;
 pub mod clean_name;
 pub mod entity;
@@ -48,7 +49,7 @@ pub mod sys_flags;
 pub mod traversal;
 pub mod verifier;
 
-pub use apple_double::{
+pub use apple_single_double::{
     AppleArchive, AppleArchiveExt, AppleDoubleStyle, AppleFormat, AppleMetadata,
     AppleReadOptions, AppleSingleExtension, AppleWriteMode, FinderFlags, FinderInfo, FinderLabel,
     create_apple_archive_from_entity, get_companion_path, is_apple_double_file,

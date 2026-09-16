@@ -278,7 +278,6 @@ fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix:
         };
         if should_strip {
             let stripped_len = file_name.len().saturating_sub(ext_suffix.len());
-            // Reason for fallback: slice within bounds
             if let Some(stripped_name) = file_name.get(..stripped_len) {
                 let parent = rel.parent();
                 // Reason for fallback: empty or absent parent defaults to relative file name

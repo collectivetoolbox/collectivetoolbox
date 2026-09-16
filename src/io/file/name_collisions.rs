@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::apple_double::{
+use crate::apple_single_double::{
     AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
     get_companion_path, APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE,
 };
@@ -45,7 +45,6 @@ fn is_valid_apple_single_with_ext(path: &Path, ext: &str) -> bool {
         return false;
     }
     let suffix_start = file_name.len().saturating_sub(ext.len());
-    // Reason for fallback: slice verified within bounds by len check
     let matches_ext = file_name
         .get(suffix_start..)
         .is_some_and(|s| s.eq_ignore_ascii_case(ext));
@@ -113,7 +112,6 @@ pub fn validate_and_order_directory_entries(
                 && is_valid_apple_single_with_ext(&src_path, ".as")
             {
                 let stripped_len = base_name.len().saturating_sub(".as".len());
-                // Reason for fallback: slice within bounds
                 if let Some(s) = base_name.get(..stripped_len) {
                     base_name = s.to_string();
                 }
@@ -121,7 +119,6 @@ pub fn validate_and_order_directory_entries(
                 && is_valid_apple_single_with_ext(&src_path, ".asf")
             {
                 let stripped_len = base_name.len().saturating_sub(".asf".len());
-                // Reason for fallback: slice within bounds
                 if let Some(s) = base_name.get(..stripped_len) {
                     base_name = s.to_string();
                 }
@@ -231,10 +228,15 @@ pub fn validate_and_order_directory_entries(
                 if dot_appledouble.is_dir() {
                     let candidate = dot_appledouble.join(&action.entry.file_name);
                     if candidate.exists() {
+                        let companion_display = if let Some(p) = &action.companion_path {
+                            p.display().to_string()
+                        } else {
+                            String::new()
+                        };
                         anyhow::bail!(
                             "Companion collision detected: AppleDouble companion for '{}' at '{}' collides with independent source file in '.AppleDouble'",
                             entry_name,
-                            action.companion_path.as_ref().map_or_else(|| Path::new(""), |p| p.as_path()).display()
+                            companion_display
                         );
                     }
                 }

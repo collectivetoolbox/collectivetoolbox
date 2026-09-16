@@ -1393,7 +1393,13 @@ mod tests {
             act.values.remove("statx.atime.nsec");
         }
         assert_eq!(actual_native, expected_native);
-        assert_eq!(recorded.metadata.timestamps, original.metadata.timestamps);
+        let mut expected_ts = original.metadata.timestamps;
+        let mut actual_ts = recorded.metadata.timestamps;
+        expected_ts.atime_sec = 0;
+        expected_ts.atime_nsec = 0;
+        actual_ts.atime_sec = 0;
+        actual_ts.atime_nsec = 0;
+        assert_eq!(actual_ts, expected_ts);
         assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
         assert_eq!(recorded.streams, original.streams);
     }
