@@ -35,10 +35,6 @@ use std::borrow::Borrow;
 use std::fmt;
 use std::ops::{Deref, DerefMut, Index, RangeFull};
 
-use ctb_formats_dcdata::dc::{
-    DC_END_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_BINARY,
-    SHORT_DC_REGION_START,
-};
 use ctb_formats_utf_8e_128::{decode_utf_8e_128_buf, encode_utf_8e_128_buf};
 use sha2::{Digest, Sha256};
 

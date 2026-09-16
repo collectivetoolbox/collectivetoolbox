@@ -37,19 +37,12 @@ use ctb_formats_base64::{
     standard_base64_to_bytes, standard_base64_to_decimal,
 };
 
-/// Replacement for incoming character with value not mapped to a Dc
-pub const DC_REPLACEMENT_UNAVAIL_DC: u32 = 207;
-
-/// Replacement for incoming character with value unknown or unrepresentable in Unicode
-pub const DC_REPLACEMENT_UNAVAIL_UNICODE: u32 = 206;
-
-pub const DC_ESCAPE_NEXT: u32 = 255;
-
-pub const DC_START_ENCAPSULATION_UTF8: u32 = 191;
-pub const DC_END_ENCAPSULATION_UTF8: u32 = 192;
-
-pub const DC_START_ENCAPSULATION_BINARY: u32 = 203;
-pub const DC_END_ENCAPSULATION_BINARY: u32 = 204;
+pub use ctb_formats_dcdata::dc::{
+    DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START,
+    DC_END_ENCAPSULATION_BINARY, DC_END_ENCAPSULATION_UTF8, DC_ESCAPE_NEXT,
+    DC_REPLACEMENT_UNAVAIL_DC, DC_REPLACEMENT_UNAVAIL_UNICODE,
+    DC_START_ENCAPSULATION_BINARY, DC_START_ENCAPSULATION_UTF8, DcChar,
+};
 
 /* ===== Dc classification & queries ===== */
 
@@ -224,7 +217,10 @@ fn describe_general_category(type_code: &str) -> String {
 }
 
 pub fn is_dc_base64_encapsulation_character(dc: u32) -> bool {
-    (127..=190).contains(&dc) || dc == 195
+    let start = DC_BASE64_START.to_short().unwrap_or(127);
+    let end = DC_BASE64_END.to_short().unwrap_or(190);
+    let padding = DC_BASE64_PADDING.to_short().unwrap_or(195);
+    (start..=end).contains(&dc) || dc == padding
 }
 
 pub fn string_to_dc_encapsulated_utf8(input: &str) -> Result<Vec<u32>> {
@@ -234,10 +230,10 @@ pub fn string_to_dc_encapsulated_utf8(input: &str) -> Result<Vec<u32>> {
 pub fn bytes_as_dc_encapsulated_utf8(input: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u32> = Vec::new();
 
-    out.push(191); // Dc UTF-8 encapsulation start
+    out.push(DC_START_ENCAPSULATION_UTF8.to_short()?);
     let mut raw = bytes_to_dc_encapsulated_raw(input)?;
     out.append(&mut raw);
-    out.push(192); // Dc UTF-8 encapsulation end
+    out.push(DC_END_ENCAPSULATION_UTF8.to_short()?);
 
     Ok(out)
 }
@@ -245,10 +241,10 @@ pub fn bytes_as_dc_encapsulated_utf8(input: &[u8]) -> Result<Vec<u32>> {
 pub fn bytes_to_dc_encapsulated_binary(input: &[u8]) -> Result<Vec<u32>> {
     let mut out: Vec<u32> = Vec::new();
 
-    out.push(203); // Dc binary encapsulation start
+    out.push(DC_START_ENCAPSULATION_BINARY.to_short()?);
     let mut raw = bytes_to_dc_encapsulated_raw(input)?;
     out.append(&mut raw);
-    out.push(204); // Dc binary encapsulation end
+    out.push(DC_END_ENCAPSULATION_BINARY.to_short()?);
 
     Ok(out)
 }
@@ -257,13 +253,16 @@ pub fn bytes_to_dc_encapsulated_raw(bytes: &[u8]) -> Result<Vec<u32>> {
     let decimal = standard_base64_to_decimal(bytes_to_standard_base64(bytes))
         .context("Failed to encode base64")?;
 
+    let padding_short = DC_BASE64_PADDING.to_short()?;
+    let start_short = DC_BASE64_START.to_short()?;
+
     let mut dc_encoded: Vec<u32> = Vec::new();
     for b64 in decimal {
         if b64 == 64 {
             // Padding
-            dc_encoded.push(195_u32);
+            dc_encoded.push(padding_short);
         } else {
-            dc_encoded.push((b64.saturating_add(127)).into());
+            dc_encoded.push(start_short.saturating_add(u32::from(b64)));
         }
     }
 
@@ -271,12 +270,14 @@ pub fn bytes_to_dc_encapsulated_raw(bytes: &[u8]) -> Result<Vec<u32>> {
 }
 
 pub fn dc_encapsulated_raw_to_bytes(input: &[u32]) -> Result<Vec<u8>> {
+    let padding_short = DC_BASE64_PADDING.to_short()?;
+    let start_short = DC_BASE64_START.to_short()?;
     let mut out: Vec<u8> = Vec::new();
 
     // let input_as_u8: Vec<u8> = input.iter().map(|&x| x as u8).collect();
     let mut dc_decoded: Vec<u8> = Vec::new();
     for dc in input {
-        if *dc == 195 {
+        if *dc == padding_short {
             dc_decoded.push(64);
             continue;
         }
@@ -285,7 +286,7 @@ pub fn dc_encapsulated_raw_to_bytes(input: &[u32]) -> Result<Vec<u8>> {
                 "Invalid Dc {dc} in encapsulated raw sequence"
             ));
         }
-        dc_decoded.push(u8::try_from(dc.saturating_sub(127))?);
+        dc_decoded.push(u8::try_from(dc.saturating_sub(start_short))?);
     }
 
     let base64 = decimal_to_standard_base64(dc_decoded)

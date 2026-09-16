@@ -360,7 +360,7 @@ pub fn dc_from_format(
                 // FIXME: Add an option to save unmapped Unicode characters
                 // using Dcs 127-192 (individually)?
                 log.warn(&format!("Unmapped Unicode character U+{hex}"));
-                res.push(DC_REPLACEMENT_UNAVAIL_DC);
+                res.push(DC_REPLACEMENT_UNAVAIL_DC.to_short()?);
                 return Ok((res, log));
             }
             match dc_str {

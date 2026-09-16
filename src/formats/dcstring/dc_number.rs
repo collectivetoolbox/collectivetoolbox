@@ -42,6 +42,11 @@ use ctb_formats_math::base::{Base, format_natural, parse_natural};
 use ctb_storage_minimal::global_graph_layout::{SHORT_DC_REGION_START, dc_to_gid};
 use malachite::{Integer, Natural};
 
+pub use ctb_formats_dcdata::dc::{
+    DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,
+    DC_END_NUMBER, DC_FORMAT_199, DC_NEGATIVE, DC_POSITIVE,
+};
+
 /// Short Dc ID for `Begin number` (Dc 6).
 pub const SHORT_DC_BEGIN_NUMBER: u32 = 6;
 /// Short Dc ID for `End number` (Dc 7).
@@ -54,15 +59,15 @@ pub const SHORT_DC_NEGATIVE: u32 = 11;
 pub const SHORT_ID_FORMAT_199: u32 = 199;
 
 /// Global Graph ID for `Begin number` (Dc 6, `1114118`).
-pub const GID_BEGIN_NUMBER: u128 = 1_114_118;
+pub const GID_BEGIN_NUMBER: u128 = DC_BEGIN_NUMBER.to_long();
 /// Global Graph ID for `End number` (Dc 7, `1114119`).
-pub const GID_END_NUMBER: u128 = 1_114_119;
+pub const GID_END_NUMBER: u128 = DC_END_NUMBER.to_long();
 /// Global Graph ID for `Positive` (Dc 10, `1114122`).
-pub const GID_POSITIVE: u128 = 1_114_122;
+pub const GID_POSITIVE: u128 = DC_POSITIVE.to_long();
 /// Global Graph ID for `Negative` (Dc 11, `1114123`).
-pub const GID_NEGATIVE: u128 = 1_114_123;
+pub const GID_NEGATIVE: u128 = DC_NEGATIVE.to_long();
 /// Global Graph ID for Format 199 (`2228423`).
-pub const GID_FORMAT_199: u128 = 2_228_423;
+pub const GID_FORMAT_199: u128 = DC_FORMAT_199.to_long();
 
 /// First short Dc ID for Base64 encapsulation digits (digit 0 = 'A' = Dc 127).
 pub const SHORT_DC_BASE64_START: u32 = 127;
@@ -72,11 +77,11 @@ pub const SHORT_DC_BASE64_END: u32 = 190;
 pub const SHORT_DC_BASE64_PADDING: u32 = 195;
 
 /// First Global Graph ID for Base64 encapsulation digits (`1114239`).
-pub const GID_BASE64_START: u128 = 1_114_239;
+pub const GID_BASE64_START: u128 = DC_BASE64_START.to_long();
 /// Last Global Graph ID for Base64 encapsulation digits (`1114302`).
-pub const GID_BASE64_END: u128 = 1_114_302;
+pub const GID_BASE64_END: u128 = DC_BASE64_END.to_long();
 /// Global Graph ID for Base64 encapsulation padding character (`1114307`).
-pub const GID_BASE64_PADDING: u128 = 1_114_307;
+pub const GID_BASE64_PADDING: u128 = DC_BASE64_PADDING.to_long();
 
 // ---------------------------------------------------------------------------
 // Base64 Character <-> Short/Global Dc Mappings

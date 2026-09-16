@@ -141,6 +141,9 @@ pub fn dca_to_utf8(
 
     let len = dc_array.len();
     let mut i: usize = 0;
+    let escape_next_id = DC_ESCAPE_NEXT.to_short()?;
+    let start_enc_utf8_id = DC_START_ENCAPSULATION_UTF8.to_short()?;
+    let end_enc_utf8_id = DC_END_ENCAPSULATION_UTF8.to_short()?;
 
     while i < len {
         let dc = dc_array
@@ -153,7 +156,7 @@ pub fn dca_to_utf8(
             escape_next = false;
             escape_this = true;
         }
-        if dc == DC_ESCAPE_NEXT {
+        if dc == escape_next_id {
             escape_next = true;
         }
 
@@ -166,7 +169,7 @@ pub fn dca_to_utf8(
         // reprocessing that subsequence with utf8_base64_embed_enabled turned off.
         if utf8_base64_embed_enabled
             && !escape_this
-            && dc == DC_START_ENCAPSULATION_UTF8
+            && dc == start_enc_utf8_id
         {
             #[cfg(debug_assertions)]
             {
@@ -184,7 +187,7 @@ pub fn dca_to_utf8(
                     .get(j)
                     .copied()
                     .ok_or_else(|| anyhow!("Index out of bounds"))?;
-                if cur == DC_END_ENCAPSULATION_UTF8 {
+                if cur == end_enc_utf8_id {
                     truncated = false;
                     break;
                 }

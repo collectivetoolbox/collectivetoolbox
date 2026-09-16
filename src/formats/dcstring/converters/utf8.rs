@@ -158,7 +158,7 @@ pub fn dclist_to_utf8(
 
                 if settings.canonicalize_equivalent_dcs {
                     // Sub-case 2a: Legacy base64 UTF-8 sequence starting with DC_START_ENCAPSULATION_UTF8 (191)
-                    if short_dc == DC_START_ENCAPSULATION_UTF8 {
+                    if dc == DC_START_ENCAPSULATION_UTF8 {
                         let mut j = i.saturating_add(1);
                         let mut truncated = true;
                         #[expect(
@@ -174,7 +174,7 @@ pub fn dclist_to_utf8(
                                     cur_dc.saturating_sub(SHORT_DC_REGION_START);
                                 if let Ok(cur_short) = u32::try_from(cur_diff)
                                 {
-                                    if cur_short == DC_END_ENCAPSULATION_UTF8
+                                    if cur_dc == DC_END_ENCAPSULATION_UTF8
                                     {
                                         truncated = false;
                                         break;

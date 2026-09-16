@@ -34,12 +34,10 @@ use crate::utilities::*;
 use anyhow::Result;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_formats_dcdata::dc::{
-    GID_ESCAPE, GID_LONG_DC, SHORT_DC_ESCAPE, SHORT_DC_LONG_DC,
-    SHORT_DC_REGION_END, SHORT_DC_REGION_START,
+    DC_ESCAPE, DC_LONG_DC, SHORT_DC_REGION_START,
 };
 use crate::dc_number::{
     integer_to_dc_number_global, read_dc_number_global, read_dc_number_short,
-    u128_to_dc_number_short,
 };
 use crate::dc_char::DcChar;
 use crate::dc_str::DcStr;
@@ -286,30 +284,33 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut list = Vec::with_capacity(dc_array.len());
     let mut i = 0usize;
 
+    let short_escape = DC_ESCAPE.to_short()?;
+    let short_long_dc = DC_LONG_DC.to_short()?;
+
     while i < dc_array.len() {
         let Some(&dc) = dc_array.get(i) else {
             break;
         };
 
-        if dc == SHORT_DC_ESCAPE {
+        if dc == short_escape {
             if let Some(&next_dc) = dc_array.get(i.saturating_add(1)) {
-                if next_dc == SHORT_DC_LONG_DC {
-                    list.push(GID_LONG_DC);
+                if next_dc == short_long_dc {
+                    list.push(DC_LONG_DC.to_long());
                     i = i.saturating_add(2);
                     continue;
                 }
-                if next_dc == SHORT_DC_ESCAPE {
-                    list.push(GID_ESCAPE);
+                if next_dc == short_escape {
+                    list.push(DC_ESCAPE.to_long());
                     i = i.saturating_add(2);
                     continue;
                 }
             }
-            list.push(GID_ESCAPE);
+            list.push(DC_ESCAPE.to_long());
             i = i.saturating_add(1);
             continue;
         }
 
-        if dc == SHORT_DC_LONG_DC {
+        if dc == short_long_dc {
             if let Some(rest) = dc_array.get(i.saturating_add(1)..) {
                 match read_dc_number_short(rest) {
                     Ok((int_val, consumed)) => {
@@ -337,7 +338,7 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
                     "Unescaped Dc 308 at end of stream (index {i}) missing Dc number"
                 ));
             }
-            list.push(GID_LONG_DC);
+            list.push(DC_LONG_DC.to_long());
             i = i.saturating_add(1);
             continue;
         }
@@ -379,22 +380,7 @@ pub fn dclist_to_dcarray(
     let mut result = Vec::new();
 
     for &dcid in dclist {
-        if dcid == GID_LONG_DC {
-            result.push(SHORT_DC_ESCAPE);
-            result.push(SHORT_DC_LONG_DC);
-        } else if dcid == GID_ESCAPE {
-            result.push(SHORT_DC_ESCAPE);
-            result.push(SHORT_DC_ESCAPE);
-        } else if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dcid) {
-            let diff = dcid.saturating_sub(SHORT_DC_REGION_START);
-            let short_dc = u32::try_from(diff)
-                .context("Direct short Dc offset exceeds u32 range")?;
-            result.push(short_dc);
-        } else {
-            result.push(SHORT_DC_LONG_DC);
-            let num_dcs = u128_to_dc_number_short(dcid)?;
-            result.extend(num_dcs);
-        }
+        result.extend(DcChar::from_long(dcid).to_short_vec());
     }
 
     Ok(ConversionOutput::new(result, log))
@@ -543,7 +529,7 @@ mod tests {
         let array_out =
             dclist_to_dcarray(&original_dclist).expect("should succeed");
         assert!(!array_out.log.has_warnings());
-        assert!(array_out.result.contains(&SHORT_DC_LONG_DC));
+        assert!(array_out.result.contains(&DC_LONG_DC.to_short().unwrap()));
 
         let back = dcarray_to_dclist(&array_out.result)
             .expect("reverse conversion should succeed");
@@ -558,7 +544,7 @@ mod tests {
         let array_out =
             dclist_to_dcarray(&original_dclist).expect("should succeed");
         assert!(!array_out.log.has_warnings());
-        assert!(array_out.result.contains(&SHORT_DC_LONG_DC));
+        assert!(array_out.result.contains(&DC_LONG_DC.to_short().unwrap()));
 
         let back = dcarray_to_dclist(&array_out.result)
             .expect("reverse conversion should succeed");
@@ -569,10 +555,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc308_escaping_roundtrip() {
         // Long Dc 1114420 (Dc 308) escaped with 255 -> [255, 308]
-        let original_dclist = vec![GID_LONG_DC];
+        let original_dclist = vec![DC_LONG_DC.to_long()];
         let array_out =
             dclist_to_dcarray(&original_dclist).expect("should succeed");
-        assert_eq!(array_out.result, vec![SHORT_DC_ESCAPE, SHORT_DC_LONG_DC]);
+        assert_eq!(
+            array_out.result,
+            vec![
+                DC_ESCAPE.to_short().unwrap(),
+                DC_LONG_DC.to_short().unwrap()
+            ]
+        );
 
         let back = dcarray_to_dclist(&array_out.result)
             .expect("reverse conversion should succeed");
@@ -582,10 +574,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_dc255_escaping_roundtrip() {
         // Long Dc 1114367 (Dc 255) escaped with 255 -> [255, 255]
-        let original_dclist = vec![GID_ESCAPE];
+        let original_dclist = vec![DC_ESCAPE.to_long()];
         let array_out =
             dclist_to_dcarray(&original_dclist).expect("should succeed");
-        assert_eq!(array_out.result, vec![SHORT_DC_ESCAPE, SHORT_DC_ESCAPE]);
+        assert_eq!(
+            array_out.result,
+            vec![
+                DC_ESCAPE.to_short().unwrap(),
+                DC_ESCAPE.to_short().unwrap()
+            ]
+        );
 
         let back = dcarray_to_dclist(&array_out.result)
             .expect("reverse conversion should succeed");
@@ -596,7 +594,7 @@ mod tests {
     fn test_dc308_followed_by_dc_number_disambiguation() {
         // Long Dc 1114420 followed by a Dc number in DcList
         let original_dclist = vec![
-            GID_LONG_DC,
+            DC_LONG_DC.to_long(),
             GID_BEGIN_NUMBER,
             GID_FORMAT_199,
             GID_BASE64_START,
@@ -606,7 +604,12 @@ mod tests {
             dclist_to_dcarray(&original_dclist).expect("should succeed");
         assert_eq!(
             array_out.result.get(0..2),
-            Some(&[SHORT_DC_ESCAPE, SHORT_DC_LONG_DC][..])
+            Some(
+                &[
+                    DC_ESCAPE.to_short().unwrap(),
+                    DC_LONG_DC.to_short().unwrap()
+                ][..]
+            )
         );
 
         let back = dcarray_to_dclist(&array_out.result)
@@ -617,12 +620,12 @@ mod tests {
     #[crate::ctb_test]
     fn test_dcarray_to_dclist_standalone_dc308() {
         // Standalone short Dc 308 not followed by a Dc number (graceful fallback)
-        let dc_array = vec![SHORT_DC_LONG_DC, 65];
+        let dc_array = vec![DC_LONG_DC.to_short().unwrap(), 65];
         let back = dcarray_to_dclist(&dc_array).expect("should succeed");
         assert!(back.log.has_warnings());
         assert_eq!(
             back.result,
-            vec![GID_LONG_DC, SHORT_DC_REGION_START.saturating_add(65)]
+            vec![DC_LONG_DC.to_long(), SHORT_DC_REGION_START.saturating_add(65)]
         );
     }
 
