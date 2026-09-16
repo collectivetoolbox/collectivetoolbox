@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscArgs, SourceChangePolicy};
-use crate::journal::JournalWriter;
+use crate::journal::{JournalErrorRecord, JournalErrorStage, JournalWriter};
 use crate::path_resolution::ResolvedCopyTask;
 use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::FileOrigin;
@@ -44,11 +44,13 @@ use std::collections::HashMap;
 #[cfg(unix)]
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Summary stats from a copy run.
 #[derive(Debug, Clone, Default)]
 pub struct CopyStats {
     pub files_copied: u64,
+    pub files_failed: u64,
     pub files_skipped_identical: u64,
     pub bytes_copied: u64,
     pub dirs_created: u64,
@@ -74,6 +76,42 @@ struct DeferredDirFixup {
     dest_path: PathBuf,
     dir_entity: FileEntity,
     expected_filenames: Vec<Vec<u8>>,
+}
+
+/// Records an item failure and either swallows it under `--continue-on-error` or
+/// marks the journal failed and aborts.
+fn handle_item_error(
+    src_path: &Path,
+    stage: JournalErrorStage,
+    err: anyhow::Error,
+    args: &CscArgs,
+    journal: &mut JournalWriter,
+    stats: &mut CopyStats,
+) -> Result<Option<PathBuf>> {
+    let now_sec = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|d| i64::try_from(d.as_secs()).ok())
+        .unwrap_or(0);
+    let os_error = err
+        .downcast_ref::<std::io::Error>()
+        .and_then(std::io::Error::raw_os_error);
+    let err_record = JournalErrorRecord {
+        path: src_path.to_path_buf(),
+        raw_path: src_path.as_os_str().as_encoded_bytes().to_vec(),
+        stage,
+        error_message: err.to_string(),
+        os_error,
+        timestamp_sec: now_sec,
+    };
+    let _ = journal.record_error(&err_record);
+    if args.continue_on_error {
+        stats.files_failed = stats.files_failed.saturating_add(1);
+        Ok(None)
+    } else {
+        let _ = journal.mark_failed(&err.to_string());
+        Err(err)
+    }
 }
 
 /// Runs the complete copy pipeline across all tasks using descriptor-safe, multi-pass copying.
@@ -124,6 +162,16 @@ pub fn execute_copy_pipeline(
     if !args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files {
         progress.message(
             "Notice: Special files (FIFOs, device nodes, sockets) will be skipped by default. Pass --copy-specials-as-specials to preserve them.",
+        );
+        let _ = journal.record_warning(
+            "SpecialFilesSkippedByDefault",
+            "Special files (FIFOs, device nodes, sockets) are skipped by default. Pass --copy-specials-as-specials to preserve them.",
+        );
+    }
+    if args.best_effort_metadata {
+        let _ = journal.record_warning(
+            "BestEffortMetadata",
+            "Best-effort metadata enabled: non-fatal metadata write errors or timestamp precision differences may be tolerated.",
         );
     }
 
@@ -185,33 +233,94 @@ pub fn execute_copy_pipeline(
                 vec![(src_root.clone(), tgt_root.clone())];
 
             while let Some((curr_src, curr_tgt)) = dir_queue.pop() {
-                let dir_entity = FileEntity::from_filesystem_with_apple_options(&curr_src, Some(src_root), &apple_read_options)?;
-                validate_filesystem_known(&curr_src, dir_entity.metadata.filesystem_type.as_deref(), args)?;
+                let dir_entity = match FileEntity::from_filesystem_with_apple_options(
+                    &curr_src,
+                    Some(src_root),
+                    &apple_read_options,
+                ) {
+                    Ok(e) => e,
+                    Err(e) => {
+                        let _ = handle_item_error(
+                            &curr_src,
+                            JournalErrorStage::MetadataRead,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
+                };
+                if let Err(e) = validate_filesystem_known(
+                    &curr_src,
+                    dir_entity.metadata.filesystem_type.as_deref(),
+                    args,
+                ) {
+                    let _ = handle_item_error(
+                        &curr_src,
+                        JournalErrorStage::MetadataRead,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
 
                 if !args.dry_run {
-                    dest_dir.ensure_dir_all(
+                    if let Err(e) = dest_dir.ensure_dir_all(
                         &dir_entity.identity.relative_path,
                         options.path_policy,
-                    )?;
+                    ) {
+                        let _ = handle_item_error(
+                            &curr_src,
+                            JournalErrorStage::Materialize,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
                 }
                 stats.dirs_created = stats.dirs_created.saturating_add(1);
 
                 let mut journal_dir = dir_entity.clone();
                 let rel = compute_journal_relative_path(journal.destination(), &curr_tgt);
                 journal_dir.identity.relative_path = rel.clone();
-                journal_dir.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
+                journal_dir.identity.raw_relative_path =
+                    rel.as_os_str().as_encoded_bytes().to_vec();
                 journal.record_entity(&journal_dir);
                 if !args.dry_run {
                     journal.commit_batch()?;
                 }
 
+                let error_policy = if args.continue_on_error {
+                    ctb_io::file::OnTraversalError::Skip
+                } else {
+                    ctb_io::file::OnTraversalError::Bail
+                };
                 let traversal_opts = ctb_io::file::TraversalOptions::new()
                     .one_file_system(args.one_file_system)
-                    .error_policy(ctb_io::file::OnTraversalError::Bail)
+                    .error_policy(error_policy)
                     .apple_read_options(apple_read_options);
 
-                let raw_dir_entries = ctb_io::file::read_dir_safe(&curr_src, &traversal_opts)?;
-                let dir_entries = ctb_io::file::validate_and_order_directory_entries(
+                let raw_dir_entries =
+                    match ctb_io::file::read_dir_safe(&curr_src, &traversal_opts) {
+                        Ok(entries) => entries,
+                        Err(e) => {
+                            let _ = handle_item_error(
+                                &curr_src,
+                                JournalErrorStage::Traversal,
+                                e,
+                                args,
+                                journal,
+                                &mut stats,
+                            )?;
+                            continue;
+                        }
+                    };
+                let dir_entries = match ctb_io::file::validate_and_order_directory_entries(
                     raw_dir_entries,
                     &curr_src,
                     &curr_tgt,
@@ -220,7 +329,20 @@ pub fn execute_copy_pipeline(
                     &apple_read_options,
                     apple_write_mode,
                     apple_single_write_extension,
-                )?;
+                ) {
+                    Ok(entries) => entries,
+                    Err(e) => {
+                        let _ = handle_item_error(
+                            &curr_src,
+                            JournalErrorStage::Traversal,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
+                };
 
                 let mut expected_filenames: Vec<Vec<u8>> = Vec::new();
 
@@ -239,10 +361,41 @@ pub fn execute_copy_pipeline(
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         dir_queue.push((entry_src, entry_tgt));
                     } else if item.is_symlink {
+                        let sym_entity = match FileEntity::from_filesystem_with_apple_options(
+                            &entry_src,
+                            Some(src_root),
+                            &apple_read_options,
+                        ) {
+                            Ok(e) => e,
+                            Err(e) => {
+                                let _ = handle_item_error(
+                                    &entry_src,
+                                    JournalErrorStage::MetadataRead,
+                                    e,
+                                    args,
+                                    journal,
+                                    &mut stats,
+                                )?;
+                                continue;
+                            }
+                        };
+                        if let Err(e) = validate_filesystem_known(
+                            &entry_src,
+                            sym_entity.metadata.filesystem_type.as_deref(),
+                            args,
+                        ) {
+                            let _ = handle_item_error(
+                                &entry_src,
+                                JournalErrorStage::MetadataRead,
+                                e,
+                                args,
+                                journal,
+                                &mut stats,
+                            )?;
+                            continue;
+                        }
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
-                        let mut sym_entity =
-                            FileEntity::from_filesystem_with_apple_options(&entry_src, Some(src_root), &apple_read_options)?;
-                        validate_filesystem_known(&entry_src, sym_entity.metadata.filesystem_type.as_deref(), args)?;
+                        let mut sym_entity = sym_entity;
                         sym_entity.identity.relative_path = entry_rel;
                         sym_entity.identity.raw_relative_path =
                             sym_entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
@@ -311,8 +464,35 @@ pub fn execute_copy_pipeline(
             let target_rel_path = Path::new(target_file_name);
 
             if src_meta.is_symlink() {
-                let mut sym_entity = FileEntity::from_filesystem(src_root, None)?;
-                validate_filesystem_known(src_root, sym_entity.metadata.filesystem_type.as_deref(), args)?;
+                let mut sym_entity = match FileEntity::from_filesystem(src_root, None) {
+                    Ok(e) => e,
+                    Err(e) => {
+                        let _ = handle_item_error(
+                            src_root,
+                            JournalErrorStage::MetadataRead,
+                            e,
+                            args,
+                            journal,
+                            &mut stats,
+                        )?;
+                        continue;
+                    }
+                };
+                if let Err(e) = validate_filesystem_known(
+                    src_root,
+                    sym_entity.metadata.filesystem_type.as_deref(),
+                    args,
+                ) {
+                    let _ = handle_item_error(
+                        src_root,
+                        JournalErrorStage::MetadataRead,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
                 sym_entity.identity.relative_path = target_rel_path.to_path_buf();
                 sym_entity.identity.raw_relative_path =
                     target_file_name.as_encoded_bytes().to_vec();
@@ -358,10 +538,33 @@ pub fn execute_copy_pipeline(
             SandboxableDir::create_or_open(&symlink_item.dest_dir_root)?
         };
 
-        materialize_entity(&entity, None, &dest_dir, &options)?;
+        if let Err(e) = materialize_entity(&entity, None, &dest_dir, &options) {
+            let _ = handle_item_error(
+                &symlink_item.src_path,
+                JournalErrorStage::Materialize,
+                e,
+                args,
+                journal,
+                &mut stats,
+            )?;
+            continue;
+        }
 
         if !args.dry_run {
-            let dest_target = std::fs::read_link(dest_path)?;
+            let dest_target = match std::fs::read_link(dest_path) {
+                Ok(t) => t,
+                Err(e) => {
+                    let _ = handle_item_error(
+                        &symlink_item.src_path,
+                        JournalErrorStage::Materialize,
+                        e.into(),
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
+            };
             #[cfg(unix)]
             {
                 let atime = filetime::FileTime::from_unix_time(
@@ -375,11 +578,21 @@ pub fn execute_copy_pipeline(
                 let _ = filetime::set_symlink_file_times(dest_path, atime, mtime);
             }
             if let FileEntityKind::Symlink { target } = &entity.kind {
-                anyhow::ensure!(
-                    dest_target.as_os_str().as_encoded_bytes() == target.as_slice(),
-                    "Target filesystem altered or normalized symlink target for {}",
-                    dest_path.display()
-                );
+                if dest_target.as_os_str().as_encoded_bytes() != target.as_slice() {
+                    let err = anyhow::anyhow!(
+                        "Target filesystem altered or normalized symlink target for {}",
+                        dest_path.display()
+                    );
+                    let _ = handle_item_error(
+                        &symlink_item.src_path,
+                        JournalErrorStage::Materialize,
+                        err,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
             }
         }
 
@@ -396,27 +609,76 @@ pub fn execute_copy_pipeline(
             if fixup.dest_path.exists() {
                 let expected_refs: Vec<&[u8]> =
                     fixup.expected_filenames.iter().map(Vec::as_slice).collect();
-                verify_directory_filenames_exact(&fixup.dest_path, &expected_refs)?;
+                if let Err(e) = verify_directory_filenames_exact(&fixup.dest_path, &expected_refs) {
+                    let _ = handle_item_error(
+                        &fixup.src_path,
+                        JournalErrorStage::Materialize,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
 
-                write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless)?;
-                apply_entity_metadata(
+                if let Err(e) = write_streams(&fixup.dest_path, None, &fixup.dir_entity.streams, strict_lossless) {
+                    let _ = handle_item_error(
+                        &fixup.src_path,
+                        JournalErrorStage::Materialize,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
+                if let Err(e) = apply_entity_metadata(
                     &fixup.dest_path,
                     None,
                     &fixup.dir_entity.metadata,
                     false,
                     true,
                     strict_lossless,
-                )?;
-                verify_materialized_entity_ext(
+                ) {
+                    let _ = handle_item_error(
+                        &fixup.src_path,
+                        JournalErrorStage::Materialize,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
+                if let Err(e) = verify_materialized_entity_ext(
                     &fixup.dest_path,
                     &fixup.dir_entity,
                     strict_lossless,
                     args.should_check_atime(),
                     args.should_check_ctime(),
-                )?;
+                ) {
+                    let _ = handle_item_error(
+                        &fixup.src_path,
+                        JournalErrorStage::Materialize,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
                 files_to_verify.push((fixup.src_path, fixup.dest_path, fixup.dir_entity));
             } else {
-                anyhow::bail!("Destination directory disappeared: {}", fixup.dest_path.display());
+                let err = anyhow::anyhow!("Destination directory disappeared: {}", fixup.dest_path.display());
+                let _ = handle_item_error(
+                    &fixup.src_path,
+                    JournalErrorStage::Materialize,
+                    err,
+                    args,
+                    journal,
+                    &mut stats,
+                )?;
+                continue;
             }
         }
         journal.commit_batch()?;
@@ -440,20 +702,40 @@ pub fn execute_copy_pipeline(
         for (src_path, dest_path, entity) in &files_to_verify {
             let check_atime = args.should_check_atime()
                 || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
-            verify_materialized_entity_ext(
+            if let Err(e) = verify_materialized_entity_ext(
                 src_path,
                 entity,
                 !args.best_effort_metadata,
                 check_atime,
                 args.should_check_ctime(),
-            )?;
-            verify_materialized_entity_ext(
+            ) {
+                let _ = handle_item_error(
+                    src_path,
+                    JournalErrorStage::PostCheck,
+                    e,
+                    args,
+                    journal,
+                    &mut stats,
+                )?;
+                continue;
+            }
+            if let Err(e) = verify_materialized_entity_ext(
                 dest_path,
                 entity,
                 strict_lossless,
                 check_atime,
                 args.should_check_ctime(),
-            )?;
+            ) {
+                let _ = handle_item_error(
+                    dest_path,
+                    JournalErrorStage::PostCheck,
+                    e,
+                    args,
+                    journal,
+                    &mut stats,
+                )?;
+                continue;
+            }
             if entity.is_regular() {
                 stats.files_verified = stats.files_verified.saturating_add(1);
             }
@@ -494,8 +776,37 @@ fn copy_single_item(
 ) -> Result<Option<PathBuf>> {
     // 2. Discover full entity from filesystem
     let apple_read_options = args.resolve_apple_read_options();
-    let mut entity = FileEntity::from_filesystem_with_apple_options(src_path, None, &apple_read_options)?;
-    validate_filesystem_known(src_path, entity.metadata.filesystem_type.as_deref(), args)?;
+    let mut entity = match FileEntity::from_filesystem_with_apple_options(
+        src_path,
+        None,
+        &apple_read_options,
+    ) {
+        Ok(e) => e,
+        Err(err) => {
+            return handle_item_error(
+                src_path,
+                JournalErrorStage::MetadataRead,
+                err,
+                args,
+                journal,
+                stats,
+            );
+        }
+    };
+    if let Err(err) = validate_filesystem_known(
+        src_path,
+        entity.metadata.filesystem_type.as_deref(),
+        args,
+    ) {
+        return handle_item_error(
+            src_path,
+            JournalErrorStage::MetadataRead,
+            err,
+            args,
+            journal,
+            stats,
+        );
+    }
 
     // If an AppleSingle extension was stripped on read, update destination relative path
     let effective_dest_rel = if let Some(dest_fname) = dest_rel_path.file_name().and_then(|f| f.to_str()) {
@@ -562,7 +873,16 @@ fn copy_single_item(
                 entity.kind = FileEntityKind::Hardlink {
                     target_relative_path: first_target_rel.as_os_str().as_encoded_bytes().to_vec(),
                 };
-                materialize_entity(&entity, None, dest_dir, options)?;
+                if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::Materialize,
+                        err,
+                        args,
+                        journal,
+                        stats,
+                    );
+                }
                 stats.hardlinks_created = stats.hardlinks_created.saturating_add(1);
                 record_journal_entry(journal, &effective_dest_path, &entity)?;
                 files_to_verify.push((src_path.to_path_buf(), effective_dest_path.clone(), original_entity));
@@ -581,15 +901,39 @@ fn copy_single_item(
             if args.copy_block_devices_as_regular_files
                 && matches!(entity.kind, FileEntityKind::BlockDevice { .. })
             {
-                let dev_file = std::fs::File::open(src_path).with_context(|| {
+                let dev_file = match std::fs::File::open(src_path).with_context(|| {
                     format!("Failed to open block device: {}", src_path.display())
-                })?;
-                let size = query_block_device_size(&dev_file).with_context(|| {
+                }) {
+                    Ok(f) => f,
+                    Err(err) => {
+                        return handle_item_error(
+                            src_path,
+                            JournalErrorStage::PayloadOpen,
+                            err,
+                            args,
+                            journal,
+                            stats,
+                        );
+                    }
+                };
+                let size = match query_block_device_size(&dev_file).with_context(|| {
                     format!(
                         "Failed to determine size of block device: {}",
                         src_path.display()
                     )
-                })?;
+                }) {
+                    Ok(s) => s,
+                    Err(err) => {
+                        return handle_item_error(
+                            src_path,
+                            JournalErrorStage::MetadataRead,
+                            err,
+                            args,
+                            journal,
+                            stats,
+                        );
+                    }
+                };
                 entity.kind = FileEntityKind::Regular {
                     size,
                     sha256: [0_u8; 32],
@@ -602,7 +946,16 @@ fn copy_single_item(
             } else if args.copy_specials_as_specials
                 && !matches!(entity.kind, FileEntityKind::Socket | FileEntityKind::Door)
             {
-                materialize_entity(&entity, None, dest_dir, options)?;
+                if let Err(err) = materialize_entity(&entity, None, dest_dir, options) {
+                    return handle_item_error(
+                        src_path,
+                        JournalErrorStage::Materialize,
+                        err,
+                        args,
+                        journal,
+                        stats,
+                    );
+                }
                 stats.special_files_created = stats.special_files_created.saturating_add(1);
                 record_journal_entry(journal, dest_path, &entity)?;
                 files_to_verify.push((src_path.to_path_buf(), dest_path.to_path_buf(), entity));
@@ -649,13 +1002,37 @@ fn copy_single_item(
     let (receipt, file_used_noatime) = if args.dry_run {
         (materialize_entity(&entity, None, dest_dir, options), false)
     } else if let Some(mem_bytes) = apple_single_data.as_ref() {
-        let mut mem_payload = ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone())?;
+        let mut mem_payload = match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone()) {
+            Ok(p) => p,
+            Err(err) => {
+                return handle_item_error(
+                    src_path,
+                    JournalErrorStage::PayloadOpen,
+                    err,
+                    args,
+                    journal,
+                    stats,
+                );
+            }
+        };
         (
             materialize_entity(&entity, Some(&mut mem_payload), dest_dir, options),
             false,
         )
     } else if matches!(entity.kind, FileEntityKind::Regular { .. }) {
-        let mut payload = DiskPayloadSource::open(src_path)?;
+        let mut payload = match DiskPayloadSource::open(src_path) {
+            Ok(p) => p,
+            Err(err) => {
+                return handle_item_error(
+                    src_path,
+                    JournalErrorStage::PayloadOpen,
+                    err,
+                    args,
+                    journal,
+                    stats,
+                );
+            }
+        };
         let noatime = payload.opened_with_noatime();
         (
             materialize_entity(&entity, Some(&mut payload), dest_dir, options),
@@ -664,13 +1041,25 @@ fn copy_single_item(
     } else {
         (materialize_entity(&entity, None, dest_dir, options), false)
     };
-    let receipt = receipt.with_context(|| {
+    let receipt = match receipt.with_context(|| {
         format!(
             "copying '{}' -> '{}'",
             src_path.display(),
             effective_dest_path.display()
         )
-    })?;
+    }) {
+        Ok(r) => r,
+        Err(err) => {
+            return handle_item_error(
+                src_path,
+                JournalErrorStage::Materialize,
+                err,
+                args,
+                journal,
+                stats,
+            );
+        }
+    };
 
     if file_used_noatime {
         entity.metadata.set_used_noatime(true);
@@ -678,7 +1067,19 @@ fn copy_single_item(
     }
 
     // Verify source wasn't modified concurrently during copy
-    let after_meta = std::fs::symlink_metadata(src_path)?;
+    let after_meta = match std::fs::symlink_metadata(src_path) {
+        Ok(m) => m,
+        Err(err) => {
+            return handle_item_error(
+                src_path,
+                JournalErrorStage::PostCheck,
+                err.into(),
+                args,
+                journal,
+                stats,
+            );
+        }
+    };
     #[cfg(unix)]
     let is_block_device_as_regular = args.copy_block_devices_as_regular_files
         && after_meta.file_type().is_block_device();
@@ -697,14 +1098,29 @@ fn copy_single_item(
 
     if !is_block_device_as_regular && changed {
         if args.on_source_change == SourceChangePolicy::Error {
-            anyhow::bail!(
+            let err = anyhow::anyhow!(
                 "Source file {} was modified concurrently during copy (timestamps or size changed)",
                 src_path.display()
+            );
+            return handle_item_error(
+                src_path,
+                JournalErrorStage::PostCheck,
+                err,
+                args,
+                journal,
+                stats,
             );
         }
         eprintln!(
             "WARNING: Source file {} changed during copy; proceeding best-effort.",
             src_path.display()
+        );
+        let _ = journal.record_warning(
+            "SourceModifiedDuringCopy",
+            &format!(
+                "Source file {} changed during copy; proceeding best-effort.",
+                src_path.display()
+            ),
         );
     }
 

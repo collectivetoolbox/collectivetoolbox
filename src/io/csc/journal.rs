@@ -48,11 +48,49 @@ const TAG_ENTITY: u8 = 2;
 const TAG_BATCH_COMMIT: u8 = 3;
 const TAG_JOB_COMPLETED: u8 = 4;
 const TAG_SESSION_ENV: u8 = 5;
+const TAG_ERROR_RECORD: u8 = 6;
+const TAG_WARNING_RECORD: u8 = 7;
 
 pub const PLATFORM_LINUX: u8 = 1;
 pub const PLATFORM_MACOS: u8 = 2;
 pub const PLATFORM_WINDOWS: u8 = 3;
 pub const PLATFORM_OTHER: u8 = 4;
+
+/// Stage in the copy pipeline where an operation or file access error occurred.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum JournalErrorStage {
+    /// Directory listing or entry enumeration failed.
+    Traversal,
+    /// Inspection of file status, flags, xattrs, or streams failed.
+    MetadataRead,
+    /// Opening source file or device failed.
+    PayloadOpen,
+    /// Reading file payload or stream data failed.
+    PayloadRead,
+    /// Writing or flushing destination payload or metadata failed.
+    Materialize,
+    /// Post-copy verification or concurrent modification check failed.
+    PostCheck,
+}
+
+/// A persistent record of an item or operation failure stored in the journal.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct JournalErrorRecord {
+    pub path: PathBuf,
+    pub raw_path: Vec<u8>,
+    pub stage: JournalErrorStage,
+    pub error_message: String,
+    pub os_error: Option<i32>,
+    pub timestamp_sec: i64,
+}
+
+/// A persistent record of an operational warning or caveat stored in the journal.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct JournalWarningRecord {
+    pub code: String,
+    pub message: String,
+    pub timestamp_sec: i64,
+}
 
 #[must_use]
 pub fn current_platform() -> u8 {
@@ -79,6 +117,8 @@ pub struct JournalSnapshot {
     pub valid_length: u64,
     pub noatime_used: bool,
     pub environment: Option<Arc<EnvDescription>>,
+    pub errors: Vec<JournalErrorRecord>,
+    pub warnings: Vec<JournalWarningRecord>,
 }
 
 impl JournalSnapshot {
@@ -103,6 +143,8 @@ pub struct JournalWriter {
     noatime_used: bool,
     pub environment: Option<Arc<EnvDescription>>,
     snapshot: Option<JournalSnapshot>,
+    errors: Vec<JournalErrorRecord>,
+    warnings: Vec<JournalWarningRecord>,
 }
 
 impl JournalWriter {
@@ -144,6 +186,8 @@ impl JournalWriter {
             noatime_used: false,
             environment: Some(env),
             snapshot: None,
+            errors: Vec::new(),
+            warnings: Vec::new(),
         };
 
         jw.write_session_header(sources, destination)?;
@@ -214,6 +258,8 @@ impl JournalWriter {
                 .clone()
                 .or_else(|| Some(ctb_utilities::environment::capture_quick_arc())),
             snapshot: Some(snapshot.clone()),
+            errors: snapshot.errors.clone(),
+            warnings: snapshot.warnings.clone(),
         })
     }
 
@@ -310,8 +356,68 @@ impl JournalWriter {
         self.writer.write_all(&[TAG_JOB_COMPLETED])?;
         self.writer.flush()?;
         self.writer.get_ref().sync_data()?;
-        self.update_desc_file("Completed")?;
+        if self.errors.is_empty() {
+            self.update_desc_file("Completed")?;
+        } else {
+            self.update_desc_file(&format!("Completed with {} error(s)", self.errors.len()))?;
+        }
         Ok(())
+    }
+
+    /// Records an item or operational error directly into the state journal and descriptor.
+    pub fn record_error(&mut self, error: &JournalErrorRecord) -> Result<()> {
+        let json = serde_json::to_string(error)?;
+        self.writer.write_all(&[TAG_ERROR_RECORD])?;
+        write_bytes(&mut self.writer, json.as_bytes())?;
+        self.writer.flush()?;
+        self.writer.get_ref().sync_data()?;
+        self.errors.push(error.clone());
+        self.update_desc_file("InProgress")?;
+        Ok(())
+    }
+
+    /// Records a caveat or operational warning directly into the state journal and descriptor.
+    pub fn record_warning(&mut self, code: &str, message: &str) -> Result<()> {
+        let now_sec = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()
+            .and_then(|d| i64::try_from(d.as_secs()).ok())
+            .unwrap_or(0);
+        let record = JournalWarningRecord {
+            code: code.to_string(),
+            message: message.to_string(),
+            timestamp_sec: now_sec,
+        };
+        let json = serde_json::to_string(&record)?;
+        self.writer.write_all(&[TAG_WARNING_RECORD])?;
+        write_bytes(&mut self.writer, json.as_bytes())?;
+        self.writer.flush()?;
+        self.writer.get_ref().sync_data()?;
+        self.warnings.push(record);
+        self.update_desc_file("InProgress")?;
+        Ok(())
+    }
+
+    /// Marks the job as failed with a specified reason and updates `.cscdesc`.
+    pub fn mark_failed(&mut self, reason: &str) -> Result<()> {
+        let _ = self.commit_batch();
+        self.writer.flush()?;
+        self.writer.get_ref().sync_data()?;
+        let status = format!("Failed: {reason}");
+        self.update_desc_file(&status)?;
+        Ok(())
+    }
+
+    /// Slice of all errors recorded during this journal session.
+    #[must_use]
+    pub fn errors(&self) -> &[JournalErrorRecord] {
+        &self.errors
+    }
+
+    /// Slice of all warnings and caveats recorded during this journal session.
+    #[must_use]
+    pub fn warnings(&self) -> &[JournalWarningRecord] {
+        &self.warnings
     }
 
     fn update_desc_file(&self, status: &str) -> Result<()> {
@@ -321,6 +427,26 @@ impl JournalWriter {
         writeln!(desc_text, "Status: {status}")?;
         writeln!(desc_text, "FilesCommitted: {}", self.total_committed_files)?;
         writeln!(desc_text, "BytesCommitted: {}", self.total_committed_bytes)?;
+        writeln!(desc_text, "ErrorsCount: {}", self.errors.len())?;
+        if !self.errors.is_empty() {
+            writeln!(desc_text, "Errors:")?;
+            for err in &self.errors {
+                writeln!(
+                    desc_text,
+                    "  - [{:?}] {}: {}",
+                    err.stage,
+                    err.path.display(),
+                    err.error_message
+                )?;
+            }
+        }
+        writeln!(desc_text, "WarningsCount: {}", self.warnings.len())?;
+        if !self.warnings.is_empty() {
+            writeln!(desc_text, "Warnings:")?;
+            for warn in &self.warnings {
+                writeln!(desc_text, "  - [{}]: {}", warn.code, warn.message)?;
+            }
+        }
         writeln!(desc_text, "Sources:")?;
         for s in &self.sources {
             writeln!(desc_text, "  - {}", s.display())?;
@@ -417,6 +543,8 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
     let mut is_completed = false;
     let mut valid_length = 0_u64;
     let mut environment: Option<Arc<EnvDescription>> = None;
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
 
     let mut tag_buf = [0_u8; 1];
     while reader.read_exact(&mut tag_buf).is_ok() {
@@ -516,6 +644,28 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
                 is_completed = true;
                 valid_length = reader.stream_position()?;
             }
+            TAG_ERROR_RECORD => {
+                let Ok(err_bytes) = read_bytes(&mut reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&err_bytes) {
+                    if let Ok(record) = serde_json::from_str::<JournalErrorRecord>(json_str) {
+                        errors.push(record);
+                    }
+                }
+                valid_length = reader.stream_position()?;
+            }
+            TAG_WARNING_RECORD => {
+                let Ok(warn_bytes) = read_bytes(&mut reader) else {
+                    break;
+                };
+                if let Ok(json_str) = std::str::from_utf8(&warn_bytes) {
+                    if let Ok(record) = serde_json::from_str::<JournalWarningRecord>(json_str) {
+                        warnings.push(record);
+                    }
+                }
+                valid_length = reader.stream_position()?;
+            }
             _ => {
                 break;
             }
@@ -550,6 +700,8 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
         valid_length,
         noatime_used,
         environment,
+        errors,
+        warnings,
     })
 }
 

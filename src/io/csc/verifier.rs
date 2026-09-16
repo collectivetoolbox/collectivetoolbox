@@ -29,7 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::args::{CscVerifyArgs, VerifyOutputFormat};
-use crate::journal::{read_journal_snapshot, resolve_journal_path};
+use crate::journal::{read_journal_snapshot, resolve_journal_path, JournalErrorRecord};
 use crate::journal::PLATFORM_WINDOWS;
 use ctb_io::file::entity::FileEntityKind;
 use ctb_io::file::identity::resolve_relative_path_for_os;
@@ -75,6 +75,8 @@ pub struct VerificationReport {
     pub best_effort: bool,
     #[serde(default)]
     pub caveats: Vec<String>,
+    #[serde(default)]
+    pub recorded_errors: Vec<JournalErrorRecord>,
 }
 
 impl VerificationReport {
@@ -84,6 +86,7 @@ impl VerificationReport {
         self.changed_entries.is_empty()
             && self.missing_entries.is_empty()
             && self.untracked_entries.is_empty()
+            && self.recorded_errors.is_empty()
     }
 
     /// Formats the audit report into a human-readable text document.
@@ -171,6 +174,20 @@ impl VerificationReport {
             out,
             "Status:           FAILED - Discrepancies detected between directory and manifest.\n"
         );
+
+        if !self.recorded_errors.is_empty() {
+            let _ = writeln!(out, "Recorded Copy Errors ({}):", self.recorded_errors.len());
+            for err in &self.recorded_errors {
+                let _ = writeln!(
+                    out,
+                    "  - [{:?}] {}: {}",
+                    err.stage,
+                    err.path.display(),
+                    err.error_message
+                );
+            }
+            let _ = writeln!(out);
+        }
 
         if !self.missing_entries.is_empty() {
             let _ = writeln!(out, "Missing Entries ({}):", self.missing_entries.len());
@@ -510,6 +527,10 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         caveats.push("Manifest is incomplete or was not marked finished (--allow-incomplete)".to_string());
     }
 
+    for warn in &snapshot.warnings {
+        caveats.push(format!("[{}] {}", warn.code, warn.message));
+    }
+
     Ok(VerificationReport {
         target_directory: target_dir,
         manifest_path: journal_path,
@@ -522,6 +543,7 @@ pub fn verify_directory_against_manifest(args: &CscVerifyArgs) -> Result<Verific
         ignored_differences: total_ignored,
         best_effort: is_best_effort,
         caveats,
+        recorded_errors: snapshot.errors.clone(),
     })
 }
 
@@ -1173,6 +1195,7 @@ mod tests {
             ignored_differences: IgnoredDifferences::default(),
             best_effort: false,
             caveats: Vec::new(),
+            recorded_errors: Vec::new(),
         };
         let out = strict_clean.format_human_report();
         assert!(out.contains("Status:           OK - Directory matches manifest perfectly."));
@@ -1194,6 +1217,7 @@ mod tests {
                 "Access times (atime) not verified (use --check-atime or --strict to check)".to_string(),
                 "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
             ],
+            recorded_errors: Vec::new(),
         };
         let out2 = non_strict_clean.format_human_report();
         assert!(out2.contains("Status:           OK - Directory matches manifest."));
@@ -1225,6 +1249,7 @@ mod tests {
                 "Change times (ctime) not verified (use --check-ctime or --strict to check)".to_string(),
                 "Best-effort mode: ignored 2 timestamp differences".to_string(),
             ],
+            recorded_errors: Vec::new(),
         };
         let out3 = be_clean.format_human_report();
         assert!(out3.contains("Status:           OK - Directory matches manifest in best-effort mode; ignored 2 timestamp differences."));

@@ -237,6 +237,11 @@ pub struct CscArgs {
     /// (e.g. network discovery for public IP addresses and server time synchronization).
     #[arg(long)]
     pub full_provenance: bool,
+
+    /// Continue copying remaining files when an item cannot be read, copied, or materialized.
+    /// Errors are logged into the journal and descriptor instead of aborting the operation.
+    #[arg(long, alias = "ignore-errors")]
+    pub continue_on_error: bool,
 }
 
 impl CscArgs {
@@ -936,6 +941,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         write_apple_single_with_extension: None,
         write_apple_single_without_extension: false,
         full_provenance: false,
+        continue_on_error: false,
     }
 }
 

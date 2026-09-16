@@ -136,24 +136,34 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     };
 
     // 2. Execute pipeline
-    let stats = execute_copy_pipeline(
+    let stats = match execute_copy_pipeline(
         &tasks,
         &args,
         &mut journal,
         &progress,
-    )?;
+    ) {
+        Ok(s) => s,
+        Err(err) => {
+            let _ = journal.mark_failed(&err.to_string());
+            return Err(err);
+        }
+    };
 
     let journal_path = journal.journal_path().to_path_buf();
     let desc_path = journal.desc_path().to_path_buf();
+    let error_count = journal.errors().len();
+    let warning_count = journal.warnings().len();
     drop(journal);
 
+    let has_errors = error_count > 0 || stats.files_failed > 0;
     let retain_metadata_journal = stats.copied_entities.iter().any(|(_, _, entity)|
         entity.metadata.native.is_some() || entity.metadata.timestamps.birthtime_sec.is_some()
         || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
-    if args.delete_manifest_after && retain_metadata_journal {
+    if args.delete_manifest_after && has_errors {
+        warn_fmt!("Retaining {}: it contains recorded error records", journal_path.display());
+    } else if args.delete_manifest_after && retain_metadata_journal {
         warn_fmt!("Retaining {}: it contains original metadata that is not guaranteed to be reproducible", journal_path.display());
-    }
-    if args.delete_manifest_after && !retain_metadata_journal {
+    } else if args.delete_manifest_after {
         if journal_path.exists() {
             let _ = std::fs::remove_file(&journal_path);
         }
@@ -168,10 +178,13 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
     let mut summary = String::new();
     use std::fmt::Write;
     writeln!(summary, "--- CSC Summary ---")?;
-    if retain_metadata_journal {
+    if retain_metadata_journal || has_errors {
         writeln!(summary, "Original metadata journal: {}", journal_path.display())?;
     }
     writeln!(summary, "Files copied:             {}", stats.files_copied)?;
+    if stats.files_failed > 0 {
+        writeln!(summary, "Files failed (skipped):   {}", stats.files_failed)?;
+    }
     if stats.files_skipped_identical > 0 {
         writeln!(
             summary,
@@ -202,11 +215,18 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
             stats.special_files_skipped
         )?;
     }
+    if warning_count > 0 {
+        writeln!(summary, "Warnings recorded:        {warning_count}")?;
+    }
     if args.should_verify_after() {
         writeln!(summary, "Files verified:           {}", stats.files_verified)?;
     }
     writeln!(summary, "Duration:                 {elapsed:.2}s")?;
-    writeln!(summary, "Status:                   All operations verified successfully.")?;
+    if stats.files_failed > 0 {
+        writeln!(summary, "Status:                   Completed with {} error(s) logged in journal.", stats.files_failed)?;
+    } else {
+        writeln!(summary, "Status:                   All operations verified successfully.")?;
+    }
 
     Ok(ToolResult::immediate_ok(summary.into_bytes()))
 }

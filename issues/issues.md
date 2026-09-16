@@ -82,7 +82,6 @@ Caused by:
 
 Add a Dc to represent long Dcs
 
-- [x] Standardize on "short" and "long" terms for Dcs
 
 Deprecate Dcs duplicating Unicode
 
@@ -117,11 +116,9 @@ File flags did not have complete implementation
 
 - [x] For maximum fidelity, File struct should probably retain the original enclosing path too, even if the relative path is what's being used. For File structs read from a filesystem, they should probably also include a time of read, documenting when that File is current as of.
 
-Use Turso FTS for full-text search in fsindex/fsearch if it doesn't already.
 
 - [x] Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
 
-Full-text fsindex?
 
 magic-square
 
@@ -129,7 +126,6 @@ New string type for DcText?
 
 ### Installer
 
-ALL SOURCE CODE EXCEPT ICECAT MISSING FROM GUIX IMAGE
 
 Cherry-pick 30f41d4a5
 
