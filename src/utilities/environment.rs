@@ -1171,6 +1171,12 @@ impl EnvironmentScope {
     pub fn enter_fresh() -> Self {
         Self::enter(Arc::new(capture_quick()))
     }
+
+    /// Captures a full environment snapshot (using slow environment detection
+    /// including network queries) and enters a thread-local scope.
+    pub fn enter_full() -> Self {
+        Self::enter(Arc::new(capture()))
+    }
 }
 
 impl Drop for EnvironmentScope {
@@ -1203,6 +1209,12 @@ impl GlobalEnvironmentScope {
     /// scope.
     pub fn enter_fresh() -> Self {
         Self::enter(Arc::new(capture_quick()))
+    }
+
+    /// Captures a full environment snapshot (using slow environment detection
+    /// including network queries) and enters a process-wide scope.
+    pub fn enter_full() -> Self {
+        Self::enter(Arc::new(capture()))
     }
 }
 
@@ -1502,7 +1514,7 @@ mod tests {
         }
 
         // Verify that advancing the operation epoch does NOT clear slow network caches
-        if let Ok(ip) = local_ipv4() {
+        if let Ok(ip) = cached_local_ipv4() {
             let cached = CACHED_LOCAL_IPV4.read().unwrap();
             assert_eq!(*cached, Some(ip));
             let _ = advance_operation_epoch();

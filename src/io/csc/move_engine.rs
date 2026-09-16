@@ -44,8 +44,11 @@ use std::time::Instant;
 /// copy pipeline (`csc --delete-manifest-after`) and unlinks source entities
 /// only after verification completes successfully.
 pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
-    let _env_scope =
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+    let _env_scope = if args.full_provenance {
+        ctb_utilities::environment::GlobalEnvironmentScope::enter_full()
+    } else {
+        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh()
+    };
     let start_time = Instant::now();
     anyhow::ensure!(
         args.paths.len() >= 2,
@@ -174,6 +177,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     force_write_apple_single: false,
                     write_apple_single_with_extension: None,
                     write_apple_single_without_extension: false,
+                    full_provenance: args.full_provenance,
                 };
 
                 let mut journal = JournalWriter::create_new(
@@ -317,6 +321,7 @@ mod tests {
             allow_unknown_fs: false,
             force: false,
             dry_run: false,
+            full_provenance: false,
         };
 
         let res = run_mv(args).expect("run mv");
@@ -356,6 +361,7 @@ mod tests {
             allow_unknown_fs: false,
             force: false,
             dry_run: false,
+            full_provenance: false,
         };
 
         let res = run_mv(args).expect("run mv on dir");
@@ -413,6 +419,7 @@ mod tests {
             verbose: false, progress: false, no_progress: true,
             verify_after: false, no_verify_after: true,
             best_effort_metadata: false, allow_unknown_fs: false, force: false, dry_run: false,
+            full_provenance: false,
         });
         if result.is_ok() {
             assert_eq!(fs::read(destination.join("sub/data")).unwrap(), b"move payload");

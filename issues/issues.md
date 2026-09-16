@@ -32,14 +32,11 @@
 
 Windows-style streams (:Zone.Identifier)
 
---full-provenance option for csc and related commands (uses slow environment detection)
-
 How do errors get detected? Things that can't be read, for instance, should be logged in the journal or archive with what the problem was.
 
 - ddrescue type recovery
 
 - Csc archiver with verification pass, quick indexing, and being able to materialize/verify a file into an archive; rsync equivalent by sending an archive and ctb binary and then unpacking it on the other end?
-- Netbsd flags?
 
 - Windows runner in GitHub actions to run test suite?
 

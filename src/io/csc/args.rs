@@ -232,6 +232,11 @@ pub struct CscArgs {
     /// Write AppleSingle archive files without extension (default).
     #[arg(long, alias = "write-apple-single")]
     pub write_apple_single_without_extension: bool,
+
+    /// Record full provenance environment information using slow environment detection
+    /// (e.g. network discovery for public IP addresses and server time synchronization).
+    #[arg(long)]
+    pub full_provenance: bool,
 }
 
 impl CscArgs {
@@ -459,6 +464,10 @@ pub struct CscVerifyArgs {
         default_value_t = false
     )]
     pub allow_incomplete: bool,
+
+    /// Record full provenance environment information using slow environment detection.
+    #[arg(long)]
+    pub full_provenance: bool,
 }
 
 impl CscVerifyArgs {
@@ -634,6 +643,11 @@ pub struct FsindexArgs {
     /// Read password from standard input instead of prompting.
     #[arg(long = "password-stdin")]
     pub password_stdin: bool,
+
+    /// Record full provenance environment information using slow environment detection
+    /// (e.g. network discovery for public IP addresses and server time synchronization).
+    #[arg(long)]
+    pub full_provenance: bool,
 }
 
 /// Output format for search results.
@@ -852,6 +866,11 @@ pub struct MvArgs {
     /// Perform a dry run without moving or deleting files.
     #[arg(short = 'n', long)]
     pub dry_run: bool,
+
+    /// Record full provenance environment information using slow environment detection
+    /// when falling back to verified copy.
+    #[arg(long)]
+    pub full_provenance: bool,
 }
 
 impl MvArgs {
@@ -916,6 +935,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         force_write_apple_single: false,
         write_apple_single_with_extension: None,
         write_apple_single_without_extension: false,
+        full_provenance: false,
     }
 }
 
@@ -941,6 +961,7 @@ pub(crate) fn default_verify_args(manifest: PathBuf, dir: Option<PathBuf>) -> Cs
         best_effort: true,
         strict: false,
         allow_incomplete: false,
+        full_provenance: false,
     }
 }
 
@@ -964,6 +985,7 @@ pub(crate) fn default_fsindex_args(targets: Vec<PathBuf>, database: Option<PathB
         encrypt: false,
         password_file: None,
         password_stdin: false,
+        full_provenance: false,
     }
 }
 

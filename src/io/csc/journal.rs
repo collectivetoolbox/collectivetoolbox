@@ -130,7 +130,7 @@ impl JournalWriter {
         let mut writer = BufWriter::new(file);
         writer.write_all(JOURNAL_MAGIC)?;
 
-        let env = Arc::new(ctb_utilities::environment::capture_quick());
+        let env = ctb_utilities::environment::capture_quick_arc();
         let mut jw = Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -209,7 +209,10 @@ impl JournalWriter {
             total_committed_files: total_files,
             total_committed_bytes: total_bytes,
             noatime_used: snapshot.noatime_used,
-            environment: snapshot.environment.clone(),
+            environment: snapshot
+                .environment
+                .clone()
+                .or_else(|| Some(ctb_utilities::environment::capture_quick_arc())),
             snapshot: Some(snapshot.clone()),
         })
     }
@@ -1686,6 +1689,99 @@ mod tests {
             let cached = ctb_utilities::environment::cached_local_ipv4();
             assert_eq!(cached.ok(), Some(ip));
         }
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_full_provenance_csc_and_related_commands() {
+        use crate::args::{default_test_args, default_verify_args, default_fsindex_args, MvArgs};
+        use crate::cli::run_csc;
+        use crate::verifier::run_csc_verify;
+        use crate::index_engine::run_fsindex;
+        use crate::move_engine::run_mv;
+        use crate::journal::{read_journal_snapshot, find_cscjournal};
+        use turso::Builder;
+
+        let temp = tempdir().unwrap();
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        let state = temp.path().join("state");
+        fs::create_dir_all(&src).unwrap();
+        fs::create_dir_all(&dest).unwrap();
+        fs::create_dir_all(&state).unwrap();
+
+        fs::write(src.join("test.txt"), b"full provenance test content").unwrap();
+
+        // 1. Run csc with full_provenance: true
+        let mut csc_args = default_test_args(
+            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
+            state.clone(),
+        );
+        csc_args.full_provenance = true;
+        run_csc(csc_args).expect("run csc with full provenance");
+
+        let journal_path = find_cscjournal(&state);
+        let snapshot = read_journal_snapshot(&journal_path).expect("read journal snapshot");
+        assert!(snapshot.environment.is_some(), "Journal snapshot must have environment");
+        let env = snapshot.environment.as_ref().unwrap();
+        assert!(!env.ctb_version.is_empty());
+
+        // Verify entities committed in snapshot have matching environment
+        for entity in snapshot.committed_entities.values() {
+            assert!(entity.metadata.environment.is_some());
+        }
+
+        // 2. Run csc-verify with full_provenance: true
+        let mut verify_args = default_verify_args(journal_path.clone(), None);
+        verify_args.full_provenance = true;
+        let v_res = run_csc_verify(&verify_args).expect("run csc-verify with full provenance");
+        match v_res {
+            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
+                assert_eq!(exit_code, 0);
+            }
+            _ => panic!("Expected Immediate ToolResult from csc-verify"),
+        }
+
+        // 3. Run fsindex with full_provenance: true
+        let db_path = temp.path().join("provenance.cscindex.sqlite");
+        let mut fsindex_args = default_fsindex_args(vec![dest.clone()], Some(db_path.clone()));
+        fsindex_args.full_provenance = true;
+        run_fsindex(fsindex_args).await.expect("run fsindex with full provenance");
+
+        let db = Builder::new_local(db_path.to_str().unwrap()).build().await.expect("open db");
+        let conn = db.connect().expect("connect db");
+        let mut select_stmt = conn.prepare("SELECT environment FROM sources").await.expect("prepare");
+        let mut rows = select_stmt.query(()).await.expect("query");
+        let row = rows.next().await.expect("next").expect("row exists");
+        let env_val = row.get_value(0).expect("get_value");
+        match env_val {
+            turso::Value::Text(json_str) => {
+                let parsed = ctb_utilities::environment::EnvDescription::from_json(&json_str)
+                    .expect("parse environment JSON");
+                assert_eq!(parsed.ctb_version, env.ctb_version);
+            }
+            _ => panic!("Expected Value::Text for sources.environment"),
+        }
+
+        // 4. Run mv with full_provenance: true
+        let mv_src = temp.path().join("mv_src");
+        let mv_dest = temp.path().join("mv_dest");
+        fs::create_dir_all(&mv_src).unwrap();
+        fs::write(mv_src.join("mv_test.txt"), b"move with provenance").unwrap();
+        let mv_args = MvArgs {
+            paths: vec![mv_src.clone(), mv_dest.clone()],
+            verbose: false,
+            progress: false,
+            no_progress: true,
+            verify_after: true,
+            no_verify_after: false,
+            best_effort_metadata: false,
+            allow_unknown_fs: false,
+            force: false,
+            dry_run: false,
+            full_provenance: true,
+        };
+        run_mv(mv_args).expect("run mv with full provenance");
+        assert!(mv_dest.join("mv_test.txt").exists());
     }
 }
 
