@@ -48,7 +48,6 @@ use crate::dc::{
     DC_END_ENCAPSULATION_UTF8, DC_ESCAPE_NEXT, DC_START_ENCAPSULATION_UTF8,
     DcChar, bytes_as_dc_encapsulated_utf8, dc_encapsulated_raw_to_bytes,
     is_dc_base64_encapsulation_char,
-    is_dc_base64_encapsulation_character,
 };
 use crate::eite_state::EiteState;
 use crate::encoding::basenb::{

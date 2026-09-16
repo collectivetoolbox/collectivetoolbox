@@ -33,9 +33,7 @@ use crate::utilities::*;
 
 use anyhow::Result;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
-use ctb_formats_dcdata::dc::{
-    DC_ESCAPE, DC_LONG_DC, SHORT_DC_REGION_START,
-};
+use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LONG_DC};
 use crate::dc_number::{
     integer_to_dc_number_global, read_dc_number_global, read_dc_number_short,
 };
@@ -284,22 +282,21 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
     let mut list = Vec::with_capacity(dc_array.len());
     let mut i = 0usize;
 
-    let short_escape = DC_ESCAPE.to_short()?;
-    let short_long_dc = DC_LONG_DC.to_short()?;
-
     while i < dc_array.len() {
-        let Some(&dc) = dc_array.get(i) else {
+        let Some(&raw_dc) = dc_array.get(i) else {
             break;
         };
+        let dc = DcChar::from_short(raw_dc);
 
-        if dc == short_escape {
-            if let Some(&next_dc) = dc_array.get(i.saturating_add(1)) {
-                if next_dc == short_long_dc {
+        if dc == DC_ESCAPE {
+            if let Some(&next_raw) = dc_array.get(i.saturating_add(1)) {
+                let next_dc = DcChar::from_short(next_raw);
+                if next_dc == DC_LONG_DC {
                     list.push(DC_LONG_DC.to_long());
                     i = i.saturating_add(2);
                     continue;
                 }
-                if next_dc == short_escape {
+                if next_dc == DC_ESCAPE {
                     list.push(DC_ESCAPE.to_long());
                     i = i.saturating_add(2);
                     continue;
@@ -310,7 +307,7 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
             continue;
         }
 
-        if dc == short_long_dc {
+        if dc == DC_LONG_DC {
             if let Some(rest) = dc_array.get(i.saturating_add(1)..) {
                 match read_dc_number_short(rest) {
                     Ok((int_val, consumed)) => {
@@ -343,14 +340,13 @@ pub fn dcarray_to_dclist(dc_array: &[u32]) -> Result<ConversionOutput<DcList>> {
             continue;
         }
 
-        if dc > ctb_formats_eite::encoding::pack32::PACK32_MAX {
+        if raw_dc > ctb_formats_eite::encoding::pack32::PACK32_MAX {
             log.warn(&format!(
-                "Short Dc ID {dc} at index {i} exceeds pack32 maximum range (1114111)"
+                "Short Dc ID {raw_dc} at index {i} exceeds pack32 maximum range (1114111)"
             ));
         }
 
-        let long_dc_id = SHORT_DC_REGION_START.saturating_add(u128::from(dc));
-        list.push(long_dc_id);
+        list.push(dc.to_long());
         i = i.saturating_add(1);
     }
 
@@ -443,7 +439,10 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 )]
 mod tests {
     use super::*;
-    use crate::dc_number::*;
+    use ctb_formats_dcdata::dc::{
+        DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER, DC_FORMAT_199,
+        SHORT_DC_REGION_START,
+    };
 
     #[crate::ctb_test]
     fn test_format_blob_preview() {
@@ -595,10 +594,10 @@ mod tests {
         // Long Dc 1114420 followed by a Dc number in DcList
         let original_dclist = vec![
             DC_LONG_DC.to_long(),
-            GID_BEGIN_NUMBER,
-            GID_FORMAT_199,
-            GID_BASE64_START,
-            GID_END_NUMBER,
+            DC_BEGIN_NUMBER.to_long(),
+            DC_FORMAT_199.to_long(),
+            DC_BASE64_START.to_long(),
+            DC_END_NUMBER.to_long(),
         ];
         let array_out =
             dclist_to_dcarray(&original_dclist).expect("should succeed");
