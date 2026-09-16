@@ -2707,6 +2707,7 @@ dependencies = [
 name = "ctb-formats-apple-single-double"
 version = "0.0.0"
 dependencies = [
+ "clap",
  "ctb-formats-utilities",
  "ctb-utilities",
  "include_dir",

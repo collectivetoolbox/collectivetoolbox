@@ -45,6 +45,7 @@ pub(crate) use ctb_utilities::*;
 
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 static APPLESINGLEDOUBLE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
@@ -94,6 +95,244 @@ pub enum AppleFormat {
     AppleSingle,
     /// Header/metadata archive companion file.
     AppleDouble,
+}
+
+/// The storage style used for auxiliary AppleDouble companion files.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    clap::ValueEnum,
+    Serialize,
+    Deserialize,
+)]
+pub enum AppleDoubleStyle {
+    /// Normal alongside companion file prefixed by `._` in the same directory.
+    Alongside,
+    /// Companion file in top-level `__MACOSX` directory mirroring relative path.
+    Zip,
+    /// Netatalk `.AppleDouble/<filename>` and `.AppleDouble/.Parent` companion
+    /// files.
+    Netatalk,
+}
+
+impl AppleDoubleStyle {
+    /// Canonical string identifier for this style.
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Alongside => "alongside",
+            Self::Zip => "zip",
+            Self::Netatalk => "netatalk",
+        }
+    }
+}
+
+/// Extension convention for AppleSingle files.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    clap::ValueEnum,
+)]
+pub enum AppleSingleExtension {
+    /// No extension added (bare filename, e.g. `foo`). Default for writing.
+    #[default]
+    WithoutExtension,
+    /// StuffIt style `.as` extension (e.g. `foo.as`).
+    As,
+    /// `.asf` extension (e.g. `foo.asf`).
+    Asf,
+}
+
+impl AppleSingleExtension {
+    /// Canonical string identifier for CLI and serialization.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::WithoutExtension => "without-extension",
+            Self::As => "as",
+            Self::Asf => "asf",
+        }
+    }
+
+    /// Appends the extension to a filename if one is configured.
+    #[must_use]
+    pub fn apply_to_name(self, name: &str) -> String {
+        match self {
+            Self::WithoutExtension => name.to_string(),
+            Self::As => format!("{name}.as"),
+            Self::Asf => format!("{name}.asf"),
+        }
+    }
+}
+
+impl std::str::FromStr for AppleSingleExtension {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "without-extension" | "none" | "no" | "bare" => {
+                Ok(Self::WithoutExtension)
+            }
+            "as" => Ok(Self::As),
+            "asf" => Ok(Self::Asf),
+            other => anyhow::bail!(
+                "Invalid AppleSingle extension '{other}'. Expected 'as', \
+                 'asf', or 'without-extension'"
+            ),
+        }
+    }
+}
+
+/// Options controlling which AppleSingle and AppleDouble styles to detect and
+/// unpack on read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppleReadOptions {
+    /// Read alongside ._<filename> companion files. Defaults to true.
+    pub read_apple_double_alongside: bool,
+    /// Read __MACOSX/ companion files. Defaults to false.
+    pub read_apple_double_zip: bool,
+    /// Read Netatalk .AppleDouble/<filename> and .AppleDouble/.Parent companion
+    /// files. Defaults to false.
+    pub read_apple_double_netatalk: bool,
+    /// Read bare AppleSingle files without extension. Defaults to false.
+    pub read_apple_single_without_extension: bool,
+    /// Read bare AppleSingle files without extension (compatibility alias).
+    /// Defaults to false.
+    pub read_apple_single: bool,
+    /// Read AppleSingle files with .as extension and strip .as upon decode.
+    /// Defaults to false.
+    pub read_apple_single_as: bool,
+    /// Read AppleSingle files with .asf extension and strip .asf upon decode.
+    /// Defaults to false.
+    pub read_apple_single_asf: bool,
+}
+
+impl Default for AppleReadOptions {
+    fn default() -> Self {
+        Self {
+            read_apple_double_alongside: true,
+            read_apple_double_zip: false,
+            read_apple_double_netatalk: false,
+            read_apple_single_without_extension: false,
+            read_apple_single: false,
+            read_apple_single_as: false,
+            read_apple_single_asf: false,
+        }
+    }
+}
+
+impl AppleReadOptions {
+    /// Returns true if any AppleSingle read style is enabled.
+    #[must_use]
+    pub fn any_apple_single(&self) -> bool {
+        self.read_apple_single_without_extension
+            || self.read_apple_single
+            || self.read_apple_single_as
+            || self.read_apple_single_asf
+    }
+}
+
+/// Computes the path to an AppleDouble companion file according to `style`.
+#[must_use]
+pub fn get_companion_path(
+    parent_dir: &Path,
+    file_name: &Path,
+    is_dir: bool,
+    style: AppleDoubleStyle,
+    root_dest: Option<&Path>,
+    relative_path: Option<&Path>,
+) -> PathBuf {
+    match style {
+        AppleDoubleStyle::Alongside => {
+            let name_str = file_name.to_string_lossy();
+            parent_dir.join(format!("._{}", name_str))
+        }
+        AppleDoubleStyle::Zip => {
+            // Reason for fallback: root destination defaults to parent
+            // directory when unprovided
+            let base = root_dest.unwrap_or(parent_dir);
+            // Reason for fallback: relative path defaults to file name when
+            // unprovided
+            let rel = relative_path.unwrap_or(file_name);
+            // Reason for fallback: top-level files have no parent directory
+            // component, defaulting to empty path
+            let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
+            // Reason for fallback: path without a file name component defaults
+            // to original file name
+            let name_str = rel
+                .file_name()
+                .unwrap_or(file_name.as_os_str())
+                .to_string_lossy();
+            base.join("__MACOSX")
+                .join(rel_parent)
+                .join(format!("._{}", name_str))
+        }
+        AppleDoubleStyle::Netatalk => {
+            if is_dir {
+                parent_dir.join(file_name).join(".AppleDouble").join(".Parent")
+            } else {
+                parent_dir.join(".AppleDouble").join(file_name)
+            }
+        }
+    }
+}
+
+/// Returns whether the file at `path` is a regular file starting with
+/// AppleDouble magic bytes.
+pub fn is_apple_double_file(path: &Path) -> bool {
+    let Ok(meta) = path.symlink_metadata() else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    use std::io::Read;
+    let mut header = [0u8; 4];
+    if file.read_exact(&mut header).is_err() {
+        return false;
+    }
+    let Ok(magic_arr) = <[u8; 4]>::try_from(&header[..4]) else {
+        return false;
+    };
+    let magic = u32::from_be_bytes(magic_arr);
+    magic == APPLEDOUBLE_MAGIC_BE || magic == APPLEDOUBLE_MAGIC_LE
+}
+
+/// Returns whether the file at `path` is a regular file starting with
+/// AppleSingle magic bytes.
+pub fn is_apple_single_file(path: &Path) -> bool {
+    let Ok(meta) = path.symlink_metadata() else {
+        return false;
+    };
+    if !meta.is_file() {
+        return false;
+    }
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    use std::io::Read;
+    let mut header = [0u8; 4];
+    if file.read_exact(&mut header).is_err() {
+        return false;
+    }
+    let Ok(magic_arr) = <[u8; 4]>::try_from(&header[..4]) else {
+        return false;
+    };
+    let magic = u32::from_be_bytes(magic_arr);
+    magic == APPLESINGLE_MAGIC_BE || magic == APPLESINGLE_MAGIC_LE
 }
 
 /// Standard AppleSingle / AppleDouble entry identifier.
@@ -1375,6 +1614,81 @@ mod tests {
         ensure!(parsed.extended_attributes[0].data == b"https://example.com/download");
         ensure!(parsed.extended_attributes[1].name == "user.custom.note");
         ensure!(parsed.extended_attributes[1].data == b"important payload");
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_double_style_companion_paths() -> anyhow::Result<()> {
+        let parent = Path::new("/tmp/testdir");
+        let file = Path::new("hello.txt");
+
+        // Alongside style
+        let alongside = get_companion_path(
+            parent,
+            file,
+            false,
+            AppleDoubleStyle::Alongside,
+            None,
+            None,
+        );
+        ensure!(alongside == PathBuf::from("/tmp/testdir/._hello.txt"));
+
+        // Zip style
+        let root = Path::new("/tmp/root");
+        let rel = Path::new("sub/hello.txt");
+        let zip_path = get_companion_path(
+            parent,
+            file,
+            false,
+            AppleDoubleStyle::Zip,
+            Some(root),
+            Some(rel),
+        );
+        ensure!(zip_path == PathBuf::from("/tmp/root/__MACOSX/sub/._hello.txt"));
+
+        // Netatalk style for file
+        let netatalk_file = get_companion_path(
+            parent,
+            file,
+            false,
+            AppleDoubleStyle::Netatalk,
+            None,
+            None,
+        );
+        ensure!(netatalk_file == PathBuf::from("/tmp/testdir/.AppleDouble/hello.txt"));
+
+        // Netatalk style for directory
+        let dir = Path::new("subdir");
+        let netatalk_dir = get_companion_path(
+            parent,
+            dir,
+            true,
+            AppleDoubleStyle::Netatalk,
+            None,
+            None,
+        );
+        ensure!(netatalk_dir == PathBuf::from("/tmp/testdir/subdir/.AppleDouble/.Parent"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_single_extension_handling() -> anyhow::Result<()> {
+        ensure!(AppleSingleExtension::WithoutExtension.apply_to_name("file") == "file");
+        ensure!(AppleSingleExtension::As.apply_to_name("file") == "file.as");
+        ensure!(AppleSingleExtension::Asf.apply_to_name("file") == "file.asf");
+
+        use std::str::FromStr;
+        ensure!(AppleSingleExtension::from_str("as")? == AppleSingleExtension::As);
+        ensure!(AppleSingleExtension::from_str("asf")? == AppleSingleExtension::Asf);
+        ensure!(AppleSingleExtension::from_str("without-extension")? == AppleSingleExtension::WithoutExtension);
+
+        let read_opts = AppleReadOptions::default();
+        ensure!(!read_opts.any_apple_single());
+        let mut read_opts_single = read_opts;
+        read_opts_single.read_apple_single_as = true;
+        ensure!(read_opts_single.any_apple_single());
 
         Ok(())
     }

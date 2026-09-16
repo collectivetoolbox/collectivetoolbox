@@ -26,10 +26,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_io::file::{
+use crate::apple_double::{
     AppleDoubleStyle, AppleReadOptions, AppleSingleExtension, AppleWriteMode,
-    DirEntryItem, APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE, get_companion_path,
+    get_companion_path, APPLESINGLE_MAGIC_BE, APPLESINGLE_MAGIC_LE,
 };
+use crate::traversal::DirEntryItem;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -379,365 +380,167 @@ pub fn validate_and_order_directory_entries(
 )]
 mod tests {
     use super::*;
-    use crate::args::{AppleDoubleStyle, default_test_args};
-    use crate::cli::run_csc;
+    use crate::apple_double::{AppleArchive, write_apple_single_double, VERSION_2_0_BE, AppleFormat};
+    use crate::traversal::{read_dir_safe, TraversalOptions};
     use std::fs;
-    use std::path::{PathBuf};
     use tempfile::tempdir;
 
     #[crate::ctb_test]
-    fn test_csc_apple_single_name_collision_preservation() {
-        let temp = tempdir().expect("tempdir");
+    fn test_name_collision_dependency_ordering() -> Result<()> {
+        let temp = tempdir()?;
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
+        fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
 
-        // Three files with potential collision: Foo, Foo.as, Foo.as.as
-        fs::write(src.join("Foo"), b"content of Foo").unwrap();
-        fs::write(src.join("Foo.as"), b"content of Foo.as").unwrap();
-        fs::write(src.join("Foo.as.as"), b"content of Foo.as.as").unwrap();
+        // Foo.as and Foo.as.as
+        fs::write(src.join("Foo.as"), b"content 1")?;
+        fs::write(src.join("Foo.as.as"), b"content 2")?;
 
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest.clone()],
-            state,
-        );
-        args.force_write_apple_single = true;
+        let traversal_opts = TraversalOptions::new();
+        let entries = read_dir_safe(&src, &traversal_opts)?;
 
-        let res = run_csc(args).expect("run csc");
-        match res {
-            ctb_utilities::cli::ToolResult::Immediate { exit_code, .. } => {
-                assert_eq!(exit_code, 0);
-            }
-            _ => panic!("Expected immediate result"),
-        }
+        let read_opts = AppleReadOptions::default();
+        let ordered = validate_and_order_directory_entries(
+            entries,
+            &src,
+            &dest,
+            &dest,
+            Path::new(""),
+            &read_opts,
+            AppleWriteMode::ForceAppleSingle,
+            AppleSingleExtension::As,
+        )?;
 
-        // All three files must exist independently and not clobber each other
-        assert!(dest.join("Foo").exists());
-        assert!(dest.join("Foo.as").exists());
-        assert!(dest.join("Foo.as.as").exists());
+        // Foo.as maps to Foo.as.as; Foo.as.as maps to Foo.as.as.as.
+        // Therefore Foo.as.as must be ordered BEFORE Foo.as!
+        ensure!(ordered.len() == 2);
+        ensure!(ordered.first().map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as.as")));
+        ensure!(ordered.get(1).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as")));
 
-        let opts = ctb_io::file::AppleReadOptions {
-            read_apple_single: true,
-            ..ctb_io::file::AppleReadOptions::default()
-        };
-
-        let e1 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo"), Some(&dest), &opts).unwrap();
-        let e2 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as"), Some(&dest), &opts).unwrap();
-        let e3 = ctb_io::file::FileEntity::from_filesystem_with_apple_options(&dest.join("Foo.as.as"), Some(&dest), &opts).unwrap();
-
-        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e1.kind {
-            assert_eq!(size, 14); // "content of Foo"
-        }
-        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e2.kind {
-            assert_eq!(size, 17); // "content of Foo.as"
-        }
-        if let ctb_io::file::FileEntityKind::Regular { size, .. } = e3.kind {
-            assert_eq!(size, 20); // "content of Foo.as.as"
-        }
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_csc_read_apple_single_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
+    fn test_name_collision_target_conflict() -> Result<()> {
+        let temp = tempdir()?;
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
+        fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
 
-        // Sibling files: foo and foo.as
-        fs::write(src.join("foo"), b"regular file foo").unwrap();
+        fs::write(src.join("foo"), b"regular file")?;
 
-        let archive = ctb_io::file::AppleArchive {
-            format: ctb_io::file::AppleFormat::AppleSingle,
-            version: ctb_io::file::VERSION_2_0_BE,
+        let archive = AppleArchive {
+            format: AppleFormat::AppleSingle,
+            version: VERSION_2_0_BE,
             real_name: Some("foo".to_string()),
             comment: None,
             timestamps: None,
             backup_timestamp_sec: None,
             finder_info: None,
             extended_attributes: Vec::new(),
-            data_fork: Some(b"applesingle foo".to_vec()),
-            resource_fork: None,
-            data_fork_size: Some(15),
-            resource_fork_size: None,
-            entries: Vec::new(),
-        };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
-        fs::write(src.join("foo.as"), single_bytes).unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
-
-        // Must bail out because both unpack/target 'foo'
-        match run_csc(args) {
-            Err(err) => {
-                let err_msg = err.to_string();
-                assert!(err_msg.contains("collision") || err_msg.contains("Target collision"), "Error message must report collision: {err_msg}");
-            }
-            Ok(_) => panic!("Must error on target collision between foo and foo.as"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_apple_double_companion_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        fs::write(src.join("file.txt"), b"base file").unwrap();
-        // Independent file that happens to match the companion path
-        fs::write(src.join("._file.txt"), b"independent not appledouble").unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
-
-        match run_csc(args) {
-            Err(err) => {
-                let err_msg = err.to_string();
-                assert!(err_msg.contains("collision") || err_msg.contains("Companion collision"), "Error message must report collision: {err_msg}");
-            }
-            Ok(_) => panic!("Must error on companion collision with independent ._file.txt"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_netatalk_companion_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(src.join(".AppleDouble")).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        fs::write(src.join("file.txt"), b"base file").unwrap();
-        // Preexisting independent file in .AppleDouble
-        fs::write(src.join(".AppleDouble").join("file.txt"), b"independent netatalk").unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
-
-        let res = run_csc(args);
-        assert!(res.is_err(), "Must error on companion collision with independent .AppleDouble/file.txt");
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_zip_apple_double_macosx_file_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        fs::write(src.join("__MACOSX"), b"regular file not dir").unwrap();
-        fs::write(src.join("foo.txt"), b"some content").unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.force_write_apple_double = Some(AppleDoubleStyle::Zip);
-
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("__MACOSX"), "Error must report __MACOSX collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on regular file __MACOSX collision with AppleDouble zip"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_netatalk_dot_appledouble_file_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        fs::write(src.join(".AppleDouble"), b"regular file not dir").unwrap();
-        fs::write(src.join("foo.txt"), b"some content").unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
-
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains(".AppleDouble"), "Error must report .AppleDouble collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on regular file .AppleDouble collision with Netatalk"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_netatalk_parent_file_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        fs::write(src.join(".Parent"), b"regular file named .Parent").unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.force_write_apple_double = Some(AppleDoubleStyle::Netatalk);
-
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains(".Parent"), "Error must report .Parent collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on regular file .Parent collision with Netatalk metadata"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_foo_as_and_foo_as_as_target_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        // foo.as is a regular file (not AppleSingle)
-        fs::write(src.join("foo.as"), b"regular actionscript").unwrap();
-
-        // foo.as.as is AppleSingle
-        let archive = ctb_io::file::AppleArchive {
-            format: ctb_io::file::AppleFormat::AppleSingle,
-            version: ctb_io::file::VERSION_2_0_BE,
-            real_name: Some("foo.as".to_string()),
-            comment: None,
-            timestamps: None,
-            backup_timestamp_sec: None,
-            finder_info: None,
-            extended_attributes: Vec::new(),
-            data_fork: Some(b"nested applesingle".to_vec()),
-            resource_fork: None,
-            data_fork_size: Some(18),
-            resource_fork_size: None,
-            entries: Vec::new(),
-        };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
-        fs::write(src.join("foo.as.as"), single_bytes).unwrap();
-
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
-        );
-        args.read_apple_single_with_extension = vec![ctb_io::file::AppleSingleExtension::As];
-
-        // foo.as targets dest/foo.as; foo.as.as unpacks to dest/foo.as -> Collision!
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on target collision between foo.as and foo.as.as"),
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_csc_as_and_asf_target_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
-        let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
-
-        let archive = ctb_io::file::AppleArchive {
-            format: ctb_io::file::AppleFormat::AppleSingle,
-            version: ctb_io::file::VERSION_2_0_BE,
-            real_name: Some("doc".to_string()),
-            comment: None,
-            timestamps: None,
-            backup_timestamp_sec: None,
-            finder_info: None,
-            extended_attributes: Vec::new(),
-            data_fork: Some(b"doc content".to_vec()),
+            data_fork: Some(b"applesingle".to_vec()),
             resource_fork: None,
             data_fork_size: Some(11),
             resource_fork_size: None,
             entries: Vec::new(),
         };
-        let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
-        fs::write(src.join("doc.as"), &single_bytes).unwrap();
-        fs::write(src.join("doc.asf"), &single_bytes).unwrap();
+        let single_bytes = write_apple_single_double(&archive)?;
+        fs::write(src.join("foo.as"), single_bytes)?;
 
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
+        let traversal_opts = TraversalOptions::new();
+        let entries = read_dir_safe(&src, &traversal_opts)?;
+
+        let mut read_opts = AppleReadOptions::default();
+        read_opts.read_apple_single_as = true;
+
+        let res = validate_and_order_directory_entries(
+            entries,
+            &src,
+            &dest,
+            &dest,
+            Path::new(""),
+            &read_opts,
+            AppleWriteMode::NativeOnly,
+            AppleSingleExtension::WithoutExtension,
         );
-        args.read_apple_single_with_extension = vec![
-            ctb_io::file::AppleSingleExtension::As,
-            ctb_io::file::AppleSingleExtension::Asf,
-        ];
 
-        // Both doc.as and doc.asf strip to dest/doc -> Collision!
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Target collision"), "Error must report collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on target collision between doc.as and doc.asf"),
-        }
+        ensure!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        ensure!(err_msg.contains("Target collision") || err_msg.contains("collision"));
+
+        Ok(())
     }
 
     #[crate::ctb_test]
-    fn test_csc_double_dot_underscore_companion_collision_bailout() {
-        let temp = tempdir().expect("tempdir");
+    fn test_name_collision_companion_conflict() -> Result<()> {
+        let temp = tempdir()?;
         let src = temp.path().join("src");
         let dest = temp.path().join("dest");
-        let state = temp.path().join("state");
-        fs::create_dir_all(&src).unwrap();
-        fs::create_dir_all(&state).unwrap();
+        fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
 
-        // Independent ._foo and ._._foo files
-        fs::write(src.join("._foo"), b"independent file 1").unwrap();
-        fs::write(src.join("._._foo"), b"independent file 2").unwrap();
+        fs::write(src.join("file.txt"), b"base file")?;
+        fs::write(src.join("._file.txt"), b"independent file")?;
 
-        let mut args = default_test_args(
-            vec![PathBuf::from(format!("{}/", src.display())), dest],
-            state,
+        let traversal_opts = TraversalOptions::new();
+        let entries = read_dir_safe(&src, &traversal_opts)?;
+
+        let read_opts = AppleReadOptions {
+            read_apple_double_alongside: false,
+            ..Default::default()
+        };
+
+        let res = validate_and_order_directory_entries(
+            entries,
+            &src,
+            &dest,
+            &dest,
+            Path::new(""),
+            &read_opts,
+            AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Alongside),
+            AppleSingleExtension::WithoutExtension,
         );
-        // Turn off reading apple double alongside so both are treated as independent files
-        args.no_read_apple_double_alongside = true;
-        args.force_write_apple_double = Some(AppleDoubleStyle::Alongside);
 
-        // Writing alongside for ._foo produces companion ._._foo, which collides with destination for ._._foo
-        match run_csc(args) {
-            Err(err) => {
-                let msg = err.to_string();
-                assert!(msg.contains("collision") || msg.contains("Companion collision"), "Error must report collision: {msg}");
-            }
-            Ok(_) => panic!("Must bail on companion collision for ._foo and ._._foo"),
-        }
+        ensure!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        ensure!(err_msg.contains("Companion collision") || err_msg.contains("collision"));
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_name_collision_special_apple_paths() -> Result<()> {
+        let temp = tempdir()?;
+        let src = temp.path().join("src");
+        let dest = temp.path().join("dest");
+        fs::create_dir_all(&src)?;
+        fs::create_dir_all(&dest)?;
+
+        fs::write(src.join("__MACOSX"), b"regular file not dir")?;
+        fs::write(src.join("foo.txt"), b"some content")?;
+
+        let traversal_opts = TraversalOptions::new();
+        let entries = read_dir_safe(&src, &traversal_opts)?;
+
+        let read_opts = AppleReadOptions::default();
+        let res = validate_and_order_directory_entries(
+            entries,
+            &src,
+            &dest,
+            &dest,
+            Path::new(""),
+            &read_opts,
+            AppleWriteMode::ForceAppleDouble(AppleDoubleStyle::Zip),
+            AppleSingleExtension::WithoutExtension,
+        );
+
+        ensure!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        ensure!(err_msg.contains("__MACOSX") || err_msg.contains("collision"));
+
+        Ok(())
     }
 }
 

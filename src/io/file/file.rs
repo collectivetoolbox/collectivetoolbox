@@ -39,6 +39,7 @@ pub mod filesystem;
 pub mod identity;
 pub mod materializer;
 pub mod metadata;
+pub mod name_collisions;
 pub mod path_policy;
 pub mod payload;
 pub mod sandboxable_dir;
@@ -75,6 +76,7 @@ pub use materializer::{
 pub use metadata::{
     FileFlag, FileMetadata, FileTimestamps, FlagSettability, OsFamily, PlatformRawFlags,
 };
+pub use name_collisions::{PlannedItemAction, validate_and_order_directory_entries};
 pub use path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, ensure_sandboxed_dir_all, normalize_path,
     path_has_trailing_slash, resolve_and_validate_path, resolve_existing_ancestors,
