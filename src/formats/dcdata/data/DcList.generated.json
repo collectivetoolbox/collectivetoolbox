@@ -2502,8 +2502,10 @@
     "bidi_class": "NSM",
     "general_category": "Mn",
     "script": "Variant selectors",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>ufe00"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2519,8 +2521,10 @@
     "bidi_class": "NSM",
     "general_category": "Mn",
     "script": "Variant selectors",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>ufe01"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2536,8 +2540,10 @@
     "bidi_class": "NSM",
     "general_category": "Mn",
     "script": "Variant selectors",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>ufe02"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2553,8 +2559,10 @@
     "bidi_class": "NSM",
     "general_category": "Mn",
     "script": "Variant selectors",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>ufe03"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",
@@ -2570,8 +2578,10 @@
     "bidi_class": "NSM",
     "general_category": "Mn",
     "script": "Variant selectors",
-    "is_deprecated": false,
-    "decompositions": [],
+    "is_deprecated": true,
+    "decompositions": [
+      "<equiv>ufe04"
+    ],
     "aliases": [],
     "cross_references": [],
     "description": "",

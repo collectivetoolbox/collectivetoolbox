@@ -10102,11 +10102,33 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "Like DcUtf, but begins with magic DcMM\\0, followed by the binary equivalent of UUID d5ab819e-9b8e-4d61-adbc-933e8851e79a, and subsequently, any occurrence of Dc 203 will be followed by a type byte (0 = binary; 1 = DcUtf; 2..255 reserved), followed by a 128-bit binary number indicating the size of the encapsulated region (even if that size is 0), and then the contents of that region will be stored directly as binary data rather than using base64 encapsulation. The terminating Dc 204 will be implicit. If Dcs other than base64-encapsulation or padding Dcs occur prior to a terminating Dc 204, the region will use normal DcUtf (type byte 1) rather than binary.",
+    "description": "Like DcUtf, but begins with magic DcMM\\0, followed by the binary equivalent of UUID d5ab819e-9b8e-4d61-adbc-933e8851e79a, and subsequently, any occurrence of Dc 203 will be followed by a type byte (0 = binary; 1 = DcUtf; 2 and 5..255 reserved), followed by a 128-bit binary number (big-endian) indicating the size of the encapsulated region (even if that size is 0), and then the contents of that region will be stored directly as binary data rather than using base64 encapsulation. The terminating Dc 204 will be implicit. If Dcs other than base64-encapsulation or padding Dcs occur prior to a terminating Dc 204, the region will use normal DcUtf (type byte 1) rather than binary. Type bytes 3 and 4 are the same as 0 and 1, but there is additionally a binary sha256 checksum of the stream following the size.",
     "format": {
       "extensions": ".dcmm"
     },
     "source_file": "document.csv",
     "line_number": 67
+  },
+  {
+    "dc_id": 2228709,
+    "short_id": 485,
+    "ident": "CtbFileMetadataJson",
+    "name": "File metadata JSON as serialized by Collective Toolbox",
+    "category": "format_container",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "Json",
+      "extensions": ".json"
+    },
+    "source_file": "container.csv",
+    "line_number": 17
   }
 ]

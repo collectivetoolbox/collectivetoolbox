@@ -127,11 +127,11 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114231,119,!New line,0,B,,Cc,Punctuation,"line feed, end of line, <equiv>u85","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator."
 1114232,120,!Ambiguous line feed,0,B,,Cc,Punctuation,<equiv>u0a,This is the ASCII/Unicode 10 (0x0A).
 1114233,121,!Ambiguous carriage return,0,B,,Cc,Punctuation,<equiv>u0d,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).
-1114234,122,Variant Selector 1,0,NSM,,Mn,Variant selectors,,
-1114235,123,Variant Selector 2,0,NSM,,Mn,Variant selectors,,
-1114236,124,Variant Selector 3,0,NSM,,Mn,Variant selectors,,
-1114237,125,Variant Selector 4,0,NSM,,Mn,Variant selectors,,
-1114238,126,Variant Selector 5,0,NSM,,Mn,Variant selectors,,
+1114234,122,!Variant Selector 1,0,NSM,,Mn,Variant selectors,<equiv>ufe00,
+1114235,123,!Variant Selector 2,0,NSM,,Mn,Variant selectors,<equiv>ufe01,
+1114236,124,!Variant Selector 3,0,NSM,,Mn,Variant selectors,<equiv>ufe02,
+1114237,125,!Variant Selector 4,0,NSM,,Mn,Variant selectors,<equiv>ufe03,
+1114238,126,!Variant Selector 5,0,NSM,,Mn,Variant selectors,<equiv>ufe04,
 1114239,127,Base 64 encapsulation digit 0,0,BN,,!Cx,Encapsulation,,
 1114240,128,Base 64 encapsulation digit 1,0,BN,,!Cx,Encapsulation,,
 1114241,129,Base 64 encapsulation digit 2,0,BN,,!Cx,Encapsulation,,
