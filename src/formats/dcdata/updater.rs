@@ -27,7 +27,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::report::ValidationReport;
 use anyhow::{Context, Result, bail};
 use std::collections::HashSet;
 use std::fs;
@@ -47,11 +46,39 @@ pub struct TableUpdateStats {
     pub max_short_id: usize,
 }
 
+/// Canonical 22-column unified CSV schema header shared by all generated tables.
+pub const UNIFIED_SCHEMA_HEADER: [&str; 22] = [
+    "Dc",
+    "Short",
+    "Name (!=deprecated)",
+    "◌",
+    "⇆",
+    "Aa",
+    "Type",
+    "Script",
+    "Aliases; >=xref, <=decompos., :=Dc syntax, =chain",
+    "Description",
+    "Ident (Rust-friendly)",
+    "Category",
+    "Extensions (Primary extension first, followed by comma-separated alternatives)",
+    "MIME (Primary MIME type first, followed by comma-separated aliases)",
+    "Apple Uniform Type Identifier (UTI)",
+    "Apple Type code",
+    "Nicknames (short names for uses like CLI arguments)",
+    "Import support\n(for trans_:\n  =run the tr.)",
+    "Export support\n(for trans_:\n  =reverse the\n    tr.)",
+    "Tests",
+    "Variant Types\n(comma-\n  delimited)",
+    "References",
+];
+
 /// Summary statistics for merged CSV generation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct MergedGenerationStats {
     pub dc_records_merged: usize,
     pub format_records_merged: usize,
+    pub unicode_records_merged: usize,
+    pub total_records_merged: usize,
 }
 
 /// Checks whether a raw cell string represents an unassigned ID placeholder.
@@ -492,27 +519,18 @@ pub fn assign_and_update_format_categories(
     Ok(stats)
 }
 
-/// Generates merged `DcList.generated.csv` and `formats.generated.csv` files
+/// Generates merged `DcList.generated.csv`, `formats.generated.csv`,
+/// `unicode.generated.csv`, and `all.generated.csv` files sharing a common schema,
 /// sorted strictly ascending by Dc ID.
 pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     let mut stats = MergedGenerationStats::default();
+    let canonical_header: Vec<String> =
+        UNIFIED_SCHEMA_HEADER.iter().map(|s| s.to_string()).collect();
 
-    // 1. Generate formats.generated.csv and formats.generated.json
+    // 1. Generate formats.generated.csv
     let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
-    let mut parsed_formats = Vec::new();
+    let mut all_format_rows = Vec::new();
     if formats_dir.is_dir() {
-        let schema_path =
-            repo_root.join("src/formats/dcdata/data/categories/formats/schema.csv");
-        let (canonical_header, _) =
-            read_csv_file(&schema_path).with_context(|| {
-                format!(
-                    "Failed to read formats schema header from {}",
-                    schema_path.display()
-                )
-            })?;
-
-        let mut all_format_rows = Vec::new();
-
         for entry in fs::read_dir(&formats_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -528,7 +546,46 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                     let (_, rows) = read_csv_file(&path)?;
                     for row in rows {
                         if !is_empty_row(&row) {
-                            all_format_rows.push(row);
+                            let get = |idx: usize| -> String {
+                                row.get(idx).cloned().unwrap_or_default()
+                            };
+                            let label = get(3);
+                            let ident = get(2);
+                            let is_deprecated =
+                                label.starts_with('!') || ident.starts_with('!');
+                            let clean_label =
+                                label.trim_start_matches('!').trim();
+                            let name_cell = if is_deprecated {
+                                format!("!{clean_label}")
+                            } else {
+                                clean_label.to_string()
+                            };
+
+                            let unified_row = vec![
+                                get(0),                 // Dc
+                                get(1),                 // Short
+                                name_cell,              // Name (!=deprecated)
+                                "0".to_string(),        // ◌
+                                "BN".to_string(),       // ⇆
+                                String::new(),          // Aa
+                                "!Cx".to_string(),      // Type
+                                "Formats".to_string(),  // Script
+                                get(5),                 // Aliases / Base / Chain / Syntax
+                                get(15),                // Description / Comments
+                                ident,                  // Ident
+                                get(4),                 // Category
+                                get(6),                 // Extensions
+                                get(7),                 // MIME
+                                get(8),                 // Apple UTI
+                                get(9),                 // Apple Type code
+                                get(10),                // Nicknames
+                                get(11),                // Import support
+                                get(12),                // Export support
+                                get(13),                // Tests
+                                get(14),                // Variant Types
+                                get(16),                // References
+                            ];
+                            all_format_rows.push(unified_row);
                         }
                     }
                 }
@@ -541,7 +598,6 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -553,44 +609,13 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             repo_root.join("src/formats/dcdata/data/formats.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_format_rows)?;
         stats.format_records_merged = all_format_rows.len();
-
-        let mut fmt_report = ValidationReport::new();
-        parsed_formats = crate::format::validate_all_format_files_from_disk(
-            &formats_dir,
-            &mut fmt_report,
-        );
-        parsed_formats.sort_by_key(|r| r.dc_id);
-
-        let json_target_path =
-            repo_root.join("src/formats/dcdata/data/formats.generated.json");
-        fs::write(
-            &json_target_path,
-            format!(
-                "{}\n",
-                serde_json::to_string_pretty(&parsed_formats)
-                    .context("Failed to serialize formats to JSON")?
-            ),
-        )
-        .with_context(|| {
-            format!("Failed to save JSON to {}", json_target_path.display())
-        })?;
     }
 
-    // 2. Generate DcList.generated.csv and DcList.generated.json
+    // 2. Generate DcList.generated.csv
     let categories_dir =
         repo_root.join("src/formats/dcdata/data/categories");
+    let mut all_dc_rows = Vec::new();
     if categories_dir.is_dir() {
-        let schema_path = repo_root.join("src/formats/dcdata/data/schema.csv");
-        let (canonical_header, _) =
-            read_csv_file(&schema_path).with_context(|| {
-                format!(
-                    "Failed to read Dc schema header from {}",
-                    schema_path.display()
-                )
-            })?;
-
-        let mut all_dc_rows = Vec::new();
-
         for entry in fs::read_dir(&categories_dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -616,7 +641,34 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                     }
                                 }
                             }
-                            all_dc_rows.push(row);
+                            let get = |idx: usize| -> String {
+                                row.get(idx).cloned().unwrap_or_default()
+                            };
+                            let unified_row = vec![
+                                get(0),         // Dc
+                                get(1),         // Short
+                                get(2),         // Name (!=deprecated)
+                                get(3),         // ◌
+                                get(4),         // ⇆
+                                get(5),         // Aa
+                                get(6),         // Type
+                                get(7),         // Script
+                                get(8),         // Aliases...
+                                get(9),         // Description
+                                String::new(),  // Ident
+                                String::new(),  // Category
+                                String::new(),  // Extensions
+                                String::new(),  // MIME
+                                String::new(),  // Apple UTI
+                                String::new(),  // Apple Type code
+                                String::new(),  // Nicknames
+                                String::new(),  // Import support
+                                String::new(),  // Export support
+                                String::new(),  // Tests
+                                String::new(),  // Variant Types
+                                String::new(),  // References
+                            ];
+                            all_dc_rows.push(unified_row);
                         }
                     }
                 }
@@ -629,7 +681,6 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
-            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -641,25 +692,99 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             repo_root.join("src/formats/dcdata/data/DcList.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_dc_rows)?;
         stats.dc_records_merged = all_dc_rows.len();
+    }
 
-        let known_format_ids: HashSet<usize> =
-            parsed_formats.iter().filter_map(|r| r.short_id).collect();
+    // 3. Generate unicode.generated.csv
+    let unicode_records = ctb_formats_unicode::get_assigned_unicode_records();
+    let mut all_unicode_rows = Vec::with_capacity(unicode_records.len());
+    for rec in unicode_records {
+        let name_str = if rec.is_deprecated {
+            format!("!{}", rec.name)
+        } else {
+            rec.name
+        };
+        all_unicode_rows.push(vec![
+            rec.cp.to_string(),               // Dc
+            String::new(),                    // Short
+            name_str,                         // Name (!=deprecated)
+            rec.combining_class.to_string(),  // ◌
+            rec.bidi_class.to_string(),       // ⇆
+            String::new(),                    // Aa
+            rec.general_category.to_string(), // Type
+            rec.script,                       // Script
+            rec.aliases,                      // Aliases
+            rec.description,                  // Description
+            String::new(),                    // Ident
+            String::new(),                    // Category
+            String::new(),                    // Extensions
+            String::new(),                    // MIME
+            String::new(),                    // Apple UTI
+            String::new(),                    // Apple Type code
+            String::new(),                    // Nicknames
+            String::new(),                    // Import support
+            String::new(),                    // Export support
+            String::new(),                    // Tests
+            String::new(),                    // Variant Types
+            String::new(),                    // References
+        ]);
+    }
 
-        let mut dc_report = ValidationReport::new();
-        let mut parsed_dcs = crate::dc::validate_all_dc_files_from_disk(
-            &categories_dir,
-            &known_format_ids,
-            &mut dc_report,
-        );
-        parsed_dcs.sort_by_key(|r| r.dc_id);
+    let unicode_target_path =
+        repo_root.join("src/formats/dcdata/data/unicode.generated.csv");
+    write_csv_file(&unicode_target_path, &canonical_header, &all_unicode_rows)?;
+    stats.unicode_records_merged = all_unicode_rows.len();
 
-        let json_target_path =
-            repo_root.join("src/formats/dcdata/data/DcList.generated.json");
-        let json_data = serde_json::to_string_pretty(&parsed_dcs)
-            .context("Failed to serialize DcList to JSON")?;
-        fs::write(&json_target_path, format!("{json_data}\n")).with_context(
-            || format!("Failed to save JSON to {}", json_target_path.display()),
-        )?;
+    // 4. Generate all.generated.csv
+    let custom_dc_ids: HashSet<u128> = all_dc_rows
+        .iter()
+        .filter_map(|r| r.first().and_then(|s| s.parse::<u128>().ok()))
+        .collect();
+
+    let mut combined_rows = Vec::with_capacity(
+        all_unicode_rows
+            .len()
+            .saturating_add(all_dc_rows.len())
+            .saturating_add(all_format_rows.len()),
+    );
+
+    for row in all_unicode_rows {
+        let cp = row
+            .first()
+            .and_then(|s| s.parse::<u128>().ok())
+            .unwrap_or(u128::MAX);
+        if !custom_dc_ids.contains(&cp) {
+            combined_rows.push(row);
+        }
+    }
+    combined_rows.extend(all_dc_rows);
+    combined_rows.extend(all_format_rows);
+
+    combined_rows.sort_by(|a, b| {
+        let id_a = a
+            .first()
+            .and_then(|s| s.trim().parse::<u128>().ok())
+            .unwrap_or(u128::MAX);
+        let id_b = b
+            .first()
+            .and_then(|s| s.trim().parse::<u128>().ok())
+            .unwrap_or(u128::MAX);
+        id_a.cmp(&id_b)
+    });
+
+    let all_target_path =
+        repo_root.join("src/formats/dcdata/data/all.generated.csv");
+    write_csv_file(&all_target_path, &canonical_header, &combined_rows)?;
+    stats.total_records_merged = combined_rows.len();
+
+    // 5. Clean up old .generated.json files if present
+    let old_dc_json = repo_root.join("src/formats/dcdata/data/DcList.generated.json");
+    if old_dc_json.exists() {
+        let _ = fs::remove_file(&old_dc_json);
+    }
+    let old_fmt_json =
+        repo_root.join("src/formats/dcdata/data/formats.generated.json");
+    if old_fmt_json.exists() {
+        let _ = fs::remove_file(&old_fmt_json);
     }
 
     Ok(stats)

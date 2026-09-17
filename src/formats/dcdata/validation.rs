@@ -719,18 +719,21 @@ pub fn validate_dc_category_file(
     };
 
     let mut rows = Vec::new();
+    let is_generated_csv = file_path.ends_with(".generated.csv");
+    let expected_cols = if is_generated_csv { 22 } else { 10 };
 
     if let Some(header) = table.header() {
-        if header.len() != 10 {
+        if header.len() != expected_cols {
             report.add_error(
                 file_path,
                 Some(1),
                 None,
                 format!(
-                    "CSV header has {} columns, expected 10 columns",
-                    header.len()
+                    "CSV header has {} columns, expected {} columns",
+                    header.len(),
+                    expected_cols
                 ),
-                Some("Ensure CSV header has exactly 10 columns matching schema.csv"),
+                Some("Ensure CSV header matches schema"),
             );
         }
     }
@@ -757,13 +760,13 @@ pub fn validate_dc_category_file(
             continue;
         };
 
-        if row.len() != 10 {
+        if row.len() != expected_cols {
             report.add_error(
                 file_path,
                 Some(line_no),
                 None,
-                format!("Row has {} columns, expected 10", row.len()),
-                Some("Each row in Dc categories must have exactly 10 columns matching schema"),
+                format!("Row has {} columns, expected {}", row.len(), expected_cols),
+                Some("Each row in Dc categories must have columns matching schema"),
             );
         }
 
@@ -1481,6 +1484,7 @@ mod tests {
     use crate::updater::{
         assign_and_update_dc_categories, assign_and_update_format_categories,
         generate_merged_csvs, read_csv_file, write_csv_file,
+        UNIFIED_SCHEMA_HEADER,
     };
 
     #[crate::ctb_test]
@@ -1738,13 +1742,20 @@ mod tests {
         let gen_stats = generate_merged_csvs(repo).unwrap();
         assert_eq!(gen_stats.dc_records_merged, 2);
         assert_eq!(gen_stats.format_records_merged, 2);
+        assert!(gen_stats.unicode_records_merged > 0);
+        assert!(gen_stats.total_records_merged >= 4);
+
+        let canonical_header: Vec<String> = UNIFIED_SCHEMA_HEADER
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
 
         // Verify generated DcList.generated.csv contents and order
         let (dc_gen_hdr, dc_gen_rows) = read_csv_file(
             &repo.join("src/formats/dcdata/data/DcList.generated.csv"),
         )
         .unwrap();
-        assert_eq!(dc_gen_hdr, dc_schema_header);
+        assert_eq!(dc_gen_hdr, canonical_header);
         assert_eq!(dc_gen_rows.len(), 2);
         assert_eq!(dc_gen_rows[0][0], "1114112");
         assert_eq!(dc_gen_rows[0][1], "0");
@@ -1756,27 +1767,34 @@ mod tests {
             &repo.join("src/formats/dcdata/data/formats.generated.csv"),
         )
         .unwrap();
-        assert_eq!(fmt_gen_hdr, fmt_schema_header);
+        assert_eq!(fmt_gen_hdr, canonical_header);
         assert_eq!(fmt_gen_rows.len(), 2);
         assert_eq!(fmt_gen_rows[0][0], "2228224");
         assert_eq!(fmt_gen_rows[0][1], "0");
         assert_eq!(fmt_gen_rows[1][0], "2228225");
         assert_eq!(fmt_gen_rows[1][1], "1");
 
-        // Verify generated JSON files
-        let dc_json_path = repo.join("src/formats/dcdata/data/DcList.generated.json");
-        assert!(dc_json_path.exists());
-        let dc_json_str = std::fs::read_to_string(&dc_json_path).unwrap();
-        assert!(dc_json_str.contains("CustomDc"));
+        // Verify generated unicode.generated.csv
+        let (uni_gen_hdr, uni_gen_rows) = read_csv_file(
+            &repo.join("src/formats/dcdata/data/unicode.generated.csv"),
+        )
+        .unwrap();
+        assert_eq!(uni_gen_hdr, canonical_header);
+        assert_eq!(uni_gen_rows.len(), gen_stats.unicode_records_merged);
 
+        // Verify generated all.generated.csv
+        let (all_gen_hdr, all_gen_rows) = read_csv_file(
+            &repo.join("src/formats/dcdata/data/all.generated.csv"),
+        )
+        .unwrap();
+        assert_eq!(all_gen_hdr, canonical_header);
+        assert_eq!(all_gen_rows.len(), gen_stats.total_records_merged);
+
+        // Verify JSON files are NOT generated
+        let dc_json_path = repo.join("src/formats/dcdata/data/DcList.generated.json");
+        assert!(!dc_json_path.exists());
         let fmt_json_path = repo.join("src/formats/dcdata/data/formats.generated.json");
-        assert!(fmt_json_path.exists());
-        let fmt_json_str = std::fs::read_to_string(&fmt_json_path).unwrap();
-        assert!(fmt_json_str.contains("FormatOne"));
-        assert!(fmt_json_str.contains("format_document"));
-        assert!(fmt_json_str.contains("\"BN\""));
-        assert!(fmt_json_str.contains("\"!Cx\""));
-        assert!(fmt_json_str.contains("\"Formats\""));
+        assert!(!fmt_json_path.exists());
     }
 
     #[crate::ctb_test]

@@ -29,6 +29,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
 pub mod character_description;
 pub mod cli;
 pub(crate) mod data;
@@ -128,6 +131,262 @@ pub fn get_unicode_name_for_version(
 #[must_use]
 pub fn get_unicode_name(cp: u32) -> Option<String> {
     get_unicode_name_for_version(cp, UnicodeVersion::V17_0)
+}
+
+pub use icu_properties::props::{BidiClass, CanonicalCombiningClass};
+
+/// Returns the 2-letter general category code for a code point (e.g. "Lu", "Cc").
+#[must_use]
+pub fn general_category_code(cp: u32) -> &'static str {
+    match icu_properties::CodePointMapData::<GeneralCategory>::new().get32(cp) {
+        GeneralCategory::UppercaseLetter => "Lu",
+        GeneralCategory::LowercaseLetter => "Ll",
+        GeneralCategory::TitlecaseLetter => "Lt",
+        GeneralCategory::ModifierLetter => "Lm",
+        GeneralCategory::OtherLetter => "Lo",
+        GeneralCategory::NonspacingMark => "Mn",
+        GeneralCategory::SpacingMark => "Mc",
+        GeneralCategory::EnclosingMark => "Me",
+        GeneralCategory::DecimalNumber => "Nd",
+        GeneralCategory::LetterNumber => "Nl",
+        GeneralCategory::OtherNumber => "No",
+        GeneralCategory::SpaceSeparator => "Zs",
+        GeneralCategory::LineSeparator => "Zl",
+        GeneralCategory::ParagraphSeparator => "Zp",
+        GeneralCategory::Control => "Cc",
+        GeneralCategory::Format => "Cf",
+        GeneralCategory::PrivateUse => "Co",
+        GeneralCategory::Surrogate => "Cs",
+        GeneralCategory::DashPunctuation => "Pd",
+        GeneralCategory::OpenPunctuation => "Ps",
+        GeneralCategory::ClosePunctuation => "Pe",
+        GeneralCategory::ConnectorPunctuation => "Pc",
+        GeneralCategory::InitialPunctuation => "Pi",
+        GeneralCategory::FinalPunctuation => "Pf",
+        GeneralCategory::OtherPunctuation => "Po",
+        GeneralCategory::MathSymbol => "Sm",
+        GeneralCategory::CurrencySymbol => "Sc",
+        GeneralCategory::ModifierSymbol => "Sk",
+        GeneralCategory::OtherSymbol => "So",
+        GeneralCategory::Unassigned => "Cn",
+    }
+}
+
+/// Returns the standard Bidi class abbreviation for a code point (e.g. "L", "R", "BN").
+#[must_use]
+pub fn bidi_class_code(cp: u32) -> &'static str {
+    match icu_properties::CodePointMapData::<BidiClass>::new().get32(cp) {
+        BidiClass::LeftToRight => "L",
+        BidiClass::RightToLeft => "R",
+        BidiClass::EuropeanNumber => "EN",
+        BidiClass::EuropeanSeparator => "ES",
+        BidiClass::EuropeanTerminator => "ET",
+        BidiClass::ArabicNumber => "AN",
+        BidiClass::CommonSeparator => "CS",
+        BidiClass::ParagraphSeparator => "B",
+        BidiClass::SegmentSeparator => "S",
+        BidiClass::WhiteSpace => "WS",
+        BidiClass::OtherNeutral => "ON",
+        BidiClass::LeftToRightEmbedding => "LRE",
+        BidiClass::LeftToRightOverride => "LRO",
+        BidiClass::ArabicLetter => "AL",
+        BidiClass::RightToLeftEmbedding => "RLE",
+        BidiClass::RightToLeftOverride => "RLO",
+        BidiClass::PopDirectionalFormat => "PDF",
+        BidiClass::NonspacingMark => "NSM",
+        BidiClass::BoundaryNeutral => "BN",
+        BidiClass::FirstStrongIsolate => "FSI",
+        BidiClass::LeftToRightIsolate => "LRI",
+        BidiClass::RightToLeftIsolate => "RLI",
+        BidiClass::PopDirectionalIsolate => "PDI",
+        _ => "ON",
+    }
+}
+
+/// Returns the canonical combining class for a code point (0..=254).
+#[must_use]
+pub fn combining_class(cp: u32) -> u8 {
+    icu_properties::CodePointMapData::<CanonicalCombiningClass>::new()
+        .get32(cp)
+        .to_icu4c_value()
+}
+
+/// Character metadata record for generating the unified Unicode character table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnicodeCharRecord {
+    pub cp: u32,
+    pub name: String,
+    pub combining_class: u8,
+    pub bidi_class: &'static str,
+    pub general_category: &'static str,
+    pub script: String,
+    pub aliases: String,
+    pub description: String,
+    pub is_deprecated: bool,
+}
+
+static ALL_UNICODE_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    let tables = data::get_tables(UnicodeVersion::V17_0);
+    let mut names = HashSet::new();
+
+    for cp in 0..=0x10_FFFF {
+        if let Some(n) = character_description::get_unicode_character_name(
+            tables,
+            cp,
+            DescriptionMode::Standard,
+        ) {
+            names.insert(n.to_lowercase());
+        }
+        if let Some(entry) = tables.name_aliases.get(&cp) {
+            if let Some(ref c) = entry.correction {
+                names.insert(c.to_lowercase());
+            }
+            if let Some(ref c) = entry.control {
+                names.insert(c.to_lowercase());
+            }
+            if let Some(ref alt) = entry.alternate {
+                names.insert(alt.to_lowercase());
+            }
+        }
+    }
+    names
+});
+
+/// Returns true if a given name matches any canonical or aliased Unicode character name.
+#[must_use]
+pub fn is_known_unicode_name(name: &str) -> bool {
+    ALL_UNICODE_NAMES.contains(&name.trim().to_lowercase())
+}
+
+/// Iterates over all assigned Unicode characters and produces structured records.
+pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
+    // FIXME This is risky - it doesn't assert that the ICU Unicode version matches the inlined tabes.
+    let tables = data::get_tables(UnicodeVersion::V17_0);
+    let mut records = Vec::new();
+
+    let gc_map = icu_properties::CodePointMapData::<GeneralCategory>::new();
+    let bidi_map = icu_properties::CodePointMapData::<BidiClass>::new();
+    let ccc_map =
+        icu_properties::CodePointMapData::<CanonicalCombiningClass>::new();
+
+    for cp in 0..=0x10_FFFF {
+        if !tables.is_assigned(cp) {
+            continue;
+        }
+
+        let name = if let Some(n) =
+            character_description::get_unicode_character_name(
+                tables,
+                cp,
+                DescriptionMode::Standard,
+            )
+        {
+            n
+        } else if (0xE000..=0xF8FF).contains(&cp)
+            || (0xF0000..=0xFFFFD).contains(&cp)
+            || (0x100000..=0x10FFFD).contains(&cp)
+        {
+            format!("<private-use-{cp:04X}>")
+        } else {
+            continue;
+        };
+
+        let gc = match gc_map.get32(cp) {
+            GeneralCategory::UppercaseLetter => "Lu",
+            GeneralCategory::LowercaseLetter => "Ll",
+            GeneralCategory::TitlecaseLetter => "Lt",
+            GeneralCategory::ModifierLetter => "Lm",
+            GeneralCategory::OtherLetter => "Lo",
+            GeneralCategory::NonspacingMark => "Mn",
+            GeneralCategory::SpacingMark => "Mc",
+            GeneralCategory::EnclosingMark => "Me",
+            GeneralCategory::DecimalNumber => "Nd",
+            GeneralCategory::LetterNumber => "Nl",
+            GeneralCategory::OtherNumber => "No",
+            GeneralCategory::SpaceSeparator => "Zs",
+            GeneralCategory::LineSeparator => "Zl",
+            GeneralCategory::ParagraphSeparator => "Zp",
+            GeneralCategory::Control => "Cc",
+            GeneralCategory::Format => "Cf",
+            GeneralCategory::PrivateUse => "Co",
+            GeneralCategory::Surrogate => "Cs",
+            GeneralCategory::DashPunctuation => "Pd",
+            GeneralCategory::OpenPunctuation => "Ps",
+            GeneralCategory::ClosePunctuation => "Pe",
+            GeneralCategory::ConnectorPunctuation => "Pc",
+            GeneralCategory::InitialPunctuation => "Pi",
+            GeneralCategory::FinalPunctuation => "Pf",
+            GeneralCategory::OtherPunctuation => "Po",
+            GeneralCategory::MathSymbol => "Sm",
+            GeneralCategory::CurrencySymbol => "Sc",
+            GeneralCategory::ModifierSymbol => "Sk",
+            GeneralCategory::OtherSymbol => "So",
+            GeneralCategory::Unassigned => "Cn",
+        };
+
+        let bidi = match bidi_map.get32(cp) {
+            BidiClass::LeftToRight => "L",
+            BidiClass::RightToLeft => "R",
+            BidiClass::EuropeanNumber => "EN",
+            BidiClass::EuropeanSeparator => "ES",
+            BidiClass::EuropeanTerminator => "ET",
+            BidiClass::ArabicNumber => "AN",
+            BidiClass::CommonSeparator => "CS",
+            BidiClass::ParagraphSeparator => "B",
+            BidiClass::SegmentSeparator => "S",
+            BidiClass::WhiteSpace => "WS",
+            BidiClass::OtherNeutral => "ON",
+            BidiClass::LeftToRightEmbedding => "LRE",
+            BidiClass::LeftToRightOverride => "LRO",
+            BidiClass::ArabicLetter => "AL",
+            BidiClass::RightToLeftEmbedding => "RLE",
+            BidiClass::RightToLeftOverride => "RLO",
+            BidiClass::PopDirectionalFormat => "PDF",
+            BidiClass::NonspacingMark => "NSM",
+            BidiClass::BoundaryNeutral => "BN",
+            BidiClass::FirstStrongIsolate => "FSI",
+            BidiClass::LeftToRightIsolate => "LRI",
+            BidiClass::RightToLeftIsolate => "RLI",
+            BidiClass::PopDirectionalIsolate => "PDI",
+            _ => "ON",
+        };
+
+        let combining = ccc_map.get32(cp).to_icu4c_value();
+
+        let script = data::find_block(cp)
+            .unwrap_or("Unicode")
+            .to_string();
+
+        let mut alias_parts = Vec::new();
+        if let Some(entry) = tables.name_aliases.get(&cp) {
+            if let Some(ref c) = entry.correction {
+                alias_parts.push(c.clone());
+            }
+            if let Some(ref a) = entry.abbreviation {
+                alias_parts.push(a.clone());
+            }
+            if let Some(ref alt) = entry.alternate {
+                alias_parts.push(alt.clone());
+            }
+        }
+        let aliases = alias_parts.join(", ");
+
+        let is_deprecated = is_deprecated_unicode(cp);
+
+        records.push(UnicodeCharRecord {
+            cp,
+            name,
+            combining_class: combining,
+            bidi_class: bidi,
+            general_category: gc,
+            script,
+            aliases,
+            description: String::new(),
+            is_deprecated,
+        });
+    }
+
+    records
 }
 
 #[cfg(test)]

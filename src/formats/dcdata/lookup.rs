@@ -37,17 +37,6 @@ use crate::validation::validate_all_dc_files;
 use crate::{get_dc_categories_dir, get_dc_data_file};
 
 static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
-    // 1. Primary: load from embedded DcList.generated.json if present
-    if let Some(bytes) = get_dc_data_file("DcList.generated.json") {
-        if let Ok(mut defns) =
-            serde_json::from_slice::<Vec<DcDefn>>(&bytes)
-        {
-            defns.sort_by_key(|d| d.dc_id);
-            return defns;
-        }
-    }
-
-    // 2. Fallback: validate and parse directly from embedded categories
     let mut report = ValidationReport::new();
     let known_format_ids = HashSet::new();
     let mut defns = if let Some(dc_dir) = get_dc_categories_dir() {
@@ -182,11 +171,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_lookup_basic() {
         let dc0 = get_short_dc_defn(0).expect("Dc 0 exists");
-        assert_eq!(dc0.name, "Null");
+        assert_eq!(dc0.name, "Null (short Dc)");
         assert_eq!(dc0.category, "controls");
 
         let dc0_long = get_dc_defn(crate::dc::short_to_long_dc(0)).expect("Dc 0 long ID exists");
-        assert_eq!(dc0_long.name, "Null");
+        assert_eq!(dc0_long.name, "Null (short Dc)");
 
         let dc6 = get_short_dc_defn(6).expect("Dc 6 exists");
         assert_eq!(dc6.name, "Begin number");
@@ -220,7 +209,7 @@ mod tests {
         let row0 = &rows[0];
         assert_eq!(row0.len(), 9);
         assert_eq!(row0[0], "0");
-        assert_eq!(row0[1], "!Null");
+        assert_eq!(row0[1], "!Null (short Dc)");
 
         let row308 = &rows[308];
         assert_eq!(row308.len(), 9);

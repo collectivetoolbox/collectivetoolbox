@@ -489,6 +489,20 @@ pub fn validate_cross_table_uniqueness(
         } else {
             dc_name_map.insert(key, (short_id, file_path.to_string()));
         }
+
+        if !file_path.contains("unicode-clarifications.csv")
+            && ctb_formats_unicode::is_known_unicode_name(clean_name)
+        {
+            report.add_error(
+                file_path,
+                None,
+                Some("Name"),
+                format!(
+                    "Dc name '{clean_name}' (Short ID {short_id}) collides with official Unicode character name"
+                ),
+                Some("Disambiguate name or append ' (short Dc)'"),
+            );
+        }
     }
 
     let mut fmt_label_map: HashMap<String, (usize, String)> = HashMap::new();
@@ -523,6 +537,19 @@ pub fn validate_cross_table_uniqueness(
                     "Format label '{clean_label}' (Format ID {short_id}) collides with Dc name in {dc_file} (Dc ID {dc_id})"
                 ),
                 Some("Rename format label or Dc name to resolve collision"),
+            );
+        }
+
+        // Cross-table check: Format label cannot collide with a Unicode character name
+        if ctb_formats_unicode::is_known_unicode_name(clean_label) {
+            report.add_error(
+                file_path,
+                None,
+                Some("Label"),
+                format!(
+                    "Format label '{clean_label}' (Format ID {short_id}) collides with official Unicode character name"
+                ),
+                Some("Rename format label to avoid colliding with Unicode character"),
             );
         }
     }

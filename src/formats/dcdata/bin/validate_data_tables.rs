@@ -98,8 +98,11 @@ fn main() -> ExitCode {
     match generate_merged_csvs(&repo_root) {
         Ok(stats) => {
             println!(
-                "Successfully generated DcList.generated.csv ({} records) and formats.generated.csv ({} records).",
-                stats.dc_records_merged, stats.format_records_merged
+                "Successfully generated DcList.generated.csv ({} records), formats.generated.csv ({} records), unicode.generated.csv ({} records), and all.generated.csv ({} records).",
+                stats.dc_records_merged,
+                stats.format_records_merged,
+                stats.unicode_records_merged,
+                stats.total_records_merged
             );
         }
         Err(e) => {

@@ -65,6 +65,57 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
         Err(_) => return,
     };
 
+    let (
+        dc_col,
+        id_col,
+        ident_col,
+        label_col,
+        category_col,
+        base_col,
+        ext_col,
+        mime_col,
+        uti_col,
+        apple_type_col,
+        nicknames_col,
+        import_col,
+        export_col,
+        tests_col,
+        variant_col,
+        comments_col,
+        references_col,
+    ) = if let Some(hdr) = table.header() {
+        let find_col = |prefixes: &[&str], default: usize| -> usize {
+            hdr.iter()
+                .position(|name| {
+                    let trimmed = name.trim();
+                    prefixes.iter().any(|p| trimmed.starts_with(p))
+                })
+                .unwrap_or(default)
+        };
+
+        (
+            find_col(&["Dc"], 0),
+            find_col(&["Short"], 1),
+            find_col(&["Ident"], 2),
+            find_col(&["Label", "Name"], 3),
+            find_col(&["Category"], 4),
+            find_col(&["Base", "Aliases"], 5),
+            find_col(&["Extensions"], 6),
+            find_col(&["MIME"], 7),
+            find_col(&["Apple Uniform", "Apple UTI"], 8),
+            find_col(&["Apple Type"], 9),
+            find_col(&["Nicknames"], 10),
+            find_col(&["Import"], 11),
+            find_col(&["Export"], 12),
+            find_col(&["Tests"], 13),
+            find_col(&["Variant"], 14),
+            find_col(&["Comments", "Description"], 15),
+            find_col(&["References"], 16),
+        )
+    } else {
+        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+    };
+
     for i in 0..table.row_count() {
         let get_str = |col: usize| -> String {
             match table.cell(i, col) {
@@ -73,31 +124,31 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             }
         };
 
-        let dc_str = get_str(0);
+        let dc_str = get_str(dc_col);
         let Ok(dc_id) = dc_str.parse::<u128>() else {
             continue;
         };
 
-        let id_str = get_str(1);
+        let id_str = get_str(id_col);
         let Ok(id) = id_str.parse::<usize>() else {
             continue;
         };
 
-        let ident = get_str(2);
-        let label = get_str(3);
-        let category = get_str(4);
-        let base_format = get_str(5);
-        let extensions = get_str(6);
-        let mime = get_str(7);
-        let uti = get_str(8);
-        let apple_type = get_str(9);
-        let nicknames = get_str(10);
-        let import_support = get_str(11);
-        let export_support = get_str(12);
-        let tests = get_str(13);
-        let variant_types = get_str(14);
-        let comments = get_str(15);
-        let references = get_str(16);
+        let ident = get_str(ident_col);
+        let label = get_str(label_col);
+        let category = get_str(category_col);
+        let base_format = get_str(base_col);
+        let extensions = get_str(ext_col);
+        let mime = get_str(mime_col);
+        let uti = get_str(uti_col);
+        let apple_type = get_str(apple_type_col);
+        let nicknames = get_str(nicknames_col);
+        let import_support = get_str(import_col);
+        let export_support = get_str(export_col);
+        let tests = get_str(tests_col);
+        let variant_types = get_str(variant_col);
+        let comments = get_str(comments_col);
+        let references = get_str(references_col);
 
         map.insert(
             id,
