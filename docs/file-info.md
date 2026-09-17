@@ -26,7 +26,6 @@ The following types of features are relevant to the file detection:
     - f0 UTF-8
     - 299 end associativity group
     - f0 UTF-8
-  - Defining formats this way has
 - How "Syntax" and "Chain" work for formats is not currently clearly unambiguous. "Chain" is basically what I am trying to do with this syntax, but it is half-baked.
 - The normal Syntax statements possibly should be used for formats.
 - There is also <equiv> and <semantic> decompositions.
