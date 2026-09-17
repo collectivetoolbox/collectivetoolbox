@@ -31,7 +31,7 @@ use ctb_io::file::entity::{FileEntity, FileEntityKind};
 use ctb_io::file::identity::{FileIdentity, FileOrigin, InodeKey, resolve_relative_path_for_os};
 use ctb_io::file::metadata::{FileFlag, FileMetadata, FileTimestamps};
 use ctb_io::file::streams::{AttachedStream, StreamKind, StreamName};
-use ctb_utilities::environment::EnvDescription;
+use ctb_io_environment::EnvDescription;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, Write};
@@ -172,7 +172,7 @@ impl JournalWriter {
         let mut writer = BufWriter::new(file);
         writer.write_all(JOURNAL_MAGIC)?;
 
-        let env = ctb_utilities::environment::capture_quick_arc();
+        let env = ctb_io_environment::capture_quick_arc();
         let mut jw = Self {
             journal_path: journal_path.to_path_buf(),
             desc_path: desc_path.to_path_buf(),
@@ -256,7 +256,7 @@ impl JournalWriter {
             environment: snapshot
                 .environment
                 .clone()
-                .or_else(|| Some(ctb_utilities::environment::capture_quick_arc())),
+                .or_else(|| Some(ctb_io_environment::capture_quick_arc())),
             snapshot: Some(snapshot.clone()),
             errors: snapshot.errors.clone(),
             warnings: snapshot.warnings.clone(),
@@ -1814,7 +1814,7 @@ mod tests {
         assert!(std::sync::Arc::ptr_eq(env1, env2));
 
         // 4. FileEntity::set_environment propagates to all attached streams
-        let custom_env = std::sync::Arc::new(ctb_utilities::environment::capture_quick());
+        let custom_env = std::sync::Arc::new(ctb_io_environment::capture_quick());
         entity1.set_environment(std::sync::Arc::clone(&custom_env));
         assert!(std::sync::Arc::ptr_eq(
             entity1.metadata.environment.as_ref().unwrap(),
@@ -1828,13 +1828,13 @@ mod tests {
         // 5. Simulate two separate operations within a single process (e.g. successive csc runs):
         // Each operation enters its own GlobalEnvironmentScope, getting a distinct Arc snapshot.
         let arc_op1 = {
-            let _scope1 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let _scope1 = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
             let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
             e.metadata.environment.unwrap()
         };
 
         let arc_op2 = {
-            let _scope2 = ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh();
+            let _scope2 = ctb_io_environment::GlobalEnvironmentScope::enter_fresh();
             let e = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
             e.metadata.environment.unwrap()
         };
@@ -1843,8 +1843,8 @@ mod tests {
         assert!(!std::sync::Arc::ptr_eq(&arc_op1, &arc_op2));
 
         // Global network caches remain intact across operations
-        if let Ok(ip) = ctb_utilities::environment::local_ipv4() {
-            let cached = ctb_utilities::environment::cached_local_ipv4();
+        if let Ok(ip) = ctb_io_environment::local_ipv4() {
+            let cached = ctb_io_environment::cached_local_ipv4();
             assert_eq!(cached.ok(), Some(ip));
         }
     }
@@ -1913,7 +1913,7 @@ mod tests {
         let env_val = row.get_value(0).expect("get_value");
         match env_val {
             turso::Value::Text(json_str) => {
-                let parsed = ctb_utilities::environment::EnvDescription::from_json(&json_str)
+                let parsed = ctb_io_environment::EnvDescription::from_json(&json_str)
                     .expect("parse environment JSON");
                 assert_eq!(parsed.ctb_version, env.ctb_version);
             }

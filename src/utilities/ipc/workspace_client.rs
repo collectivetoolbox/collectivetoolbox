@@ -23,7 +23,5 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! application code. Normal code should call these helper methods instead of
 //! invoking raw IPC.
 
-pub use crate::environment::EnvDescription;
-
 include!("workspace_ipc_methods.dtos.generated.rs");
 include!("workspace_ipc_methods.generated.rs");

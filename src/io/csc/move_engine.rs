@@ -45,9 +45,9 @@ use std::time::Instant;
 /// only after verification completes successfully.
 pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
     let _env_scope = if args.full_provenance {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_full()
+        ctb_io_environment::GlobalEnvironmentScope::enter_full()
     } else {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh()
+        ctb_io_environment::GlobalEnvironmentScope::enter_fresh()
     };
     let start_time = Instant::now();
     anyhow::ensure!(

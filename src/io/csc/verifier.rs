@@ -596,9 +596,9 @@ fn scan_disk_entries(
 /// Main orchestration entry point for the `csc-verify` CLI command.
 pub fn run_csc_verify(args: &CscVerifyArgs) -> Result<ToolResult> {
     let _env_scope = if args.full_provenance {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_full()
+        ctb_io_environment::GlobalEnvironmentScope::enter_full()
     } else {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh()
+        ctb_io_environment::GlobalEnvironmentScope::enter_fresh()
     };
     let report = verify_directory_against_manifest(args)?;
 

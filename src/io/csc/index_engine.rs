@@ -62,9 +62,9 @@ pub fn derive_source_name(journal_path: &Path, explicit_name: Option<&str>) -> S
 /// an indexed SQLite database.
 pub async fn run_fsindex(args: FsindexArgs) -> Result<ToolResult> {
     let _env_scope = if args.full_provenance {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_full()
+        ctb_io_environment::GlobalEnvironmentScope::enter_full()
     } else {
-        ctb_utilities::environment::GlobalEnvironmentScope::enter_fresh()
+        ctb_io_environment::GlobalEnvironmentScope::enter_fresh()
     };
     let mut targets = args.targets.clone();
     if targets.is_empty() {

@@ -3405,6 +3405,7 @@ dependencies = [
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-io",
+ "ctb-io-environment",
  "ctb-utilities",
  "filetime",
  "nix 0.30.1",
@@ -3416,6 +3417,20 @@ dependencies = [
  "tracing",
  "turso",
  "xattr",
+]
+
+[[package]]
+name = "ctb-io-environment"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "ctb-formats-dcstring",
+ "ctb-utilities",
+ "nix 0.30.1",
+ "semver 1.0.28",
+ "serde",
+ "serde_json",
+ "smart-default",
 ]
 
 [[package]]
@@ -3432,6 +3447,7 @@ dependencies = [
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-formats-unicode",
+ "ctb-io-environment",
  "ctb-utilities",
  "filetime",
  "libc",
@@ -3652,7 +3668,6 @@ dependencies = [
  "constcat",
  "csv",
  "ctb-build-support",
- "ctb-dc-macro",
  "ctb-ipc-macro",
  "ctb-test-macro",
  "ctb-workspace-ipc-macro",
@@ -3726,6 +3741,7 @@ dependencies = [
  "ctb-formats-base64",
  "ctb-installer",
  "ctb-io",
+ "ctb-io-environment",
  "ctb-network",
  "ctb-renderer",
  "ctb-runtime",
@@ -3881,6 +3897,7 @@ dependencies = [
  "ctb-installer",
  "ctb-io",
  "ctb-io-csc",
+ "ctb-io-environment",
  "ctb-io-file",
  "ctb-io-webui",
  "ctb-ipc-macro",

@@ -13,6 +13,7 @@ ctb-formats = { path = "../formats" }
 ctb-formats-base64 = { path = "../formats/base64" }
 ctb-installer = { path = "../installer" }
 ctb-io = { path = "../io" }
+ctb-io-environment = { path = "../io/environment" }
 ctb-network = { path = "../network" }
 ctb-renderer = { path = "../renderer" }
 ctb-runtime = { path = "../runtime" }

@@ -29,25 +29,23 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub use ctb_utilities::environment::EnvDescription;
+pub use ctb_io_environment::EnvDescription;
 
 /// Capture a full snapshot of the execution environment on the workspace supervisor.
 ///
 /// # Errors
-/// Returns an error if environment capture or IPC serialization fails.
-#[ipc_method]
+/// Returns an error if environment capture fails.
 pub async fn capture() -> Result<EnvDescription> {
-    Ok(ctb_utilities::environment::capture())
+    Ok(ctb_io_environment::capture())
 }
 
 /// Capture a quick snapshot of the execution environment on the workspace supervisor,
 /// returning cached IP/time information if populated at boot.
 ///
 /// # Errors
-/// Returns an error if environment capture or IPC serialization fails.
-#[ipc_method]
+/// Returns an error if environment capture fails.
 pub async fn capture_quick() -> Result<EnvDescription> {
-    Ok(ctb_utilities::environment::capture_quick())
+    Ok(ctb_io_environment::capture_quick())
 }
 
 /// Clear cached IP and timestamp offset values on the workspace supervisor and
@@ -57,7 +55,7 @@ pub async fn capture_quick() -> Result<EnvDescription> {
 /// Returns an error if cache refresh or background task fails.
 #[ipc_method]
 pub async fn env_cache_reset() -> Result<()> {
-    tokio::task::spawn_blocking(ctb_utilities::environment::env_cache_reset)
+    tokio::task::spawn_blocking(ctb_io_environment::env_cache_reset)
         .await
         .context("env_cache_reset worker thread panicked")?;
     Ok(())

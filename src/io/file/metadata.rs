@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use ctb_utilities::environment::EnvDescription;
+use ctb_io_environment::EnvDescription;
 
 /// Operating system family where raw bits or file descriptors originated.
 /// You may want to consider using the `FileMetadata` `environment` instead.

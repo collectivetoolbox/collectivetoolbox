@@ -269,7 +269,7 @@ pub struct FileEntity {
 impl FileEntity {
     /// Returns a reference to the execution environment description, if attached.
     #[must_use]
-    pub fn environment(&self) -> Option<&ctb_utilities::environment::EnvDescription> {
+    pub fn environment(&self) -> Option<&ctb_io_environment::EnvDescription> {
         self.metadata.environment()
     }
 
@@ -277,7 +277,7 @@ impl FileEntity {
     /// its attached streams.
     pub fn set_environment(
         &mut self,
-        env: std::sync::Arc<ctb_utilities::environment::EnvDescription>,
+        env: std::sync::Arc<ctb_io_environment::EnvDescription>,
     ) {
         self.metadata.set_environment(std::sync::Arc::clone(&env));
         for stream in &mut self.streams {
@@ -495,7 +495,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
-            environment: Some(ctb_utilities::environment::capture_quick_arc()),
+            environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
         };
 
@@ -705,7 +705,7 @@ impl FileEntity {
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
-            environment: Some(ctb_utilities::environment::capture_quick_arc()),
+            environment: Some(ctb_io_environment::capture_quick_arc()),
             apple: None,
         };
 
