@@ -175,15 +175,15 @@ pub fn create_apple_archive_from_entity(
                 crate::file::metadata::FileFlag::Alias => finfo.flags.is_alias = true,
                 crate::file::metadata::FileFlag::CustomBadge => {
                     let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
-                    ext.xflags |= 0x01;
+                    ext.xflags.custom_badge = true;
                 }
                 crate::file::metadata::FileFlag::RoutingInfo => {
                     let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
-                    ext.xflags |= 0x04;
+                    ext.xflags.routing_info = true;
                 }
                 crate::file::metadata::FileFlag::ExtendedFlagsInvalid => {
                     let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
-                    ext.xflags |= 0x80;
+                    ext.xflags.extended_flags_invalid = true;
                 }
                 _ => {}
             }
@@ -192,6 +192,7 @@ pub fn create_apple_archive_from_entity(
     let real_name = apple_meta.and_then(|a| a.real_name.clone());
     let comment = apple_meta.and_then(|a| a.comment.clone());
     let backup_timestamp_sec = apple_meta.and_then(|a| a.backup_timestamp_sec);
+    // Reason for fallback: When Apple metadata is absent, there are no unrecognized entries to preserve.
     let unrecognized_entries = apple_meta
         .map(|a| a.unrecognized_entries.clone())
         .unwrap_or_default();
@@ -516,13 +517,13 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             }
         }
         if let Some(ref ext) = finfo.extended {
-            if (ext.xflags & 0x01) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::CustomBadge) {
+            if ext.xflags.custom_badge && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::CustomBadge) {
                 entity.metadata.flags.push(crate::file::metadata::FileFlag::CustomBadge);
             }
-            if (ext.xflags & 0x04) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::RoutingInfo) {
+            if ext.xflags.routing_info && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::RoutingInfo) {
                 entity.metadata.flags.push(crate::file::metadata::FileFlag::RoutingInfo);
             }
-            if (ext.xflags & 0x80) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::ExtendedFlagsInvalid) {
+            if ext.xflags.extended_flags_invalid && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::ExtendedFlagsInvalid) {
                 entity.metadata.flags.push(crate::file::metadata::FileFlag::ExtendedFlagsInvalid);
             }
         }
@@ -587,7 +588,7 @@ mod tests {
         ensure!(finfo.flags.has_no_inits);
         ensure!(finfo.flags.is_invisible);
         let ext = finfo.extended.as_ref().context("missing extended finder info")?;
-        ensure!((ext.xflags & 0x01) != 0);
+        ensure!(ext.xflags.custom_badge);
 
         let mut roundtrip_entity = FileEntity::from_filesystem(&file_path, None)?;
         roundtrip_entity.metadata.flags.clear();

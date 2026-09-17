@@ -48,7 +48,7 @@ pub use dc_mixed::{
 };
 pub use ctb_dc_macro::DcMixed;
 pub use dc_mixed_serde::{
-    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedReader,
+    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedNumber, DcMixedReader,
     assert_dc_roundtrip,
 };
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};

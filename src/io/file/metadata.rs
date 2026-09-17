@@ -820,7 +820,7 @@ impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
         if let Some(ref fi) = self.finder_info {
-            fi.encode_finder_fields(mst)?;
+            fi.encode_fields(mst)?;
         }
         if let Some(ref rn) = self.real_name {
             mst.push_char(ctb_formats_dcstring::DcChar::from_short(496));
@@ -872,7 +872,9 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
                 }
                 finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490) => {
                     let fi = finder_info.get_or_insert_with(FinderInfo::default);
-                    fi.decode_finder_field(finder_tag, reader)?;
+                    if !fi.decode_field(finder_tag, reader)? {
+                        reader.next_char()?;
+                    }
                 }
                 _ => {
                     reader.next_char()?;

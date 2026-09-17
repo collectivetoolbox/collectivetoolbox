@@ -66,6 +66,39 @@ pub trait DcMixedDecode: Sized {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self>;
 }
 
+/// Trait for types that can convert to and from a numeric Dc representation.
+/// Used for fields with equivalent numeric representations (`equivalents = (..., number)`).
+pub trait DcMixedNumber: Sized {
+    /// Serializes this instance as a Dc number.
+    ///
+    /// # Errors
+    /// Returns an error if serialization fails.
+    fn encode_dc_number(&self, mst: &mut DcMst) -> Result<()>;
+
+    /// Deserializes an instance from a numeric Dc representation.
+    ///
+    /// # Errors
+    /// Returns an error if decoding fails or the number cannot be converted.
+    fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self>;
+}
+
+macro_rules! impl_dc_mixed_number_primitive {
+    ($($t:ty),*) => {
+        $(
+            impl DcMixedNumber for $t {
+                fn encode_dc_number(&self, mst: &mut DcMst) -> Result<()> {
+                    self.encode_dc_mixed(mst)
+                }
+                fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+                    Self::decode_dc_mixed(reader)
+                }
+            }
+        )*
+    };
+}
+
+impl_dc_mixed_number_primitive!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+
 /// Wrapper for raw binary byte buffers serialized via `TYPE_BINARY_SHA256`
 /// encapsulation (`Dc 203` .. `Dc 204`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
@@ -981,6 +1014,89 @@ mod tests {
 
         let ip_v6: std::net::IpAddr = std::net::IpAddr::V6(v6);
         assert_dc_roundtrip(&ip_v6)?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, DcMixed)]
+    #[dc(begin = 388, end = 389, flags)]
+    struct SampleFlags {
+        #[dc(499)]
+        flag_a: bool,
+        #[dc(500)]
+        flag_b: bool,
+        #[dc(501)]
+        flag_c: bool,
+    }
+
+    impl SampleFlags {
+        fn to_u8(&self) -> u8 {
+            let mut v = 0u8;
+            if self.flag_a {
+                v |= 1;
+            }
+            if self.flag_b {
+                v |= 2;
+            }
+            if self.flag_c {
+                v |= 4;
+            }
+            v
+        }
+        fn from_u8(v: u8) -> Self {
+            Self {
+                flag_a: (v & 1) != 0,
+                flag_b: (v & 2) != 0,
+                flag_c: (v & 4) != 0,
+            }
+        }
+    }
+
+    impl DcMixedNumber for SampleFlags {
+        fn encode_dc_number(&self, mst: &mut DcMst) -> Result<()> {
+            self.to_u8().encode_dc_mixed(mst)
+        }
+        fn decode_dc_number(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+            let v = u8::decode_dc_mixed(reader)?;
+            Ok(Self::from_u8(v))
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Default, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SampleEquivalentParent {
+        #[dc(406, equivalents = (388, number), default, omit_default)]
+        flags: SampleFlags,
+        #[dc(403, default, omit_default)]
+        name: String,
+    }
+
+    #[crate::ctb_test]
+    fn test_equivalent_representations_roundtrip() -> Result<()> {
+        let parent = SampleEquivalentParent {
+            flags: SampleFlags {
+                flag_a: true,
+                flag_b: false,
+                flag_c: true,
+            },
+            name: "test_eq".to_string(),
+        };
+        assert_dc_roundtrip(&parent)?;
+
+        // Also test decoding from semantic-only stream (no 397)
+        let mut mst = DcMst::new();
+        mst.push_char(DcChar::from_short(401));
+        mst.push_char(DcChar::from_short(406));
+        mst.push_char(DcChar::from_short(388));
+        mst.push_char(DcChar::from_short(499));
+        mst.push_char(DcChar::from_short(389));
+        mst.push_char(DcChar::from_short(402));
+
+        let mut reader = DcMixedReader::new(&mst);
+        let decoded = SampleEquivalentParent::decode_dc_mixed(&mut reader)?;
+        ensure!(decoded.flags.flag_a);
+        ensure!(!decoded.flags.flag_b);
+        ensure!(!decoded.flags.flag_c);
+
         Ok(())
     }
 }

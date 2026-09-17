@@ -112,6 +112,13 @@ pub fn derive_dc_mixed(input: TokenStream) -> TokenStream {
 struct StructDcAttr {
     begin: u128,
     end: u128,
+    flags: bool,
+}
+
+#[derive(Clone, Debug)]
+enum EquivalentItem {
+    Number,
+    Dc(u128),
 }
 
 struct FieldDcAttr {
@@ -122,6 +129,9 @@ struct FieldDcAttr {
     binary: bool,
     skip: bool,
     default: bool,
+    omit_default: bool,
+    equivalents: Option<Vec<EquivalentItem>>,
+    aliases: Vec<u128>,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -170,6 +180,7 @@ fn parse_shorthand_str(s: &str, span: Span) -> syn::Result<u128> {
         };
         Ok(val)
     } else if first == 'u' || first == 'U' {
+        // Reason for fallback: The '+' in U+XXXX notation is optional for Unicode escapes.
         let hex_str = s[1..].strip_prefix('+').unwrap_or(&s[1..]);
         let val = u32::from_str_radix(hex_str, 16).map_err(|e| {
             syn::Error::new(span, format!("Invalid Unicode Dc '{s}': {e}"))
@@ -204,6 +215,7 @@ fn parse_shorthand_str(s: &str, span: Span) -> syn::Result<u128> {
 
 fn parse_dc_expr(expr: &Expr) -> syn::Result<u128> {
     match expr {
+        Expr::Paren(syn::ExprParen { expr: inner, .. }) => parse_dc_expr(inner),
         Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) => {
             let val: u32 = lit_int.base10_parse()?;
             if val > MAX_SHORT_DC {
@@ -234,6 +246,7 @@ fn parse_dc_expr(expr: &Expr) -> syn::Result<u128> {
 fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<StructDcAttr>> {
     let mut begin = None;
     let mut end = None;
+    let mut flags = false;
     let mut has_dc_attr = false;
 
     for attr in &input.attrs {
@@ -269,6 +282,12 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                                 let expr: Expr = stream.parse()?;
                                 end = Some(parse_dc_expr(&expr)?);
                             }
+                            "flags" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Bool(b), .. }) = &expr {
+                                    flags = b.value;
+                                }
+                            }
                             other => {
                                 return Err(syn::Error::new(
                                     ident.span(),
@@ -277,13 +296,18 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
                             }
                         }
                     } else {
-                        let gid = parse_shorthand_str(&ident.to_string(), ident.span())?;
-                        if begin.is_none() {
-                            begin = Some(gid);
-                        } else if end.is_none() {
-                            end = Some(gid);
+                        let ident_str = ident.to_string();
+                        if ident_str == "flags" {
+                            flags = true;
                         } else {
-                            return Err(syn::Error::new(ident.span(), "Unexpected additional container Dc shorthand"));
+                            let gid = parse_shorthand_str(&ident_str, ident.span())?;
+                            if begin.is_none() {
+                                begin = Some(gid);
+                            } else if end.is_none() {
+                                end = Some(gid);
+                            } else {
+                                return Err(syn::Error::new(ident.span(), "Unexpected additional container Dc shorthand"));
+                            }
                         }
                     }
                 } else {
@@ -323,7 +347,7 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         ));
     }
 
-    Ok(Some(StructDcAttr { begin, end }))
+    Ok(Some(StructDcAttr { begin, end, flags }))
 }
 
 fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
@@ -345,6 +369,9 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut skip = false;
     let mut skip_has_reason = false;
     let mut default = false;
+    let mut omit_default = false;
+    let mut equivalents = None;
+    let mut aliases = Vec::new();
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -414,6 +441,11 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                                             nested.push(parse_dc_expr(&elem)?);
                                         }
                                     }
+                                    Expr::Tuple(syn::ExprTuple { elems, .. }) => {
+                                        for elem in elems {
+                                            nested.push(parse_dc_expr(&elem)?);
+                                        }
+                                    }
                                     Expr::Range(syn::ExprRange { start, end, limits, .. }) => {
                                         let start_val = match start.as_deref() {
                                             Some(e) => parse_dc_expr(e)?,
@@ -434,6 +466,38 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                                     }
                                 }
                             }
+                            "equivalents" => {
+                                let content;
+                                syn::parenthesized!(content in stream);
+                                let mut eq_list = Vec::new();
+                                while !content.is_empty() {
+                                    if content.peek(syn::Ident) {
+                                        let item_ident: syn::Ident = content.parse()?;
+                                        let item_str = item_ident.to_string();
+                                        if item_str == "number" {
+                                            eq_list.push(EquivalentItem::Number);
+                                        } else {
+                                            let gid = parse_shorthand_str(&item_str, item_ident.span())?;
+                                            eq_list.push(EquivalentItem::Dc(gid));
+                                        }
+                                    } else if content.peek(syn::LitInt) {
+                                        let lit: syn::LitInt = content.parse()?;
+                                        let val: u32 = lit.base10_parse()?;
+                                        let gid = SHORT_DC_REGION_START.saturating_add(u128::from(val));
+                                        eq_list.push(EquivalentItem::Dc(gid));
+                                    } else {
+                                        return Err(content.error("Expected `number` or Dc identifier in equivalents"));
+                                    }
+                                    if content.peek(syn::Token![,]) {
+                                        content.parse::<syn::Token![,]>()?;
+                                    }
+                                }
+                                equivalents = Some(eq_list);
+                            }
+                            "alias" => {
+                                let expr: Expr = stream.parse()?;
+                                aliases.push(parse_dc_expr(&expr)?);
+                            }
                             "reason" => {
                                 skip_has_reason = true;
                                 let _expr: Expr = stream.parse()?;
@@ -451,6 +515,10 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                             "binary" => binary = true,
                             "skip" => skip = true,
                             "default" => default = true,
+                            "omit_default" => {
+                                omit_default = true;
+                                default = true;
+                            }
                             other => {
                                 tag = Some(parse_shorthand_str(other, ident.span())?);
                             }
@@ -516,7 +584,10 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         end,
         binary,
         skip,
-        default,
+        default: default || omit_default,
+        omit_default,
+        equivalents,
+        aliases,
     })
 }
 
@@ -546,6 +617,97 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
             };
 
+            if struct_attrs.flags {
+                let mut encode_flag_fields = Vec::new();
+                let mut init_flag_fields = Vec::new();
+                let mut decode_flag_arms = Vec::new();
+                let mut construct_flag_fields = Vec::new();
+
+                for field in fields {
+                    let field_ident = field.ident.as_ref().unwrap();
+                    let attr = parse_field_attrs(field)?;
+                    if attr.skip {
+                        construct_flag_fields.push(quote! {
+                            #field_ident: ::std::default::Default::default()
+                        });
+                        continue;
+                    }
+                    let id = attr.tag.ok_or_else(|| {
+                        syn::Error::new(
+                            field.span(),
+                            format!("Field `{field_ident}` in flag struct must have an assigned Dc tag"),
+                        )
+                    })?;
+                    let mut match_tags = vec![id];
+                    match_tags.extend(attr.aliases.iter().copied());
+
+                    encode_flag_fields.push(quote! {
+                        if self.#field_ident {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                        }
+                    });
+
+                    init_flag_fields.push(quote! {
+                        let mut #field_ident = false;
+                    });
+
+                    decode_flag_arms.push(quote! {
+                        #(#match_tags)|* => {
+                            reader.next_char()?;
+                            #field_ident = true;
+                        }
+                    });
+
+                    construct_flag_fields.push(quote! {
+                        #field_ident
+                    });
+                }
+
+                return Ok(quote! {
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
+                        fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
+                            #(#encode_flag_fields)*
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
+                            Ok(())
+                        }
+                    }
+
+                    #[automatically_derived]
+                    impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
+                        fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
+                            reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
+                            #(#init_flag_fields)*
+                            loop {
+                                let tag = match reader.peek_char()? {
+                                    ::std::option::Option::Some(t) => t.0,
+                                    ::std::option::Option::None => {
+                                        #anyhow_path::bail!(
+                                            "Unexpected EOF while reading flag fields for {}",
+                                            stringify!(#type_name)
+                                        );
+                                    }
+                                };
+                                if tag == #end_dc {
+                                    reader.next_char()?;
+                                    break;
+                                }
+                                match tag {
+                                    #(#decode_flag_arms)*
+                                    _other => {
+                                        reader.next_char()?;
+                                    }
+                                }
+                            }
+                            Ok(Self {
+                                #(#construct_flag_fields),*
+                            })
+                        }
+                    }
+                });
+            }
+
             let mut seen_ids = HashSet::new();
             seen_ids.insert(begin_dc);
             seen_ids.insert(end_dc);
@@ -553,6 +715,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut encode_fields = Vec::new();
             let mut field_inits = Vec::new();
             let mut decode_arms = Vec::new();
+            let mut decode_field_arms = Vec::new();
             let mut field_validations = Vec::new();
             let mut construct_fields = Vec::new();
 
@@ -587,87 +750,167 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     }
                 }
+                for alias in &attr.aliases {
+                    seen_ids.insert(*alias);
+                }
+
+                let mut all_match_tags = vec![id];
+                all_match_tags.extend(attr.aliases.iter().copied());
 
                 let type_str = quote!(#field_ty).to_string();
                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
 
-                // Encode field
-                if attr.binary {
-                    encode_fields.push(quote! {
+                if let Some(ref eq_items) = attr.equivalents {
+                    let mut eq_encoders = Vec::new();
+                    for item in eq_items {
+                        match item {
+                            EquivalentItem::Number => {
+                                eq_encoders.push(quote! {
+                                    #crate_root::DcMixedNumber::encode_dc_number(&self.#field_ident, mst)?;
+                                });
+                            }
+                            EquivalentItem::Dc(_) => {
+                                eq_encoders.push(quote! {
+                                    #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                                });
+                            }
+                        }
+                    }
+
+                    let encode_stmt = quote! {
+                        mst.push_char(#crate_root::DcChar::from_u128(#id));
+                        mst.push_char(#crate_root::DcChar::from_short(397));
+                        mst.push_char(#crate_root::DcChar::from_short(310));
+                        #(#eq_encoders)*
+                        mst.push_char(#crate_root::DcChar::from_short(311));
+                    };
+
+                    if attr.omit_default {
+                        encode_fields.push(quote! {
+                            if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                #encode_stmt
+                            }
+                        });
+                    } else {
+                        encode_fields.push(encode_stmt);
+                    }
+
+                    let mut equiv_short_tags: Vec<u32> = Vec::new();
+                    for item in eq_items {
+                        if let EquivalentItem::Dc(d) = item {
+                            if let Some(short_tag) = d.checked_sub(SHORT_DC_REGION_START).and_then(|x| u32::try_from(x).ok()) {
+                                equiv_short_tags.push(short_tag);
+                            }
+                        }
+                    }
+                    if let Some(short_id) = id.checked_sub(SHORT_DC_REGION_START).and_then(|x| u32::try_from(x).ok()) {
+                        equiv_short_tags.push(short_id);
+                    }
+
+                    let decode_body = quote! {
+                        reader.read_short_dc()?;
+                        if reader.peek_short_dc()? == ::std::option::Option::Some(397) {
+                            reader.read_short_dc()?;
+                            let in_list = if reader.peek_short_dc()? == ::std::option::Option::Some(310) {
+                                reader.read_short_dc()?;
+                                true
+                            } else {
+                                false
+                            };
+                            while let ::std::option::Option::Some(peek_tag) = reader.peek_short_dc()? {
+                                if in_list && peek_tag == 311 {
+                                    reader.read_short_dc()?;
+                                    break;
+                                }
+                                if peek_tag == 6 {
+                                    let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader)?;
+                                    if #field_ident.is_none() {
+                                        #field_ident = ::std::option::Option::Some(n);
+                                    }
+                                } else if in_list || matches!(peek_tag, #(#equiv_short_tags)|*) {
+                                    let v = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    if #field_ident.is_none() {
+                                        #field_ident = ::std::option::Option::Some(v);
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+                        } else {
+                            let peek_tag = reader.peek_short_dc()?;
+                            if peek_tag == ::std::option::Option::Some(6) {
+                                let n = <#field_ty as #crate_root::DcMixedNumber>::decode_dc_number(reader)?;
+                                #field_ident = ::std::option::Option::Some(n);
+                            } else {
+                                let v = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                #field_ident = ::std::option::Option::Some(v);
+                            }
+                        }
+                    };
+
+                    decode_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            #decode_body
+                        }
+                    });
+
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            let mut #field_ident = ::std::option::Option::None;
+                            #decode_body
+                            if let ::std::option::Option::Some(v) = #field_ident {
+                                self.#field_ident = v;
+                            }
+                            Ok(true)
+                        }
+                    });
+                } else if attr.binary {
+                    let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident));
-                    });
-                } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
-                    if is_vec {
+                    };
+                    if attr.omit_default {
                         encode_fields.push(quote! {
-                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                            for item in &self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                            }
-                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                        });
-                    } else if extract_type_from_option(&field_ty).is_some() {
-                        encode_fields.push(quote! {
-                            if let ::std::option::Option::Some(ref item) = self.#field_ident {
-                                mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                                mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                            if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                #encode_stmt
                             }
                         });
                     } else {
-                        encode_fields.push(quote! {
-                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
-                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
-                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
-                        });
+                        encode_fields.push(encode_stmt);
                     }
-                } else if !attr.nested.is_empty() {
-                    if is_vec {
-                        encode_fields.push(quote! {
-                            for item in &self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                            }
-                        });
-                    } else if extract_type_from_option(&field_ty).is_some() {
-                        encode_fields.push(quote! {
-                            if let ::std::option::Option::Some(ref item) = self.#field_ident {
-                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                            }
-                        });
-                    } else {
-                        encode_fields.push(quote! {
-                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
-                        });
-                    }
-                } else {
-                    encode_fields.push(quote! {
-                        mst.push_char(#crate_root::DcChar::from_u128(#id));
-                        #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
-                    });
-                }
-
-                // Decode temporary storage
-                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
-                    field_inits.push(quote! {
-                        let mut #field_ident: #field_ty = ::std::vec::Vec::new();
-                    });
-                } else {
-                    field_inits.push(quote! {
-                        let mut #field_ident: ::std::option::Option<#field_ty> = ::std::option::Option::None;
-                    });
-                }
-
-                // Decode arm
-                if attr.binary {
                     decode_arms.push(quote! {
-                        #id => {
+                        #(#all_match_tags)|* => {
                             reader.next_char()?;
                             let payload = reader.read_binary_payload()?;
                             #field_ident = ::std::option::Option::Some(payload.to_vec());
                         }
                     });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let payload = reader.read_binary_payload()?;
+                            self.#field_ident = payload.to_vec();
+                            Ok(true)
+                        }
+                    });
                 } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
                     if is_vec {
+                        let encode_stmt = quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
+                            for item in &self.#field_ident {
+                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                            }
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                        };
+                        if attr.omit_default {
+                            encode_fields.push(quote! {
+                                if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                    #encode_stmt
+                                }
+                            });
+                        } else {
+                            encode_fields.push(encode_stmt);
+                        }
                         decode_arms.push(quote! {
                             #begin_id => {
                                 reader.next_char()?;
@@ -681,7 +924,28 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #begin_id => {
+                                reader.next_char()?;
+                                while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
+                                    if reader.peek_char()?.is_none() {
+                                        #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
+                                    }
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    self.#field_ident.push(elem);
+                                }
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
+                                Ok(true)
+                            }
+                        });
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                        encode_fields.push(quote! {
+                            if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
+                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                                mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                            }
+                        });
                         decode_arms.push(quote! {
                             #begin_id => {
                                 reader.next_char()?;
@@ -690,47 +954,145 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #begin_id => {
+                                reader.next_char()?;
+                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
+                                self.#field_ident = ::std::option::Option::Some(val);
+                                Ok(true)
+                            }
+                        });
                     } else {
+                        let encode_stmt = quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
+                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
+                        };
+                        if attr.omit_default {
+                            encode_fields.push(quote! {
+                                if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                    #encode_stmt
+                                }
+                            });
+                        } else {
+                            encode_fields.push(encode_stmt);
+                        }
                         decode_arms.push(quote! {
                             #begin_id => {
                                 reader.next_char()?;
                                 let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                 #field_ident = ::std::option::Option::Some(val);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #begin_id => {
+                                reader.next_char()?;
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
+                                self.#field_ident = val;
+                                Ok(true)
                             }
                         });
                     }
                 } else if !attr.nested.is_empty() {
                     let nested_ids = &attr.nested;
                     if is_vec {
+                        encode_fields.push(quote! {
+                            for item in &self.#field_ident {
+                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                            }
+                        });
                         decode_arms.push(quote! {
                             #(#nested_ids)|* => {
                                 let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident.push(elem);
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #(#nested_ids)|* => {
+                                let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                self.#field_ident.push(elem);
+                                Ok(true)
+                            }
+                        });
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
+                        encode_fields.push(quote! {
+                            if let ::std::option::Option::Some(ref item) = self.#field_ident {
+                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                            }
+                        });
                         decode_arms.push(quote! {
                             #(#nested_ids)|* => {
                                 let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #(#nested_ids)|* => {
+                                let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                self.#field_ident = ::std::option::Option::Some(val);
+                                Ok(true)
+                            }
+                        });
                     } else {
+                        encode_fields.push(quote! {
+                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                        });
                         decode_arms.push(quote! {
                             #(#nested_ids)|* => {
                                 let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
+                        decode_field_arms.push(quote! {
+                            #(#nested_ids)|* => {
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
                     }
                 } else {
+                    let encode_stmt = quote! {
+                        mst.push_char(#crate_root::DcChar::from_u128(#id));
+                        #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                    };
+                    if attr.omit_default {
+                        encode_fields.push(quote! {
+                            if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                #encode_stmt
+                            }
+                        });
+                    } else {
+                        encode_fields.push(encode_stmt);
+                    }
                     decode_arms.push(quote! {
-                        #id => {
+                        #(#all_match_tags)|* => {
                             reader.next_char()?;
                             let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                             #field_ident = ::std::option::Option::Some(val);
                         }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            self.#field_ident = val;
+                            Ok(true)
+                        }
+                    });
+                }
+
+                // Decode temporary storage
+                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
+                    field_inits.push(quote! {
+                        let mut #field_ident: #field_ty = ::std::vec::Vec::new();
+                    });
+                } else {
+                    field_inits.push(quote! {
+                        let mut #field_ident: ::std::option::Option<#field_ty> = ::std::option::Option::None;
                     });
                 }
 
@@ -772,10 +1134,32 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             Ok(quote! {
                 #[automatically_derived]
+                impl #impl_generics #type_name #ty_generics #where_clause {
+                    /// Encodes the fields of this struct without boundary delimiters.
+                    #[allow(dead_code)]
+                    pub fn encode_fields(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
+                        #(#encode_fields)*
+                        Ok(())
+                    }
+
+                    /// Decodes a single field corresponding to `tag` from `reader`.
+                    /// Returns true if the tag belonged to this struct and was consumed.
+                    #[allow(dead_code)]
+                    pub fn decode_field(&mut self, tag: impl Into<u128>, reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<bool> {
+                        let tag = tag.into();
+                        let full_tag = if tag < 1114112 { tag.saturating_add(1114112) } else { tag };
+                        match full_tag {
+                            #(#decode_field_arms)*
+                            _ => Ok(false),
+                        }
+                    }
+                }
+
+                #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                     fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
                         mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
-                        #(#encode_fields)*
+                        self.encode_fields(mst)?;
                         mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                         Ok(())
                     }
