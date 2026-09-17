@@ -7,8 +7,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114138,26,!Left parenthesis,0,ON,,Ps,Punctuation,"left bracket, <equiv>u28",
 1114139,27,!Right parenthesis,0,ON,,Pe,Punctuation,"right bracket, <equiv>u29",
 1114142,30,!Comma,0,CS,,Po,Punctuation,<equiv>u2c,
-1114143,31,Hyphen,0,ES,,Pd,Punctuation,<approx>u2d,
-1114144,32,Full stop,0,CS,,Po,Punctuation,"period, <approx>u2e",
+1114143,31,!Hyphen (short Dc),0,ES,,Pd,Punctuation,"<approx>u2d, <equiv>u2010",
+1114144,32,Full stop (unambiguous),0,CS,,Po,Punctuation,"period, <approx>u2e",Not a decimal point
 1114156,44,!Colon,0,CS,,Po,Punctuation,<equiv>u3a,
 1114157,45,!Semicolon,0,ON,,Po,Punctuation,<equiv>u3b,
 1114161,49,!Question,0,ON,,Po,Punctuation,<equiv>u3f,
