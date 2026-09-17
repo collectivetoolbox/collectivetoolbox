@@ -1,7 +1,7 @@
 Decomposition,Description
-equiv,This is equivalent to the given Dc or Dc sequence.
-approx,This is approximately equivalent to the given Dc or Dc sequence.
-semantic,"This is approximately equivalent to the given Dc or Dc sequence, but carries additional semantic meaning."
+equiv,This is equivalent to the given Dc or Dc sequence. A base or related format alone does not establish this equivalence; payload syntax must also be accounted for.
+approx,This is approximately equivalent to the given Dc or Dc sequence. This is not an executable conversion rule.
+semantic,"This is approximately equivalent to the given Dc or Dc sequence, but carries additional semantic meaning. The sequence is a decomposition rather than a pipeline or a list of metadata relationships."
 noBreak,This is a non-breaking counterpart to the given Dc.
 super,This is a superscript counterpart to the given Dc.
 sub,This is a subscript counterpart to the given Dc.

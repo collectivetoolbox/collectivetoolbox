@@ -67,3 +67,162 @@ To illustrate what I mean about semantic triples, a graph (with non-Dc node IDs)
 In short, there's significant confusion of thought and data here. I would like you to, focusing primarily on the Dc data, review the Dc data and work towards addressing this. Please begin by tackling low-hanging fruit in the data files.
 
 Note that the meaning of any given Dc number that exists as of this prompt may not be changed, though their names, syntax rules, etc. can be refined. In other words, existing Dcs should retain their identity.
+
+## Initial Data Cleanup (2026-09-17)
+
+This first pass changes declarations and descriptions, not Dc identities or
+runtime file detection. No IDs are allocated, reassigned, or merged.
+
+- Fixed-dimensional points and vectors retain their base relationships and
+  payload syntax, but no longer claim `<equiv>` to variable-dimensional formats.
+  The latter require a dimension count that the former do not carry.
+- Math origins, axes, ordering, and component types are described as metadata,
+  with their format IDs preserved in the descriptions. They are no longer
+  concatenated into `<semantic>` decompositions that cannot satisfy the referenced
+  formats' payload syntax. This is an interim location pending graph predicates,
+  not a new prose-based machine-readable relationship format.
+- The existing terminated-line and separated-line identities remain distinct.
+  Descriptions specify their character sequences and final-line interpretation.
+  An OS association is not proof of either convention. The same bytes may admit
+  both interpretations; detection must not silently choose one. Character
+  sequences are independent of byte encoding, especially for EBCDIC NEL.
+- Dc 300 still means that both descriptions apply. Its historical name, "Type
+  union", does not make it a choice between alternatives. Dcs 301-303 describe
+  operations, but do not authorize execution.
+
+## Proposed Model Boundaries
+
+The following is a design proposal, not an implemented schema or DSL.
+
+1. **Identity:** The global graph ID is authoritative. Existing short Dcs use
+   offset 1114112; format-local IDs use offset 2228224. For example, `f542` is
+   global ID 2228766, not short Dc 542. Names, aliases, category files, and Rust
+   identifiers are mutable attributes, not identity keys. Keep Dc 9 as the
+   Gregorian calendar identifier; relate overlapping calendar concepts explicitly
+   rather than moving it to another number or assuming equivalence.
+2. **Classification:** Distinguish concrete representations, format families,
+   semantic types, encodings, transformations, parameter domains, and conventions.
+   An OS, protocol, filesystem, or family can have format-like relationships
+   without necessarily being a detectable byte format. Permit multiple roles;
+   category-file membership alone should not determine capabilities.
+3. **Payload syntax:** The existing syntax DSL describes the data following a
+   typed marker. Keep it separate from a description of how representations
+   compose. A base/related format is neither automatic payload inheritance nor
+   proof of a valid decomposition. `<equiv>`, `<approx>`, and `<semantic>` do not
+   substitute for subtype, axis, origin, or conversion relationships.
+4. **Composition:** Use an expression tree of type references and operations.
+   Migrate legacy `Chain (=)` entries individually once this representation is
+   defined. Do not reinterpret every `&` in the overloaded base column as an
+   executable pipeline; `Utf8_Base64` (f110), for example, describes nested
+   representations, not two independent constraints on the same bytes.
+5. **Metadata and evidence:** Preferred extension, preferred nickname, aliases,
+   MIME/UTI identifiers, creator/type codes, timestamp resolution, and detection
+   rules are separate predicates. Missing metadata is unknown or inapplicable,
+   not an empty value or an implicit default. Scope version-dependent properties
+   to variants. Preserve existing extension preference order; define nickname
+   preference explicitly before treating its existing order as authoritative.
+
+For graph documents, predicate names above are placeholders, not newly allocated
+Dcs. A relation needs a stable identity when other statements describe it: an
+edge `(subject, predicate, object)` alone cannot distinguish two visits with
+different start/end times. Represent relation instances with their own IDs and
+subject/predicate/object fields, then attach qualifiers to those instances. Use
+ordered lists for axes and component order; unordered triples must not erase
+ordering or confuse alternative frames with simultaneous constraints. The CSV
+importer can eventually generate these Dc documents; indexing should consume
+those documents, not re-infer semantics from comments.
+
+## Proposed Description Syntax
+
+Use distinct operators for distinct operations:
+
+| Text | Existing Dc | Meaning |
+| --- | --- | --- |
+| `A & B` | 300 | Both constraints apply to the same data |
+| `A : T` | 301 | Apply registered transformation T to representation A |
+| `A > B` | 302 | Convert/encode A into representation B |
+| `A ! B` | 303 | Reinterpret A's unchanged representation as B |
+| `(A)` | 298 / 299 | Explicit grouping |
+
+`>`/`!`/`:` bind more tightly than `&`, with left-to-right association. Parentheses
+can override this; the canonical printer should show mixed-operation grouping.
+Thus `directory > tar > bz2` means `(directory > tar) > bz2`, while
+`pan > (json & utf8)` applies both constraints to the output. The spelling
+`directory` is schematic until it is explicitly bound to a suitable descriptor;
+the existing file-kind Dc 359 must not be confused with format f359 (BaseAlphabet).
+
+Atoms should allow unambiguous ID references (`f542` for format-local IDs and
+`@2228766` for global IDs) as well as registered nicknames. Nicknames such as
+`iso8859-1` need hyphens; resolve them through data and reject ambiguous aliases.
+Not every graph node is a type: validate the referenced node's role. IDs provide
+a spelling even when a format has no nickname. A Rust identifier is not
+automatically a CLI nickname.
+
+For the initial subset, reserve `|`: neither "alternative" nor "pipe" is
+interchangeable with Dc 300. Use `:` for a named transformation, so the Altura
+subexpression can be written `(macroman : altura-mac-to-win) > utf8`. A hex dump
+of that output requires a registered hexdump transformation and parameters for
+the xxd dialect, not a conjunction asserting that the original bytes are already
+a hexdump. Query expressions such as `jq['.prelude']` remain outside this subset.
+Neither parsing nor detection should invoke external commands.
+
+One proposed canonical Dc encoding uses a balanced group for each binary
+expression: `298 operator left right 299`. Leaves are type references. For
+`((english > iso8859-1) ! utf8) > utf8`, the symbolic token stream would be:
+
+```text
+298 302
+  298 303
+    298 302 f15 f542 299
+    f0
+  299
+  f0
+299
+```
+
+Here short operator numbers stand for their short-region global IDs; `fN`
+stands for a formats-region global ID. This preserves the existing identities
+of group delimiters. Do not use unmatched closing groups as implicit operator
+terminators. A purely arity-delimited prefix encoding would also be possible,
+but should not be mixed with this balanced encoding.
+
+**Blocked on grammar work:** `[type]` currently means `[262:]` or a bare format,
+not recursive expressions containing Dcs 298 and 300-303. Before implementing
+this proposal, define a recursive type-expression grammar, transformation operand
+constraints, depth/size limits, and text/Dc/AST round-trip tests. Do not claim
+these example streams are already accepted by the payload syntax machinery.
+
+Parameterized descriptions could use a separate, typed application form such as
+`base-numeral(radix=16, alphabet=alphabet-id)`. This spelling is illustrative and
+has no assigned Dc application encoding yet. Reuse BaseNNumeral (f350), Base
+(f354), and alphabet identities rather than assigning a format ID for every
+combination. Validate alphabet ordering, digit uniqueness, radix compatibility,
+case rules, signs, padding, and separators explicitly. The current f371-f375
+`<equiv>` entries contain `[number:'...']` syntax placeholders; replacing those
+with actual parameter bindings requires this model, not another textual chain.
+
+## Next Data Work
+
+- Define and allocate relation predicates only after fixing their domains,
+  cardinality, ordering, and relation-instance representation. Then migrate math
+  metadata out of prose and split the overloaded base/chain/syntax field.
+- Inventory supported EITE numeral options and missing line conventions against
+  existing identities. Add missing records without changing existing alphabets
+  or conflating termination with separation. Test empty input, missing final
+  terminators, mixed endings, and ambiguous interpretations.
+- Put detection rules in a separate versioned dataset keyed by format IDs. Each
+  rule should declare byte tests, offsets, masks, bounded structural probes,
+  optional filename patterns, provenance, and applicability. Return multiple
+  candidates with evidence and explicit confidence semantics; a score is not a
+  calibrated probability. Names and extensions alone are weak evidence.
+- Share a read-only source abstraction across byte buffers, filesystem nodes,
+  and archive entries: size when known, bounded range reads, raw names, metadata,
+  and bounded immediate-child lookup. Set byte/read/entry budgets; do not traverse
+  arbitrary subtrees or follow links during package detection. Distinguish
+  insufficient evidence and unavailable data from a negative match.
+- Lossless archive representation must preserve raw path bytes, metadata,
+  multiple streams, links, sparse extents, timestamp precision and unknown fields.
+  Logical entry round-tripping is not necessarily byte-for-byte archive
+  reconstruction: ordering, duplicate entries, original headers, padding, and
+  compression representation can also matter. Detection must not require fully
+  unpacking an archive merely to classify it.

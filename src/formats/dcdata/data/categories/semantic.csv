@@ -15,10 +15,10 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114348,236,End document,0,BN,,!Cx,Semantic,,
 1114410,298,Begin associativity group,0,BN,,!Cx,Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
 1114411,299,End associativity group,0,BN,,!Cx,Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
-1114412,300,Type union,0,BN,,!Cx,Semantic,:~ [type] [type],Indicates that two types are both applicable to data.
-1114413,301,Type transformation,0,BN,,!Cx,Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. Only “transformation” formats would make sense to use with this.
-1114414,302,Type conversion,0,BN,,!Cx,Semantic,:~ [type] [type],Describes a conversion operation from one type to another.
-1114415,303,Type transmutation,0,BN,,!Cx,Semantic,:~ [type] [type],Describes a transmutation operation (reinterpreting one type as another without converting).
+1114412,300,Type union,0,BN,,!Cx,Semantic,:~ [type] [type],Indicates that two types are both applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative.
+1114413,301,Type transformation,0,BN,,!Cx,Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
+1114414,302,Type conversion,0,BN,,!Cx,Semantic,:~ [type] [type],Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
+1114415,303,Type transmutation,0,BN,,!Cx,Semantic,:~ [type] [type],Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
 1114429,317,Begin file,0,BN,,!Cx,Semantic,:~ [^318]+ 318,Begins a universal file representation record.
 1114430,318,End file,0,BN,,!Cx,Semantic,,Terminates a universal file representation record.
 1114431,319,Begin file identity,0,BN,,!Cx,Semantic,:~ [^320]+ 320,Begins a file identity descriptor.

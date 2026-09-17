@@ -1505,6 +1505,58 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_math_format_metadata() -> Result<()> {
+        let repo_root = crate::find_repository_root()?;
+        let report = validate_all_data_tables_from_repo(&repo_root);
+        ensure!(
+            !report.has_errors(),
+            "Live data table validation failed:\n{}",
+            report.format_report()
+        );
+
+        let mut report = ValidationReport::new();
+        let rows = validate_all_format_files_from_disk(
+            &repo_root.join("src/formats/dcdata/data/categories/formats"),
+            &mut report,
+        );
+        ensure!(!report.has_errors(), "{}", report.format_report());
+
+        for (short_id, ident, base) in [
+            (505, "Point1D", "Point"),
+            (506, "Point2D", "Point"),
+            (507, "Point3D", "Point"),
+            (509, "Vector1D", "Vector"),
+            (510, "Vector2D", "Vector"),
+            (511, "Vector3D", "Vector"),
+        ] {
+            let row = rows
+                .iter()
+                .find(|row| row.short_id == Some(short_id))
+                .context("Missing fixed-dimensional math format")?;
+            assert_eq!(row.ident.as_deref(), Some(ident));
+            let details = row
+                .format
+                .as_ref()
+                .context("Missing format details")?;
+            assert_eq!(details.base_format.as_deref(), Some(base));
+            assert!(row.syntax.is_some());
+            assert!(row.decompositions.is_empty());
+        }
+
+        for short_id in 515..=524 {
+            let row = rows
+                .iter()
+                .find(|row| row.short_id == Some(short_id))
+                .context("Missing specialized math format")?;
+            assert!(row.decompositions.iter().all(|decomposition| {
+                !decomposition.starts_with("<semantic>")
+            }));
+            assert!(row.description.contains("metadata relationships"));
+        }
+        Ok(())
+    }
+
+    #[crate::ctb_test]
     fn test_validate_rust_identifier() {
         validate_rust_identifier("Utf8").unwrap();
         validate_rust_identifier("_Valid123").unwrap();
