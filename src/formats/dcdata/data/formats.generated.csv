@@ -364,8 +364,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228579,355,"Any number, but not in a specific representation",0,BN,,!Cx,Formats,,,AbstractNumber,number_abstract,,,,,,,,,,
 2228580,356,"Representation of a number in a given base, agnostic to alphabet",0,BN,,!Cx,Formats,:~ [format:f354],,BaseNNumber,number_abstract,,,,,,,,,,
 2228581,357,"A number represented using Dcs, a sequence of Dcs between Dcs 6 and 7",0,BN,,!Cx,Formats,,,DcNumber,number,,,,,,,,,,
-2228582,358,A DcNumber representing an integer expressed in base 64,0,BN,,!Cx,Formats,DcNumber,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start
-",DcNumberB64Int,number,,,,,,,,,,
+2228582,358,A DcNumber representing an integer expressed in base 64,0,BN,,!Cx,Formats,DcNumber,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start",DcNumberB64Int,number,,,,,,,,,,
 2228583,359,A set of characters used in a positional number system,0,BN,,!Cx,Formats,,,BaseAlphabet,base_alphabet,,,,,,,,,,
 2228584,360,Standard Base 64 alphabet from RFC 4648. Case-sensitive.,0,BN,,!Cx,Formats,,,AlphabetBase64Rfc4648,base_alphabet,,,,,,,,,,
 2228585,361,Base alphabet with 36 characters; standard Arabic digits + Latin letters: 0-9 (A-Z|a-z),0,BN,,!Cx,Formats,,,AlphabetBase36,base_alphabet,,,,,,,,,,

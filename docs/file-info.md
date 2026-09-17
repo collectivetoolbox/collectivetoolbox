@@ -1,4 +1,4 @@
-This repository currently has some support in formats/utilities for information about files and file formats.
+This repository currently has some support in formats/utilities for information about files and file formats. It uses data from the Dc database (which is in effect Unicode extended with additional characters, most of which serve to represent semantic data).
 
 It is not maintainable or robust, so I would like to rework it.
 
@@ -35,7 +35,9 @@ The following types of features are relevant:
 - There are things that aren't strictly file formats but in some ways work like them, like virtual filesystems (NFS, etc) and operating systems - they're data structures or protocols. These are also represented in the formats data.
 - There's various metadata that applies to formats: magic, creator codes, filesystem timestamp resolution, etc. Some don't apply to all formats.
 - Some format records represent families of formats, rather than individual well-defined data types.
-
+- It generally does not provide a clear and coherent ontology.
+- There is a mix of overlap with Dcs. Dc 9, in semantic.csv, is actually a calendar format, for instance, and there is not always a clear conceptual boundary.
+- I would like to revise the existing file type detection to be declarative and data-driven using the Dc formats data.
 
 The number base formats (alphabets and so on) supported by ctoolbox are not yet really comprehensively represented in formats.csv, nor are line ending formats.
 

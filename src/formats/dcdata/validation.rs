@@ -950,32 +950,63 @@ pub fn validate_dc_category_file(
             (n, dep)
         };
 
-        let combining_class = match validate_combining_class(&combining_str) {
-            Ok(val) => val,
-            Err(e) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("◌"),
-                    format!("Invalid combining class: {e}"),
-                    Some("Must be integer 0..=254"),
-                );
-                0
-            }
-        };
-
-        let bidi_class = match validate_bidi_class(&bidi_str) {
-            Ok(b) => b,
-            Err(e) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("⇆"),
-                    format!("Invalid Bidi Class: {e}"),
-                    Some("Use standard Unicode Bidi class abbreviation (e.g. BN, L, ON)"),
-                );
-                BidiClass::BN
-            }
+        let (combining_class, bidi_class, general_category, script) = if is_unicode_char {
+            #[expect(
+                clippy::expect_used,
+                reason = "is_unicode_char guarantees dc_id was constructed from a u32 <= 0x10_FFFF"
+            )]
+            let cp = u32::try_from(dc_id).expect("dc_id fits in u32 for unicode chars");
+            let cc = ctb_formats_unicode::combining_class(cp);
+            let bc = validate_bidi_class(ctb_formats_unicode::bidi_class_code(cp))
+                .unwrap_or(BidiClass::BN);
+            let gc = validate_general_category(ctb_formats_unicode::general_category_code(cp))
+                .unwrap_or(GeneralCategory::NonUnicodeControl);
+            let sc = ctb_formats_unicode::find_block(cp)
+                .unwrap_or("Common")
+                .to_string();
+            (cc, bc, gc, sc)
+        } else {
+            let cc = match validate_combining_class(&combining_str) {
+                Ok(val) => val,
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("◌"),
+                        format!("Invalid combining class: {e}"),
+                        Some("Must be integer 0..=254"),
+                    );
+                    0
+                }
+            };
+            let bc = match validate_bidi_class(&bidi_str) {
+                Ok(b) => b,
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("⇆"),
+                        format!("Invalid Bidi Class: {e}"),
+                        Some("Use standard Unicode Bidi class abbreviation (e.g. BN, L, ON)"),
+                    );
+                    BidiClass::BN
+                }
+            };
+            let gc = match validate_general_category(&general_cat_str) {
+                Ok(cat) => cat,
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Type"),
+                        format!("Invalid General Category: {e}"),
+                        Some("Use standard Unicode category or '!Cx'"),
+                    );
+                    GeneralCategory::NonUnicodeControl
+                }
+            };
+            let sc = script.trim().to_string();
+            (cc, bc, gc, sc)
         };
 
         let casing_partner = if casing_str.is_empty() {
@@ -993,37 +1024,13 @@ pub fn validate_dc_category_file(
             None
         };
 
-        let general_category = match validate_general_category(&general_cat_str) {
-            Ok(cat) => cat,
-            Err(e) => {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Type"),
-                    format!("Invalid General Category: {e}"),
-                    Some("Use standard Unicode category or '!Cx'"),
-                );
-                GeneralCategory::NonUnicodeControl
-            }
-        };
-
-        let (mut aliases, cross_references, decompositions, raw_dc_syntax) =
+        let (aliases, cross_references, decompositions, raw_dc_syntax) =
             parse_dc_aliases_column(
                 &raw_aliases_untrimmed,
                 file_path,
                 line_no,
                 report,
             );
-
-        if is_unicode_char && !raw_name.is_empty() {
-            let clean_raw = raw_name.trim_start_matches('!').trim();
-            if !clean_raw.is_empty()
-                && !clean_raw.eq_ignore_ascii_case(&name)
-                && !aliases.iter().any(|a| a.eq_ignore_ascii_case(clean_raw))
-            {
-                aliases.insert(0, clean_raw.to_string());
-            }
-        }
 
         let dc_syntax = if let Some(raw_syn) = &raw_dc_syntax {
             match parse_dc_syntax(raw_syn) {

@@ -260,7 +260,6 @@ pub fn is_known_unicode_name(name: &str) -> bool {
 
 /// Iterates over all assigned Unicode characters and produces structured records.
 pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
-    // FIXME This is risky - it doesn't assert that the ICU Unicode version matches the inlined tabes.
     let tables = data::get_tables(UnicodeVersion::V17_0);
     let mut records = Vec::new();
 
@@ -268,6 +267,14 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
     let bidi_map = icu_properties::CodePointMapData::<BidiClass>::new();
     let ccc_map =
         icu_properties::CodePointMapData::<CanonicalCombiningClass>::new();
+
+    // Assert that compiled ICU Unicode properties match the inlined Unicode 17.0 tables
+    let sample_17_cp = 0x088F; // ARABIC LETTER NOON WITH RING ABOVE, added in Unicode 17.0
+    assert_ne!(
+        gc_map.get32(sample_17_cp),
+        GeneralCategory::Unassigned,
+        "Compiled ICU Unicode properties must match inlined Unicode 17.0 tables"
+    );
 
     for cp in 0..=0x10_FFFF {
         if !tables.is_assigned(cp) {
@@ -448,13 +455,32 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_get_unicode_name() {
-        assert_eq!(get_unicode_name(0x000A).as_deref(), Some("LINE FEED"));
-        assert_eq!(get_unicode_name(0x000B).as_deref(), Some("LINE TABULATION"));
-        assert_eq!(get_unicode_name(0x000D).as_deref(), Some("CARRIAGE RETURN"));
+        assert_eq!(
+            get_unicode_name(0x0000).as_deref(),
+            Some("<control> NULL")
+        );
+        assert_eq!(
+            get_unicode_name(0x000A).as_deref(),
+            Some("<control, Unicode-semantic-defined> LINE FEED")
+        );
+        assert_eq!(
+            get_unicode_name(0x000B).as_deref(),
+            Some("<control, Unicode-semantic-defined> LINE TABULATION")
+        );
+        assert_eq!(
+            get_unicode_name(0x000D).as_deref(),
+            Some("<control, Unicode-semantic-defined> CARRIAGE RETURN")
+        );
         assert_eq!(get_unicode_name(0x002D).as_deref(), Some("HYPHEN-MINUS"));
         assert_eq!(get_unicode_name(0x002E).as_deref(), Some("FULL STOP"));
-        assert_eq!(get_unicode_name(0x0085).as_deref(), Some("NEXT LINE"));
-        assert_eq!(get_unicode_name(0x0041).as_deref(), Some("LATIN CAPITAL LETTER A"));
+        assert_eq!(
+            get_unicode_name(0x0085).as_deref(),
+            Some("<control, Unicode-semantic-defined> NEXT LINE")
+        );
+        assert_eq!(
+            get_unicode_name(0x0041).as_deref(),
+            Some("LATIN CAPITAL LETTER A")
+        );
         assert_eq!(get_unicode_name(0xAC00).as_deref(), Some("HANGUL SYLLABLE GA"));
         assert_eq!(
             get_unicode_name(0x4E00).as_deref(),
@@ -472,5 +498,13 @@ mod tests {
                 .as_deref(),
             Some("LATIN CAPITAL LETTER A")
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_icu_unicode_version_matches_tables() {
+        let gc_map = icu_properties::CodePointMapData::<GeneralCategory>::new();
+        assert_ne!(gc_map.get32(0x088F), GeneralCategory::Unassigned);
+        assert_ne!(gc_map.get32(0x0C5C), GeneralCategory::Unassigned);
+        assert_ne!(gc_map.get32(0x0CDC), GeneralCategory::Unassigned);
     }
 }

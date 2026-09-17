@@ -196,9 +196,12 @@ mod tests {
         );
 
         let u10 = get_dc_defn(10).expect("Unicode clarification 10 exists");
-        assert_eq!(u10.name, "LINE FEED");
+        assert_eq!(u10.name, "<control, Unicode-semantic-defined> LINE FEED");
         assert_eq!(u10.category, "unicode-clarifications");
-        assert_eq!(get_dc_name(10).unwrap(), "LINE FEED");
+        assert_eq!(
+            get_dc_name(10).unwrap(),
+            "<control, Unicode-semantic-defined> LINE FEED"
+        );
     }
 
     #[crate::ctb_test]

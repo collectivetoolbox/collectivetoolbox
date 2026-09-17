@@ -1,7 +1,7 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
-u0b,,<control> LINE TABULATION,0,BN,,Cc,Punctuation,<ambiguous>257 119,Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )
-u85,,<control> NEXT LINE,0,B,,Cc,Punctuation,"line feed, end of line, <equiv>240 239","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator."
-u0a,,<control> LINE FEED,0,B,,Cc,Punctuation,<ambiguous>119 239,This is the ASCII/Unicode 10 (0x0A).
-u0d,,<control> CARRIAGE RETURN,0,B,,Cc,Punctuation,<ambiguous>119 240 294,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).
-u2d,,HYPHEN-MINUS,0,ES,,Pd,Punctuation,<ambiguous>31 237,
-u2e,,FULL STOP,0,CS,,Po,Punctuation,<ambiguous>12 32,Full stop or decimal point
+u0b,,"<control, Unicode-semantic-defined> LINE TABULATION",0,BN,,Cc,Common,<ambiguous>257 119,Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )
+u85,,"<control, Unicode-semantic-defined> NEXT LINE",0,B,,Cc,Common,"line feed, end of line, <equiv>240 239","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator."
+u0a,,"<control, Unicode-semantic-defined> LINE FEED",0,B,,Cc,Common,<ambiguous>119 239,This is the ASCII/Unicode 10 (0x0A).
+u0d,,"<control, Unicode-semantic-defined> CARRIAGE RETURN",0,B,,Cc,Common,<ambiguous>119 240 294,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).
+u2d,,HYPHEN-MINUS,0,ES,,Pd,Common,<ambiguous>31 237,
+u2e,,FULL STOP,0,CS,,Po,Common,<ambiguous>12 32,Full stop or decimal point

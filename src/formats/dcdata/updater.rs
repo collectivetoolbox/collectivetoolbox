@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::{Context, Result, bail};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -627,6 +627,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 if file_name.ends_with(".csv")
                     && file_name != "schema.csv"
                     && !file_name.ends_with(".generated.csv")
+                    && file_name != "unicode-clarifications.csv"
                 {
                     let (_, rows) = read_csv_file(&path)?;
                     for mut row in rows {
@@ -694,7 +695,26 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         stats.dc_records_merged = all_dc_rows.len();
     }
 
-    // 3. Generate unicode.generated.csv
+    // 3. Load unicode clarifications to supplement (without replacing) real Unicode data
+    let mut unicode_clarifications: HashMap<u32, (String, String)> = HashMap::new();
+    let clar_path = repo_root.join("src/formats/dcdata/data/categories/unicode-clarifications.csv");
+    if clar_path.is_file() {
+        if let Ok((_, rows)) = read_csv_file(&clar_path) {
+            for row in rows {
+                if let Some(dc_cell) = row.first() {
+                    if let Some(hex_part) = dc_cell.strip_prefix('u') {
+                        if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
+                            let aliases = row.get(8).cloned().unwrap_or_default();
+                            let desc = row.get(9).cloned().unwrap_or_default();
+                            unicode_clarifications.insert(cp, (aliases, desc));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Generate unicode.generated.csv
     let unicode_records = ctb_formats_unicode::get_assigned_unicode_records();
     let mut all_unicode_rows = Vec::with_capacity(unicode_records.len());
     for rec in unicode_records {
@@ -703,6 +723,28 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         } else {
             rec.name
         };
+        let (merged_aliases, merged_desc) = if let Some((clar_aliases, clar_desc)) =
+            unicode_clarifications.get(&rec.cp)
+        {
+            let a = if rec.aliases.is_empty() {
+                clar_aliases.clone()
+            } else if !clar_aliases.is_empty() {
+                format!("{}, {}", rec.aliases, clar_aliases)
+            } else {
+                rec.aliases
+            };
+            let d = if rec.description.is_empty() {
+                clar_desc.clone()
+            } else if !clar_desc.is_empty() {
+                format!("{}; {}", rec.description, clar_desc)
+            } else {
+                rec.description
+            };
+            (a, d)
+        } else {
+            (rec.aliases, rec.description)
+        };
+
         all_unicode_rows.push(vec![
             rec.cp.to_string(),               // Dc
             String::new(),                    // Short
@@ -712,8 +754,8 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             String::new(),                    // Aa
             rec.general_category.to_string(), // Type
             rec.script,                       // Script
-            rec.aliases,                      // Aliases
-            rec.description,                  // Description
+            merged_aliases,                   // Aliases
+            merged_desc,                      // Description
             String::new(),                    // Ident
             String::new(),                    // Category
             String::new(),                    // Extensions
@@ -734,12 +776,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     write_csv_file(&unicode_target_path, &canonical_header, &all_unicode_rows)?;
     stats.unicode_records_merged = all_unicode_rows.len();
 
-    // 4. Generate all.generated.csv
-    let custom_dc_ids: HashSet<u128> = all_dc_rows
-        .iter()
-        .filter_map(|r| r.first().and_then(|s| s.parse::<u128>().ok()))
-        .collect();
-
+    // 5. Generate all.generated.csv
     let mut combined_rows = Vec::with_capacity(
         all_unicode_rows
             .len()
@@ -747,15 +784,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             .saturating_add(all_format_rows.len()),
     );
 
-    for row in all_unicode_rows {
-        let cp = row
-            .first()
-            .and_then(|s| s.parse::<u128>().ok())
-            .unwrap_or(u128::MAX);
-        if !custom_dc_ids.contains(&cp) {
-            combined_rows.push(row);
-        }
-    }
+    combined_rows.extend(all_unicode_rows);
     combined_rows.extend(all_dc_rows);
     combined_rows.extend(all_format_rows);
 

@@ -180,17 +180,23 @@ pub(crate) fn get_unicode_character_name(
 
     // Control characters
     if is_control_codepoint(tables, cp) {
-        if let Some(info) = char_info {
-            if let Some(ref name) = info.nameslist_control_name {
-                return Some(name.clone());
-            }
+        let base_name = if let Some(info) = char_info {
+            info.nameslist_control_name.as_deref()
+        } else {
+            None
         }
-        if let Some(entry) = alias_entry {
-            if let Some(ref name) = entry.control {
-                return Some(name.clone());
-            }
-        }
-        return Some(format!("<control-{cp:04X}>"));
+        .or_else(|| alias_entry.and_then(|entry| entry.control.as_deref()));
+
+        let prefix = if matches!(cp, 0x0009..=0x000D | 0x001C..=0x001F | 0x0085) {
+            "<control, Unicode-semantic-defined>"
+        } else {
+            "<control>"
+        };
+
+        return match base_name {
+            Some(name) => Some(format!("{prefix} {name}")),
+            None => Some(format!("{prefix} <control-{cp:04X}>")),
+        };
     }
 
     if let Some(hangul) = hangul_syllable_name(cp) {

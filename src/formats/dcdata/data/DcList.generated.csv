@@ -6,12 +6,6 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
     tr.)",Tests,"Variant Types
 (comma-
   delimited)",References
-10,,<control> LINE FEED,0,B,,Cc,Punctuation,<ambiguous>119 239,This is the ASCII/Unicode 10 (0x0A).,,,,,,,,,,,,
-11,,<control> LINE TABULATION,0,BN,,Cc,Punctuation,<ambiguous>257 119,Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html ),,,,,,,,,,,,
-13,,<control> CARRIAGE RETURN,0,B,,Cc,Punctuation,<ambiguous>119 240 294,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).,,,,,,,,,,,,
-45,,HYPHEN-MINUS,0,ES,,Pd,Punctuation,<ambiguous>31 237,,,,,,,,,,,,,
-46,,FULL STOP,0,CS,,Po,Punctuation,<ambiguous>12 32,Full stop or decimal point,,,,,,,,,,,,
-133,,<control> NEXT LINE,0,B,,Cc,Punctuation,"line feed, end of line, <equiv>240 239","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator.",,,,,,,,,,,,
 1114112,0,!Null (short Dc),0,BN,,Cc,Controls,<equiv>u00,,,,,,,,,,,,,
 1114113,1,!At,0,ON,,Po,Symbols,<equiv>u40,,,,,,,,,,,,,
 1114114,2,Begin separator,0,BN,,!Cx,Semantic,,Begin a DCE separator string.,,,,,,,,,,,,
@@ -21,7 +15,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114118,6,Begin number,0,BN,,!Cx,Semantic,,Begin a DCE number.,,,,,,,,,,,,
 1114119,7,End number,0,BN,,!Cx,Semantic,,End a DCE number.,,,,,,,,,,,,
 1114120,8,Unknown value,0,BN,,!Cx,Semantic,,Substitution character for an unknown value.,,,,,,,,,,,,
-1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Format,,Internal DCE calendar identifier for the Gregorian calendar.,,,,,,,,,,,,
+1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Formats,,Internal DCE calendar identifier for the Gregorian calendar.,,,,,,,,,,,,
 1114122,10,Positive,0,BN,,!Cx,Semantic,,Positive value (syntactical representation — This is not the + character),,,,,,,,,,,,
 1114123,11,Negative,0,BN,,!Cx,Semantic,,Negative (syntactical representation — This is not the − character),,,,,,,,,,,,
 1114124,12,Decimal point,0,ON,,Sm,Mathematics,"dot, point, >32, <approx>u2e",,,,,,,,,,,,,
