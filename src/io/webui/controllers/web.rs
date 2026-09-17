@@ -23,6 +23,7 @@ use axum::{extract::State, response::Response};
 use ctb_utilities::branding::newsletter_url;
 use ctb_utilities::ipc::service_traits::storage::UserDto;
 use ctb_utilities::{__ctb_ipc_ctx, __ctb_ipcb_get, ipcb};
+use ctb_io_environment;
 
 // for `oneshot`
 
@@ -323,7 +324,7 @@ pub async fn get_client_ip(
         .or(connect_ip)
         .unwrap_or_else(|| "127.0.0.1".to_string());
 
-    let server_time_nanos = ctb_utilities::environment::unix_system_time_now();
+    let server_time_nanos = ctb_io_environment::unix_system_time_now();
 
     axum::Json(ClientIpResponse {
         ip,

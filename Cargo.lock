@@ -3493,6 +3493,7 @@ dependencies = [
  "ctb-formats-syndication",
  "ctb-formats-useragent",
  "ctb-installer",
+ "ctb-io-environment",
  "ctb-storage",
  "ctb-utilities",
  "flate2",

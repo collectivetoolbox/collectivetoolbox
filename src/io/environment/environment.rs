@@ -32,7 +32,7 @@ use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 use ctb_utilities::pc_settings::{PcSettingU16Key, get_u16_setting};
@@ -40,7 +40,7 @@ use ctb_utilities::pc_settings::{PcSettingU16Key, get_u16_setting};
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
     is_debug_build, is_official_public_website, is_official_signed_build, is_public_website,
-    reset_process_role_for_testing, set_process_role, unix_system_time_now,
+    reset_process_role_for_testing, set_process_role,
 };
 
 /// Is a lightweight CLI command running (without workspace boot)?
@@ -133,6 +133,15 @@ static CACHED_SERVER_TIME_OFFSET_NANOS: RwLock<Option<i128>> =
 struct ServerIpResponse {
     ip: String,
     server_time_nanos: u128,
+}
+
+/// Return the current system time in nanoseconds since the Unix epoch.
+pub fn unix_system_time_now() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        // Reason for fallback: system clocks set before the Unix epoch clamp to zero elapsed duration
+        .unwrap_or(Duration::ZERO)
+        .as_nanos()
 }
 
 

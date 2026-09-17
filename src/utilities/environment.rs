@@ -21,7 +21,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::OnceLock;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::bin2hex;
 use crate::pc_settings::{self, PcSettingBoolKey, get_bool_setting};
@@ -101,15 +100,6 @@ pub fn is_cargo_target_binary() -> bool {
 
 pub fn is_in_test() -> bool {
     crate::utilities::testing::is_in_test()
-}
-
-/// Return the current system time in nanoseconds since the Unix epoch.
-pub fn unix_system_time_now() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        // Reason for fallback: system clocks set before the Unix epoch clamp to zero elapsed duration
-        .unwrap_or(Duration::ZERO)
-        .as_nanos()
 }
 
 /// Is this instance serving the public website and network services?
