@@ -15,7 +15,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114348,236,End document,0,BN,,!Cx,Semantic,,
 1114410,298,Begin associativity group,0,BN,,!Cx,Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
 1114411,299,End associativity group,0,BN,,!Cx,Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
-1114412,300,Type union,0,BN,,!Cx,Semantic,:~ (([type] [type]) | list:type]),"Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
+1114412,300,Type union,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
 1114413,301,Type transformation,0,BN,,!Cx,Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
 1114414,302,Type conversion,0,BN,,!Cx,Semantic,:~ [type] [type],Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
 1114415,303,Type transmutation,0,BN,,!Cx,Semantic,:~ [type] [type],Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
@@ -202,4 +202,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114623,511,Begin Dc representation of format,0,BN,,!Cx,Semantic,:~ [format] [^512]+ [512],E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
 1114624,512,End Dc representation of format,0,BN,,!Cx,Semantic,,
 1114625,513,File path delimiter,0,BN,,!Cx,Semantic,,
-1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
+1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."

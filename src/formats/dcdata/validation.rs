@@ -858,7 +858,11 @@ pub fn validate_dc_category_file(
         };
 
         let short_id = if is_unicode_char {
-            if short_str.is_empty() || short_str.starts_with("308") {
+            if short_str.is_empty()
+                || short_str.starts_with("308")
+                || short_str.starts_with('u')
+                || short_str.starts_with('U')
+            {
                 None
             } else {
                 report.add_error(
@@ -866,7 +870,7 @@ pub fn validate_dc_category_file(
                     Some(line_no),
                     Some("Short"),
                     format!("Invalid Short ID for Unicode character: '{short_str}'"),
-                    Some("Short ID for Unicode characters must be blank or start with 308"),
+                    Some("Short ID for Unicode characters must be blank, u<hex>, or start with 308"),
                 );
                 None
             }
@@ -1829,9 +1833,9 @@ mod tests {
         assert_eq!(fmt_gen_hdr, canonical_header);
         assert_eq!(fmt_gen_rows.len(), 2);
         assert_eq!(fmt_gen_rows[0][0], "2228224");
-        assert_eq!(fmt_gen_rows[0][1], "0");
+        assert_eq!(fmt_gen_rows[0][1], "f0");
         assert_eq!(fmt_gen_rows[1][0], "2228225");
-        assert_eq!(fmt_gen_rows[1][1], "1");
+        assert_eq!(fmt_gen_rows[1][1], "f1");
 
         // Verify generated unicode.generated.csv
         let (uni_gen_hdr, uni_gen_rows) = read_csv_file(
@@ -1840,6 +1844,8 @@ mod tests {
         .unwrap();
         assert_eq!(uni_gen_hdr, canonical_header);
         assert_eq!(uni_gen_rows.len(), gen_stats.unicode_records_merged);
+        assert_eq!(uni_gen_rows[0][0], "0");
+        assert_eq!(uni_gen_rows[0][1], "u0");
 
         // Verify generated all.generated.csv
         let (all_gen_hdr, all_gen_rows) = read_csv_file(

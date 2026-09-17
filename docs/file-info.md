@@ -137,18 +137,28 @@ Use distinct operators for distinct operations:
 
 | Text | Existing Dc | Meaning |
 | --- | --- | --- |
-| `A & B` | 300 | Both constraints apply to the same data |
+| `A & B` | 300 | Both constraints apply to the same data (Type union) |
+| `A \| B` | 516 | Any of the alternative constraints apply (Type intersection) |
 | `A : T` | 301 | Apply registered transformation T to representation A |
 | `A > B` | 302 | Convert/encode A into representation B |
 | `A ! B` | 303 | Reinterpret A's unchanged representation as B |
 | `(A)` | 298 / 299 | Explicit grouping |
 
-`>`/`!`/`:` bind more tightly than `&`, with left-to-right association. Parentheses
-can override this; the canonical printer should show mixed-operation grouping.
-Thus `directory > tar > bz2` means `(directory > tar) > bz2`, while
-`pan > (json & utf8)` applies both constraints to the output. The spelling
-`directory` is schematic until it is explicitly bound to a suitable descriptor;
-the existing file-kind Dc 359 must not be confused with format f359 (BaseAlphabet).
+`>`/`!`/`:` bind more tightly than `&` and `|`, with left-to-right association. Association must not be automatic when mixing `&` or `|` with the other operators - explicit grouping is required for an expression like `A & (B : C)`; it should not be inferred by precedence.
+Parentheses can override this; the canonical printer should show
+mixed-operation grouping. Thus `directory > tar > bz2` means `(directory >
+tar) > bz2`, while `pan > (json & utf8)` applies both constraints to the
+output.
+
+Neither `&` nor `|` takes precedence over the other. Parentheses are required
+whenever `&` or `|` could have interpretations in different grouping ways (such
+as mixing `&` and `|` without grouping, e.g., `A & B | C` vs `(A & B) | C` or
+`A & (B | C)`). Ambiguous expressions without explicit parenthesization must be
+rejected.
+
+The spelling `directory` is schematic until it is explicitly bound to a
+suitable descriptor; the existing file-kind Dc 359 must not be confused with
+format f359 (BaseAlphabet).
 
 Atoms should allow unambiguous ID references (`f542` for format-local IDs and
 `@2228766` for global IDs) as well as registered nicknames. Nicknames such as
@@ -157,12 +167,15 @@ Not every graph node is a type: validate the referenced node's role. IDs provide
 a spelling even when a format has no nickname. A Rust identifier is not
 automatically a CLI nickname.
 
-For the initial subset, reserve `|`: neither "alternative" nor "pipe" is
-interchangeable with Dc 300. Use `:` for a named transformation, so the Altura
-subexpression can be written `(macroman : altura-mac-to-win) > utf8`. A hex dump
-of that output requires a registered hexdump transformation and parameters for
-the xxd dialect, not a conjunction asserting that the original bytes are already
-a hexdump. Query expressions such as `jq['.prelude']` remain outside this subset.
+The `|` operator designates Dc 516 (Type intersection, expressing alternative
+constraints where any of multiple types satisfy the description). It is not
+interchangeable with Dc 300 (conjunction / union of descriptions), nor should it
+be confused with Unix pipelining (which is represented by conversion/encoding
+`>`). Use `:` for a named transformation, so the Altura subexpression can be
+written `(macroman : altura-mac-to-win) > utf8`. A hex dump of that output
+requires a registered hexdump transformation and parameters for the xxd
+dialect, not a conjunction asserting that the original bytes are already a
+hexdump. Query expressions such as `jq['.prelude']` remain outside this subset.
 Neither parsing nor detection should invoke external commands.
 
 One proposed canonical Dc encoding uses a balanced group for each binary
@@ -186,7 +199,7 @@ terminators. A purely arity-delimited prefix encoding would also be possible,
 but should not be mixed with this balanced encoding.
 
 **Blocked on grammar work:** `[type]` currently means `[262:]` or a bare format,
-not recursive expressions containing Dcs 298 and 300-303. Before implementing
+not recursive expressions containing Dcs 298, 300-303, and 516. Before implementing
 this proposal, define a recursive type-expression grammar, transformation operand
 constraints, depth/size limits, and text/Dc/AST round-trip tests. Do not claim
 these example streams are already accepted by the payload syntax machinery.

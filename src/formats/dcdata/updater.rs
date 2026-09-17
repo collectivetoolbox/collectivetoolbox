@@ -561,9 +561,21 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 clean_label.to_string()
                             };
 
+                            let short_cell = if let Ok(s_id) = get(1)
+                                .trim_start_matches(|c| c == 'f' || c == 'F')
+                                .parse::<u32>()
+                            {
+                                format!("f{s_id}")
+                            } else if let Ok(dc_id) = get(0).parse::<u128>() {
+                                let s_id = dc_id.saturating_sub(FORMAT_REGION_START);
+                                format!("f{s_id}")
+                            } else {
+                                get(1)
+                            };
+
                             let unified_row = vec![
                                 get(0),                 // Dc
-                                get(1),                 // Short
+                                short_cell,             // Short
                                 name_cell,              // Name (!=deprecated)
                                 "0".to_string(),        // ◌
                                 "BN".to_string(),       // ⇆
@@ -747,7 +759,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 
         all_unicode_rows.push(vec![
             rec.cp.to_string(),               // Dc
-            String::new(),                    // Short
+            format!("u{:x}", rec.cp),         // Short
             name_str,                         // Name (!=deprecated)
             rec.combining_class.to_string(),  // ◌
             rec.bidi_class.to_string(),       // ⇆

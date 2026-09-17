@@ -130,7 +130,10 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
         };
 
         let id_str = get_str(id_col);
-        let Ok(id) = id_str.parse::<usize>() else {
+        let Ok(id) = id_str
+            .trim_start_matches(|c| c == 'f' || c == 'F')
+            .parse::<usize>()
+        else {
             continue;
         };
 

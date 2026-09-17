@@ -137,7 +137,10 @@ pub fn validate_formats_category_file(
             continue;
         }
 
-        let short_id = if let Ok(v) = short_str.parse::<usize>() {
+        let short_id = if let Ok(v) = short_str
+            .trim_start_matches(|c| c == 'f' || c == 'F')
+            .parse::<usize>()
+        {
             v
         } else {
             report.add_error(
@@ -145,7 +148,7 @@ pub fn validate_formats_category_file(
                 Some(line_no),
                 Some("Short"),
                 format!("Invalid Short format ID integer: '{short_str}'"),
-                Some("Must be a non-negative integer"),
+                Some("Must be a non-negative integer or f<digits>"),
             );
             continue;
         };
