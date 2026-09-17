@@ -31,4 +31,4 @@ Import/export/tests support columns meaning:
 2228554,330,AlphaSmartNeoLowCtlUs,"AlphaSmart Neo, control low bytes, USA",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228555,331,AlphaSmartNeoLowCtlUaMac,"AlphaSmart Neo, control low bytes, Ukraine (Mac)",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228556,332,AlphaSmartNeoLowCtlUaPc,"AlphaSmart Neo, control low bytes, Ukraine (PC)",encoding,AlphaSmartNeo,,,,,,,,,,,
-,,Iso88591,ISO 8859-1,encoding,Ascii,,,,,,,,,,,
+2228766,542,Iso88591,ISO 8859-1,encoding,Ascii,,,,,,,,,,,

@@ -6751,6 +6751,7 @@
     "cross_references": [],
     "description": "",
     "format": {
+      "base_format": "Iso88591",
       "nicknames": "ansi"
     },
     "source_file": "encoding.csv",

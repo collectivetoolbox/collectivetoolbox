@@ -339,7 +339,7 @@ Import/export/tests support columns meaning:
 2228546,322,TarLzo,"TAR, LZO",container,Tar & Lzo,".tar.lzo, .tzo",,,,,,,,,,
 2228547,323,AlturaMacToWin,Convert MacRoman characters to Windows-1252 characters in the way Altura Mac2Win does (replacing some characters with visually different ones),transformation,,,,,,,,,,,,
 2228548,324,AlturaWinToMac,Convert Windows-1252 characters to MacRoman characters in the reverse of the way Altura Mac2Win does (replacing some characters with visually different ones),transformation,,,,,,,,,,,,
-2228549,325,Win1252,"Windows-1252 (""ANSI"")",encoding,,,,,,ansi,,,,,,
+2228549,325,Win1252,"Windows-1252 (""ANSI"")",encoding,Iso88591,,,,,ansi,,,,,,
 2228550,326,AlphaSmartNeo,AlphaSmart Neo encoding (has several variants),encoding,,,,,,,,,,,,
 2228551,327,AlphaSmartNeoLowGrUs,"AlphaSmart Neo, graphical low bytes, USA",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228552,328,AlphaSmartNeoLowGrUaMac,"AlphaSmart Neo, graphical low bytes, Ukraine (Mac)",encoding,AlphaSmartNeo,,,,,,,,,,,
