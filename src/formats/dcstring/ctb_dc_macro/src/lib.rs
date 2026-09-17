@@ -865,34 +865,66 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         }
                     });
                 } else if attr.binary {
-                    let encode_stmt = quote! {
-                        mst.push_char(#crate_root::DcChar::from_u128(#id));
-                        mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident));
-                    };
-                    if attr.omit_default {
+                    if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         encode_fields.push(quote! {
-                            if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
-                                #encode_stmt
+                            if let ::std::option::Option::Some(ref val) = self.#field_ident {
+                                mst.push_char(#crate_root::DcChar::from_u128(#id));
+                                mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val));
+                            }
+                        });
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                self.#field_ident = ::std::option::Option::Some(val);
+                                Ok(true)
                             }
                         });
                     } else {
-                        encode_fields.push(encode_stmt);
+                        let encode_stmt = quote! {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident));
+                        };
+                        if attr.omit_default {
+                            encode_fields.push(quote! {
+                                if &self.#field_ident != &<#field_ty as ::std::default::Default>::default() {
+                                    #encode_stmt
+                                }
+                            });
+                        } else {
+                            encode_fields.push(encode_stmt);
+                        }
+                        decode_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                #field_ident = ::std::option::Option::Some(val);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            #(#all_match_tags)|* => {
+                                reader.next_char()?;
+                                let raw_payload_bytes = reader.read_binary_payload()?;
+                                let val = <#field_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                    .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#field_ident)))?;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
                     }
-                    decode_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let payload = reader.read_binary_payload()?;
-                            #field_ident = ::std::option::Option::Some(payload.to_vec());
-                        }
-                    });
-                    decode_field_arms.push(quote! {
-                        #(#all_match_tags)|* => {
-                            reader.next_char()?;
-                            let payload = reader.read_binary_payload()?;
-                            self.#field_ident = payload.to_vec();
-                            Ok(true)
-                        }
-                    });
                 } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
                     if is_vec {
                         let encode_stmt = quote! {
@@ -1216,6 +1248,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             for variant in &data_enum.variants {
                 let variant_ident = &variant.ident;
                 let mut variant_tag = None;
+                let mut variant_binary = false;
 
                 for attr in &variant.attrs {
                     if !attr.path().is_ident("dc") {
@@ -1232,7 +1265,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 variant_tag = Some(SHORT_DC_REGION_START.saturating_add(u128::from(val)));
                             } else if stream.peek(syn::Ident) {
                                 let ident: syn::Ident = stream.parse()?;
-                                if stream.peek(syn::Token![=]) {
+                                if ident == "binary" {
+                                    variant_binary = true;
+                                } else if stream.peek(syn::Token![=]) {
                                     stream.parse::<syn::Token![=]>()?;
                                     let key = ident.to_string();
                                     match key.as_str() {
@@ -1299,29 +1334,54 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         });
                     }
                     Fields::Unnamed(unnamed) => {
-                        let field_names: Vec<_> = (0..unnamed.unnamed.len())
-                            .map(|i| syn::Ident::new(&format!("f{i}"), Span::call_site()))
-                            .collect();
-                        encode_variants.push(quote! {
-                            Self::#variant_ident(#(#field_names),*) => {
-                                mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
-                                #(
-                                    #crate_root::DcMixedEncode::encode_dc_mixed(#field_names, mst)?;
-                                )*
+                        if variant_binary {
+                            if unnamed.unnamed.len() != 1 {
+                                return Err(syn::Error::new(
+                                    variant.span(),
+                                    format!("Variant `{variant_ident}` with `binary` attribute must have exactly one unnamed field"),
+                                ));
                             }
-                        });
-                        let field_decodes: Vec<_> = unnamed.unnamed.iter().map(|f| {
-                            let ty = &f.ty;
-                            quote! {
-                                <#ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
-                            }
-                        }).collect();
-                        decode_variants.push(quote! {
-                            #tag_id => {
-                                reader.next_char()?;
-                                Self::#variant_ident(#(#field_decodes),*)
-                            }
-                        });
+                            let ty = &unnamed.unnamed.first().unwrap().ty;
+                            encode_variants.push(quote! {
+                                Self::#variant_ident(f0) => {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                    mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(f0));
+                                }
+                            });
+                            decode_variants.push(quote! {
+                                #tag_id => {
+                                    reader.next_char()?;
+                                    let raw_payload_bytes = reader.read_binary_payload()?;
+                                    let val = <#ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                        .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for variant `{}`: {e}", stringify!(#variant_ident)))?;
+                                    Self::#variant_ident(val)
+                                }
+                            });
+                        } else {
+                            let field_names: Vec<_> = (0..unnamed.unnamed.len())
+                                .map(|i| syn::Ident::new(&format!("f{i}"), Span::call_site()))
+                                .collect();
+                            encode_variants.push(quote! {
+                                Self::#variant_ident(#(#field_names),*) => {
+                                    mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
+                                    #(
+                                        #crate_root::DcMixedEncode::encode_dc_mixed(#field_names, mst)?;
+                                    )*
+                                }
+                            });
+                            let field_decodes: Vec<_> = unnamed.unnamed.iter().map(|f| {
+                                let ty = &f.ty;
+                                quote! {
+                                    <#ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?
+                                }
+                            }).collect();
+                            decode_variants.push(quote! {
+                                #tag_id => {
+                                    reader.next_char()?;
+                                    Self::#variant_ident(#(#field_decodes),*)
+                                }
+                            });
+                        }
                     }
                     Fields::Named(named) => {
                         let mut field_names = Vec::new();
@@ -1349,14 +1409,32 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             })?;
 
                             if attr.binary {
-                                encode_fields.push(quote! {
-                                    mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
-                                    mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident));
-                                });
-                                decode_fields.push(quote! {
-                                    reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
-                                    let #f_ident = reader.read_binary_payload()?.to_vec();
-                                });
+                                if let Some(inner_ty) = extract_type_from_option(f_ty) {
+                                    encode_fields.push(quote! {
+                                        if let ::std::option::Option::Some(ref val) = #f_ident {
+                                            mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                            mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(val));
+                                        }
+                                    });
+                                    decode_fields.push(quote! {
+                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        let val = <#inner_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                            .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
+                                        let #f_ident = ::std::option::Option::Some(val);
+                                    });
+                                } else {
+                                    encode_fields.push(quote! {
+                                        mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
+                                        mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident));
+                                    });
+                                    decode_fields.push(quote! {
+                                        reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
+                                        let raw_payload_bytes = reader.read_binary_payload()?;
+                                        let #f_ident = <#f_ty as ::std::convert::TryFrom<&[u8]>>::try_from(raw_payload_bytes)
+                                            .map_err(|e| #anyhow_path::anyhow!("Invalid binary payload for field `{}`: {e}", stringify!(#f_ident)))?;
+                                    });
+                                }
                             } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
                                 let type_str = quote!(#f_ty).to_string();
                                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");

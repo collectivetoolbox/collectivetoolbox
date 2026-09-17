@@ -124,6 +124,24 @@ impl AsRef<[u8]> for BinaryPayload {
     }
 }
 
+impl From<&[u8]> for BinaryPayload {
+    fn from(bytes: &[u8]) -> Self {
+        Self(bytes.to_vec())
+    }
+}
+
+impl From<Vec<u8>> for BinaryPayload {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+}
+
+impl From<BinaryPayload> for Vec<u8> {
+    fn from(payload: BinaryPayload) -> Self {
+        payload.0
+    }
+}
+
 impl DcMixedEncode for BinaryPayload {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         mst.push_binary_with_sha256(&self.0);
@@ -763,27 +781,6 @@ impl DcMixedDecode for PathBuf {
     }
 }
 
-impl DcMixedEncode for [u8; 32] {
-    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-        mst.push_binary_with_sha256(self);
-        Ok(())
-    }
-}
-
-impl DcMixedDecode for [u8; 32] {
-    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let payload = reader.read_binary_payload()?;
-        ensure!(
-            payload.len() == 32,
-            "Expected 32 bytes for [u8; 32], got {}",
-            payload.len()
-        );
-        let mut arr = [0u8; 32];
-        arr.copy_from_slice(payload);
-        Ok(arr)
-    }
-}
-
 impl DcMixedEncode for SystemTime {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         // Reason for fallback: Clock readings prior to UNIX_EPOCH clamp to zero duration for non-negative timestamp serialization.
@@ -816,32 +813,24 @@ impl DcMixedDecode for SystemTime {
     }
 }
 
-macro_rules! impl_array_dc_mixed {
-    ($($N:literal),*) => {
-        $(
-            impl<T: DcMixedEncode> DcMixedEncode for [T; $N] {
-                fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-                    for elem in self {
-                        elem.encode_dc_mixed(mst)?;
-                    }
-                    Ok(())
-                }
-            }
-
-            impl<T: DcMixedDecode> DcMixedDecode for [T; $N] {
-                fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-                    let mut items: Vec<T> = Vec::with_capacity($N);
-                    for _ in 0..$N {
-                        items.push(T::decode_dc_mixed(reader)?);
-                    }
-                    items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"))
-                }
-            }
-        )*
-    };
+impl<T: DcMixedEncode, const N: usize> DcMixedEncode for [T; N] {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        for elem in self {
+            elem.encode_dc_mixed(mst)?;
+        }
+        Ok(())
+    }
 }
 
-impl_array_dc_mixed!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+impl<T: DcMixedDecode, const N: usize> DcMixedDecode for [T; N] {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let mut items: Vec<T> = Vec::with_capacity(N);
+        for _ in 0..N {
+            items.push(T::decode_dc_mixed(reader)?);
+        }
+        items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"))
+    }
+}
 
 // ----------------------------------------------------------------------------
 // Universal Verification Harness
@@ -1097,6 +1086,74 @@ mod tests {
         ensure!(!decoded.flags.flag_b);
         ensure!(!decoded.flags.flag_c);
 
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_array_list_serialization_roundtrip() -> Result<()> {
+        let arr_32 = [42u8; 32];
+        assert_dc_roundtrip(&arr_32)?;
+
+        let arr_4 = [100u32, 200, 300, 400];
+        assert_dc_roundtrip(&arr_4)?;
+
+        // Verify that arr_32 serializes as numbers, not as binary encapsulation
+        let mut mst = DcMst::new();
+        arr_32.encode_dc_mixed(&mut mst)?;
+        let mut reader = DcMixedReader::new(&mst);
+        ensure!(reader.peek_char()? != Some(DC_START_ENCAPSULATION_BINARY));
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Default, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SampleBinaryStruct {
+        #[dc(403, binary)]
+        digest: [u8; 32],
+        #[dc(404, binary)]
+        payload: Vec<u8>,
+        #[dc(405, binary)]
+        opt_digest: Option<[u8; 32]>,
+        #[dc(406, binary)]
+        wrapped: BinaryPayload,
+    }
+
+    #[crate::ctb_test]
+    fn test_binary_annotated_struct_roundtrip() -> Result<()> {
+        let s = SampleBinaryStruct {
+            digest: [7u8; 32],
+            payload: vec![1, 2, 3, 4, 5],
+            opt_digest: Some([9u8; 32]),
+            wrapped: BinaryPayload::new(vec![0xAA, 0xBB]),
+        };
+        assert_dc_roundtrip(&s)?;
+
+        let s_none = SampleBinaryStruct {
+            digest: [0u8; 32],
+            payload: Vec::new(),
+            opt_digest: None,
+            wrapped: BinaryPayload::default(),
+        };
+        assert_dc_roundtrip(&s_none)?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 410, end = 411)]
+    enum SampleBinaryEnum {
+        #[dc(412, binary)]
+        Hash([u8; 32]),
+        #[dc(413, binary)]
+        Blob(Vec<u8>),
+    }
+
+    #[crate::ctb_test]
+    fn test_binary_annotated_enum_roundtrip() -> Result<()> {
+        let e1 = SampleBinaryEnum::Hash([0x55; 32]);
+        assert_dc_roundtrip(&e1)?;
+
+        let e2 = SampleBinaryEnum::Blob(vec![10, 20, 30]);
+        assert_dc_roundtrip(&e2)?;
         Ok(())
     }
 }
