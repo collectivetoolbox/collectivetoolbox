@@ -8,7 +8,6 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
-ctb-formats-utilities = { path = "../utilities" }
 
 [lints]
 workspace = true

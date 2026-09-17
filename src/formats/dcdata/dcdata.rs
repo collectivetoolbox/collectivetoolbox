@@ -72,6 +72,7 @@ pub use lookup::{
     get_eite_dc_data_rows, get_short_dc_defn, get_short_dc_name,
     maximum_known_short_dc,
 };
+pub use ctb_formats_unicode::describe_general_category;
 pub use report::{ValidationDiagnostic, ValidationReport, ValidationSeverity};
 pub use shared::{
     BidiClass, GeneralCategory, validate_bidi_class, validate_combining_class,

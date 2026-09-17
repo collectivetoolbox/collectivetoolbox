@@ -2771,7 +2771,6 @@ name = "ctb-formats-checksum"
 version = "0.0.0"
 dependencies = [
  "ctb-build-support",
- "ctb-formats-utilities",
  "ctb-utilities",
  "sha2 0.10.9",
  "tempfile",
@@ -2814,7 +2813,6 @@ dependencies = [
  "csv",
  "ctb-formats-unicode",
  "ctb-formats-utf-8e-128",
- "ctb-formats-utilities",
  "ctb-storage-minimal",
  "ctb-utilities",
  "include_dir",
@@ -3233,7 +3231,6 @@ dependencies = [
  "clap",
  "csv",
  "ctb-formats-checksum",
- "ctb-formats-utilities",
  "ctb-storage-asset-bundle",
  "ctb-utilities",
  "icu_properties",
@@ -3265,7 +3262,6 @@ dependencies = [
 name = "ctb-formats-utf-8e-128"
 version = "0.0.0"
 dependencies = [
- "ctb-formats-utilities",
  "ctb-utilities",
 ]
 
@@ -3282,8 +3278,8 @@ dependencies = [
 name = "ctb-formats-utilities"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-dcdata",
  "ctb-utilities",
- "include_dir",
 ]
 
 [[package]]

@@ -267,8 +267,8 @@ class TableTransformer:
 def get_files_for_dataset(repo_root: Path, dataset_type: str) -> Tuple[List[Path], Optional[Path]]:
     """Return all CSV files and the schema file for the given dataset type."""
     d_type = dataset_type.lower().strip()
-    if d_type in ("dcs", "dc", "dctext"):
-        base_dir = repo_root / "src" / "formats" / "dctext" / "data"
+    if d_type in ("dcs", "dc", "dcdata", "dctext"):
+        base_dir = repo_root / "src" / "formats" / "dcdata" / "data"
         categories_dir = base_dir / "categories"
         schema_file = base_dir / "schema.csv"
         files = []
@@ -279,9 +279,10 @@ def get_files_for_dataset(repo_root: Path, dataset_type: str) -> Tuple[List[Path
         return files, (schema_file if schema_file.exists() else None)
 
     elif d_type in ("formats", "format", "util", "utilities"):
-        base_dir = repo_root / "src" / "formats" / "utilities" / "data"
-        formats_dir = base_dir / "formats"
-        schema_file = base_dir / "schema.csv"
+        formats_dir = (
+            repo_root / "src" / "formats" / "dcdata" / "data" / "categories" / "formats"
+        )
+        schema_file = formats_dir / "schema.csv"
         files = []
         if schema_file.exists():
             files.append(schema_file)
