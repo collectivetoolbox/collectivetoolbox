@@ -15,6 +15,7 @@ ctb-utilities = { path = "../../utilities" }
 ctb-cli = { path = "../../cli" }
 ctb-formats = { path = "../../formats" }
 ctb-io = { path = "../../io" }
+ctb-io-environment = { path = "../../io/environment" }
 ctb-network = { path = "../../network" }
 ctb-renderer = { path = "../../renderer" }
 ctb-runtime = { path = "../../runtime" }

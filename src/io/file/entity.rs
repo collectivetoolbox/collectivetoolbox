@@ -38,6 +38,7 @@ use filetime::{FileTime, set_file_times};
 use filetime::set_symlink_file_times;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
+use ctb_formats_dcstring::DcMixedEncode;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 #[cfg(unix)]
@@ -283,6 +284,69 @@ impl FileEntity {
         for stream in &mut self.streams {
             stream.entity.set_environment(std::sync::Arc::clone(&env));
         }
+    }
+
+    /// Serializes this `FileEntity` along with its file payload data (`Dc 392`),
+    /// streaming the payload from `source` into a `DcMst` buffer without
+    /// buffering the entire payload into an intermediate vector.
+    pub fn encode_with_payload(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMst,
+        source: &mut dyn crate::file::payload::PayloadSource,
+    ) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
+        self.identity.encode_dc_mixed(mst)?;
+        self.metadata.encode_dc_mixed(mst)?;
+        self.kind.encode_dc_mixed(mst)?;
+        for stream in &self.streams {
+            stream.encode_dc_mixed(mst)?;
+        }
+        let size = source.total_size();
+        if size > 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(392));
+            source.seek(std::io::SeekFrom::Start(0))?;
+            mst.push_binary_from_reader(source, size, None)?;
+        }
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(318));
+        Ok(())
+    }
+
+    /// Serializes this `FileEntity` along with its file payload data (`Dc 392`)
+    /// directly to a `std::io::Write` stream, streaming from `source` without
+    /// buffering either the document or payload in memory.
+    pub fn encode_to_writer_with_payload<W: std::io::Write>(
+        &self,
+        writer: &mut W,
+        source: &mut dyn crate::file::payload::PayloadSource,
+    ) -> Result<()> {
+        let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
+        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
+        self.identity.encode_dc_mixed(&mut prefix_mst)?;
+        self.metadata.encode_dc_mixed(&mut prefix_mst)?;
+        self.kind.encode_dc_mixed(&mut prefix_mst)?;
+        for stream in &self.streams {
+            stream.encode_dc_mixed(&mut prefix_mst)?;
+        }
+        writer.write_all(prefix_mst.as_bytes())?;
+
+        let size = source.total_size();
+        if size > 0 {
+            let mut tag = ctb_formats_dcstring::DcMst::new();
+            tag.push_char(ctb_formats_dcstring::DcChar::from_short(392));
+            writer.write_all(tag.as_bytes())?;
+            source.seek(std::io::SeekFrom::Start(0))?;
+            ctb_formats_dcstring::DcMst::write_binary_encapsulation(
+                writer,
+                source,
+                size,
+                None,
+            )?;
+        }
+
+        let mut suffix = ctb_formats_dcstring::DcMst::new();
+        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(318));
+        writer.write_all(suffix.as_bytes())?;
+        Ok(())
     }
 
     /// Materializes this entity onto the filesystem within a [`SandboxableDir`].

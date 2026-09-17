@@ -35,6 +35,7 @@ pub use ctb_utilities::ipc::service_prelude::*;
 
 pub use ctb_io_webui as webui;
 pub use ctb_io_file as file;
+pub use ctb_io_environment as environment;
 
 /// Start a local web UI server, returning the port number.
 #[ipc_method]

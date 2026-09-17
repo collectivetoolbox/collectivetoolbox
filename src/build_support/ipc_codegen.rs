@@ -118,7 +118,18 @@ pub fn generate_workspace_ipc_methods(output_root: &Path) -> Result<()> {
     }
 
     let extracted = extract_ipc_methods(&rs_files)?;
-    let extracted_dtos = extract_ipc_dtos(&rs_files)?;
+
+    let mut all_dto_files = Vec::new();
+    for pkg in metadata.workspace_packages() {
+        if pkg.manifest_path.as_str().contains("/vendor/") {
+            continue;
+        }
+        let Some(crate_dir) = pkg.manifest_path.parent() else {
+            continue;
+        };
+        collect_rs_files(crate_dir.as_std_path(), &mut all_dto_files)?;
+    }
+    let all_extracted_dtos = extract_ipc_dtos(&all_dto_files)?;
 
     let mut sigs = Vec::new();
     let mut skipped = Vec::new();
@@ -181,12 +192,35 @@ pub fn generate_workspace_ipc_methods(output_root: &Path) -> Result<()> {
     // without surprising missing-file errors when DTOs are introduced later.
     let mut out = String::new();
     push_generated(&mut out, "workspace");
+    out.push_str("#[allow(unused_imports)]\nuse std::collections::BTreeMap;\n");
+    out.push_str("#[allow(unused_imports)]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
 
-    let mut sorted: Vec<ExtractedDto> =
-        extracted_dtos.into_iter().map(|d| d.dto).collect();
+    let mut sorted: Vec<ExtractedDto> = all_extracted_dtos
+        .into_iter()
+        .filter(|d| {
+            let ident_str = match &d.dto {
+                ExtractedDto::Enum(e) => e.ident.to_string(),
+                ExtractedDto::Struct(s) => s.ident.to_string(),
+            };
+            rs_files.iter().any(|p| p == &d.path)
+                || sigs.iter().any(|s| s.rendered.contains(&ident_str))
+        })
+        .map(|d| d.dto)
+        .collect();
     sorted.sort_by_key(|d| match d {
         ExtractedDto::Enum(e) => e.ident.to_string(),
         ExtractedDto::Struct(s) => s.ident.to_string(),
+    });
+    sorted.dedup_by(|a, b| {
+        let a_ident = match a {
+            ExtractedDto::Enum(e) => &e.ident,
+            ExtractedDto::Struct(s) => &s.ident,
+        };
+        let b_ident = match b {
+            ExtractedDto::Enum(e) => &e.ident,
+            ExtractedDto::Struct(s) => &s.ident,
+        };
+        a_ident == b_ident
     });
 
     for d in &sorted {
@@ -777,9 +811,12 @@ fn write_service_dtos_fragment(
 ) -> Result<()> {
     let mut out = String::new();
     push_generated(&mut out, service);
+    out.push_str("#[allow(unused_imports)]\nuse std::collections::BTreeMap;\n");
+    out.push_str("#[allow(unused_imports)]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
 
     let mut sorted = dtos.to_vec();
     sorted.sort_by_key(dto_type_ident);
+    sorted.dedup_by(|a, b| dto_type_ident(a) == dto_type_ident(b));
 
     for d in &sorted {
         match &d.dto {
@@ -1231,11 +1268,23 @@ fn collect_rs_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
+            let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            if file_name.starts_with('.')
+                || file_name == "vendor"
+                || file_name == "target"
+            {
+                continue;
+            }
+
+            // Skip nested crates; each workspace crate is collected independently.
+            if path.join("Cargo.toml").is_file() {
+                continue;
+            }
+
             let is_data_dir = path.file_name() == Some(OsStr::new("data"));
             let is_generated_dir = path.file_name() == Some(OsStr::new("generated"));
-            let has_cargo_toml = path.join("Cargo.toml").is_file();
 
-            if (is_data_dir || is_generated_dir) && !has_cargo_toml {
+            if is_data_dir || is_generated_dir {
                 continue;
             }
 

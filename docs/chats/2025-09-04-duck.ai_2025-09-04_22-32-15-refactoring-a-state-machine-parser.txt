@@ -67,7 +67,7 @@ pub fn dca_to_utf8(
             escape_next = false;
             escape_this = true;
         }
-        if dc == DC_ESCAPE_NEXT {
+        if dc == DC_ESCAPE {
             escape_next = true;
         }
 
@@ -438,7 +438,7 @@ pub fn dca_to_utf8(dc_array: &[u32], settings: &UTF8FormatSettings) -> Result<(V
 
         // update escape flags
         if escape_next { escape_next = false; escape_this = true; }
-        if dc == DC_ESCAPE_NEXT { escape_next = true; }
+        if dc == DC_ESCAPE { escape_next = true; }
 
         // try encapsulation
         match try_handle_encapsulation(dc_array, i, settings, debug, &mut log)? {

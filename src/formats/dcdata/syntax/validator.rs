@@ -41,11 +41,29 @@ fn check_target_reference(
     col_name: &str,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    is_range_endpoint: bool,
     report: &mut ValidationReport,
 ) {
     match target {
         CharTarget::Dc(id) => {
-            if !known_dc_ids.contains(id) {
+            if is_range_endpoint {
+                let max_short_dc = match u32::try_from(
+                    ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_END
+                        .saturating_sub(ctb_storage_minimal::global_graph_layout::SHORT_DC_REGION_START),
+                ) {
+                    Ok(m) => m,
+                    Err(_) => u32::MAX,
+                };
+                if *id > max_short_dc {
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Dc ID '{id}' in syntax rule range exceeds maximum Short Dc ID {max_short_dc}"),
+                        Some("Ensure Dc range is within valid Dc space"),
+                    );
+                }
+            } else if !known_dc_ids.contains(id) {
                 report.add_error(
                     source_file,
                     Some(line_no),
@@ -56,7 +74,24 @@ fn check_target_reference(
             }
         }
         CharTarget::Format(id) => {
-            if !known_format_ids.contains(id) {
+            if is_range_endpoint {
+                let max_format_id = match usize::try_from(
+                    ctb_storage_minimal::global_graph_layout::FORMAT_REGION_END
+                        .saturating_sub(ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START),
+                ) {
+                    Ok(m) => m,
+                    Err(_) => usize::MAX,
+                };
+                if *id > max_format_id {
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Format ID 'f{id}' in syntax rule range exceeds maximum format ID f{max_format_id}"),
+                        Some("Ensure format range is within valid format space"),
+                    );
+                }
+            } else if !known_format_ids.contains(id) {
                 report.add_error(
                     source_file,
                     Some(line_no),
@@ -67,7 +102,15 @@ fn check_target_reference(
             }
         }
         CharTarget::Unicode(cp) => {
-            if !ctb_formats_unicode::is_assigned_unicode(*cp) {
+            if *cp > 0x0010_FFFF {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Referenced Unicode codepoint 'u{cp:04x}' (U+{cp:04X}) exceeds maximum Unicode codepoint U+10FFFF"),
+                    Some("Ensure referenced Unicode codepoint is <= 0x10FFFF"),
+                );
+            } else if !is_range_endpoint && !ctb_formats_unicode::is_assigned_unicode(*cp) {
                 report.add_error(
                     source_file,
                     Some(line_no),
@@ -146,6 +189,7 @@ fn validate_syntax_element(
                 col_name,
                 known_dc_ids,
                 known_format_ids,
+                false,
                 report,
             );
         }
@@ -158,6 +202,7 @@ fn validate_syntax_element(
                     col_name,
                     known_dc_ids,
                     known_format_ids,
+                    false,
                     report,
                 );
             }
@@ -170,6 +215,7 @@ fn validate_syntax_element(
                 col_name,
                 known_dc_ids,
                 known_format_ids,
+                true,
                 report,
             );
             check_target_reference(
@@ -179,6 +225,7 @@ fn validate_syntax_element(
                 col_name,
                 known_dc_ids,
                 known_format_ids,
+                true,
                 report,
             );
             if start > end {
@@ -191,7 +238,16 @@ fn validate_syntax_element(
                 );
             }
         }
-        SyntaxTerm::NamedConstruct { capture_var, .. } => {
+        SyntaxTerm::NamedConstruct { name, capture_var, .. } => {
+            if name.is_empty() {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    "Named construct has an empty name".to_string(),
+                    Some("Ensure named construct has a non-empty name e.g. [name]"),
+                );
+            }
             if let Some(var) = capture_var {
                 bound_vars.insert(var.clone());
             }

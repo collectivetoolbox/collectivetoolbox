@@ -73,7 +73,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114480,368,File payload checksum,0,BN,,!Cx,Semantic,:~ [checksum],Cryptographic digest hash of file payload.
 1114481,369,File sparse allocation flag,0,BN,,!Cx,Semantic,,Flag indicating sparse hole allocation.
 1114482,370,File device node number,0,BN,,!Cx,Semantic,:~ [number:Natural0],Encoded device node identifier (dev_t / rdev).
-1114483,371,File bundle type format,0,BN,,!Cx,Semantic,:~ [asciilatinletterdigits:1..16],Application bundle type format identifier.
+1114483,371,File bundle type format,0,BN,,!Cx,Semantic,:~ [asciilatinletterdigit:1..16],Application bundle type format identifier.
 1114484,372,Begin file extents descriptor,0,BN,,!Cx,Semantic,:~ [^373]+ 373,Begins a list of sparse and data extents.
 1114485,373,End file extents descriptor,0,BN,,!Cx,Semantic,,Terminates a list of sparse and data extents.
 1114486,374,File data extent,0,BN,,!Cx,Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a data extent region.
@@ -172,8 +172,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114579,467,Maybe value,0,BN,,!Cx,Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
 1114594,482,Mac OS Finder label: none,0,BN,,!Cx,Semantic,,Finder label index 0.
 1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
-1114596,484,"Mac OS Finder label 2: (default: ""Project 1)",0,BN,,!Cx,Semantic,<ambiguous>469 476,"Finder label index 2, Green."
-1114597,485,"Mac OS Finder label 3: (default: ""Personal)",0,BN,,!Cx,Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
+1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,Semantic,<ambiguous>469 476,"Finder label index 2, Green."
+1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
 1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,Semantic,<ambiguous>471 478,"Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
 1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
 1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,Semantic,<ambiguous>473 480,"Finder label index 6, Red."

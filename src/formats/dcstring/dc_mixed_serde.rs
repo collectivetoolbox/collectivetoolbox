@@ -39,8 +39,9 @@ use std::time::SystemTime;
 
 use ctb_formats_dcdata::dc::{
     DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BEGIN_NUMBER, DC_END_LIST, DC_END_KV_MAP,
-    DC_END_NUMBER, DC_NEGATIVE, DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT,
-    DC_POSITIVE, DC_START_ENCAPSULATION_BINARY,
+    DC_END_NUMBER, DC_EQUIVALENT_REPRESENTATIONS, DC_NEGATIVE,
+    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_POSITIVE,
+    DC_START_ENCAPSULATION_BINARY,
 };
 
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMst, DcMstr};
@@ -589,13 +590,63 @@ impl<T: DcMixedDecode> DcMixedDecode for Arc<T> {
 
 impl DcMixedEncode for PathBuf {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-        self.to_string_lossy().to_string().encode_dc_mixed(mst)
+        #[cfg(unix)]
+        let raw_bytes = {
+            use std::os::unix::ffi::OsStrExt;
+            self.as_os_str().as_bytes()
+        };
+        #[cfg(not(unix))]
+        let lossy_string = self.to_string_lossy();
+        #[cfg(not(unix))]
+        let raw_bytes = lossy_string.as_bytes();
+
+        if let Ok(s) = std::str::from_utf8(raw_bytes) {
+            mst.push_char(DC_EQUIVALENT_REPRESENTATIONS);
+            mst.push_char(DC_BEGIN_LIST);
+            s.encode_dc_mixed(mst)?;
+            mst.push_binary_with_sha256(raw_bytes);
+            mst.push_char(DC_END_LIST);
+        } else {
+            mst.push_binary_with_sha256(raw_bytes);
+        }
+        Ok(())
     }
 }
 
 impl DcMixedDecode for PathBuf {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+        if reader.peek_char()? == Some(DC_EQUIVALENT_REPRESENTATIONS) {
+            reader.next_char()?;
+            reader.expect_char(DC_BEGIN_LIST)?;
+            let mut resolved_path = None;
+            while reader.peek_char()? != Some(DC_END_LIST) {
+                if reader.peek_char()?.is_none() {
+                    bail!("Unexpected EOF waiting for closing Dc in equivalent representations list");
+                }
+                if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
+                    let bytes = reader.read_binary_payload()?;
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::ffi::OsStrExt;
+                        resolved_path = Some(PathBuf::from(std::ffi::OsStr::from_bytes(bytes)));
+                    }
+                    #[cfg(not(unix))]
+                    {
+                        let s = String::from_utf8_lossy(bytes);
+                        if resolved_path.is_none() {
+                            resolved_path = Some(PathBuf::from(s.into_owned()));
+                        }
+                    }
+                } else {
+                    let s = String::decode_dc_mixed(reader)?;
+                    if resolved_path.is_none() {
+                        resolved_path = Some(PathBuf::from(s));
+                    }
+                }
+            }
+            reader.expect_char(DC_END_LIST)?;
+            resolved_path.ok_or_else(|| anyhow::anyhow!("Empty equivalent representations list for PathBuf"))
+        } else if reader.peek_char()? == Some(DC_START_ENCAPSULATION_BINARY) {
             let bytes = reader.read_binary_payload()?;
             #[cfg(unix)]
             {

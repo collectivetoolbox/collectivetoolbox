@@ -30,15 +30,6 @@ pub trait FormatsClientTrait: crate::ipc::registry::IpcCaller + Send + Sync + st
 /// 
 ///  Returns `(value, used_len)` on success, or `None` if the bytes are not a
 ///  valid prefix for the encoding.
-    async fn decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
-
-///  Encode a u128 codepoint using the `utf_8e_128` format.
-    async fn encode(&self, codepoint: u128) -> Result<Vec < u8 >>;
-
-///  Decode bytes using the `utf_8e_128` format.
-/// 
-///  Returns `(value, used_len)` on success, or `None` if the bytes are not a
-///  valid prefix for the encoding.
     async fn utf_8e_128__decode(&self, bytes: Vec < u8 >) -> Result<Option < (u128 , usize) >>;
 
 ///  Encode a u128 codepoint using the `utf_8e_128` format.

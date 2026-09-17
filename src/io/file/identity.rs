@@ -66,7 +66,7 @@ pub enum FileOrigin {
     #[dc(short = 351)]
     Filesystem {
         /// Inode key on the origin filesystem.
-        #[dc(short = 328)]
+        #[dc(nested = 328)]
         key: InodeKey,
         /// Canonical path on the origin filesystem.
         #[dc(short = 337)]

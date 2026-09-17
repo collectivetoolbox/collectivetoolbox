@@ -91,6 +91,19 @@ impl Quantifier {
             _ => false,
         }
     }
+
+    /// Returns true if the count has reached the maximum permitted occurrences.
+    #[must_use]
+    pub const fn reached_max(self, count: usize) -> bool {
+        match self {
+            Self::ExactOne | Self::Optional => count >= 1,
+            Self::OneOrMore | Self::ZeroOrMore => false,
+            Self::Range { max, .. } => match max {
+                Some(m) => count >= m,
+                None => false,
+            },
+        }
+    }
 }
 
 /// Syntactic term in a Dc syntax rule.

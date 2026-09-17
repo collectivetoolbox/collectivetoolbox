@@ -8902,7 +8902,7 @@
           {
             "term": {
               "NamedConstruct": {
-                "name": "asciilatinletterdigits",
+                "name": "asciilatinletterdigit",
                 "subtype": "1..16",
                 "capture_var": null
               }
@@ -8912,7 +8912,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ [asciilatinletterdigits:1..16]"
+      "raw": ":~ [asciilatinletterdigit:1..16]"
     },
     "description": "Application bundle type format identifier.",
     "source_file": "semantic.csv",
@@ -11948,7 +11948,7 @@
   {
     "dc_id": 1114596,
     "short_id": 484,
-    "name": "Mac OS Finder label 2: (default: \"Project 1)",
+    "name": "Mac OS Finder label 2: (default: \"Project 1\")",
     "category": "semantic",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -11967,7 +11967,7 @@
   {
     "dc_id": 1114597,
     "short_id": 485,
-    "name": "Mac OS Finder label 3: (default: \"Personal)",
+    "name": "Mac OS Finder label 3: (default: \"Personal\")",
     "category": "semantic",
     "combining_class": 0,
     "bidi_class": "BN",

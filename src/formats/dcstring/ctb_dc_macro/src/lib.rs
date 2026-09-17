@@ -46,7 +46,7 @@ struct StructDcAttr {
 
 struct FieldDcAttr {
     short: Option<u32>,
-    nested: Option<u32>,
+    nested: Vec<u32>,
     begin: Option<u32>,
     end: Option<u32>,
     binary: bool,
@@ -158,7 +158,7 @@ fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
 
 fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut short = None;
-    let mut nested = None;
+    let mut nested = Vec::new();
     let mut begin = None;
     let mut end = None;
     let mut binary = false;
@@ -193,18 +193,61 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
 
             if meta.path.is_ident("nested") {
                 let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
-                    if val > MAX_SHORT_DC {
-                        return Err(syn::Error::new(
-                            lit_int.span(),
-                            format!("nested Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                        ));
+                match expr {
+                    Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) => {
+                        let val: u32 = lit_int.base10_parse()?;
+                        if val > MAX_SHORT_DC {
+                            return Err(syn::Error::new(
+                                lit_int.span(),
+                                format!("nested Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
+                            ));
+                        }
+                        nested.push(val);
+                        return Ok(());
                     }
-                    nested = Some(val);
-                    return Ok(());
+                    Expr::Array(syn::ExprArray { elems, .. }) => {
+                        for elem in elems {
+                            if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = elem {
+                                let val: u32 = lit_int.base10_parse()?;
+                                if val > MAX_SHORT_DC {
+                                    return Err(syn::Error::new(
+                                        lit_int.span(),
+                                        format!("nested Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
+                                    ));
+                                }
+                                nested.push(val);
+                            } else {
+                                return Err(syn::Error::new(elem.span(), "Expected integer literal in `nested = [...]` array"));
+                            }
+                        }
+                        return Ok(());
+                    }
+                    Expr::Range(syn::ExprRange { start, end, limits, .. }) => {
+                        let start_val = match start.as_deref() {
+                            Some(Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. })) => lit_int.base10_parse::<u32>()?,
+                            _ => return Err(syn::Error::new(meta.path.span(), "Expected integer literal range start for `nested = start..=end`")),
+                        };
+                        let end_val = match end.as_deref() {
+                            Some(Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. })) => lit_int.base10_parse::<u32>()?,
+                            _ => return Err(syn::Error::new(meta.path.span(), "Expected integer literal range end for `nested = start..=end`")),
+                        };
+                        let is_inclusive = matches!(limits, syn::RangeLimits::Closed(_));
+                        let range_end = if is_inclusive { end_val } else { end_val.saturating_sub(1) };
+                        if range_end > MAX_SHORT_DC {
+                            return Err(syn::Error::new(
+                                meta.path.span(),
+                                format!("nested range end {range_end} exceeds maximum short Dc {MAX_SHORT_DC}"),
+                            ));
+                        }
+                        for val in start_val..=range_end {
+                            nested.push(val);
+                        }
+                        return Ok(());
+                    }
+                    _ => {
+                        return Err(syn::Error::new(expr.span(), "Expected integer literal, range (e.g. 379..=384), or array (e.g. [379, 380]) for `nested`"));
+                    }
                 }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `nested = ...`"));
             }
 
             if meta.path.is_ident("binary") {
@@ -301,7 +344,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         }
     }
 
-    if !skip && !flag && short.is_none() && nested.is_none() && (begin.is_none() || end.is_none()) {
+    if !skip && !flag && short.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
         return Err(syn::Error::new(
             field.span(),
             format!(
@@ -379,12 +422,24 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     continue;
                 }
 
-                let id = attr.short.or(attr.nested).or(attr.begin).unwrap();
-                if !seen_ids.insert(id) {
-                    return Err(syn::Error::new(
-                        field.span(),
-                        format!("Duplicate short Dc ID {id} on field `{field_ident}`"),
-                    ));
+                let id_opt = attr.short.or(attr.nested.first().copied()).or(attr.begin);
+                let id = id_opt.unwrap();
+                if attr.nested.is_empty() {
+                    if !seen_ids.insert(id) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            format!("Duplicate short Dc ID {id} on field `{field_ident}`"),
+                        ));
+                    }
+                } else {
+                    for nid in &attr.nested {
+                        if !seen_ids.insert(*nid) {
+                            return Err(syn::Error::new(
+                                field.span(),
+                                format!("Duplicate short Dc ID {nid} on field `{field_ident}`"),
+                            ));
+                        }
+                    }
                 }
 
                 let type_str = quote!(#field_ty).to_string();
@@ -420,7 +475,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             mst.push_char(#crate_root::DcChar::from_short(#end_id));
                         });
                     }
-                } else if let Some(_nested_id) = attr.nested {
+                } else if !attr.nested.is_empty() {
                     if is_vec {
                         encode_fields.push(quote! {
                             for item in &self.#field_ident {
@@ -446,7 +501,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Decode temporary storage
-                if (attr.nested.is_some() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
+                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
                     field_inits.push(quote! {
                         let mut #field_ident: #field_ty = ::std::vec::Vec::new();
                     });
@@ -499,24 +554,25 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                     }
-                } else if let Some(nested_id) = attr.nested {
+                } else if !attr.nested.is_empty() {
+                    let nested_ids = &attr.nested;
                     if is_vec {
                         decode_arms.push(quote! {
-                            #nested_id => {
+                            #(#nested_ids)|* => {
                                 let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident.push(elem);
                             }
                         });
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         decode_arms.push(quote! {
-                            #nested_id => {
+                            #(#nested_ids)|* => {
                                 let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
                     } else {
                         decode_arms.push(quote! {
-                            #nested_id => {
+                            #(#nested_ids)|* => {
                                 let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
@@ -533,7 +589,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Validation / default
-                if (attr.nested.is_some() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
+                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
                     field_validations.push(quote! {
                         let #field_ident = #field_ident;
                     });
@@ -763,7 +819,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 continue;
                             }
 
-                            let f_short = attr.short.or(attr.nested).or(attr.begin).ok_or_else(|| {
+                            let f_short = attr.short.or(attr.nested.first().copied()).or(attr.begin).ok_or_else(|| {
                                 syn::Error::new(
                                     f.span(),
                                     format!("Field `{f_ident}` in variant `{variant_ident}` must have #[dc(short = ...)], #[dc(begin = ..., end = ...)], or #[dc(skip, reason = \"...\")]"),
@@ -831,7 +887,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         reader.expect_end(#end_id)?;
                                     });
                                 }
-                            } else if let Some(nested_id) = attr.nested {
+                            } else if !attr.nested.is_empty() {
+                                let nested_ids = &attr.nested;
                                 let type_str = quote!(#f_ty).to_string();
                                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
                                 if is_vec {
@@ -842,7 +899,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     });
                                     decode_fields.push(quote! {
                                         let mut #f_ident = ::std::vec::Vec::new();
-                                        while reader.peek_short_dc()? == ::std::option::Option::Some(#nested_id) {
+                                        while matches!(reader.peek_short_dc()?, ::std::option::Option::Some(#(#nested_ids)|*)) {
                                             #f_ident.push(<<#f_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
                                         }
                                     });
@@ -853,7 +910,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                     });
                                     decode_fields.push(quote! {
-                                        let #f_ident = if reader.peek_short_dc()? == ::std::option::Option::Some(#nested_id) {
+                                        let #f_ident = if matches!(reader.peek_short_dc()?, ::std::option::Option::Some(#(#nested_ids)|*)) {
                                             ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?)
                                         } else {
                                             ::std::option::Option::None

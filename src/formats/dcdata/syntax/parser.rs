@@ -210,6 +210,11 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         (name_part.trim().to_string(), None)
     };
 
+    ensure!(
+        !name.is_empty(),
+        "Named construct in brackets cannot have an empty name: '[{trimmed}]'"
+    );
+
     Ok(SyntaxElement::exact(SyntaxTerm::NamedConstruct {
         name,
         subtype,

@@ -89,7 +89,22 @@ fn target_matches_token(target: &CharTarget, token: u32) -> bool {
     match target {
         CharTarget::Dc(id) => *id == token,
         CharTarget::Unicode(cp) => *cp == token,
-        CharTarget::Format(_) => false,
+        CharTarget::Format(fmt_id) => {
+            let Ok(fid) = u32::try_from(*fmt_id) else {
+                return false;
+            };
+            if token == fid {
+                return true;
+            }
+            if let Ok(start) = u32::try_from(
+                ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+            ) {
+                if token == start.saturating_add(fid) {
+                    return true;
+                }
+            }
+            false
+        }
     }
 }
 
@@ -135,6 +150,26 @@ fn match_term_single(
             let matches = match (start, end) {
                 (CharTarget::Dc(s), CharTarget::Dc(e)) => (*s..=*e).contains(&first),
                 (CharTarget::Unicode(s), CharTarget::Unicode(e)) => (*s..=*e).contains(&first),
+                (CharTarget::Format(s), CharTarget::Format(e)) => {
+                    let Ok(s_u32) = u32::try_from(*s) else {
+                        return MatchOutcome::Mismatch;
+                    };
+                    let Ok(e_u32) = u32::try_from(*e) else {
+                        return MatchOutcome::Mismatch;
+                    };
+                    let in_short = (s_u32..=e_u32).contains(&first);
+                    if in_short {
+                        true
+                    } else if let Ok(start_gid) = u32::try_from(
+                        ctb_storage_minimal::global_graph_layout::FORMAT_REGION_START,
+                    ) {
+                        let s_gid = start_gid.saturating_add(s_u32);
+                        let e_gid = start_gid.saturating_add(e_u32);
+                        (s_gid..=e_gid).contains(&first)
+                    } else {
+                        false
+                    }
+                }
                 _ => false,
             };
             if matches {
@@ -187,7 +222,7 @@ fn match_element(
             MatchOutcome::Matched { consumed } if consumed > 0 => {
                 total_consumed = total_consumed.saturating_add(consumed);
                 count = count.saturating_add(1);
-                if !element.quantifier.allows_multiple() {
+                if element.quantifier.reached_max(count) {
                     break;
                 }
             }
@@ -195,7 +230,7 @@ fn match_element(
                 total_consumed = total_consumed.saturating_add(consumed);
                 count = count.saturating_add(1);
                 context.warnings.push(warning);
-                if !element.quantifier.allows_multiple() {
+                if element.quantifier.reached_max(count) {
                     break;
                 }
             }

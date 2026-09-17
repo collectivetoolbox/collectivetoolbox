@@ -104,6 +104,31 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
 
+    // 5. Validate Named Types table
+    let known_dc_ids: HashSet<u32> = dc_rows
+        .iter()
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
+        .collect();
+
+    if let Some(named_types_bytes) = crate::get_dc_data_file("README-named-types.csv") {
+        validate_named_types_table(
+            &named_types_bytes,
+            "data/README-named-types.csv",
+            &known_dc_ids,
+            &known_format_ids,
+            &mut report,
+        );
+    } else {
+        report.add_error(
+            "data/README-named-types.csv",
+            None,
+            None,
+            "Could not locate embedded README-named-types.csv",
+            None,
+        );
+    }
+
     report
 }
 
@@ -166,7 +191,141 @@ pub fn validate_all_data_tables_from_repo(
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
 
+    // 5. Validate Named Types table
+    let known_dc_ids: HashSet<u32> = dc_rows
+        .iter()
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
+        .collect();
+
+    let named_types_path =
+        repo_root.join("src/formats/dcdata/data/README-named-types.csv");
+    if let Ok(bytes) = std::fs::read(&named_types_path) {
+        validate_named_types_table(
+            &bytes,
+            "src/formats/dcdata/data/README-named-types.csv",
+            &known_dc_ids,
+            &known_format_ids,
+            &mut report,
+        );
+    } else {
+        report.add_error(
+            "src/formats/dcdata/data/README-named-types.csv",
+            None,
+            None,
+            "Could not locate README-named-types.csv on disk",
+            Some("Ensure file exists in src/formats/dcdata/data/"),
+        );
+    }
+
     report
+}
+
+/// Validates the README-named-types.csv table, verifying syntax declarations
+/// for each named type.
+pub fn validate_named_types_table(
+    csv_bytes: &[u8],
+    file_path: &str,
+    known_dc_ids: &HashSet<u32>,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) {
+    let vec_bytes = csv_bytes.to_vec();
+    let table = match csv_tools::parse_csv_reader(
+        &vec_bytes,
+        csv_tools::CsvParseOptions {
+            has_header: true,
+            flexible: true,
+            ..Default::default()
+        },
+    ) {
+        Ok(t) => t,
+        Err(e) => {
+            report.add_error(
+                file_path,
+                None,
+                None,
+                format!("Failed to parse CSV: {e}"),
+                Some("Verify CSV syntax and formatting"),
+            );
+            return;
+        }
+    };
+
+    let mut seen_names = HashSet::new();
+    for i in 0..table.row_count() {
+        let line_no = i.saturating_add(2);
+        let Some(row) = table.row(i) else {
+            continue;
+        };
+
+        if row.len() < 2 {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                None,
+                format!("Row has {} columns, expected at least 2", row.len()),
+                Some("Ensure row has 'Named type' and 'Syntax' columns"),
+            );
+            continue;
+        }
+
+        // Reason for fallback: out-of-bounds column indices on malformed rows default to empty string so schema validation can report all diagnostics without indexing panics
+        let name = row.get(0).map_or("", |s| s.trim());
+        // Reason for fallback: out-of-bounds column indices on malformed rows default to empty string so schema validation can report all diagnostics without indexing panics
+        let syntax = row.get(1).map_or("", |s| s.trim());
+
+        if name.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Named type"),
+                "Named type cannot be empty".to_string(),
+                Some("Specify a name for the named type construct"),
+            );
+        } else if !seen_names.insert(name.to_string()) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Named type"),
+                format!("Duplicate named type '{name}'"),
+                Some("Ensure each named type is defined uniquely"),
+            );
+        }
+
+        if syntax.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Syntax"),
+                "Syntax rule cannot be empty".to_string(),
+                Some("Provide a Dc syntax declaration for the named type"),
+            );
+        } else {
+            match parse_dc_syntax(syntax) {
+                Ok(rule) => {
+                    validate_dc_syntax(
+                        &rule,
+                        0,
+                        known_dc_ids,
+                        known_format_ids,
+                        report,
+                        file_path,
+                        line_no,
+                    );
+                }
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Syntax"),
+                        format!("Failed to parse syntax DSL rule: {e}"),
+                        Some("Verify syntax DSL grammar"),
+                    );
+                }
+            }
+        }
+    }
 }
 
 

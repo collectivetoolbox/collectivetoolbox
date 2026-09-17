@@ -49,8 +49,6 @@ pub const DC_REPLACEMENT_UNAVAIL_UNICODE: DcChar = DcChar::from_short(206);
 
 /// Document Character for escape / ignore following Dc (Dc 255).
 pub const DC_ESCAPE: DcChar = DcChar::from_short(255);
-/// Alias for `DC_ESCAPE`.
-pub const DC_ESCAPE_NEXT: DcChar = DC_ESCAPE;
 
 /// Document Character for embedding long (global graph) Dc IDs (Dc 308).
 pub const DC_LONG_DC: DcChar = DcChar::from_short(308);
@@ -78,6 +76,8 @@ pub const DC_END_KV_MAP: DcChar = DcChar::from_short(314);
 pub const DC_OPTIONAL_PRESENT: DcChar = DcChar::from_short(315);
 /// Optional value absent (Dc 316).
 pub const DC_OPTIONAL_ABSENT: DcChar = DcChar::from_short(316);
+/// Equivalent representations (Dc 397).
+pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
 
 
 /// First Base64 encapsulation digit (digit 0 = 'A' = Dc 127).

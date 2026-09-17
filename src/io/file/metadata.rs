@@ -690,7 +690,7 @@ pub struct FileMetadata {
     #[dc(short = 335)]
     pub gid: u32,
     /// Timestamps with nanosecond precision.
-    #[dc(nested = 330)]
+    #[dc(nested = [329, 330, 331, 332, 378])]
     pub timestamps: FileTimestamps,
     /// Semantic file flags.
     #[dc(begin = 388, end = 389)]

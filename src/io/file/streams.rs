@@ -35,6 +35,7 @@ use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+use ctb_formats_dcstring::DcMixedEncode;
 
 /// Native stream name, independent of the journal reader's operating system.
 #[derive(
@@ -245,7 +246,7 @@ pub struct AttachedStream {
     #[dc(short = 338)]
     pub name: Option<StreamName>,
     /// Classification of the stream.
-    #[dc(short = 379)]
+    #[dc(nested = 379..=384)]
     pub kind: StreamKind,
     /// The stream represented as a full `FileEntity`.
     #[dc(nested = 317)]
@@ -254,6 +255,68 @@ pub struct AttachedStream {
     #[serde(default, with = "crate::file::serde_helpers::opt_base64")]
     #[dc(short = 385, default)]
     pub data: Option<Vec<u8>>,
+}
+
+impl AttachedStream {
+    /// Serializes this `AttachedStream` along with its stream payload data (`Dc 385`),
+    /// streaming from `reader` without buffering the entire payload into an intermediate vector.
+    pub fn encode_with_stream_reader<R: std::io::Read>(
+        &self,
+        mst: &mut ctb_formats_dcstring::DcMst,
+        reader: &mut R,
+        size: u64,
+    ) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
+        if let Some(ref name) = self.name {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
+            name.encode_dc_mixed(mst)?;
+        }
+        self.kind.encode_dc_mixed(mst)?;
+        self.entity.encode_dc_mixed(mst)?;
+        if size > 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(385));
+            mst.push_binary_from_reader(reader, size, None)?;
+        }
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(324));
+        Ok(())
+    }
+
+    /// Serializes this `AttachedStream` along with its stream payload data (`Dc 385`)
+    /// directly to a `std::io::Write` stream, streaming from `reader` without
+    /// buffering either the document or payload in memory.
+    pub fn encode_to_writer_with_stream_reader<W: std::io::Write, R: std::io::Read>(
+        &self,
+        writer: &mut W,
+        reader: &mut R,
+        size: u64,
+    ) -> Result<()> {
+        let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
+        prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(323));
+        if let Some(ref name) = self.name {
+            prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(338));
+            name.encode_dc_mixed(&mut prefix_mst)?;
+        }
+        self.kind.encode_dc_mixed(&mut prefix_mst)?;
+        self.entity.encode_dc_mixed(&mut prefix_mst)?;
+        writer.write_all(prefix_mst.as_bytes())?;
+
+        if size > 0 {
+            let mut tag = ctb_formats_dcstring::DcMst::new();
+            tag.push_char(ctb_formats_dcstring::DcChar::from_short(385));
+            writer.write_all(tag.as_bytes())?;
+            ctb_formats_dcstring::DcMst::write_binary_encapsulation(
+                writer,
+                reader,
+                size,
+                None,
+            )?;
+        }
+
+        let mut suffix = ctb_formats_dcstring::DcMst::new();
+        suffix.push_char(ctb_formats_dcstring::DcChar::from_short(324));
+        writer.write_all(suffix.as_bytes())?;
+        Ok(())
+    }
 }
 
 /// Reads all extended attributes, resource forks, and security labels from `path`.

@@ -618,6 +618,7 @@ pub fn is_branded_build() -> bool {
 /// Serializes to a format where omitted fields assume default values on
 /// deserialization, and unknown fields are preserved during roundtrips for
 /// forward and backward extensibility.
+#[ipc_dto]
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[serde(default)]
 #[dc(begin = 340, end = 341)]

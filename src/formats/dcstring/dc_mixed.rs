@@ -714,7 +714,12 @@ impl DcMst {
 
     /// Appends an unchecksummed direct binary payload (`TYPE_BINARY`).
     pub fn push_binary(&mut self, data: &[u8]) {
-        self.write_encapsulation_header(TYPE_BINARY, data.len(), None);
+        #[allow(
+            clippy::expect_used,
+            reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+        )]
+        let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+        self.write_encapsulation_header(TYPE_BINARY, len_u64, None);
         self.inner.extend_from_slice(data);
     }
 
@@ -723,13 +728,117 @@ impl DcMst {
         let hash = Sha256::digest(data);
         let mut sha = [0u8; 32];
         sha.copy_from_slice(hash.as_slice());
-        self.write_encapsulation_header(TYPE_BINARY_SHA256, data.len(), Some(sha));
+        #[allow(
+            clippy::expect_used,
+            reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+        )]
+        let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+        self.write_encapsulation_header(TYPE_BINARY_SHA256, len_u64, Some(sha));
         self.inner.extend_from_slice(data);
+    }
+
+    /// Appends a binary payload read directly from a stream (`std::io::Read`).
+    pub fn push_binary_from_reader<R: std::io::Read + ?Sized>(
+        &mut self,
+        reader: &mut R,
+        size: u64,
+        sha256: Option<[u8; 32]>,
+    ) -> Result<()> {
+        let size_usize = usize::try_from(size).context(
+            "Payload size exceeds addressable memory size for in-memory buffer; use write_binary_encapsulation instead",
+        )?;
+        let type_byte = if sha256.is_some() {
+            TYPE_BINARY_SHA256
+        } else {
+            TYPE_BINARY
+        };
+        self.write_encapsulation_header(type_byte, size, sha256);
+        self.inner.reserve(size_usize);
+        let mut buf = [0u8; 64 * 1024];
+        let mut remaining = size;
+        while remaining > 0 {
+            #[allow(
+                clippy::expect_used,
+                reason = "65536 is a constant that always fits into u64"
+            )]
+            let buf_cap = u64::try_from(buf.len()).expect("65536 fits into u64");
+            let to_read_u64 = remaining.min(buf_cap);
+            #[allow(
+                clippy::expect_used,
+                reason = "to_read_u64 is at most 65536, which fits in usize on all supported platforms (>=16-bit)"
+            )]
+            let to_read = usize::try_from(to_read_u64).expect("at most 65536 bytes fits in usize");
+            let n = reader.read(&mut buf[..to_read])?;
+            if n == 0 {
+                bail!("Unexpected EOF reading binary payload from stream: expected {remaining} more bytes");
+            }
+            self.inner.extend_from_slice(&buf[..n]);
+            #[allow(
+                clippy::expect_used,
+                reason = "n is at most 65536, which fits in u64"
+            )]
+            let n_u64 = u64::try_from(n).expect("n fits in u64");
+            remaining = remaining.saturating_sub(n_u64);
+        }
+        Ok(())
+    }
+
+    /// Writes binary encapsulation directly to a `std::io::Write` stream from a `std::io::Read`.
+    pub fn write_binary_encapsulation<W: std::io::Write, R: std::io::Read + ?Sized>(
+        writer: &mut W,
+        reader: &mut R,
+        size: u64,
+        sha256: Option<[u8; 32]>,
+    ) -> Result<()> {
+        let type_byte = if sha256.is_some() {
+            TYPE_BINARY_SHA256
+        } else {
+            TYPE_BINARY
+        };
+        writer.write_all(&DC_203_BYTES)?;
+        writer.write_all(&[type_byte])?;
+        let size_u128 = u128::from(size);
+        writer.write_all(&size_u128.to_be_bytes())?;
+        if let Some(hash) = sha256 {
+            writer.write_all(&hash)?;
+        }
+        let mut buf = [0u8; 64 * 1024];
+        let mut remaining = size;
+        while remaining > 0 {
+            #[allow(
+                clippy::expect_used,
+                reason = "65536 is a constant that always fits into u64"
+            )]
+            let buf_cap = u64::try_from(buf.len()).expect("65536 fits into u64");
+            let to_read_u64 = remaining.min(buf_cap);
+            #[allow(
+                clippy::expect_used,
+                reason = "to_read_u64 is at most 65536, which fits in usize on all supported platforms (>=16-bit)"
+            )]
+            let to_read = usize::try_from(to_read_u64).expect("at most 65536 bytes fits in usize");
+            let n = reader.read(&mut buf[..to_read])?;
+            if n == 0 {
+                bail!("Unexpected EOF writing binary payload to stream: expected {remaining} more bytes");
+            }
+            writer.write_all(&buf[..n])?;
+            #[allow(
+                clippy::expect_used,
+                reason = "n is at most 65536, which fits in u64"
+            )]
+            let n_u64 = u64::try_from(n).expect("n fits in u64");
+            remaining = remaining.saturating_sub(n_u64);
+        }
+        Ok(())
     }
 
     /// Appends an unchecksummed direct DcUtf payload (`TYPE_DCUTF`).
     pub fn push_dcutf_str(&mut self, s: &DcStr) {
-        self.write_encapsulation_header(TYPE_DCUTF, s.len(), None);
+        #[allow(
+            clippy::expect_used,
+            reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+        )]
+        let len_u64 = u64::try_from(s.len()).expect("usize fits into u64");
+        self.write_encapsulation_header(TYPE_DCUTF, len_u64, None);
         self.inner.extend_from_slice(s.as_bytes());
     }
 
@@ -738,7 +847,12 @@ impl DcMst {
         let hash = Sha256::digest(s.as_bytes());
         let mut sha = [0u8; 32];
         sha.copy_from_slice(hash.as_slice());
-        self.write_encapsulation_header(TYPE_DCUTF_SHA256, s.len(), Some(sha));
+        #[allow(
+            clippy::expect_used,
+            reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+        )]
+        let len_u64 = u64::try_from(s.len()).expect("usize fits into u64");
+        self.write_encapsulation_header(TYPE_DCUTF_SHA256, len_u64, Some(sha));
         self.inner.extend_from_slice(s.as_bytes());
     }
 
@@ -747,14 +861,24 @@ impl DcMst {
         match chunk {
             DcMixed::Text(text) => self.push_dc_str(text),
             DcMixed::Binary { data, sha256: Some(sha) } => {
-                self.write_encapsulation_header(TYPE_BINARY_SHA256, data.len(), Some(*sha));
+                #[allow(
+                    clippy::expect_used,
+                    reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+                )]
+                let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+                self.write_encapsulation_header(TYPE_BINARY_SHA256, len_u64, Some(*sha));
                 self.inner.extend_from_slice(data);
             }
             DcMixed::Binary { data, sha256: None } => {
                 self.push_binary(data);
             }
             DcMixed::DcUtf { data, sha256: Some(sha) } => {
-                self.write_encapsulation_header(TYPE_DCUTF_SHA256, data.len(), Some(*sha));
+                #[allow(
+                    clippy::expect_used,
+                    reason = "usize is at most 64 bits and always fits into u64 on supported architectures"
+                )]
+                let len_u64 = u64::try_from(data.len()).expect("usize fits into u64");
+                self.write_encapsulation_header(TYPE_DCUTF_SHA256, len_u64, Some(*sha));
                 self.inner.extend_from_slice(data.as_bytes());
             }
             DcMixed::DcUtf { data, sha256: None } => {
@@ -789,10 +913,10 @@ impl DcMst {
         self.inner.capacity()
     }
 
-    fn write_encapsulation_header(&mut self, type_byte: u8, size: usize, sha256: Option<[u8; 32]>) {
+    fn write_encapsulation_header(&mut self, type_byte: u8, size: u64, sha256: Option<[u8; 32]>) {
         self.inner.extend_from_slice(&DC_203_BYTES);
         self.inner.push(type_byte);
-        let size_u128 = u128::try_from(size).unwrap_or(u128::MAX);
+        let size_u128 = u128::from(size);
         self.inner.extend_from_slice(&size_u128.to_be_bytes());
         if let Some(hash) = sha256 {
             self.inner.extend_from_slice(&hash);
@@ -903,7 +1027,7 @@ impl<'a> Iterator for DcMixedChunks<'a> {
                 TYPE_DCUTF | TYPE_DCUTF_SHA256 => {
                     #[expect(
                         unsafe_code,
-                        reason = "Payload of TYPE_DCUTF in verified DcMstr is valid UTF-8e-128"
+                        reason = "Payload of TYPE_DCUTF in validated DcMstr is valid UTF-8e-128"
                     )]
                     // Safety: Payload was validated as valid UTF-8e-128.
                     let dc_str = unsafe { DcStr::from_bytes_unchecked(payload) };
