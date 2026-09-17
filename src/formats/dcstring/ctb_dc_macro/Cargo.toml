@@ -9,6 +9,7 @@ Procedural derive macro for DcMixed serialization and deserialization.
 proc-macro = true
 
 [dependencies]
+ctb-storage-minimal = { path = "../../../storage/minimal" }
 proc-macro2 = { version = "1.0.105", default-features = false }
 quote = { version = "1.0" }
 syn = { version = "2.0", default-features = false, features = ["full", "parsing", "printing", "proc-macro", "clone-impls", "derive"] }

@@ -158,7 +158,7 @@ pub fn validate_all_data_tables_from_repo(
     }
 
     // 2. Validate Formats category files
-    let formats_dir = repo_root.join("src/formats/utilities/data/formats");
+    let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
     let format_rows =
         validate_all_format_files_from_disk(&formats_dir, &mut report);
     let known_format_ids: HashSet<usize> =
@@ -1594,7 +1594,7 @@ mod tests {
         let repo = temp_dir.path();
 
         let dc_cats = repo.join("src/formats/dcdata/data/categories");
-        let fmt_cats = repo.join("src/formats/utilities/data/formats");
+        let fmt_cats = repo.join("src/formats/dcdata/data/categories/formats");
         std::fs::create_dir_all(&dc_cats).unwrap();
         std::fs::create_dir_all(&fmt_cats).unwrap();
 
@@ -1638,7 +1638,7 @@ mod tests {
             "References".to_string(),
         ];
         write_csv_file(
-            &repo.join("src/formats/utilities/data/schema.csv"),
+            &repo.join("src/formats/dcdata/data/categories/formats/schema.csv"),
             &fmt_schema_header,
             &[],
         )
@@ -1753,7 +1753,7 @@ mod tests {
 
         // Verify generated formats.generated.csv contents and order
         let (fmt_gen_hdr, fmt_gen_rows) = read_csv_file(
-            &repo.join("src/formats/utilities/data/formats.generated.csv"),
+            &repo.join("src/formats/dcdata/data/formats.generated.csv"),
         )
         .unwrap();
         assert_eq!(fmt_gen_hdr, fmt_schema_header);
@@ -1769,7 +1769,7 @@ mod tests {
         let dc_json_str = std::fs::read_to_string(&dc_json_path).unwrap();
         assert!(dc_json_str.contains("CustomDc"));
 
-        let fmt_json_path = repo.join("src/formats/utilities/data/formats.generated.json");
+        let fmt_json_path = repo.join("src/formats/dcdata/data/formats.generated.json");
         assert!(fmt_json_path.exists());
         let fmt_json_str = std::fs::read_to_string(&fmt_json_path).unwrap();
         assert!(fmt_json_str.contains("FormatOne"));
@@ -1868,6 +1868,73 @@ mod tests {
             assert_eq!(branches.len(), 2);
         } else {
             panic!("Expected alternation pattern");
+        }
+
+        // Parameterized named construct with nested pattern: :[list:([filename] | 513)]
+        let rule5 = parse_dc_syntax(":[list:([filename] | 513)]").unwrap();
+        if let SyntaxPattern::Sequence(elements) = &rule5.pattern {
+            assert_eq!(elements.len(), 1);
+            assert_eq!(
+                elements[0].term,
+                SyntaxTerm::NamedConstruct {
+                    name: "list".to_string(),
+                    subtype: Some("([filename] | 513)".to_string()),
+                    capture_var: None,
+                }
+            );
+        } else {
+            panic!("Expected sequence pattern");
+        }
+
+        // Parameterized named construct with capture variable: :[list:([filename] | 513) $path]
+        let rule6 = parse_dc_syntax(":[list:([filename] | 513) $path]").unwrap();
+        if let SyntaxPattern::Sequence(elements) = &rule6.pattern {
+            assert_eq!(elements.len(), 1);
+            assert_eq!(
+                elements[0].term,
+                SyntaxTerm::NamedConstruct {
+                    name: "list".to_string(),
+                    subtype: Some("([filename] | 513)".to_string()),
+                    capture_var: Some("path".to_string()),
+                }
+            );
+        } else {
+            panic!("Expected sequence pattern");
+        }
+
+        // Parenthesized alternation in negated character set: :[^(314 | 312)]
+        let rule7 = parse_dc_syntax(":[^(314 | 312)]").unwrap();
+        if let SyntaxPattern::Sequence(elements) = &rule7.pattern {
+            assert_eq!(elements.len(), 1);
+            assert_eq!(
+                elements[0].term,
+                SyntaxTerm::CharSet {
+                    negated: true,
+                    members: vec![CharTarget::Dc(314), CharTarget::Dc(312)],
+                }
+            );
+        } else {
+            panic!("Expected sequence pattern");
+        }
+
+        // Bare pipe in negated character set must be an error
+        let err_rule = parse_dc_syntax(":[^314 | 312]");
+        assert!(err_rule.is_err());
+        assert!(err_rule.unwrap_err().to_string().contains("enclosed in parentheses"));
+
+        // Parenthesized alternation in positive character set: :[(246 | 247)]
+        let rule8 = parse_dc_syntax(":[(246 | 247)]").unwrap();
+        if let SyntaxPattern::Sequence(elements) = &rule8.pattern {
+            assert_eq!(elements.len(), 1);
+            assert_eq!(
+                elements[0].term,
+                SyntaxTerm::CharSet {
+                    negated: false,
+                    members: vec![CharTarget::Dc(246), CharTarget::Dc(247)],
+                }
+            );
+        } else {
+            panic!("Expected sequence pattern");
         }
     }
 

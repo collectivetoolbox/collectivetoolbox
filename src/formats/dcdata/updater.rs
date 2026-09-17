@@ -353,14 +353,14 @@ pub fn assign_and_update_dc_categories(
 }
 
 /// Scans and automatically assigns Short and Global Dc IDs in Formats
-/// category CSV files (`src/formats/utilities/data/formats/*.csv`).
+/// category CSV files (`src/formats/dcdata/data/categories/formats/*.csv`).
 ///
 /// New IDs are strictly assigned starting from `max_existing_id + 1` and incrementing
 /// monotonically without backfilling any preexisting gaps.
 pub fn assign_and_update_format_categories(
     repo_root: &Path,
 ) -> Result<TableUpdateStats> {
-    let formats_dir = repo_root.join("src/formats/utilities/data/formats");
+    let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
     if !formats_dir.is_dir() {
         bail!("Formats directory not found at {}", formats_dir.display());
     }
@@ -498,11 +498,11 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     let mut stats = MergedGenerationStats::default();
 
     // 1. Generate formats.generated.csv and formats.generated.json
-    let formats_dir = repo_root.join("src/formats/utilities/data/formats");
+    let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
     let mut parsed_formats = Vec::new();
     if formats_dir.is_dir() {
         let schema_path =
-            repo_root.join("src/formats/utilities/data/schema.csv");
+            repo_root.join("src/formats/dcdata/data/categories/formats/schema.csv");
         let (canonical_header, _) =
             read_csv_file(&schema_path).with_context(|| {
                 format!(
@@ -550,7 +550,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         });
 
         let target_path =
-            repo_root.join("src/formats/utilities/data/formats.generated.csv");
+            repo_root.join("src/formats/dcdata/data/formats.generated.csv");
         write_csv_file(&target_path, &canonical_header, &all_format_rows)?;
         stats.format_records_merged = all_format_rows.len();
 
@@ -562,12 +562,18 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         parsed_formats.sort_by_key(|r| r.dc_id);
 
         let json_target_path =
-            repo_root.join("src/formats/utilities/data/formats.generated.json");
-        let json_data = serde_json::to_string_pretty(&parsed_formats)
-            .context("Failed to serialize formats to JSON")?;
-        fs::write(&json_target_path, format!("{json_data}\n")).with_context(
-            || format!("Failed to save JSON to {}", json_target_path.display()),
-        )?;
+            repo_root.join("src/formats/dcdata/data/formats.generated.json");
+        fs::write(
+            &json_target_path,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&parsed_formats)
+                    .context("Failed to serialize formats to JSON")?
+            ),
+        )
+        .with_context(|| {
+            format!("Failed to save JSON to {}", json_target_path.display())
+        })?;
     }
 
     // 2. Generate DcList.generated.csv and DcList.generated.json

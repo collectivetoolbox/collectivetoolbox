@@ -25,3 +25,8 @@ Import/export/tests support columns meaning:
 2228496,272,VectorDisplay,Vector display,device_caps,,,,,,,,,,,,
 2228497,273,RenderModeImmediate,Render full document immediately without interactive features,device_caps,,,,,,,,,,,,
 2228498,274,RenderModeInteractive,Render with interactive features enabled,device_caps,,,,,,,,,,,,
+2228723,499,WebUi,Web-based user interface,device_caps,RasterDisplay,,,,,,,,,,,
+2228724,500,WebView,Embedded webview display,device_caps,WebUi,,,,,,,,,,,
+2228725,501,BrowserVm,Browser virtual machine runtime,device_caps,,,,,,,,,,,,
+2228726,502,V86Vm,v86 browser x86 PC emulation,device_caps,BrowserVm,,,,,,,,,,,
+2228727,503,Pwa,Progressive Web Application,device_caps,WebUi,,,,,,,,,,,

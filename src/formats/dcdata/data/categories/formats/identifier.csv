@@ -1,0 +1,35 @@
+Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Chain (=), or Syntax (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
+(for trans_:
+  =run the tr.)","Export support
+(for trans_:
+  =reverse the
+    tr.)",Tests,"Variant Types
+(comma-
+  delimited)","Comments. The “Format name” is an ID, and should conform to StageL ident naming.
+Import/export/tests support columns meaning:
+   -1=N/A
+   blank/0=none
+   1=WIP
+   2=mostly, or fully for at least one version of a format with options
+   3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
+   4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
+   5=4+optional strict validation.",References
+2228450,226,IpAddr,IP address,identifier,,,,,,,,,,,,
+2228451,227,Uri,URI (Uniform Resource Identifier),identifier,,,,,,,,,,,,
+2228452,228,FileName,File name,identifier,:([string] | [data]),,,,,,,,,,,
+2228453,229,FilePath,File path,identifier,:[list:([filename] | 513)],,,,,,,,,,,
+2228454,230,Lnk,Windows shortcut,identifier,,".lnk, .url, .cda",application/x-ms-shortcut,,,,,,,,,
+2228455,231,MacAlias,Mac alias,identifier,,,,com.apple.alias-file,alis,,,,,,,
+2228456,232,MacBookmark,Mac bookmark,identifier,,,,,,,,,,,,
+2228457,233,Torrent,Torrent,identifier,,.torrent,application/x-bittorrent,,,,,,,,,
+2228458,234,Btih,Torrent info hash,identifier,,,,,,,,,,,,
+2228459,235,Magnet,Magnet URI,identifier,Uri,,,,,,,,,,,
+2228460,236,IaIdentifier,Internet Archive item identifier,identifier,,,,,,,,,,,,
+2228461,237,IaArchiveTorrent,Internet Archive item torrent,identifier,Torrent,~_archive\.torrent$~,application/x-bittorrent,,,,,,,,,
+2228576,352,DcIdentifier,Dc identifier (long),identifier,"DcIdentifier, =[number:Natural1 & <(2^128)]",,,,,,,,,,,
+2228577,353,DcShortIdentifier,Dc identifier (short),identifier,"DcIdentifier, =[number:Natural1 & <(2^128)]",,,,,,,,,,,
+2228487,263,UserAgent,User-Agent string,identifier,,,,,,,,,,,,
+2228488,264,FileExtension,File extension,identifier,,,,,,,,,,,,
+2228489,265,UriProtocol,URI protocol,identifier,,,,,,,,,,,,
+2228714,490,IpV4,IPV4 address,identifier,"IpAddr, :[number:f207]",,,,,,,,,,,
+2228715,491,IpV6,IPV6 address,identifier,"IpAddr, :[number:f211]",,,,,,,,,,,

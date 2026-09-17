@@ -66,7 +66,8 @@
 - Avoid !important in CSS; prefer precedence corrections.
 - Prefer rem sizes, not px or em.
 
-- Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints.
+- Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints. However, they may be used inline in Dc serialization attributes on structs/enums (shorthand syntaxes apply - 123 = short Dc 123; l123 = long Dc 123; u1a3 = U+01A3; f123 = format Dc 123). Do not add Dc consts for annotations, as those sholud be self-explanatory; only add them if they will be used in actual code.
+- Keep consts DRY, as with other code. Avoid adding aliases to them or copying them into other modules.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

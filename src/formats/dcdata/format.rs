@@ -17,7 +17,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Schema validator for Formats registry category files (`src/formats/utilities/data/formats/*.csv`).
+//! Schema validator for Formats registry category files (`src/formats/dcdata/data/categories/formats/*.csv`).
 
 #[expect(
     unused_imports,
@@ -199,32 +199,36 @@ pub fn validate_formats_category_file(
             );
         }
 
-        let effective_label = if !label.is_empty() {
-            label.clone()
-        } else if !ident.is_empty() {
-            ident.clone()
+        let is_deprecated = ident.starts_with('!') || label.starts_with('!');
+        let clean_ident = if let Some(stripped) = ident.strip_prefix('!') {
+            stripped.trim()
         } else {
-            String::new()
+            ident.as_str()
+        };
+        let clean_label = if let Some(stripped) = label.strip_prefix('!') {
+            stripped.trim()
+        } else {
+            label.as_str()
         };
 
-        if effective_label.is_empty() {
+        if clean_label.is_empty() {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some("Label"),
-                "Format must have either a Label or a valid Ident",
-                Some("Provide a human-readable display label or Ident for the format"),
+                "Format must have a Label",
+                Some("Provide a human-readable display label for the format"),
             );
         }
 
         if !ident.is_empty() {
-            if let Err(e) = validate_rust_identifier(&ident) {
+            if let Err(e) = validate_rust_identifier(clean_ident) {
                 report.add_error(
                     file_path,
                     Some(line_no),
                     Some("Ident"),
                     format!("Invalid Rust identifier '{ident}': {e}"),
-                    Some("Identifiers must match [a-zA-Z_][a-zA-Z0-9_]* and not clash with keywords"),
+                    Some("Identifiers must match [a-zA-Z_][a-zA-Z0-9_]* (optionally prefixed with '!' for deprecated formats) and not clash with keywords"),
                 );
             }
         }
@@ -321,6 +325,7 @@ pub fn validate_formats_category_file(
 
         let items = split_comma_separated_items(&base_format_raw);
         let mut base_parts = Vec::new();
+        let mut decompositions = Vec::new();
         let mut syntax_raw = None;
         let mut chain_raw = None;
         for item in items {
@@ -328,6 +333,8 @@ pub fn validate_formats_category_file(
                 syntax_raw = Some(item);
             } else if item.starts_with('=') {
                 chain_raw = Some(item);
+            } else if item.starts_with('<') {
+                decompositions.push(item);
             } else {
                 base_parts.push(item);
             }
@@ -414,16 +421,20 @@ pub fn validate_formats_category_file(
         rows.push(DcDefn {
             dc_id,
             short_id: Some(short_id),
-            ident: if ident.is_empty() { None } else { Some(ident) },
-            name: effective_label,
+            ident: if clean_ident.is_empty() {
+                None
+            } else {
+                Some(clean_ident.to_string())
+            },
+            name: clean_label.to_string(),
             category: formatted_category,
             combining_class: 0,
             bidi_class: BidiClass::BN,
             casing_partner: None,
             general_category: GeneralCategory::NonUnicodeControl,
             script: "Formats".to_string(),
-            is_deprecated: false,
-            decompositions: Vec::new(),
+            is_deprecated,
+            decompositions,
             aliases,
             cross_references,
             syntax,
@@ -584,7 +595,7 @@ pub fn validate_all_format_files(
     }
     validate_format_files_data(
         files,
-        "src/formats/utilities/data/formats/",
+        "src/formats/dcdata/data/categories/formats/",
         report,
     )
 }
@@ -654,3 +665,65 @@ pub fn validate_all_format_files_from_disk(
         report,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_format_label_required() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        // Row with blank label but present ident
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,Base,Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,MyFormat,,document,,,,,,,,,,,, \n";
+        validate_formats_category_file(
+            csv_data,
+            "test/formats/test.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("Format must have a Label"));
+    }
+
+    #[crate::ctb_test]
+    fn test_deprecated_format_ident_allowed() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,Base,Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,!Gregorian,Gregorian calendar,calendar,,,,,,,,,,,, \n";
+        let rows = validate_formats_category_file(
+            csv_data,
+            "test/formats/calendar.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].is_deprecated);
+        assert_eq!(rows[0].ident.as_deref(), Some("Gregorian"));
+        assert_eq!(rows[0].name, "Gregorian calendar");
+    }
+
+    #[crate::ctb_test]
+    fn test_deprecated_format_invalid_ident_fails() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,Base,Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,!123Invalid,Invalid ident format,calendar,,,,,,,,,,,, \n";
+        validate_formats_category_file(
+            csv_data,
+            "test/formats/calendar.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("Invalid Rust identifier '!123Invalid'"));
+    }
+}
+
+

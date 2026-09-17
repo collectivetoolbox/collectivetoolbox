@@ -18,6 +18,72 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 //! Procedural derive macro for `DcMixed` serialization and deserialization.
+//!
+//! This macro generates implementations of `DcMixedEncode` and `DcMixedDecode`
+//! for Rust structs and enums, integrating them with Collective Toolbox's
+//! Document Character (Dc) data model.
+//!
+//! # Specification and Supported Syntaxes
+//!
+//! Dc identifiers assigned in `#[dc(...)]` attributes can be specified in several
+//! formats:
+//!
+//! - **Short Dc integer**: `#[dc(401)]` or `#[dc(begin = 490, end = 491)]`.
+//!   Maps to `SHORT_DC_REGION_START + N` (global ID range `1_114_112..=2_228_223`).
+//! - **Format Dc shorthand**: `#[dc(f315)]` or `#[dc(F315)]`.
+//!   Maps to `FORMAT_REGION_START + N` (global ID range `2_228_224..=3_342_335`).
+//! - **Long Dc shorthand**: `#[dc(l1114513)]` or `#[dc(L1114513)]`.
+//!   Maps directly to the specified global `u128` Dc identifier.
+//! - **Unicode shorthand**: `#[dc(u01a3)]` or `#[dc(U01a3)]`.
+//!   Maps to `UNICODE_REGION_START + hex_val` (global ID range `0..=1_114_111`).
+//! - **String literals**: `#[dc("f315")]`, `#[dc("401")]`, etc.
+//!
+//! Every Dc ID is statically converted to a global `u128` representation and
+//! matched via `DcChar::from_u128`. No field mapping is ever done by field name
+//! or reflection: all mappings are explicit and stable across schema versions.
+//!
+//! # Container Attributes (Structs)
+//!
+//! Structs deriving `DcMixed` represent bounded compound objects and must define
+//! opening and closing boundary Dc characters:
+//!
+//! - `#[dc(begin = <id>, end = <id>)]` or `#[dc(<begin_id>, <end_id>)]`:
+//!   Specifies the container's opening (`begin`) and closing (`end`) delimiter
+//!   Dc characters.
+//!
+//! During serialization, the macro emits `mst.push_char(begin)`, serializes all
+//! active fields, and then emits `mst.push_char(end)`. During deserialization,
+//! the macro expects `reader.expect_char(begin)`, loops until `reader.peek_char()`
+//! matches `end`, and dispatches fields by their identifying tag.
+//!
+//! # Field Attributes
+//!
+//! Each field in a struct must have an explicit `#[dc(...)]` attribute:
+//!
+//! - `#[dc(<id>)]`: Associates the field with the given Dc character.
+//!   - For regular types `T`: encodes `<id>` followed by `val.encode_dc_mixed`.
+//!   - For `Option<T>`: encodes `<id>` and `inner.encode_dc_mixed` if `Some`.
+//!     If `None`, the tag and payload are omitted.
+//!   - For `Vec<T>`: repeatedly emits `<id>` followed by each element's encoding.
+//! - `#[dc(<id>, default)]`: Tagged field that defaults to `Default::default()`
+//!   if not encountered in the serialized stream.
+//! - `#[dc(<id>, binary)]`: Binary byte payload. Enclosed within Dc binary
+//!   delimiter characters (Dc 203..204).
+//! - `#[dc(nested = <end_id>)]`: Multi-level nested child structure ending with
+//!   `<end_id>`.
+//! - `#[dc(begin = <b_id>, end = <e_id>)]`: Field bounded by explicit delimiters.
+//! - `#[dc(skip, reason = "...")]`: Skips serialization and deserialization of
+//!   this field. The field is initialized with `Default::default()` on decode.
+//!   A descriptive `reason` is required.
+//!
+//! # Enum Attributes
+//!
+//! Enums deriving `DcMixed` represent tagged unions or discriminated variants:
+//!
+//! - `#[dc(<id>)]` on each variant: associates the variant with a specific Dc tag.
+//!   - Unit variants (e.g. `#[dc(f315)] AppleSingle`): encodes `<id>`.
+//!   - Single-field tuple variants (e.g. `#[dc(401)] Payload(T)`): encodes
+//!     `<id>` followed by the inner value's encoding.
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
@@ -26,6 +92,10 @@ use std::collections::HashSet;
 use syn::spanned::Spanned;
 use syn::{
     parse_macro_input, Data, DeriveInput, Expr, ExprLit, Fields, Lit,
+};
+
+use ctb_storage_minimal::global_graph_layout::{
+    FORMAT_REGION_START, SHORT_DC_REGION_START, UNICODE_REGION_START,
 };
 
 const MAX_SHORT_DC: u32 = 1_114_111;
@@ -40,19 +110,18 @@ pub fn derive_dc_mixed(input: TokenStream) -> TokenStream {
 }
 
 struct StructDcAttr {
-    begin: u32,
-    end: u32,
+    begin: u128,
+    end: u128,
 }
 
 struct FieldDcAttr {
-    short: Option<u32>,
-    nested: Vec<u32>,
-    begin: Option<u32>,
-    end: Option<u32>,
+    tag: Option<u128>,
+    nested: Vec<u128>,
+    begin: Option<u128>,
+    end: Option<u128>,
     binary: bool,
     skip: bool,
     default: bool,
-    flag: bool,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -70,6 +139,98 @@ fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
     None
 }
 
+fn parse_shorthand_str(s: &str, span: Span) -> syn::Result<u128> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Err(syn::Error::new(span, "Empty Dc shorthand"));
+    }
+    let first = s.chars().next().unwrap();
+    if first == 'f' || first == 'F' {
+        let num_str = &s[1..];
+        let val: u32 = num_str.parse().map_err(|e| {
+            syn::Error::new(span, format!("Invalid format Dc '{s}': {e}"))
+        })?;
+        if val > MAX_SHORT_DC {
+            return Err(syn::Error::new(
+                span,
+                format!("Format Dc {val} exceeds maximum {MAX_SHORT_DC}"),
+            ));
+        }
+        Ok(FORMAT_REGION_START.saturating_add(u128::from(val)))
+    } else if first == 'l' || first == 'L' {
+        let num_str = &s[1..];
+        let val: u128 = if let Some(hex) = num_str.strip_prefix("0x").or_else(|| num_str.strip_prefix("0X")) {
+            u128::from_str_radix(hex, 16).map_err(|e| {
+                syn::Error::new(span, format!("Invalid hex long Dc '{s}': {e}"))
+            })?
+        } else {
+            num_str.parse().map_err(|e| {
+                syn::Error::new(span, format!("Invalid long Dc '{s}': {e}"))
+            })?
+        };
+        Ok(val)
+    } else if first == 'u' || first == 'U' {
+        let hex_str = s[1..].strip_prefix('+').unwrap_or(&s[1..]);
+        let val = u32::from_str_radix(hex_str, 16).map_err(|e| {
+            syn::Error::new(span, format!("Invalid Unicode Dc '{s}': {e}"))
+        })?;
+        if val > 0x10_FFFF {
+            return Err(syn::Error::new(
+                span,
+                format!("Unicode codepoint 0x{val:X} exceeds maximum 0x10FFFF"),
+            ));
+        }
+        Ok(UNICODE_REGION_START.saturating_add(u128::from(val)))
+    } else if s.chars().all(|c| c.is_ascii_digit()) {
+        let val: u32 = s.parse().map_err(|e| {
+            syn::Error::new(span, format!("Invalid short Dc '{s}': {e}"))
+        })?;
+        if val > MAX_SHORT_DC {
+            return Err(syn::Error::new(
+                span,
+                format!("Short Dc {val} exceeds maximum {MAX_SHORT_DC}"),
+            ));
+        }
+        Ok(SHORT_DC_REGION_START.saturating_add(u128::from(val)))
+    } else {
+        Err(syn::Error::new(
+            span,
+            format!(
+                "Unrecognized Dc shorthand '{s}'. Expected integer (short Dc), f... (format Dc), l... (long Dc), or u... (Unicode codepoint)"
+            ),
+        ))
+    }
+}
+
+fn parse_dc_expr(expr: &Expr) -> syn::Result<u128> {
+    match expr {
+        Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) => {
+            let val: u32 = lit_int.base10_parse()?;
+            if val > MAX_SHORT_DC {
+                return Err(syn::Error::new(
+                    lit_int.span(),
+                    format!("short Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
+                ));
+            }
+            Ok(SHORT_DC_REGION_START.saturating_add(u128::from(val)))
+        }
+        Expr::Lit(ExprLit { lit: Lit::Str(lit_str), .. }) => {
+            parse_shorthand_str(&lit_str.value(), lit_str.span())
+        }
+        Expr::Path(syn::ExprPath { path, .. }) => {
+            if let Some(ident) = path.get_ident() {
+                parse_shorthand_str(&ident.to_string(), ident.span())
+            } else {
+                Err(syn::Error::new(expr.span(), "Expected identifier, shorthand, or integer literal"))
+            }
+        }
+        _ => Err(syn::Error::new(
+            expr.span(),
+            "Expected integer literal, shorthand identifier (e.g. f315, u01a3), or string",
+        )),
+    }
+}
+
 fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<StructDcAttr>> {
     let mut begin = None;
     let mut end = None;
@@ -81,40 +242,59 @@ fn parse_optional_container_attrs(input: &DeriveInput) -> syn::Result<Option<Str
         }
         has_dc_attr = true;
 
-        attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("begin") {
-                let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
-                    if val > MAX_SHORT_DC {
-                        return Err(syn::Error::new(
-                            lit_int.span(),
-                            format!("begin Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                        ));
+        attr.parse_args_with(|stream: syn::parse::ParseStream| {
+            while !stream.is_empty() {
+                if stream.peek(syn::LitInt) {
+                    let lit: syn::LitInt = stream.parse()?;
+                    let val: u32 = lit.base10_parse()?;
+                    let gid = SHORT_DC_REGION_START.saturating_add(u128::from(val));
+                    if begin.is_none() {
+                        begin = Some(gid);
+                    } else if end.is_none() {
+                        end = Some(gid);
+                    } else {
+                        return Err(syn::Error::new(lit.span(), "Unexpected additional container Dc"));
                     }
-                    begin = Some(val);
-                    return Ok(());
-                }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `begin`"));
-            }
-
-            if meta.path.is_ident("end") {
-                let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
-                    if val > MAX_SHORT_DC {
-                        return Err(syn::Error::new(
-                            lit_int.span(),
-                            format!("end Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                        ));
+                } else if stream.peek(syn::Ident) {
+                    let ident: syn::Ident = stream.parse()?;
+                    if stream.peek(syn::Token![=]) {
+                        stream.parse::<syn::Token![=]>()?;
+                        let key = ident.to_string();
+                        match key.as_str() {
+                            "begin" => {
+                                let expr: Expr = stream.parse()?;
+                                begin = Some(parse_dc_expr(&expr)?);
+                            }
+                            "end" => {
+                                let expr: Expr = stream.parse()?;
+                                end = Some(parse_dc_expr(&expr)?);
+                            }
+                            other => {
+                                return Err(syn::Error::new(
+                                    ident.span(),
+                                    format!("Unknown container attribute key `{other}`; expected `begin` or `end`"),
+                                ));
+                            }
+                        }
+                    } else {
+                        let gid = parse_shorthand_str(&ident.to_string(), ident.span())?;
+                        if begin.is_none() {
+                            begin = Some(gid);
+                        } else if end.is_none() {
+                            end = Some(gid);
+                        } else {
+                            return Err(syn::Error::new(ident.span(), "Unexpected additional container Dc shorthand"));
+                        }
                     }
-                    end = Some(val);
-                    return Ok(());
+                } else {
+                    return Err(stream.error("Expected identifier or integer in #[dc(...)]"));
                 }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `end`"));
-            }
 
-            Err(meta.error("Unknown #[dc(...)] container attribute; expected `begin` or `end`"))
+                if stream.peek(syn::Token![,]) {
+                    stream.parse::<syn::Token![,]>()?;
+                }
+            }
+            Ok(())
         })?;
     }
 
@@ -157,7 +337,7 @@ fn parse_struct_attrs(input: &DeriveInput) -> syn::Result<StructDcAttr> {
 }
 
 fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
-    let mut short = None;
+    let mut tag = None;
     let mut nested = Vec::new();
     let mut begin = None;
     let mut end = None;
@@ -165,7 +345,6 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut skip = false;
     let mut skip_has_reason = false;
     let mut default = false;
-    let mut flag = false;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -174,141 +353,118 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         }
         has_dc_attr = true;
 
-        attr.parse_nested_meta(|meta| {
-            if meta.path.is_ident("short") {
-                let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
+        attr.parse_args_with(|stream: syn::parse::ParseStream| {
+            while !stream.is_empty() {
+                if stream.peek(syn::LitInt) {
+                    let lit: syn::LitInt = stream.parse()?;
+                    let val: u32 = lit.base10_parse()?;
                     if val > MAX_SHORT_DC {
                         return Err(syn::Error::new(
-                            lit_int.span(),
+                            lit.span(),
                             format!("short Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
                         ));
                     }
-                    short = Some(val);
-                    return Ok(());
-                }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `short`"));
-            }
-
-            if meta.path.is_ident("nested") {
-                let expr: Expr = meta.value()?.parse()?;
-                match expr {
-                    Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) => {
-                        let val: u32 = lit_int.base10_parse()?;
-                        if val > MAX_SHORT_DC {
-                            return Err(syn::Error::new(
-                                lit_int.span(),
-                                format!("nested Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                            ));
-                        }
-                        nested.push(val);
-                        return Ok(());
-                    }
-                    Expr::Array(syn::ExprArray { elems, .. }) => {
-                        for elem in elems {
-                            if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = elem {
-                                let val: u32 = lit_int.base10_parse()?;
-                                if val > MAX_SHORT_DC {
-                                    return Err(syn::Error::new(
-                                        lit_int.span(),
-                                        format!("nested Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                                    ));
+                    tag = Some(SHORT_DC_REGION_START.saturating_add(u128::from(val)));
+                } else if stream.peek(syn::Ident) {
+                    let ident: syn::Ident = stream.parse()?;
+                    if stream.peek(syn::Token![=]) {
+                        stream.parse::<syn::Token![=]>()?;
+                        let key = ident.to_string();
+                        match key.as_str() {
+                            "short" => {
+                                let expr: Expr = stream.parse()?;
+                                tag = Some(parse_dc_expr(&expr)?);
+                            }
+                            "format" => {
+                                let expr: Expr = stream.parse()?;
+                                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = &expr {
+                                    let val: u32 = lit_int.base10_parse()?;
+                                    if val > MAX_SHORT_DC {
+                                        return Err(syn::Error::new(
+                                            lit_int.span(),
+                                            format!("Format Dc {val} exceeds maximum {MAX_SHORT_DC}"),
+                                        ));
+                                    }
+                                    tag = Some(FORMAT_REGION_START.saturating_add(u128::from(val)));
+                                } else {
+                                    tag = Some(parse_dc_expr(&expr)?);
                                 }
-                                nested.push(val);
-                            } else {
-                                return Err(syn::Error::new(elem.span(), "Expected integer literal in `nested = [...]` array"));
+                            }
+                            "long" => {
+                                let expr: Expr = stream.parse()?;
+                                tag = Some(parse_dc_expr(&expr)?);
+                            }
+                            "unicode" => {
+                                let expr: Expr = stream.parse()?;
+                                tag = Some(parse_dc_expr(&expr)?);
+                            }
+                            "begin" => {
+                                let expr: Expr = stream.parse()?;
+                                begin = Some(parse_dc_expr(&expr)?);
+                            }
+                            "end" => {
+                                let expr: Expr = stream.parse()?;
+                                end = Some(parse_dc_expr(&expr)?);
+                            }
+                            "nested" => {
+                                let expr: Expr = stream.parse()?;
+                                match expr {
+                                    Expr::Array(syn::ExprArray { elems, .. }) => {
+                                        for elem in elems {
+                                            nested.push(parse_dc_expr(&elem)?);
+                                        }
+                                    }
+                                    Expr::Range(syn::ExprRange { start, end, limits, .. }) => {
+                                        let start_val = match start.as_deref() {
+                                            Some(e) => parse_dc_expr(e)?,
+                                            None => return Err(syn::Error::new(ident.span(), "Expected range start")),
+                                        };
+                                        let end_val = match end.as_deref() {
+                                            Some(e) => parse_dc_expr(e)?,
+                                            None => return Err(syn::Error::new(ident.span(), "Expected range end")),
+                                        };
+                                        let is_inclusive = matches!(limits, syn::RangeLimits::Closed(_));
+                                        let range_end = if is_inclusive { end_val } else { end_val.saturating_sub(1) };
+                                        for v in start_val..=range_end {
+                                            nested.push(v);
+                                        }
+                                    }
+                                    _ => {
+                                        nested.push(parse_dc_expr(&expr)?);
+                                    }
+                                }
+                            }
+                            "reason" => {
+                                skip_has_reason = true;
+                                let _expr: Expr = stream.parse()?;
+                            }
+                            other => {
+                                return Err(syn::Error::new(
+                                    ident.span(),
+                                    format!("Unknown field attribute key `{other}`"),
+                                ));
                             }
                         }
-                        return Ok(());
-                    }
-                    Expr::Range(syn::ExprRange { start, end, limits, .. }) => {
-                        let start_val = match start.as_deref() {
-                            Some(Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. })) => lit_int.base10_parse::<u32>()?,
-                            _ => return Err(syn::Error::new(meta.path.span(), "Expected integer literal range start for `nested = start..=end`")),
-                        };
-                        let end_val = match end.as_deref() {
-                            Some(Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. })) => lit_int.base10_parse::<u32>()?,
-                            _ => return Err(syn::Error::new(meta.path.span(), "Expected integer literal range end for `nested = start..=end`")),
-                        };
-                        let is_inclusive = matches!(limits, syn::RangeLimits::Closed(_));
-                        let range_end = if is_inclusive { end_val } else { end_val.saturating_sub(1) };
-                        if range_end > MAX_SHORT_DC {
-                            return Err(syn::Error::new(
-                                meta.path.span(),
-                                format!("nested range end {range_end} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                            ));
+                    } else {
+                        let key = ident.to_string();
+                        match key.as_str() {
+                            "binary" => binary = true,
+                            "skip" => skip = true,
+                            "default" => default = true,
+                            other => {
+                                tag = Some(parse_shorthand_str(other, ident.span())?);
+                            }
                         }
-                        for val in start_val..=range_end {
-                            nested.push(val);
-                        }
-                        return Ok(());
                     }
-                    _ => {
-                        return Err(syn::Error::new(expr.span(), "Expected integer literal, range (e.g. 379..=384), or array (e.g. [379, 380]) for `nested`"));
-                    }
+                } else {
+                    return Err(stream.error("Expected identifier, shorthand, or integer literal in #[dc(...)]"));
+                }
+
+                if stream.peek(syn::Token![,]) {
+                    stream.parse::<syn::Token![,]>()?;
                 }
             }
-
-            if meta.path.is_ident("binary") {
-                binary = true;
-                return Ok(());
-            }
-
-            if meta.path.is_ident("skip") {
-                skip = true;
-                return Ok(());
-            }
-
-            if meta.path.is_ident("reason") {
-                skip_has_reason = true;
-                let _expr: Expr = meta.value()?.parse()?;
-                return Ok(());
-            }
-
-            if meta.path.is_ident("begin") {
-                let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
-                    if val > MAX_SHORT_DC {
-                        return Err(syn::Error::new(
-                            lit_int.span(),
-                            format!("begin Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                        ));
-                    }
-                    begin = Some(val);
-                    return Ok(());
-                }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `begin`"));
-            }
-
-            if meta.path.is_ident("end") {
-                let expr: Expr = meta.value()?.parse()?;
-                if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                    let val: u32 = lit_int.base10_parse()?;
-                    if val > MAX_SHORT_DC {
-                        return Err(syn::Error::new(
-                            lit_int.span(),
-                            format!("end Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                        ));
-                    }
-                    end = Some(val);
-                    return Ok(());
-                }
-                return Err(syn::Error::new(expr.span(), "Expected integer literal for `end`"));
-            }
-
-            if meta.path.is_ident("default") {
-                default = true;
-                return Ok(());
-            }
-
-            if meta.path.is_ident("flag") {
-                flag = true;
-                return Ok(());
-            }
-
-            Err(meta.error("Unknown field #[dc(...)] attribute; expected `short`, `nested`, `begin`, `end`, `binary`, `skip`, `reason`, `default`, or `flag`"))
+            Ok(())
         })?;
     }
 
@@ -321,7 +477,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         return Err(syn::Error::new(
             field.span(),
             format!(
-                "Field `{field_name}` is missing a #[dc(...)] attribute. All serializable fields must have an assigned short Dc or explicitly #[dc(skip, reason = \"...\")]."
+                "Field `{field_name}` is missing a #[dc(...)] attribute. All serializable fields must have an assigned Dc or explicitly #[dc(skip, reason = \"...\")]."
             ),
         ));
     }
@@ -344,24 +500,23 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         }
     }
 
-    if !skip && !flag && short.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
+    if !skip && tag.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
         return Err(syn::Error::new(
             field.span(),
             format!(
-                "Field `{field_name}` must have an assigned short Dc ID (e.g. #[dc(short = ...)], #[dc(nested = ...)], #[dc(begin = ..., end = ...)], or #[dc(flag)])"
+                "Field `{field_name}` must have an assigned Dc ID (e.g. #[dc(401)], #[dc(f315)], #[dc(nested = ...)], #[dc(begin = ..., end = ...)], or #[dc(skip, reason = \"...\")])"
             ),
         ));
     }
 
     Ok(FieldDcAttr {
-        short,
+        tag,
         nested,
         begin,
         end,
         binary,
         skip,
         default,
-        flag,
     })
 }
 
@@ -400,7 +555,6 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut decode_arms = Vec::new();
             let mut field_validations = Vec::new();
             let mut construct_fields = Vec::new();
-            let mut flag_idents = Vec::new();
 
             for field in fields {
                 let field_ident = field.ident.as_ref().unwrap();
@@ -414,21 +568,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     continue;
                 }
 
-                if attr.flag {
-                    flag_idents.push(field_ident);
-                    construct_fields.push(quote! {
-                        #field_ident
-                    });
-                    continue;
-                }
-
-                let id_opt = attr.short.or(attr.nested.first().copied()).or(attr.begin);
+                let id_opt = attr.tag.or(attr.nested.first().copied()).or(attr.begin);
                 let id = id_opt.unwrap();
                 if attr.nested.is_empty() {
                     if !seen_ids.insert(id) {
                         return Err(syn::Error::new(
                             field.span(),
-                            format!("Duplicate short Dc ID {id} on field `{field_ident}`"),
+                            format!("Duplicate Dc ID {id:#X} on field `{field_ident}`"),
                         ));
                     }
                 } else {
@@ -436,7 +582,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         if !seen_ids.insert(*nid) {
                             return Err(syn::Error::new(
                                 field.span(),
-                                format!("Duplicate short Dc ID {nid} on field `{field_ident}`"),
+                                format!("Duplicate Dc ID {nid:#X} on field `{field_ident}`"),
                             ));
                         }
                     }
@@ -448,31 +594,31 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 // Encode field
                 if attr.binary {
                     encode_fields.push(quote! {
-                        mst.push_char(#crate_root::DcChar::from_short(#id));
+                        mst.push_char(#crate_root::DcChar::from_u128(#id));
                         mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(&self.#field_ident));
                     });
                 } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
                     if is_vec {
                         encode_fields.push(quote! {
-                            mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                             for item in &self.#field_ident {
                                 #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
                             }
-                            mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                         });
-                    } else if let Some(_) = extract_type_from_option(&field_ty) {
+                    } else if extract_type_from_option(&field_ty).is_some() {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
-                                mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                                mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                 #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                                mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                                mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                             }
                         });
                     } else {
                         encode_fields.push(quote! {
-                            mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                             #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
-                            mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                         });
                     }
                 } else if !attr.nested.is_empty() {
@@ -482,7 +628,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
                             }
                         });
-                    } else if let Some(_) = extract_type_from_option(&field_ty) {
+                    } else if extract_type_from_option(&field_ty).is_some() {
                         encode_fields.push(quote! {
                             if let ::std::option::Option::Some(ref item) = self.#field_ident {
                                 #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
@@ -495,7 +641,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     }
                 } else {
                     encode_fields.push(quote! {
-                        mst.push_char(#crate_root::DcChar::from_short(#id));
+                        mst.push_char(#crate_root::DcChar::from_u128(#id));
                         #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
                     });
                 }
@@ -515,7 +661,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 if attr.binary {
                     decode_arms.push(quote! {
                         #id => {
-                            reader.read_short_dc()?;
+                            reader.next_char()?;
                             let payload = reader.read_binary_payload()?;
                             #field_ident = ::std::option::Option::Some(payload.to_vec());
                         }
@@ -524,32 +670,32 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     if is_vec {
                         decode_arms.push(quote! {
                             #begin_id => {
-                                reader.read_short_dc()?;
-                                while reader.peek_short_dc()? != ::std::option::Option::Some(#end_id) {
-                                    if reader.peek_short_dc()?.is_none() {
-                                        #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {}", #end_id);
+                                reader.next_char()?;
+                                while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
+                                    if reader.peek_char()?.is_none() {
+                                        #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
                                     }
                                     let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                     #field_ident.push(elem);
                                 }
-                                reader.expect_end(#end_id)?;
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                             }
                         });
                     } else if let Some(inner_ty) = extract_type_from_option(&field_ty) {
                         decode_arms.push(quote! {
                             #begin_id => {
-                                reader.read_short_dc()?;
+                                reader.next_char()?;
                                 let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                                reader.expect_end(#end_id)?;
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                 #field_ident = ::std::option::Option::Some(::std::option::Option::Some(val));
                             }
                         });
                     } else {
                         decode_arms.push(quote! {
                             #begin_id => {
-                                reader.read_short_dc()?;
+                                reader.next_char()?;
                                 let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                                reader.expect_end(#end_id)?;
+                                reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                 #field_ident = ::std::option::Option::Some(val);
                             }
                         });
@@ -581,45 +727,42 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 } else {
                     decode_arms.push(quote! {
                         #id => {
-                            reader.read_short_dc()?;
+                            reader.next_char()?;
                             let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                             #field_ident = ::std::option::Option::Some(val);
                         }
                     });
                 }
 
-                // Validation / default
-                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
-                    field_validations.push(quote! {
-                        let #field_ident = #field_ident;
-                    });
-                } else if attr.default {
+                // Field validation / construction
+                if attr.default {
                     field_validations.push(quote! {
                         let #field_ident = match #field_ident {
                             ::std::option::Option::Some(v) => v,
                             ::std::option::Option::None => ::std::default::Default::default(),
                         };
                     });
+                } else if is_vec && (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) {
+                    field_validations.push(quote! {
+                        let #field_ident = #field_ident;
+                    });
+                } else if extract_type_from_option(&field_ty).is_some() {
+                    field_validations.push(quote! {
+                        let #field_ident = match #field_ident {
+                            ::std::option::Option::Some(v) => v,
+                            ::std::option::Option::None => ::std::option::Option::None,
+                        };
+                    });
                 } else {
-                    // Check if field type is Option<T>
-                    if type_str.starts_with("Option <") || type_str.starts_with("Option<") {
-                        field_validations.push(quote! {
-                            let #field_ident = match #field_ident {
-                                ::std::option::Option::Some(v) => v,
-                                ::std::option::Option::None => ::std::option::Option::None,
-                            };
-                        });
-                    } else {
-                        field_validations.push(quote! {
-                            let #field_ident = #field_ident.ok_or_else(|| {
-                                #anyhow_path::anyhow!(
-                                    "Required field `{}` missing from DcMixed stream for {}",
-                                    stringify!(#field_ident),
-                                    stringify!(#type_name)
-                                )
-                            })?;
-                        });
-                    }
+                    field_validations.push(quote! {
+                        let #field_ident = #field_ident.ok_or_else(|| {
+                            #anyhow_path::anyhow!(
+                                "Required field `{}` missing from DcMixed stream for {}",
+                                stringify!(#field_ident),
+                                stringify!(#type_name)
+                            )
+                        })?;
+                    });
                 }
 
                 construct_fields.push(quote! {
@@ -627,43 +770,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 });
             }
 
-            let encode_flags = if !flag_idents.is_empty() {
-                quote! {
-                    let mut __flags = 0u64;
-                    let mut __bit = 1u64;
-                    #(
-                        if self.#flag_idents {
-                            __flags |= __bit;
-                        }
-                        __bit = __bit.checked_shl(1).ok_or_else(|| #anyhow_path::anyhow!("Flag bit overflow in {}", stringify!(#type_name)))?;
-                    )*
-                    #crate_root::DcMixedEncode::encode_dc_mixed(&__flags, mst)?;
-                }
-            } else {
-                quote! {}
-            };
-
-            let decode_flags = if !flag_idents.is_empty() {
-                quote! {
-                    let __flags = <u64 as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                    let mut __bit = 1u64;
-                    #(
-                        let #flag_idents = (__flags & __bit) != 0;
-                        __bit = __bit.checked_shl(1).ok_or_else(|| #anyhow_path::anyhow!("Flag bit overflow in {}", stringify!(#type_name)))?;
-                    )*
-                }
-            } else {
-                quote! {}
-            };
-
             Ok(quote! {
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                     fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
-                        mst.push_char(#crate_root::DcChar::from_short(#begin_dc));
-                        #encode_flags
+                        mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                         #(#encode_fields)*
-                        mst.push_char(#crate_root::DcChar::from_short(#end_dc));
+                        mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                         Ok(())
                     }
                 }
@@ -671,12 +784,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                     fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
-                        reader.expect_begin(#begin_dc)?;
-                        #decode_flags
+                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
                         #(#field_inits)*
                         loop {
-                            let tag = match reader.peek_short_dc()? {
-                                ::std::option::Option::Some(t) => t,
+                            let tag = match reader.peek_char()? {
+                                ::std::option::Option::Some(t) => t.0,
                                 ::std::option::Option::None => {
                                     #anyhow_path::bail!(
                                         "Unexpected EOF while reading fields for {}",
@@ -685,14 +797,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             };
                             if tag == #end_dc {
-                                reader.read_short_dc()?;
+                                reader.next_char()?;
                                 break;
                             }
                             match tag {
                                 #(#decode_arms)*
                                 other => {
                                     #anyhow_path::bail!(
-                                        "Unexpected short Dc tag {} while decoding struct {}",
+                                        "Unexpected Dc tag {:#X} while decoding struct {}",
                                         other,
                                         stringify!(#type_name)
                                     );
@@ -719,46 +831,72 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
             for variant in &data_enum.variants {
                 let variant_ident = &variant.ident;
-                let mut variant_short = None;
+                let mut variant_tag = None;
 
                 for attr in &variant.attrs {
                     if !attr.path().is_ident("dc") {
                         continue;
                     }
-                    attr.parse_nested_meta(|meta| {
-                        if meta.path.is_ident("short") {
-                            let expr: Expr = meta.value()?.parse()?;
-                            if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = expr {
-                                let val: u32 = lit_int.base10_parse()?;
+                    attr.parse_args_with(|stream: syn::parse::ParseStream| {
+                        while !stream.is_empty() {
+                            if stream.peek(syn::LitInt) {
+                                let lit: syn::LitInt = stream.parse()?;
+                                let val: u32 = lit.base10_parse()?;
                                 if val > MAX_SHORT_DC {
-                                    return Err(syn::Error::new(
-                                        lit_int.span(),
-                                        format!("short Dc {val} exceeds maximum short Dc {MAX_SHORT_DC}"),
-                                    ));
+                                    return Err(syn::Error::new(lit.span(), format!("short Dc {val} exceeds maximum {MAX_SHORT_DC}")));
                                 }
-                                variant_short = Some(val);
-                                return Ok(());
+                                variant_tag = Some(SHORT_DC_REGION_START.saturating_add(u128::from(val)));
+                            } else if stream.peek(syn::Ident) {
+                                let ident: syn::Ident = stream.parse()?;
+                                if stream.peek(syn::Token![=]) {
+                                    stream.parse::<syn::Token![=]>()?;
+                                    let key = ident.to_string();
+                                    match key.as_str() {
+                                        "short" | "long" | "unicode" => {
+                                            let expr: Expr = stream.parse()?;
+                                            variant_tag = Some(parse_dc_expr(&expr)?);
+                                        }
+                                        "format" => {
+                                            let expr: Expr = stream.parse()?;
+                                            if let Expr::Lit(ExprLit { lit: Lit::Int(lit_int), .. }) = &expr {
+                                                let val: u32 = lit_int.base10_parse()?;
+                                                variant_tag = Some(FORMAT_REGION_START.saturating_add(u128::from(val)));
+                                            } else {
+                                                variant_tag = Some(parse_dc_expr(&expr)?);
+                                            }
+                                        }
+                                        other => return Err(syn::Error::new(ident.span(), format!("Unknown variant attribute key `{other}`"))),
+                                    }
+                                } else {
+                                    variant_tag = Some(parse_shorthand_str(&ident.to_string(), ident.span())?);
+                                }
+                            } else {
+                                return Err(stream.error("Expected shorthand or integer in variant #[dc(...)]"));
+                            }
+
+                            if stream.peek(syn::Token![,]) {
+                                stream.parse::<syn::Token![,]>()?;
                             }
                         }
-                        Err(meta.error("Expected #[dc(short = ...)] on enum variant"))
+                        Ok(())
                     })?;
                 }
 
-                let short_id = variant_short.ok_or_else(|| {
+                let tag_id = variant_tag.ok_or_else(|| {
                     syn::Error::new(
                         variant.span(),
                         format!(
-                            "Variant `{}::{}` is missing #[dc(short = ...)] attribute",
+                            "Variant `{}::{}` is missing #[dc(...)] attribute",
                             quote!(#type_name),
                             variant_ident
                         ),
                     )
                 })?;
 
-                if !seen_ids.insert(short_id) {
+                if !seen_ids.insert(tag_id) {
                     return Err(syn::Error::new(
                         variant.span(),
-                        format!("Duplicate short Dc ID {short_id} on variant `{variant_ident}`"),
+                        format!("Duplicate Dc ID {tag_id:#X} on variant `{variant_ident}`"),
                     ));
                 }
 
@@ -766,12 +904,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     Fields::Unit => {
                         encode_variants.push(quote! {
                             Self::#variant_ident => {
-                                mst.push_char(#crate_root::DcChar::from_short(#short_id));
+                                mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
                             }
                         });
                         decode_variants.push(quote! {
-                            #short_id => {
-                                reader.read_short_dc()?;
+                            #tag_id => {
+                                reader.next_char()?;
                                 Self::#variant_ident
                             }
                         });
@@ -782,7 +920,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             .collect();
                         encode_variants.push(quote! {
                             Self::#variant_ident(#(#field_names),*) => {
-                                mst.push_char(#crate_root::DcChar::from_short(#short_id));
+                                mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
                                 #(
                                     #crate_root::DcMixedEncode::encode_dc_mixed(#field_names, mst)?;
                                 )*
@@ -795,8 +933,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         }).collect();
                         decode_variants.push(quote! {
-                            #short_id => {
-                                reader.read_short_dc()?;
+                            #tag_id => {
+                                reader.next_char()?;
                                 Self::#variant_ident(#(#field_decodes),*)
                             }
                         });
@@ -819,20 +957,20 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 continue;
                             }
 
-                            let f_short = attr.short.or(attr.nested.first().copied()).or(attr.begin).ok_or_else(|| {
+                            let f_tag = attr.tag.or(attr.nested.first().copied()).or(attr.begin).ok_or_else(|| {
                                 syn::Error::new(
                                     f.span(),
-                                    format!("Field `{f_ident}` in variant `{variant_ident}` must have #[dc(short = ...)], #[dc(begin = ..., end = ...)], or #[dc(skip, reason = \"...\")]"),
+                                    format!("Field `{f_ident}` in variant `{variant_ident}` must have #[dc(...)] or #[dc(skip, reason = \"...\")]"),
                                 )
                             })?;
 
                             if attr.binary {
                                 encode_fields.push(quote! {
-                                    mst.push_char(#crate_root::DcChar::from_short(#f_short));
+                                    mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
                                     mst.push_binary_with_sha256(::std::convert::AsRef::<[u8]>::as_ref(#f_ident));
                                 });
                                 decode_fields.push(quote! {
-                                    reader.expect_short_dc(#f_short)?;
+                                    reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
                                     let #f_ident = reader.read_binary_payload()?.to_vec();
                                 });
                             } else if let (Some(begin_id), Some(end_id)) = (attr.begin, attr.end) {
@@ -840,36 +978,36 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
                                 if is_vec {
                                     encode_fields.push(quote! {
-                                        mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                         for item in #f_ident {
                                             #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
                                         }
-                                        mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                     });
                                     decode_fields.push(quote! {
-                                        reader.expect_begin(#begin_id)?;
+                                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_id))?;
                                         let mut #f_ident = ::std::vec::Vec::new();
-                                        while reader.peek_short_dc()? != ::std::option::Option::Some(#end_id) {
-                                            if reader.peek_short_dc()?.is_none() {
-                                                #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {}", #end_id);
+                                        while reader.peek_char()?.map(|c| c.0) != ::std::option::Option::Some(#end_id) {
+                                            if reader.peek_char()?.is_none() {
+                                                #anyhow_path::bail!("Unexpected EOF waiting for closing Dc {:#X}", #end_id);
                                             }
                                             #f_ident.push(<<#f_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
                                         }
-                                        reader.expect_end(#end_id)?;
+                                        reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                     });
                                 } else if let Some(inner_ty) = extract_type_from_option(f_ty) {
                                     encode_fields.push(quote! {
                                         if let ::std::option::Option::Some(ref item) = #f_ident {
-                                            mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                                            mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                             #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
-                                            mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                                            mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                         }
                                     });
                                     decode_fields.push(quote! {
-                                        let #f_ident = if reader.peek_short_dc()? == ::std::option::Option::Some(#begin_id) {
-                                            reader.read_short_dc()?;
+                                        let #f_ident = if reader.peek_char()?.map(|c| c.0) == ::std::option::Option::Some(#begin_id) {
+                                            reader.next_char()?;
                                             let val = <#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                                            reader.expect_end(#end_id)?;
+                                            reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                             ::std::option::Option::Some(val)
                                         } else {
                                             ::std::option::Option::None
@@ -877,14 +1015,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     });
                                 } else {
                                     encode_fields.push(quote! {
-                                        mst.push_char(#crate_root::DcChar::from_short(#begin_id));
+                                        mst.push_char(#crate_root::DcChar::from_u128(#begin_id));
                                         #crate_root::DcMixedEncode::encode_dc_mixed(#f_ident, mst)?;
-                                        mst.push_char(#crate_root::DcChar::from_short(#end_id));
+                                        mst.push_char(#crate_root::DcChar::from_u128(#end_id));
                                     });
                                     decode_fields.push(quote! {
-                                        reader.expect_begin(#begin_id)?;
+                                        reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_id))?;
                                         let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
-                                        reader.expect_end(#end_id)?;
+                                        reader.expect_end_char(#crate_root::DcChar::from_u128(#end_id))?;
                                     });
                                 }
                             } else if !attr.nested.is_empty() {
@@ -899,7 +1037,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     });
                                     decode_fields.push(quote! {
                                         let mut #f_ident = ::std::vec::Vec::new();
-                                        while matches!(reader.peek_short_dc()?, ::std::option::Option::Some(#(#nested_ids)|*)) {
+                                        while matches!(reader.peek_char()?.map(|c| c.0), ::std::option::Option::Some(#(#nested_ids)|*)) {
                                             #f_ident.push(<<#f_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?);
                                         }
                                     });
@@ -910,7 +1048,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                         }
                                     });
                                     decode_fields.push(quote! {
-                                        let #f_ident = if matches!(reader.peek_short_dc()?, ::std::option::Option::Some(#(#nested_ids)|*)) {
+                                        let #f_ident = if matches!(reader.peek_char()?.map(|c| c.0), ::std::option::Option::Some(#(#nested_ids)|*)) {
                                             ::std::option::Option::Some(<#inner_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?)
                                         } else {
                                             ::std::option::Option::None
@@ -926,11 +1064,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 }
                             } else {
                                 encode_fields.push(quote! {
-                                    mst.push_char(#crate_root::DcChar::from_short(#f_short));
+                                    mst.push_char(#crate_root::DcChar::from_u128(#f_tag));
                                     #crate_root::DcMixedEncode::encode_dc_mixed(#f_ident, mst)?;
                                 });
                                 decode_fields.push(quote! {
-                                    reader.expect_short_dc(#f_short)?;
+                                    reader.expect_char(#crate_root::DcChar::from_u128(#f_tag))?;
                                     let #f_ident = <#f_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
                                 });
                             }
@@ -938,14 +1076,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
 
                         encode_variants.push(quote! {
                             Self::#variant_ident { #(#field_names),* } => {
-                                mst.push_char(#crate_root::DcChar::from_short(#short_id));
+                                mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
                                 #(#encode_fields)*
                             }
                         });
 
                         decode_variants.push(quote! {
-                            #short_id => {
-                                reader.read_short_dc()?;
+                            #tag_id => {
+                                reader.next_char()?;
                                 #(#decode_fields)*
                                 Self::#variant_ident {
                                     #(#field_names),*
@@ -964,11 +1102,11 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                         fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
-                            mst.push_char(#crate_root::DcChar::from_short(#begin_dc));
+                            mst.push_char(#crate_root::DcChar::from_u128(#begin_dc));
                             match self {
                                 #(#encode_variants)*
                             }
-                            mst.push_char(#crate_root::DcChar::from_short(#end_dc));
+                            mst.push_char(#crate_root::DcChar::from_u128(#end_dc));
                             Ok(())
                         }
                     }
@@ -976,9 +1114,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                         fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
-                            reader.expect_begin(#begin_dc)?;
-                            let tag = match reader.peek_short_dc()? {
-                                ::std::option::Option::Some(t) => t,
+                            reader.expect_begin_char(#crate_root::DcChar::from_u128(#begin_dc))?;
+                            let tag = match reader.peek_char()? {
+                                ::std::option::Option::Some(t) => t.0,
                                 ::std::option::Option::None => {
                                     #anyhow_path::bail!(
                                         "Unexpected EOF while reading variant for {}",
@@ -990,13 +1128,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #(#decode_variants)*
                                 other => {
                                     #anyhow_path::bail!(
-                                        "Unexpected short Dc tag {} for enum {}",
+                                        "Unexpected Dc tag {:#X} for enum {}",
                                         other,
                                         stringify!(#type_name)
                                     );
                                 }
                             };
-                            reader.expect_end(#end_dc)?;
+                            reader.expect_end_char(#crate_root::DcChar::from_u128(#end_dc))?;
                             Ok(res)
                         }
                     }
@@ -1016,8 +1154,8 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     #[automatically_derived]
                     impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                         fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
-                            let tag = match reader.peek_short_dc()? {
-                                ::std::option::Option::Some(t) => t,
+                            let tag = match reader.peek_char()? {
+                                ::std::option::Option::Some(t) => t.0,
                                 ::std::option::Option::None => {
                                     #anyhow_path::bail!(
                                         "Unexpected EOF while reading variant for {}",
@@ -1029,7 +1167,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                 #(#decode_variants)*
                                 other => {
                                     #anyhow_path::bail!(
-                                        "Unexpected short Dc tag {} for enum {}",
+                                        "Unexpected Dc tag {:#X} for enum {}",
                                         other,
                                         stringify!(#type_name)
                                     );

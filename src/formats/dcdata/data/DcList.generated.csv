@@ -14,7 +14,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114118,6,Begin number,0,BN,,!Cx,Semantic,,Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,Semantic,,End a DCE number.
 1114120,8,Unknown value,0,BN,,!Cx,Semantic,,Substitution character for an unknown value.
-1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Semantic,,Internal DCE calendar identifier for the Gregorian calendar.
+1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Format,,Internal DCE calendar identifier for the Gregorian calendar.
 1114122,10,Positive,0,BN,,!Cx,Semantic,,Positive value (syntactical representation — This is not the + character)
 1114123,11,Negative,0,BN,,!Cx,Semantic,,Negative (syntactical representation — This is not the − character)
 1114124,12,Decimal point,0,ON,,Sm,Mathematics,"dot, point, >32, <approx>u2e",
@@ -315,11 +315,11 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114419,307,void lang.invoke(Routine | RoutineName),0,BN,,!Cx,EL Routines,,
 1114420,308,Next number is a long (global graph) Dc,0,BN,,!Cx,Miscellaneous,:~ [number],"Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back."
 1114421,309,Solid vertical line,0,ON,,Sm,Symbols,<style>u7c,Glyph variant of U+007C. Broken variant is unambiguously U+00A6.
-1114422,310,Begin list of type,0,BN,,!Cx,EL Syntax,:~ [type] 311,"Begins an ordered, contiguous, typed homogenous or heterogenous list."
-1114423,311,End list of type,0,BN,,!Cx,EL Syntax,:310 [type] ~,Terminates a typed list begun by 310.
+1114422,310,"Begin list (ordered, contiguous, typed)",0,BN,,!Cx,EL Syntax,:~ [number $length?] [type] 311,"Begins an ordered, contiguous, typed homogenous or heterogenous list."
+1114423,311,End list,0,BN,,!Cx,EL Syntax,,"Terminates a typed list begun by 310. Optionally, a length can be specified, in which case it must have that many elements declared."
 1114424,312,List element separator,0,BN,,!Cx,EL Syntax,,Separates elements within a list or sequence.
-1114425,313,Begin key-value map,0,BN,,!Cx,EL Syntax,:~ [type] [type] [^314]+ 314,Begins a key-value associative map.
-1114426,314,End key-value map,0,BN,,!Cx,EL Syntax,,Terminates a key-value associative map begun by 313.
+1114425,313,Begin key-value array (ordered),0,BN,,!Cx,EL Syntax,:~ [number $length?] [type] [type] ((([^(314 | 312)]) 312)* ([^(314 | 312)]))? 314,Begins an ordered key-value associative map.
+1114426,314,End key-value array,0,BN,,!Cx,EL Syntax,,Terminates an ordered key-value associative map begun by 313.
 1114427,315,Optional value present,0,BN,,!Cx,EL Syntax,:~ [value],Indicates an optional value is present.
 1114428,316,Optional value absent,0,BN,,!Cx,EL Syntax,,Indicates an optional value is absent.
 1114429,317,Begin file,0,BN,,!Cx,Semantic,:~ [^318]+ 318,Begins a universal file representation record.
@@ -342,16 +342,16 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114446,334,File owner user identifier,0,BN,,!Cx,Semantic,:~ [number],User ID of the file owner.
 1114447,335,File owner group identifier,0,BN,,!Cx,Semantic,:~ [number],Group ID of the file group.
 1114448,336,File payload size,0,BN,,!Cx,Semantic,:~ [number],Logical size of the primary file payload in bytes.
-1114449,337,File primary path,0,BN,,!Cx,Semantic,:~ ([string] | [data]),Primary relative or canonical path of a file entity.
-1114450,338,File stream name,0,BN,,!Cx,Semantic,:~ ([string] | [data] | [unicode_any]),Name or identifier of an alternate data stream or fork.
-1114451,339,File target link path,0,BN,,!Cx,Semantic,:~ ([string] | [data]),Target destination path for a symbolic or hard link.
+1114449,337,File primary path,0,BN,,!Cx,Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
+1114450,338,File stream name,0,BN,,!Cx,Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
+1114451,339,File target link path,0,BN,,!Cx,Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
 1114452,340,Begin execution environment description,0,BN,,!Cx,Semantic,:~ [number] [^341]* 341,Begins an execution environment snapshot.
 1114453,341,End execution environment description,0,BN,,!Cx,Semantic,,Terminates an execution environment snapshot.
 1114454,342,Operating system description,0,BN,,!Cx,Semantic,:~ [formats:os],Host operating system description.
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,Semantic,:~ [number],Description of a pointer bit width of architecture.
-1114457,345,Working directory path,0,BN,,!Cx,Semantic,:~ ([string] | [data]),"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
-1114458,346,Host local network IP address,0,BN,,!Cx,Semantic,:~ (f490 [number:f207]) | (f491 [number:f211]),Local network IP address of an execution environment host.
+1114457,345,Working directory path,0,BN,,!Cx,Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
+1114458,346,Host local network IP address,0,BN,,!Cx,Semantic,:~ 511 [f490:],Local network IP address of an execution environment host.
 1114459,347,System clock resolution nanoseconds,0,BN,,!Cx,Semantic,:~ [number],System time resolution in nanoseconds.
 1114460,348,Ambiguous values,0,BN,,!Cx,Semantic,:~ [list],Indicates that any of the values in the list may be the case.
 1114461,349,Begin file origin description,0,BN,,!Cx,Semantic,:~ [^350]+ 350,Begins a file origin descriptor.
@@ -362,7 +362,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114466,354,File origin: synthetic source,0,BN,,!Cx,Semantic,,Indicates origin is a synthetic in-memory file.
 1114467,355,File hardlink reference count,0,BN,,!Cx,Semantic,:~ [number],Link count of file on source filesystem.
 1114468,356,File hardlink group identifier,0,BN,,!Cx,Semantic,:~ [number],Hardlink grouping identifier.
-1114469,357,File enclosing path,0,BN,,!Cx,Semantic,:~ ([string] | [data]),Enclosing directory path from which relative path was resolved.
+1114469,357,File enclosing path,0,BN,,!Cx,Semantic,:~ [filepath],Enclosing directory path from which relative path was resolved.
 1114470,358,File kind: regular,0,BN,,!Cx,Semantic,,Identifies a regular file entity.
 1114471,359,File kind: directory,0,BN,,!Cx,Semantic,,Identifies a directory file entity.
 1114472,360,File kind: symbolic link,0,BN,,!Cx,Semantic,,Identifies a symbolic link entity.
@@ -403,7 +403,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114507,395,Begin date duration description,0,BN,,!Cx,Semantic,:~ [formats:duration] [^396]+ 396,
 1114508,396,End date duration description,0,BN,,!Cx,Semantic,,
 1114509,397,Equivalent representations,0,BN,,!Cx,Semantic,:~ [list],Indicates that all values within the list have the same underlying meaning.
-1114510,398,Host public network IP address,0,BN,,!Cx,Semantic,:~ (f490 [number:f207]) | (f491 [number:f211]),Public or remote network IP address of an execution environment host.
+1114510,398,Host public network IP address,0,BN,,!Cx,Semantic,:~ 511 [f490:],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,Semantic,:~ [string],File comment string.
 1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.
@@ -412,7 +412,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114516,404,Mac OS Finder file creator,0,BN,,!Cx,Semantic,:~ ([asciiprintable:4] | [data]),Four-character Mac OS Finder file creator code.
 1114517,405,Mac OS Finder label color,0,BN,,!Cx,Semantic,:~ [number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489),Mac OS Finder label color code.
 1114518,406,Mac OS Finder flags,0,BN,,!Cx,Semantic,:~ [number:Natural0] | (388 [^389]+ 389),Mac OS Finder flags.
-1114519,407,Mac OS Finder icon location,0,BN,,!Cx,Semantic,:~ [number:Integer] [number:Integer],Mac OS Finder icon coordinates in QuickDraw grid.
+1114519,407,Mac OS Finder icon location,0,BN,,!Cx,Semantic,:~ 511 [f523:],Mac OS Finder icon coordinates in QuickDraw grid.
 1114520,408,Mac OS Finder window folder identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Mac OS Finder window folder identifier.
 1114521,409,File flag: nodump,0,BN,,!Cx,Fileflag,nodump,Do not include file in backups.
 1114522,410,File flag: user immutable,0,BN,,!Cx,Fileflag,uchg,User immutable.
@@ -495,3 +495,29 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
 1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,Semantic,<ambiguous>473 480,"Finder label index 6, Red."
 1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,Semantic,<ambiguous>474 481,"Finder label index 7, Orange."
+1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,Semantic,:~ [^491]+ 491,Begins an extended Mac OS Finder information record (FXInfo).
+1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,Semantic,,Terminates an extended Mac OS Finder information record (FXInfo).
+1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.
+1114605,493,Mac OS extended Finder script code,0,BN,,!Cx,Semantic,:~ [number:Integer],Script system text encoding code in extended Finder info.
+1114606,494,Mac OS extended Finder comment identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Comment resource ID in extended Finder info.
+1114607,495,Mac OS extended Finder put away folder identifier,0,BN,,!Cx,Semantic,:~ [number:Natural0],Directory ID for desktop put away in extended Finder info.
+1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.
+1114609,497,File flag: custom badge,0,BN,,!Cx,Fileflag,custombadge,Mac OS object has custom badge.
+1114610,498,File flag: routing info,0,BN,,!Cx,Fileflag,routinginfo,Mac OS object has routing info.
+1114611,499,File flag: on desk,0,BN,,!Cx,Fileflag,ondesk,Mac OS object resides on desktop.
+1114612,500,File flag: shared application,0,BN,,!Cx,Fileflag,sharedapp,Mac OS application is multi-user shared.
+1114613,501,File flag: no inits,0,BN,,!Cx,Fileflag,noinits,Mac OS file contains no INIT resource.
+1114614,502,File flag: initialized,0,BN,,!Cx,Fileflag,inited,Mac OS Finder has initialized bundle resources.
+1114615,503,File flag: custom icon,0,BN,,!Cx,Fileflag,customicon,Mac OS object has custom icon resource.
+1114616,504,File flag: stationery,0,BN,,!Cx,Fileflag,stationery,Mac OS file is stationery or template.
+1114617,505,File flag: name locked,0,BN,,!Cx,Fileflag,namelocked,Mac OS object name cannot be edited.
+1114618,506,File flag: has bundle,0,BN,,!Cx,Fileflag,hasbundle,Mac OS application has bundle resource.
+1114619,507,File flag: invisible,0,BN,,!Cx,Fileflag,invisible,Mac OS Finder invisible flag.
+1114620,508,File flag: alias,0,BN,,!Cx,Fileflag,alias,Mac OS object is an alias file.
+1114621,509,File flag: extended flags invalid,0,BN,,!Cx,Fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
+1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.
+1114623,511,Begin Dc representation of format,0,BN,,!Cx,Semantic,:~ [format] [^512]+ [512],E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
+1114624,512,End Dc representation of format,0,BN,,!Cx,Semantic,,
+1114625,513,File path delimiter,0,BN,,!Cx,Semantic,,
+1114626,514,Key-value pair (tuple),0,BN,,!Cx,EL Syntax,:~ [^(515 | 312)]+ 312 [^(515 | 312)]+,
+1114627,515,End key-value pair,0,BN,,!Cx,EL Syntax,,

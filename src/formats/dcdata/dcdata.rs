@@ -113,6 +113,7 @@ pub(crate) fn get_dc_categories_dir() -> Option<&'static Dir<'static>> {
 }
 
 pub static FORMATS_CATEGORIES_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/../utilities/data/formats");
+    include_dir!("$CARGO_MANIFEST_DIR/data/categories/formats");
+
 
 

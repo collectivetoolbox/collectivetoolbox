@@ -446,6 +446,7 @@ mod tests {
             resource_fork: None,
             data_fork_size: Some(11),
             resource_fork_size: None,
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let single_bytes = write_apple_single_double(&archive)?;

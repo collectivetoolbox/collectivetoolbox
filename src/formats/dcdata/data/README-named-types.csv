@@ -15,3 +15,6 @@ datemagnitude,:[393:],A positive duration
 asciilatinletter,:([u41..u5a] | [u61..u7a]),ASCII Latin letter (A-Z or a-z)
 asciilatinletterdigit,:([u30..u39] | [u41..u5a] | [u61..u7a]),ASCII Latin letter or digit (0-9 A-Z a-z)
 asciiprintable,:[u20..u7e],ASCII printable character
+filename,:511 [f228:],
+filepath,:511 [f229:],
+ipaddr,:511 [f490:],

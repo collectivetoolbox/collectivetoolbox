@@ -236,6 +236,16 @@ impl<'a> DcMixedReader<'a> {
         self.expect_short_dc(end_dc)
     }
 
+    /// Expects an opening boundary delimiter character from any `DcChar`.
+    pub fn expect_begin_char(&mut self, begin: DcChar) -> Result<()> {
+        self.expect_char(begin)
+    }
+
+    /// Expects a closing boundary delimiter character from any `DcChar`.
+    pub fn expect_end_char(&mut self, end: DcChar) -> Result<()> {
+        self.expect_char(end)
+    }
+
     /// Consumes and returns the next binary encapsulated payload.
     ///
     /// # Errors
@@ -439,6 +449,22 @@ macro_rules! impl_dc_mixed_integer {
 
 impl_dc_mixed_integer!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 
+impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        self.0.encode_dc_mixed(mst)?;
+        self.1.encode_dc_mixed(mst)?;
+        Ok(())
+    }
+}
+
+impl<A: DcMixedDecode, B: DcMixedDecode> DcMixedDecode for (A, B) {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let a = A::decode_dc_mixed(reader)?;
+        let b = B::decode_dc_mixed(reader)?;
+        Ok((a, b))
+    }
+}
+
 impl<T: DcMixedEncode> DcMixedEncode for Option<T> {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         match self {
@@ -501,27 +527,66 @@ impl<T: DcMixedDecode> DcMixedDecode for Vec<T> {
 
 impl DcMixedEncode for Ipv4Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-        self.to_string().encode_dc_mixed(mst)
+        mst.push_char(DcChar::from_format(490));
+        let octets = u32::from_be_bytes(self.octets());
+        octets.encode_dc_mixed(mst)
     }
 }
 
 impl DcMixedDecode for Ipv4Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
-        let s = reader.read_string()?;
-        s.parse::<Ipv4Addr>().context("Failed to parse IPv4 address")
+        if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(490)) {
+            reader.next_char()?;
+            let val = u32::decode_dc_mixed(reader)?;
+            Ok(Ipv4Addr::from(val))
+        } else {
+            let s = reader.read_string()?;
+            s.parse::<Ipv4Addr>().context("Failed to parse IPv4 address")
+        }
     }
 }
 
 impl DcMixedEncode for Ipv6Addr {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-        self.to_string().encode_dc_mixed(mst)
+        mst.push_char(DcChar::from_format(491));
+        let octets = u128::from_be_bytes(self.octets());
+        octets.encode_dc_mixed(mst)
     }
 }
 
 impl DcMixedDecode for Ipv6Addr {
     fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        if reader.peek_char()?.is_some_and(|c| c == DcChar::from_format(491)) {
+            reader.next_char()?;
+            let val = u128::decode_dc_mixed(reader)?;
+            Ok(Ipv6Addr::from(val))
+        } else {
+            let s = reader.read_string()?;
+            s.parse::<Ipv6Addr>().context("Failed to parse IPv6 address")
+        }
+    }
+}
+
+impl DcMixedEncode for std::net::IpAddr {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        match self {
+            Self::V4(v4) => v4.encode_dc_mixed(mst),
+            Self::V6(v6) => v6.encode_dc_mixed(mst),
+        }
+    }
+}
+
+impl DcMixedDecode for std::net::IpAddr {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        if let Some(c) = reader.peek_char()? {
+            if c == DcChar::from_format(490) {
+                return Ok(Self::V4(Ipv4Addr::decode_dc_mixed(reader)?));
+            } else if c == DcChar::from_format(491) {
+                return Ok(Self::V6(Ipv6Addr::decode_dc_mixed(reader)?));
+            }
+        }
         let s = reader.read_string()?;
-        s.parse::<Ipv6Addr>().context("Failed to parse IPv6 address")
+        s.parse::<std::net::IpAddr>().context("Failed to parse IP address")
     }
 }
 
@@ -718,6 +783,33 @@ impl DcMixedDecode for SystemTime {
     }
 }
 
+macro_rules! impl_array_dc_mixed {
+    ($($N:literal),*) => {
+        $(
+            impl<T: DcMixedEncode> DcMixedEncode for [T; $N] {
+                fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+                    for elem in self {
+                        elem.encode_dc_mixed(mst)?;
+                    }
+                    Ok(())
+                }
+            }
+
+            impl<T: DcMixedDecode> DcMixedDecode for [T; $N] {
+                fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+                    let mut items: Vec<T> = Vec::with_capacity($N);
+                    for _ in 0..$N {
+                        items.push(T::decode_dc_mixed(reader)?);
+                    }
+                    items.try_into().map_err(|_| anyhow::anyhow!("Array length mismatch"))
+                }
+            }
+        )*
+    };
+}
+
+impl_array_dc_mixed!(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16);
+
 // ----------------------------------------------------------------------------
 // Universal Verification Harness
 // ----------------------------------------------------------------------------
@@ -830,6 +922,65 @@ mod tests {
     fn test_derive_enum_roundtrip() -> Result<()> {
         assert_dc_roundtrip(&SampleKind::Regular)?;
         assert_dc_roundtrip(&SampleKind::Directory)?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 401, end = 402)]
+    struct SampleShorthandStruct {
+        #[dc(403)]
+        short_num: u32,
+        #[dc(f315)]
+        format_str: String,
+        #[dc(u01a3)]
+        unicode_val: i32,
+        #[dc(l1000)]
+        long_val: u64,
+        #[dc(begin = f316, end = f317)]
+        nested_vals: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = f100, end = f101)]
+    enum SampleShorthandEnum {
+        #[dc(f315)]
+        AppleSingle,
+        #[dc(f316)]
+        AppleDouble,
+        #[dc(405)]
+        FinderLabel(u8),
+    }
+
+    #[crate::ctb_test]
+    fn test_shorthand_syntax_roundtrip() -> Result<()> {
+        let sample = SampleShorthandStruct {
+            short_num: 42,
+            format_str: "format_f315".to_string(),
+            unicode_val: -99,
+            long_val: 123456789,
+            nested_vals: vec!["alpha".to_string(), "beta".to_string()],
+        };
+        assert_dc_roundtrip(&sample)?;
+
+        assert_dc_roundtrip(&SampleShorthandEnum::AppleSingle)?;
+        assert_dc_roundtrip(&SampleShorthandEnum::AppleDouble)?;
+        assert_dc_roundtrip(&SampleShorthandEnum::FinderLabel(7))?;
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_ip_addr_roundtrip() -> Result<()> {
+        let v4: std::net::Ipv4Addr = "192.168.1.1".parse().unwrap();
+        assert_dc_roundtrip(&v4)?;
+
+        let v6: std::net::Ipv6Addr = "2001:db8::ff00:42:8329".parse().unwrap();
+        assert_dc_roundtrip(&v6)?;
+
+        let ip_v4: std::net::IpAddr = std::net::IpAddr::V4(v4);
+        assert_dc_roundtrip(&ip_v4)?;
+
+        let ip_v6: std::net::IpAddr = std::net::IpAddr::V6(v6);
+        assert_dc_roundtrip(&ip_v6)?;
         Ok(())
     }
 }

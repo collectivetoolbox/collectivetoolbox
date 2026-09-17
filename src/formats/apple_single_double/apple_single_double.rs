@@ -46,6 +46,7 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 
 static APPLESINGLEDOUBLE_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
@@ -89,11 +90,22 @@ pub const TIMESTAMP_UNSET_SENTINEL: u32 = 0x8000_0000;
 pub const SECONDS_1970_TO_2000: i64 = 946_684_800;
 
 /// Archive format variant identified by the header magic.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 pub enum AppleFormat {
     /// Single-file archive containing data fork and metadata.
+    #[dc(f315)]
     AppleSingle,
     /// Header/metadata archive companion file.
+    #[dc(f316)]
     AppleDouble,
 }
 
@@ -350,6 +362,8 @@ pub enum EntryType {
     IconBw,
     /// Color icon (ID 6).
     IconColor,
+    /// File info record (attributes, dates) in AppleDouble 1.0 (ID 7).
+    FileInfo,
     /// File timestamps info (ID 8).
     FileDatesInfo,
     /// Macintosh Finder metadata (FInfo + FXInfo) (ID 9).
@@ -366,6 +380,8 @@ pub enum EntryType {
     AfpFileInfo,
     /// Directory ID (ID 15). FIXME confirm if this is something AFP-specific.
     DirectoryId,
+    /// ProDOS / GS/OS Data file pathname in AppleDouble 1.0 (ID 100).
+    DataPathname,
     /// Unknown or vendor-specific entry ID.
     Unknown(u32),
 }
@@ -381,6 +397,7 @@ impl EntryType {
             4 => Self::Comment,
             5 => Self::IconBw,
             6 => Self::IconColor,
+            7 => Self::FileInfo,
             8 => Self::FileDatesInfo,
             9 => Self::FinderInfo,
             10 => Self::MacintoshFileInfo,
@@ -389,6 +406,7 @@ impl EntryType {
             13 => Self::AfpShortName,
             14 => Self::AfpFileInfo,
             15 => Self::DirectoryId,
+            100 => Self::DataPathname,
             other => Self::Unknown(other),
         }
     }
@@ -403,6 +421,7 @@ impl EntryType {
             Self::Comment => "Comment",
             Self::IconBw => "Icon, B&W",
             Self::IconColor => "Icon, Color",
+            Self::FileInfo => "File Info",
             Self::FileDatesInfo => "File Dates Info",
             Self::FinderInfo => "Finder Info",
             Self::MacintoshFileInfo => "Macintosh File Info",
@@ -411,6 +430,7 @@ impl EntryType {
             Self::AfpShortName => "AFP Short Name",
             Self::AfpFileInfo => "AFP File Info",
             Self::DirectoryId => "Directory ID",
+            Self::DataPathname => "Data Pathname",
             Self::Unknown(_) => "Unknown Entry",
         }
     }
@@ -425,6 +445,7 @@ impl EntryType {
             Self::Comment => 4,
             Self::IconBw => 5,
             Self::IconColor => 6,
+            Self::FileInfo => 7,
             Self::FileDatesInfo => 8,
             Self::FinderInfo => 9,
             Self::MacintoshFileInfo => 10,
@@ -433,6 +454,7 @@ impl EntryType {
             Self::AfpShortName => 13,
             Self::AfpFileInfo => 14,
             Self::DirectoryId => 15,
+            Self::DataPathname => 100,
             Self::Unknown(other) => *other,
         }
     }
@@ -453,10 +475,29 @@ pub struct AppleArchiveEntry {
     pub length: u32,
 }
 
+/// Preserved raw unrecognized entry from AppleSingle or AppleDouble archive.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+)]
+pub struct AppleRawEntry {
+    /// 32-bit entry type identifier (e.g. 5 for IconBw, 6 for IconColor, 10 for MacintoshFileInfo).
+    pub entry_id: u32,
+    /// Raw payload bytes of the entry.
+    pub data: Vec<u8>,
+}
+
+/// Type alias reflecting that raw entries preserve unrecognized container records.
+pub type AppleUnrecognizedEntry = AppleRawEntry;
+
 /// Decoded Finder flags boolean flags.
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "Mirrors 9 boolean flags from Finder metadata bitmask"
+    reason = "Mirrors 10 boolean flags from Finder metadata bitmask"
 )]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct FinderFlags {
@@ -464,6 +505,8 @@ pub struct FinderFlags {
     pub is_on_desk: bool,
     /// File is shared.
     pub is_shared: bool,
+    /// Extension or control panel contains no INIT resource.
+    pub has_no_inits: bool,
     /// Finder has initialized this file.
     pub has_been_inited: bool,
     /// File has custom icon resource.
@@ -480,6 +523,62 @@ pub struct FinderFlags {
     pub is_alias: bool,
 }
 
+impl FinderFlags {
+    /// Constructs `FinderFlags` by decoding the 16-bit Finder flags bitmask.
+    #[must_use]
+    pub const fn from_raw_u16(raw: u16) -> Self {
+        Self {
+            is_on_desk: (raw & 0x0001) != 0,
+            is_shared: (raw & 0x0040) != 0,
+            has_no_inits: (raw & 0x0080) != 0,
+            has_been_inited: (raw & 0x0100) != 0,
+            has_custom_icon: (raw & 0x0400) != 0,
+            is_stationery: (raw & 0x0800) != 0,
+            name_locked: (raw & 0x1000) != 0,
+            has_bundle: (raw & 0x2000) != 0,
+            is_invisible: (raw & 0x4000) != 0,
+            is_alias: (raw & 0x8000) != 0,
+        }
+    }
+
+    /// Encodes boolean flags into a 16-bit Finder flags bitmask.
+    #[must_use]
+    pub const fn to_raw_u16(&self) -> u16 {
+        let mut raw = 0u16;
+        if self.is_on_desk {
+            raw |= 0x0001;
+        }
+        if self.is_shared {
+            raw |= 0x0040;
+        }
+        if self.has_no_inits {
+            raw |= 0x0080;
+        }
+        if self.has_been_inited {
+            raw |= 0x0100;
+        }
+        if self.has_custom_icon {
+            raw |= 0x0400;
+        }
+        if self.is_stationery {
+            raw |= 0x0800;
+        }
+        if self.name_locked {
+            raw |= 0x1000;
+        }
+        if self.has_bundle {
+            raw |= 0x2000;
+        }
+        if self.is_invisible {
+            raw |= 0x4000;
+        }
+        if self.is_alias {
+            raw |= 0x8000;
+        }
+        raw
+    }
+}
+
 /// Decoded Finder label color and names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FinderLabel {
@@ -491,6 +590,28 @@ pub struct FinderLabel {
     pub classic_color: String,
     /// Mac OS X / modern macOS label name / color.
     pub osx_color: String,
+}
+
+impl Default for FinderLabel {
+    fn default() -> Self {
+        Self::from_index(0)
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for FinderLabel {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(405));
+        self.index.encode_dc_mixed(mst)?;
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for FinderLabel {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(405)?;
+        let index = u8::decode_dc_mixed(reader)?;
+        Ok(Self::from_index(index))
+    }
 }
 
 impl FinderLabel {
@@ -517,9 +638,9 @@ impl FinderLabel {
 }
 
 /// Extended Finder information (`FXInfo`, 16 bytes).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct ExtendedFinderInfo {
-    /// Custom icon ID.
+    /// Custom icon ID (for files).
     pub icon_id: i16,
     /// Script system code.
     pub script: i8,
@@ -529,10 +650,178 @@ pub struct ExtendedFinderInfo {
     pub comment: i16,
     /// Directory ID for put away.
     pub put_away: u32,
+    /// Icon view scroll position for folders (DXInfo `frScroll`).
+    pub scroll_position: Option<(i16, i16)>,
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for ExtendedFinderInfo {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(490));
+        if self.icon_id != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(492));
+            self.icon_id.encode_dc_mixed(mst)?;
+        }
+        if let Some((v, h)) = self.scroll_position {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(407));
+            (v, h).encode_dc_mixed(mst)?;
+        }
+        if self.script != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(493));
+            self.script.encode_dc_mixed(mst)?;
+        }
+        if self.xflags != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
+            self.xflags.encode_dc_mixed(mst)?;
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
+            if (self.xflags & 0x01) != 0 {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(497));
+            }
+            if (self.xflags & 0x04) != 0 {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(498));
+            }
+            if (self.xflags & 0x80) != 0 {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(509));
+            }
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
+        }
+        if self.comment != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(494));
+            self.comment.encode_dc_mixed(mst)?;
+        }
+        if self.put_away != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(495));
+            self.put_away.encode_dc_mixed(mst)?;
+        }
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(491));
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for ExtendedFinderInfo {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(490)?;
+        let mut icon_id = 0;
+        let mut script = 0;
+        let mut xflags = 0;
+        let mut comment = 0;
+        let mut put_away = 0;
+        let mut scroll_position = None;
+
+        loop {
+            let tag = match reader.peek_short_dc()? {
+                Some(t) => t,
+                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 491 in ExtendedFinderInfo"),
+            };
+            if tag == 491 {
+                reader.read_short_dc()?;
+                break;
+            }
+            match tag {
+                492 => {
+                    reader.read_short_dc()?;
+                    icon_id = i16::decode_dc_mixed(reader)?;
+                }
+                407 => {
+                    reader.read_short_dc()?;
+                    scroll_position = Some(<(i16, i16)>::decode_dc_mixed(reader)?);
+                }
+                493 => {
+                    reader.read_short_dc()?;
+                    script = i8::decode_dc_mixed(reader)?;
+                }
+                406 => {
+                    reader.read_short_dc()?;
+                    if reader.peek_short_dc()? == Some(397) {
+                        reader.read_short_dc()?;
+                    }
+                    while let Some(peek) = reader.peek_short_dc()? {
+                        match peek {
+                            6 => {
+                                xflags = u8::decode_dc_mixed(reader)?;
+                            }
+                            388 => {
+                                reader.read_short_dc()?;
+                                while let Some(flag_tag) = reader.peek_short_dc()? {
+                                    reader.read_short_dc()?;
+                                    if flag_tag == 389 {
+                                        break;
+                                    }
+                                    match flag_tag {
+                                        497 => xflags |= 0x01,
+                                        498 => xflags |= 0x04,
+                                        509 => xflags |= 0x80,
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            _ => break,
+                        }
+                    }
+                }
+                397 => {
+                    reader.read_short_dc()?;
+                    if reader.peek_short_dc()? == Some(6) {
+                        xflags = u8::decode_dc_mixed(reader)?;
+                    }
+                    if reader.peek_short_dc()? == Some(388) {
+                        reader.read_short_dc()?;
+                        while let Some(flag_tag) = reader.peek_short_dc()? {
+                            reader.read_short_dc()?;
+                            if flag_tag == 389 {
+                                break;
+                            }
+                            match flag_tag {
+                                497 => xflags |= 0x01,
+                                498 => xflags |= 0x04,
+                                509 => xflags |= 0x80,
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                388 => {
+                    reader.read_short_dc()?;
+                    while let Some(flag_tag) = reader.peek_short_dc()? {
+                        reader.read_short_dc()?;
+                        if flag_tag == 389 {
+                            break;
+                        }
+                        match flag_tag {
+                            497 => xflags |= 0x01,
+                            498 => xflags |= 0x04,
+                            509 => xflags |= 0x80,
+                            _ => {}
+                        }
+                    }
+                }
+                494 => {
+                    reader.read_short_dc()?;
+                    comment = i16::decode_dc_mixed(reader)?;
+                }
+                495 => {
+                    reader.read_short_dc()?;
+                    put_away = u32::decode_dc_mixed(reader)?;
+                }
+                _ => {
+                    reader.next_char()?;
+                }
+            }
+        }
+
+        Ok(Self {
+            icon_id,
+            script,
+            xflags,
+            comment,
+            put_away,
+            scroll_position,
+        })
+    }
 }
 
 /// Complete Finder metadata (`FInfo` + optional `FXInfo`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct FinderInfo {
     /// 4-character Mac OS file type code (e.g. "TEXT", "BINA").
     pub file_type: String,
@@ -546,10 +835,223 @@ pub struct FinderInfo {
     pub flags: FinderFlags,
     /// Icon coordinates in QuickDraw grid `(v, h)`.
     pub location: (i16, i16),
-    /// Window / folder ID.
+    /// Window / folder ID (or folder view mode `frView`).
     pub folder_id: i16,
     /// Extended Finder info if present.
     pub extended: Option<ExtendedFinderInfo>,
+    /// Folder window rectangle `[top, left, bottom, right]` for directory records (`DInfo`).
+    pub window_bounds: Option<[i16; 4]>,
+}
+
+impl FinderInfo {
+    /// Encodes FinderInfo fields into a DcMixed stream without boundary 401/402 tags.
+    pub fn encode_finder_fields(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        if !self.file_type.is_empty() {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(403));
+            self.file_type.encode_dc_mixed(mst)?;
+        }
+        if !self.file_creator.is_empty() {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(404));
+            self.file_creator.encode_dc_mixed(mst)?;
+        }
+        if self.label.index != 0 {
+            self.label.encode_dc_mixed(mst)?;
+        }
+        let mut effective_raw_flags = if self.raw_flags != 0 {
+            self.raw_flags
+        } else {
+            self.flags.to_raw_u16()
+        };
+        if self.label.index != 0 {
+            effective_raw_flags |= u16::from(self.label.index).checked_shl(1).unwrap_or(0);
+        }
+        if effective_raw_flags != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
+            effective_raw_flags.encode_dc_mixed(mst)?;
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
+            if self.flags.is_on_desk {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(499));
+            }
+            if self.flags.is_shared {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(500));
+            }
+            if self.flags.has_no_inits {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(501));
+            }
+            if self.flags.has_been_inited {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(502));
+            }
+            if self.flags.has_custom_icon {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(503));
+            }
+            if self.flags.is_stationery {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(504));
+            }
+            if self.flags.name_locked {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(505));
+            }
+            if self.flags.has_bundle {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(506));
+            }
+            if self.flags.is_invisible {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(507));
+            }
+            if self.flags.is_alias {
+                mst.push_char(ctb_formats_dcstring::DcChar::from_short(508));
+            }
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
+        }
+        if self.location != (0, 0) {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(407));
+            self.location.encode_dc_mixed(mst)?;
+        }
+        if self.folder_id != 0 {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(408));
+            self.folder_id.encode_dc_mixed(mst)?;
+        }
+        if let Some(bounds) = self.window_bounds {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(510));
+            bounds[0].encode_dc_mixed(mst)?;
+            bounds[1].encode_dc_mixed(mst)?;
+            bounds[2].encode_dc_mixed(mst)?;
+            bounds[3].encode_dc_mixed(mst)?;
+        }
+        if let Some(ref ext) = self.extended {
+            ext.encode_dc_mixed(mst)?;
+        }
+        Ok(())
+    }
+
+    /// Decodes a single field corresponding to `tag` from `reader`.
+    /// Returns true if the tag belonged to FinderInfo and was consumed.
+    pub fn decode_finder_field(
+        &mut self,
+        tag: u32,
+        reader: &mut ctb_formats_dcstring::DcMixedReader<'_>,
+    ) -> Result<bool> {
+        match tag {
+            403 => {
+                reader.read_short_dc()?;
+                self.file_type = String::decode_dc_mixed(reader)?;
+                Ok(true)
+            }
+            404 => {
+                reader.read_short_dc()?;
+                self.file_creator = String::decode_dc_mixed(reader)?;
+                Ok(true)
+            }
+            405 => {
+                self.label = FinderLabel::decode_dc_mixed(reader)?;
+                self.raw_flags = (self.raw_flags & !0x000E)
+                    | u16::from(self.label.index).checked_shl(1).unwrap_or(0);
+                Ok(true)
+            }
+            406 => {
+                reader.read_short_dc()?;
+                let mut decoded_raw = None;
+                if reader.peek_short_dc()? == Some(397) {
+                    reader.read_short_dc()?;
+                }
+                while let Some(peek) = reader.peek_short_dc()? {
+                    match peek {
+                        388 => {
+                            reader.read_short_dc()?;
+                            while let Some(flag_tag) = reader.peek_short_dc()? {
+                                reader.read_short_dc()?;
+                                if flag_tag == 389 {
+                                    break;
+                                }
+                                match flag_tag {
+                                    413 | 507 => self.flags.is_invisible = true,
+                                    499 => self.flags.is_on_desk = true,
+                                    500 => self.flags.is_shared = true,
+                                    501 => self.flags.has_no_inits = true,
+                                    502 => self.flags.has_been_inited = true,
+                                    503 => self.flags.has_custom_icon = true,
+                                    504 => self.flags.is_stationery = true,
+                                    505 => self.flags.name_locked = true,
+                                    506 => self.flags.has_bundle = true,
+                                    508 => self.flags.is_alias = true,
+                                    _ => {}
+                                }
+                            }
+                        }
+                        6 => {
+                            let num = u16::decode_dc_mixed(reader)?;
+                            decoded_raw = Some(num);
+                        }
+                        _ => break,
+                    }
+                }
+                if let Some(raw) = decoded_raw {
+                    self.raw_flags = raw;
+                    self.flags = FinderFlags::from_raw_u16(raw);
+                } else {
+                    self.raw_flags = self.flags.to_raw_u16();
+                }
+                if self.label.index == 0 {
+                    let label_idx = u8::try_from((self.raw_flags >> 1) & 0x07).unwrap_or(0);
+                    self.label = FinderLabel::from_index(label_idx);
+                }
+                Ok(true)
+            }
+            407 => {
+                reader.read_short_dc()?;
+                self.location = <(i16, i16)>::decode_dc_mixed(reader)?;
+                Ok(true)
+            }
+            408 => {
+                reader.read_short_dc()?;
+                self.folder_id = i16::decode_dc_mixed(reader)?;
+                Ok(true)
+            }
+            490 => {
+                self.extended = Some(ExtendedFinderInfo::decode_dc_mixed(reader)?);
+                Ok(true)
+            }
+            510 => {
+                reader.read_short_dc()?;
+                let top = i16::decode_dc_mixed(reader)?;
+                let left = i16::decode_dc_mixed(reader)?;
+                let bottom = i16::decode_dc_mixed(reader)?;
+                let right = i16::decode_dc_mixed(reader)?;
+                self.window_bounds = Some([top, left, bottom, right]);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for FinderInfo {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
+        self.encode_finder_fields(mst)?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for FinderInfo {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(401)?;
+        let mut finfo = FinderInfo::default();
+        loop {
+            let tag = match reader.peek_short_dc()? {
+                Some(t) => t,
+                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 402 in FinderInfo"),
+            };
+            if tag == 402 {
+                reader.read_short_dc()?;
+                break;
+            }
+            if !finfo.decode_finder_field(tag, reader)? {
+                reader.next_char()?;
+            }
+        }
+        Ok(finfo)
+    }
 }
 
 /// Extended attribute extracted from AppleDouble `ATTR` block.
@@ -598,6 +1100,8 @@ pub struct AppleArchive {
     pub finder_info: Option<FinderInfo>,
     /// Extended attributes decoded from modern OS X `ATTR` header.
     pub extended_attributes: Vec<AppleExtendedAttribute>,
+    /// Preserved unrecognized archive entries (e.g. icons, legacy OS info).
+    pub unrecognized_entries: Vec<AppleRawEntry>,
     /// Raw data fork payload (AppleSingle only).
     #[serde(skip_serializing)]
     pub data_fork: Option<Vec<u8>>,
@@ -673,6 +1177,7 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
     let mut backup_timestamp_sec = None;
     let mut finder_info = None;
     let mut extended_attributes = Vec::new();
+    let mut unrecognized_entries = Vec::new();
     let mut data_fork = None;
     let mut resource_fork = None;
 
@@ -715,7 +1220,12 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
                 finder_info = Some(finfo);
                 extended_attributes = xattrs;
             }
-            _ => {}
+            _ => {
+                unrecognized_entries.push(AppleRawEntry {
+                    entry_id: entry.raw_id,
+                    data: slice.to_vec(),
+                });
+            }
         }
     }
 
@@ -731,6 +1241,7 @@ pub fn read_apple_single_double(bytes: &[u8]) -> Result<AppleArchive> {
         backup_timestamp_sec,
         finder_info,
         extended_attributes,
+        unrecognized_entries,
         data_fork,
         resource_fork,
         data_fork_size,
@@ -806,8 +1317,41 @@ fn parse_finder_info(
         .get(4..8)
         .ok_or_else(|| anyhow::anyhow!("Missing creator bytes"))?;
 
-    let file_type = String::from_utf8_lossy(type_bytes).to_string();
-    let file_creator = String::from_utf8_lossy(creator_bytes).to_string();
+    let top = if is_big_endian {
+        read_i16_be(slice, 0)?
+    } else {
+        read_i16_le(slice, 0)?
+    };
+    let left = if is_big_endian {
+        read_i16_be(slice, 2)?
+    } else {
+        read_i16_le(slice, 2)?
+    };
+    let bottom = if is_big_endian {
+        read_i16_be(slice, 4)?
+    } else {
+        read_i16_le(slice, 4)?
+    };
+    let right = if is_big_endian {
+        read_i16_be(slice, 6)?
+    } else {
+        read_i16_le(slice, 6)?
+    };
+
+    let is_type_printable = type_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
+    let is_creator_printable = creator_bytes.iter().all(|&b| (0x20..=0x7e).contains(&b));
+
+    let (file_type, file_creator, window_bounds) = if (!is_type_printable || !is_creator_printable)
+        && (bottom > top && right > left && bottom < 4000 && right < 4000)
+    {
+        (String::new(), String::new(), Some([top, left, bottom, right]))
+    } else {
+        (
+            String::from_utf8_lossy(type_bytes).to_string(),
+            String::from_utf8_lossy(creator_bytes).to_string(),
+            None,
+        )
+    };
 
     let raw_flags = if is_big_endian {
         read_u16_be(slice, 8)?
@@ -839,6 +1383,7 @@ fn parse_finder_info(
     let flags = FinderFlags {
         is_on_desk: (raw_flags & 0x0001) != 0,
         is_shared: (raw_flags & 0x0040) != 0,
+        has_no_inits: (raw_flags & 0x0080) != 0,
         has_been_inited: (raw_flags & 0x0100) != 0,
         has_custom_icon: (raw_flags & 0x0400) != 0,
         is_stationery: (raw_flags & 0x0800) != 0,
@@ -870,6 +1415,7 @@ fn parse_finder_info(
         location: (loc_v, loc_h),
         folder_id,
         extended,
+        window_bounds,
     };
 
     Ok((finfo, extended_attributes))
@@ -1108,6 +1654,11 @@ fn parse_extended_finder_info(
     } else {
         read_i16_le(slice, 16)?
     };
+    let scroll_h = if is_big_endian {
+        read_i16_be(slice, 18)?
+    } else {
+        read_i16_le(slice, 18)?
+    };
     let script_byte = *slice
         .get(24)
         .ok_or_else(|| anyhow::anyhow!("Missing script byte"))?;
@@ -1125,12 +1676,18 @@ fn parse_extended_finder_info(
     } else {
         read_u32_le(slice, 28)?
     };
+    let scroll_position = if scroll_h != 0 {
+        Some((icon_id, scroll_h))
+    } else {
+        None
+    };
     Ok(Some(ExtendedFinderInfo {
         icon_id,
         script,
         xflags,
         comment,
         put_away,
+        scroll_position,
     }))
 }
 
@@ -1215,16 +1772,31 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
     if archive.finder_info.is_some() || !archive.extended_attributes.is_empty() {
         let mut finfo_bytes = vec![0u8; 32];
         if let Some(ref finfo) = archive.finder_info {
-            let type_bytes = finfo.file_type.as_bytes();
-            for (i, &b) in type_bytes.iter().take(4).enumerate() {
-                if let Some(slot) = finfo_bytes.get_mut(i) {
-                    *slot = b;
+            if let Some(bounds) = finfo.window_bounds {
+                if let Some(slot) = finfo_bytes.get_mut(0..2) {
+                    slot.copy_from_slice(&bounds[0].to_be_bytes());
                 }
-            }
-            let creator_bytes = finfo.file_creator.as_bytes();
-            for (i, &b) in creator_bytes.iter().take(4).enumerate() {
-                if let Some(slot) = finfo_bytes.get_mut(4_usize.saturating_add(i)) {
-                    *slot = b;
+                if let Some(slot) = finfo_bytes.get_mut(2..4) {
+                    slot.copy_from_slice(&bounds[1].to_be_bytes());
+                }
+                if let Some(slot) = finfo_bytes.get_mut(4..6) {
+                    slot.copy_from_slice(&bounds[2].to_be_bytes());
+                }
+                if let Some(slot) = finfo_bytes.get_mut(6..8) {
+                    slot.copy_from_slice(&bounds[3].to_be_bytes());
+                }
+            } else {
+                let type_bytes = finfo.file_type.as_bytes();
+                for (i, &b) in type_bytes.iter().take(4).enumerate() {
+                    if let Some(slot) = finfo_bytes.get_mut(i) {
+                        *slot = b;
+                    }
+                }
+                let creator_bytes = finfo.file_creator.as_bytes();
+                for (i, &b) in creator_bytes.iter().take(4).enumerate() {
+                    if let Some(slot) = finfo_bytes.get_mut(4_usize.saturating_add(i)) {
+                        *slot = b;
+                    }
                 }
             }
 
@@ -1234,6 +1806,7 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
                 let mut fl = (u16::from(finfo.label.index & 0x07)) << 1;
                 if finfo.flags.is_on_desk { fl |= 0x0001; }
                 if finfo.flags.is_shared { fl |= 0x0040; }
+                if finfo.flags.has_no_inits { fl |= 0x0080; }
                 if finfo.flags.has_been_inited { fl |= 0x0100; }
                 if finfo.flags.has_custom_icon { fl |= 0x0400; }
                 if finfo.flags.is_stationery { fl |= 0x0800; }
@@ -1261,6 +1834,16 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
                 if let Some(slot) = finfo_bytes.get_mut(16..18) {
                     slot.copy_from_slice(&ext.icon_id.to_be_bytes());
                 }
+                if let Some((v, h)) = ext.scroll_position {
+                    if ext.icon_id == 0 {
+                        if let Some(slot) = finfo_bytes.get_mut(16..18) {
+                            slot.copy_from_slice(&v.to_be_bytes());
+                        }
+                    }
+                    if let Some(slot) = finfo_bytes.get_mut(18..20) {
+                        slot.copy_from_slice(&h.to_be_bytes());
+                    }
+                }
                 if let Some(slot) = finfo_bytes.get_mut(24) {
                     *slot = u8::from_be_bytes(ext.script.to_be_bytes());
                 }
@@ -1279,6 +1862,14 @@ pub fn write_apple_single_double(archive: &AppleArchive) -> Result<Vec<u8>> {
         raw_entries.push(RawEntry {
             raw_id: EntryType::FinderInfo.to_u32(),
             data: finfo_bytes,
+        });
+    }
+
+    // 7. Unrecognized entries
+    for unrec in &archive.unrecognized_entries {
+        raw_entries.push(RawEntry {
+            raw_id: unrec.entry_id,
+            data: unrec.data.clone(),
         });
     }
 
@@ -1561,6 +2152,7 @@ mod tests {
                 flags: FinderFlags {
                     is_on_desk: false,
                     is_shared: false,
+                    has_no_inits: false,
                     has_been_inited: true,
                     has_custom_icon: false,
                     is_stationery: false,
@@ -1572,6 +2164,7 @@ mod tests {
                 location: (100, 200),
                 folder_id: 0,
                 extended: None,
+                window_bounds: None,
             }),
             extended_attributes: vec![
                 AppleExtendedAttribute {
@@ -1589,6 +2182,7 @@ mod tests {
             resource_fork: Some(b"mock resource fork binary data".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(30),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
 
@@ -1689,6 +2283,83 @@ mod tests {
         let mut read_opts_single = read_opts;
         read_opts_single.read_apple_single_as = true;
         ensure!(read_opts_single.any_apple_single());
+
+        Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_apple_dc_mixed_roundtrip() -> anyhow::Result<()> {
+        use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode, DcMixedReader, DcMst};
+
+        // 1. AppleFormat enum roundtrip with format Dcs (f315, f316)
+        let fmt = AppleFormat::AppleDouble;
+        let mut mst = DcMst::new();
+        fmt.encode_dc_mixed(&mut mst)?;
+        let mut reader = DcMixedReader::new(&mst);
+        let decoded_fmt = AppleFormat::decode_dc_mixed(&mut reader)?;
+        ensure!(decoded_fmt == fmt);
+
+        // 2. ExtendedFinderInfo roundtrip (begin = 490, end = 491; xflags preserved)
+        let ext = ExtendedFinderInfo {
+            icon_id: -16455,
+            script: 1,
+            xflags: 0x85,
+            comment: 42,
+            put_away: 105,
+            scroll_position: Some((10, 20)),
+        };
+        let mut mst = DcMst::new();
+        ext.encode_dc_mixed(&mut mst)?;
+        let mut reader = DcMixedReader::new(&mst);
+        let decoded_ext = ExtendedFinderInfo::decode_dc_mixed(&mut reader)?;
+        ensure!(decoded_ext == ext);
+
+        // 3. FinderFlags bitmask conversion
+        let label = FinderLabel::from_index(5);
+        let raw_flags = 0x4181u16 | (u16::from(label.index).checked_shl(1).unwrap_or(0));
+        let flags = FinderFlags::from_raw_u16(raw_flags);
+        ensure!(flags.is_on_desk);
+        ensure!(flags.has_no_inits);
+        ensure!(flags.has_been_inited);
+        ensure!(flags.is_invisible);
+        ensure!(!flags.is_alias);
+        ensure!(flags.to_raw_u16() == 0x4181u16);
+
+        // 4. FinderInfo roundtrip (begin = 401, end = 402)
+        let finfo = FinderInfo {
+            file_type: "TEXT".to_string(),
+            file_creator: "ttxt".to_string(),
+            raw_flags,
+            label,
+            flags,
+            location: (120, 340),
+            folder_id: -1,
+            extended: Some(ext),
+            window_bounds: Some([50, 60, 400, 500]),
+        };
+        let mut mst = DcMst::new();
+        finfo.encode_dc_mixed(&mut mst)?;
+        let mut reader = DcMixedReader::new(&mst);
+        let decoded_finfo = FinderInfo::decode_dc_mixed(&mut reader)?;
+        ensure!(decoded_finfo == finfo);
+
+        // 5. Test decoding from Dc with semantic flags only
+        let mut custom_mst = DcMst::new();
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(499)); // ondesk
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(501)); // noinits
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(507)); // invisible
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
+        custom_mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
+
+        let mut custom_reader = DcMixedReader::new(&custom_mst);
+        let decoded_custom = FinderInfo::decode_dc_mixed(&mut custom_reader)?;
+        ensure!(decoded_custom.flags.is_on_desk);
+        ensure!(decoded_custom.flags.has_no_inits);
+        ensure!(decoded_custom.flags.is_invisible);
+        ensure!(!decoded_custom.flags.has_bundle);
 
         Ok(())
     }

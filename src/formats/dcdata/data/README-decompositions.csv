@@ -1,0 +1,22 @@
+Decomposition,Description
+equiv,This is equivalent to the given Dc or Dc sequence.
+approx,This is approximately equivalent to the given Dc or Dc sequence.
+semantic,"This is approximately equivalent to the given Dc or Dc sequence, but carries additional semantic meaning."
+noBreak,This is a non-breaking counterpart to the given Dc.
+super,This is a superscript counterpart to the given Dc.
+sub,This is a subscript counterpart to the given Dc.
+compat,This is a compatibility equivalent to the given Dc.
+fraction,This fraction Dc can be represented as the given Dc.
+sort,Same as Unicode. TBD what it does. Something to do with collation
+font,This character can be considered a font variation of the given Dc
+circle,This is the given Dc with a circle around it.
+square,This is the given Dc to fit neatly in ideographic square.
+isolated,Form of character isolated
+initial,Form of character in initial position
+medial,Form of character in medial position
+final,Form of character in final position
+vertical,Character for convenience in vertical layout
+small,Same as Unicode. TBD what it does
+wide,The given Dc to fit fully in an ideographic square.
+narrow,The given Dc to fit in half an ideographic square.
+smallnarrow,Same as Unicode. TBD what it does

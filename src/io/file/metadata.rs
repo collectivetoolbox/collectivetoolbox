@@ -26,7 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -363,6 +362,45 @@ pub enum FileFlag {
     /// Reserved flag (`FS_RESERVED_FL` / `reservedforext2`).
     #[dc(short = 466)]
     ReservedForExt2,
+    /// Mac OS object has custom badge (`kExtendedFlagHasCustomBadge`).
+    #[dc(short = 497)]
+    CustomBadge,
+    /// Mac OS object has routing info (`kExtendedFlagHasRoutingInfo`).
+    #[dc(short = 498)]
+    RoutingInfo,
+    /// Mac OS object resides on desktop (`kIsOnDesk`).
+    #[dc(short = 499)]
+    OnDesk,
+    /// Mac OS application is multi-user shared (`kIsShared`).
+    #[dc(short = 500)]
+    SharedApp,
+    /// Mac OS file contains no INIT resource (`kHasNoINITs`).
+    #[dc(short = 501)]
+    NoInits,
+    /// Mac OS Finder has initialized bundle resources (`kHasBeenInited`).
+    #[dc(short = 502)]
+    Inited,
+    /// Mac OS object has custom icon resource (`kHasCustomIcon`).
+    #[dc(short = 503)]
+    CustomIcon,
+    /// Mac OS file is stationery or template (`kIsStationery`).
+    #[dc(short = 504)]
+    Stationery,
+    /// Mac OS object name cannot be edited (`kNameLocked`).
+    #[dc(short = 505)]
+    NameLocked,
+    /// Mac OS application has bundle resource (`kHasBundle`).
+    #[dc(short = 506)]
+    HasBundle,
+    /// Mac OS Finder invisible flag (`kIsInvisible`).
+    #[dc(short = 507)]
+    Invisible,
+    /// Mac OS object is an alias file (`kIsAlias`).
+    #[dc(short = 508)]
+    Alias,
+    /// Mac OS extended Finder flags are invalid (`kExtendedFlagsAreInvalid`).
+    #[dc(short = 509)]
+    ExtendedFlagsInvalid,
 }
 
 impl FileFlag {
@@ -428,6 +466,19 @@ impl FileFlag {
             Self::ProjectInherit => "projinherit",
             Self::Casefold => "casefold",
             Self::ReservedForExt2 => "reservedforext2",
+            Self::CustomBadge => "custombadge",
+            Self::RoutingInfo => "routinginfo",
+            Self::OnDesk => "ondesk",
+            Self::SharedApp => "sharedapp",
+            Self::NoInits => "noinits",
+            Self::Inited => "inited",
+            Self::CustomIcon => "customicon",
+            Self::Stationery => "stationery",
+            Self::NameLocked => "namelocked",
+            Self::HasBundle => "hasbundle",
+            Self::Invisible => "invisible",
+            Self::Alias => "alias",
+            Self::ExtendedFlagsInvalid => "xflaginvalid",
         }
     }
 
@@ -514,6 +565,19 @@ impl FileFlag {
             "projinherit" => Some(Self::ProjectInherit),
             "casefold" => Some(Self::Casefold),
             "reservedforext2" | "reserved" => Some(Self::ReservedForExt2),
+            "custombadge" => Some(Self::CustomBadge),
+            "routinginfo" => Some(Self::RoutingInfo),
+            "ondesk" => Some(Self::OnDesk),
+            "sharedapp" | "shared" => Some(Self::SharedApp),
+            "noinits" => Some(Self::NoInits),
+            "inited" => Some(Self::Inited),
+            "customicon" => Some(Self::CustomIcon),
+            "stationery" => Some(Self::Stationery),
+            "namelocked" => Some(Self::NameLocked),
+            "hasbundle" => Some(Self::HasBundle),
+            "invisible" => Some(Self::Invisible),
+            "alias" => Some(Self::Alias),
+            "xflaginvalid" => Some(Self::ExtendedFlagsInvalid),
             _ => None,
         }
     }
@@ -719,165 +783,47 @@ pub struct FileMetadata {
     pub apple: Option<AppleMetadata>,
 }
 
-pub use ctb_formats_apple_single_double::FinderInfo;
+pub use ctb_formats_apple_single_double::{
+    AppleRawEntry, ExtendedFinderInfo, FinderFlags, FinderInfo, FinderLabel,
+};
 
-fn encode_finder_info(fi: &FinderInfo, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(403));
-    fi.file_type.encode_dc_mixed(mst)?;
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(404));
-    fi.file_creator.encode_dc_mixed(mst)?;
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(405));
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
-    u32::from(fi.label.index).encode_dc_mixed(mst)?;
-    let label_dc = 482u32.checked_add(u32::from(fi.label.index)).context("label dc overflow")?;
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(label_dc));
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
-    u32::from(fi.raw_flags).encode_dc_mixed(mst)?;
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
-    if fi.flags.is_invisible {
-        mst.push_char(ctb_formats_dcstring::DcChar::from_short(413));
-    }
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(407));
-    i64::from(fi.location.0).encode_dc_mixed(mst)?;
-    i64::from(fi.location.1).encode_dc_mixed(mst)?;
-    mst.push_char(ctb_formats_dcstring::DcChar::from_short(408));
-    i64::from(fi.folder_id).encode_dc_mixed(mst)?;
-    Ok(())
+/// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
+/// or macOS extended attributes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AppleMetadata {
+    /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
+    pub finder_info: Option<FinderInfo>,
+    /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
+    pub real_name: Option<String>,
+    /// Standard file comment (Entry ID 4).
+    pub comment: Option<String>,
+    /// Backup timestamp in seconds since Unix epoch (Entry ID 8/Dates).
+    pub backup_timestamp_sec: Option<i64>,
+    /// Preserved unrecognized entries from AppleSingle or AppleDouble archive.
+    #[serde(default)]
+    pub unrecognized_entries: Vec<AppleRawEntry>,
 }
 
-fn decode_finder_info(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<FinderInfo> {
-    let mut file_type = String::new();
-    let mut file_creator = String::new();
-    let mut label = ctb_formats_apple_single_double::FinderLabel::from_index(0);
-    let mut raw_flags = 0u16;
-    let mut location = (0i16, 0i16);
-    let mut folder_id = 0i16;
-
-    loop {
-        let tag = match reader.peek_short_dc()? {
-            Some(t) => t,
-            None => break,
-        };
-        match tag {
-            403 => {
-                reader.read_short_dc()?;
-                file_type = String::decode_dc_mixed(reader)?;
-            }
-            404 => {
-                reader.read_short_dc()?;
-                file_creator = String::decode_dc_mixed(reader)?;
-            }
-            405 => {
-                reader.read_short_dc()?;
-                if reader.peek_short_dc()? == Some(397) {
-                    reader.read_short_dc()?;
-                }
-                if let Some(lbl_tag @ 482..=489) = reader.peek_short_dc()? {
-                    reader.read_short_dc()?;
-                    // Reason for fallback: label index offset within 0..=7 bounds
-                    let l_u8 = u8::try_from(lbl_tag.saturating_sub(482)).unwrap_or(0);
-                    label = ctb_formats_apple_single_double::FinderLabel::from_index(l_u8);
-                    if let Ok(l_u32) = u32::decode_dc_mixed(reader) {
-                        let _ = l_u32;
-                    }
-                } else {
-                    let l_u32 = u32::decode_dc_mixed(reader)?;
-                    // Reason for fallback: invalid label numbers default to 0 (None)
-                    let l_u8 = u8::try_from(l_u32).unwrap_or(0);
-                    label = ctb_formats_apple_single_double::FinderLabel::from_index(l_u8);
-                    if let Some(482..=489) = reader.peek_short_dc()? {
-                        reader.read_short_dc()?;
-                    }
-                }
-            }
-            406 => {
-                reader.read_short_dc()?;
-                if reader.peek_short_dc()? == Some(397) {
-                    reader.read_short_dc()?;
-                }
-                if reader.peek_short_dc()? == Some(388) {
-                    reader.read_short_dc()?;
-                    while let Some(flag_tag) = reader.peek_short_dc()? {
-                        reader.read_short_dc()?;
-                        if flag_tag == 389 {
-                            break;
-                        }
-                        if flag_tag == 413 {
-                            raw_flags |= 0x4000;
-                        }
-                    }
-                    if let Ok(f_u32) = u32::decode_dc_mixed(reader) {
-                        // Reason for fallback: raw flags exceeding 16-bit bounds default to 0
-                        raw_flags = u16::try_from(f_u32).unwrap_or(0);
-                    }
-                } else {
-                    let f_u32 = u32::decode_dc_mixed(reader)?;
-                    // Reason for fallback: raw flags exceeding 16-bit bounds default to 0
-                    raw_flags = u16::try_from(f_u32).unwrap_or(0);
-                    if reader.peek_short_dc()? == Some(388) {
-                        reader.read_short_dc()?;
-                        while let Some(flag_tag) = reader.peek_short_dc()? {
-                            reader.read_short_dc()?;
-                            if flag_tag == 389 {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            407 => {
-                reader.read_short_dc()?;
-                let v = i64::decode_dc_mixed(reader)?;
-                let h = i64::decode_dc_mixed(reader)?;
-                // Reason for fallback: QuickDraw coordinate overflow defaults to 0
-                let v_i16 = i16::try_from(v).unwrap_or(0);
-                // Reason for fallback: QuickDraw coordinate overflow defaults to 0
-                let h_i16 = i16::try_from(h).unwrap_or(0);
-                location = (v_i16, h_i16);
-            }
-            408 => {
-                reader.read_short_dc()?;
-                let fid = i64::decode_dc_mixed(reader)?;
-                // Reason for fallback: folder ID overflow defaults to 0
-                folder_id = i16::try_from(fid).unwrap_or(0);
-            }
-            _ => break,
-        }
+impl AppleMetadata {
+    /// Returns true if all metadata fields are None or empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.finder_info.is_none()
+            && self.real_name.is_none()
+            && self.comment.is_none()
+            && self.backup_timestamp_sec.is_none()
+            && self.unrecognized_entries.is_empty()
     }
-
-    let flags = ctb_formats_apple_single_double::FinderFlags {
-        is_on_desk: (raw_flags & 0x0001) != 0,
-        is_shared: (raw_flags & 0x0040) != 0,
-        has_been_inited: (raw_flags & 0x0100) != 0,
-        has_custom_icon: (raw_flags & 0x0400) != 0,
-        is_stationery: (raw_flags & 0x0800) != 0,
-        name_locked: (raw_flags & 0x1000) != 0,
-        has_bundle: (raw_flags & 0x2000) != 0,
-        is_invisible: (raw_flags & 0x4000) != 0,
-        is_alias: (raw_flags & 0x8000) != 0,
-    };
-    Ok(FinderInfo {
-        file_type,
-        file_creator,
-        raw_flags,
-        label,
-        flags,
-        location,
-        folder_id,
-        extended: None,
-    })
 }
 
 impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
     fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
         if let Some(ref fi) = self.finder_info {
-            encode_finder_info(fi, mst)?;
+            fi.encode_finder_fields(mst)?;
         }
         if let Some(ref rn) = self.real_name {
-            mst.push_char(ctb_formats_dcstring::DcChar::from_short(337));
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(496));
             rn.encode_dc_mixed(mst)?;
         }
         if let Some(ref c) = self.comment {
@@ -896,21 +842,23 @@ impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
 impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
     fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
         reader.expect_short_dc(401)?;
-        let mut finder_info = None;
+        let mut finder_info: Option<FinderInfo> = None;
         let mut real_name = None;
         let mut comment = None;
         let mut backup_timestamp_sec = None;
+        let unrecognized_entries = Vec::new();
 
-        while reader.peek_short_dc()? != Some(402) {
+        loop {
             let tag = match reader.peek_short_dc()? {
                 Some(t) => t,
-                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 402"),
+                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 402 in AppleMetadata"),
             };
+            if tag == 402 {
+                reader.read_short_dc()?;
+                break;
+            }
             match tag {
-                403 => {
-                    finder_info = Some(decode_finder_info(reader)?);
-                }
-                337 => {
+                496 => {
                     reader.read_short_dc()?;
                     real_name = Some(String::decode_dc_mixed(reader)?);
                 }
@@ -922,44 +870,23 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
                     reader.read_short_dc()?;
                     backup_timestamp_sec = Some(i64::decode_dc_mixed(reader)?);
                 }
+                finder_tag @ (403 | 404 | 405 | 406 | 407 | 408 | 490) => {
+                    let fi = finder_info.get_or_insert_with(FinderInfo::default);
+                    fi.decode_finder_field(finder_tag, reader)?;
+                }
                 _ => {
                     reader.next_char()?;
                 }
             }
         }
-        reader.expect_end(402)?;
 
         Ok(Self {
             finder_info,
             real_name,
             comment,
             backup_timestamp_sec,
+            unrecognized_entries,
         })
-    }
-}
-
-/// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
-/// or macOS extended attributes.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct AppleMetadata {
-    /// Decoded 32-byte Macintosh Finder information (type, creator, flags, coordinates, FXInfo).
-    pub finder_info: Option<FinderInfo>,
-    /// Real file name on AppleTalk/Macintosh volumes (Entry ID 3).
-    pub real_name: Option<String>,
-    /// Standard file comment (Entry ID 4).
-    pub comment: Option<String>,
-    /// Backup timestamp in seconds since Unix epoch (Entry ID 8/Dates).
-    pub backup_timestamp_sec: Option<i64>,
-}
-
-impl AppleMetadata {
-    /// Returns true if all metadata fields are None.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.finder_info.is_none()
-            && self.real_name.is_none()
-            && self.comment.is_none()
-            && self.backup_timestamp_sec.is_none()
     }
 }
 

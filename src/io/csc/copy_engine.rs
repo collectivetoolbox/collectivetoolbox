@@ -2166,6 +2166,7 @@ mod tests {
             resource_fork: Some(b"Resource Fork Bytes".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(19),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2241,6 +2242,7 @@ mod tests {
             resource_fork: Some(b"Zip Resource Fork".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(17),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2312,6 +2314,7 @@ mod tests {
             resource_fork: Some(b"Netatalk Resource Data".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(22),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2383,6 +2386,7 @@ mod tests {
             resource_fork: Some(b"Single Resource Fork Data".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(25),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2463,6 +2467,7 @@ mod tests {
             resource_fork: Some(b"valid rsrc".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(10),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let valid_companion_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2482,6 +2487,7 @@ mod tests {
             resource_fork: Some(b"orphan rsrc".to_vec()),
             data_fork_size: None,
             resource_fork_size: Some(11),
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let orphan_bytes = ctb_io::file::write_apple_single_double(&orphan_archive).unwrap();
@@ -2537,6 +2543,7 @@ mod tests {
             resource_fork: None,
             data_fork_size: Some(20),
             resource_fork_size: None,
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2713,6 +2720,7 @@ mod tests {
             resource_fork: None,
             data_fork_size: Some(15),
             resource_fork_size: None,
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2891,6 +2899,7 @@ mod tests {
             resource_fork: None,
             data_fork_size: Some(18),
             resource_fork_size: None,
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();
@@ -2934,6 +2943,7 @@ mod tests {
             resource_fork: None,
             data_fork_size: Some(11),
             resource_fork_size: None,
+            unrecognized_entries: Vec::new(),
             entries: Vec::new(),
         };
         let single_bytes = ctb_io::file::write_apple_single_double(&archive).unwrap();

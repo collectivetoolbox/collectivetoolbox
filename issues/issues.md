@@ -38,6 +38,12 @@ Windows-style streams (:Zone.Identifier)
 
 - Windows runner in GitHub actions to run test suite?
 
+- Apple_single_double has its own Dc serializer
+
+- [x] math.csv MathRelation should fail validation due to missing label
+
+- Path Dcs have :~ ([string] | [data]) or whatever, not path
+
 - Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_int.generated.rs: unexpected end of input, expected an expression
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces

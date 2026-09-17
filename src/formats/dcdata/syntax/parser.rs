@@ -125,10 +125,28 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
     let trimmed = content.trim();
     ensure!(!trimmed.is_empty(), "Empty bracket construct '[]'");
 
-    // Negated character set: [^248 255]
+    // Negated character set: [^248 255] or [^(314 | 312)]
     if let Some(rest) = trimmed.strip_prefix('^') {
+        let rest_trimmed = rest.trim();
+        let tokens_str = if rest_trimmed.starts_with('(') && rest_trimmed.ends_with(')') {
+            match rest_trimmed.get(1..rest_trimmed.len().saturating_sub(1)) {
+                Some(s) => s.trim(),
+                None => "",
+            }
+        } else if rest_trimmed.contains('|') {
+            bail!(
+                "Alternation '|' in negated set '[{trimmed}]' must be enclosed in parentheses, e.g. '[^({rest_trimmed})]'"
+            );
+        } else {
+            rest_trimmed
+        };
+
         let mut members = Vec::new();
-        for tok in rest.split_whitespace() {
+        for tok in tokens_str.split(|c: char| c.is_whitespace() || c == '|') {
+            let tok = tok.trim();
+            if tok.is_empty() {
+                continue;
+            }
             let target = parse_target_token(tok)
                 .with_context(|| format!("Invalid character token in negated set: '{tok}'"))?;
             members.push(target);
@@ -164,8 +182,20 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         }
     }
 
-    // Check if all whitespace-separated tokens are valid CharTargets (Character Set: [246 247])
-    let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+    // Check if tokens are valid CharTargets (Character Set: [246 247] or [(246 | 247)])
+    let positive_str = if trimmed.starts_with('(') && trimmed.ends_with(')') {
+        match trimmed.get(1..trimmed.len().saturating_sub(1)) {
+            Some(s) => s.trim(),
+            None => "",
+        }
+    } else {
+        trimmed
+    };
+    let tokens: Vec<&str> = positive_str
+        .split(|c: char| c.is_whitespace() || c == '|')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect();
     if !tokens.is_empty() {
         let mut targets = Vec::new();
         let mut all_valid = true;
@@ -185,39 +215,164 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         }
     }
 
-    // Named construct: [identifier $ident] or [type:transformation] or [statement]
-    let mut name_part = "";
+    // Check if there is a colon ':' separating name from subtype.
+    // The colon must be at top level (depth_paren == 0 && depth_bracket == 0).
+    let mut top_colon_idx = None;
+    let mut depth_p = 0usize;
+    let mut depth_b = 0usize;
+    for (i, c) in trimmed.char_indices() {
+        match c {
+            '(' => depth_p = depth_p.saturating_add(1),
+            ')' => depth_p = depth_p.saturating_sub(1),
+            '[' => depth_b = depth_b.saturating_add(1),
+            ']' => depth_b = depth_b.saturating_sub(1),
+            ':' if depth_p == 0 && depth_b == 0 => {
+                top_colon_idx = Some(i);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    if let Some(colon_idx) = top_colon_idx {
+        let name_part_raw = match trimmed.get(..colon_idx) {
+            Some(s) => s,
+            None => bail!("Invalid name slice bounds in named construct '[{trimmed}]'"),
+        };
+        let subtype_part_raw = match trimmed.get(colon_idx.saturating_add(1)..) {
+            Some(s) => s,
+            None => bail!("Invalid subtype slice bounds in named construct '[{trimmed}]'"),
+        };
+
+        let mut name = "";
+        let mut capture_var = None;
+
+        for tok in name_part_raw.split_whitespace() {
+            if let Some(var) = tok.strip_prefix('$') {
+                ensure!(
+                    capture_var.is_none(),
+                    "Multiple capture variables in named construct '[{trimmed}]'"
+                );
+                capture_var = Some(var.trim().to_string());
+            } else if name.is_empty() {
+                name = tok;
+            } else {
+                bail!("Unexpected extra token in named construct name '[{trimmed}]': '{tok}'");
+            }
+        }
+
+        let mut subtype_str = subtype_part_raw.trim();
+        let mut last_top_whitespace = None;
+        let mut depth_p = 0usize;
+        let mut depth_b = 0usize;
+        for (i, c) in subtype_str.char_indices() {
+            match c {
+                '(' => depth_p = depth_p.saturating_add(1),
+                ')' => depth_p = depth_p.saturating_sub(1),
+                '[' => depth_b = depth_b.saturating_add(1),
+                ']' => depth_b = depth_b.saturating_sub(1),
+                _ if c.is_whitespace() && depth_p == 0 && depth_b == 0 => {
+                    last_top_whitespace = Some(i);
+                }
+                _ => {}
+            }
+        }
+        if let Some(ws_idx) = last_top_whitespace {
+            if let Some(candidate_slice) = subtype_str.get(ws_idx..) {
+                let candidate = candidate_slice.trim();
+                if let Some(var) = candidate.strip_prefix('$') {
+                    if !var.is_empty() {
+                        ensure!(
+                            capture_var.is_none(),
+                            "Multiple capture variables in named construct '[{trimmed}]'"
+                        );
+                        capture_var = Some(var.trim().to_string());
+                        subtype_str = match subtype_str.get(..ws_idx) {
+                            Some(s) => s.trim(),
+                            None => subtype_str,
+                        };
+                    }
+                }
+            }
+        }
+
+        ensure!(
+            !name.is_empty(),
+            "Named construct in brackets must have a name: '[{trimmed}]'"
+        );
+        ensure!(
+            !subtype_str.is_empty(),
+            "Named construct in brackets cannot have an empty subtype: '[{trimmed}]'"
+        );
+
+        return Ok(SyntaxElement::exact(SyntaxTerm::NamedConstruct {
+            name: name.to_string(),
+            subtype: Some(subtype_str.to_string()),
+            capture_var,
+        }));
+    }
+
+    // Named construct without colon: [identifier $ident] or [statement]
+    let mut tokens = Vec::new();
+    let mut current_tok = String::new();
+    let mut depth_p = 0usize;
+    let mut depth_b = 0usize;
+    for c in trimmed.chars() {
+        match c {
+            '(' => {
+                depth_p = depth_p.saturating_add(1);
+                current_tok.push(c);
+            }
+            ')' => {
+                depth_p = depth_p.saturating_sub(1);
+                current_tok.push(c);
+            }
+            '[' => {
+                depth_b = depth_b.saturating_add(1);
+                current_tok.push(c);
+            }
+            ']' => {
+                depth_b = depth_b.saturating_sub(1);
+                current_tok.push(c);
+            }
+            _ if c.is_whitespace() && depth_p == 0 && depth_b == 0 => {
+                if !current_tok.is_empty() {
+                    tokens.push(current_tok.clone());
+                    current_tok.clear();
+                }
+            }
+            _ => current_tok.push(c),
+        }
+    }
+    if !current_tok.is_empty() {
+        tokens.push(current_tok);
+    }
+
+    let mut name = "";
     let mut capture_var = None;
 
-    for tok in tokens {
+    for tok in &tokens {
         if let Some(var) = tok.strip_prefix('$') {
+            ensure!(
+                capture_var.is_none(),
+                "Multiple capture variables in named construct '[{trimmed}]'"
+            );
             capture_var = Some(var.trim().to_string());
-        } else if name_part.is_empty() {
-            name_part = tok;
+        } else if name.is_empty() {
+            name = tok.as_str();
         } else {
             bail!("Unexpected extra token in named construct '[{trimmed}]': '{tok}'");
         }
     }
 
     ensure!(
-        !name_part.is_empty(),
+        !name.is_empty(),
         "Named construct in brackets must have a name: '[{trimmed}]'"
     );
 
-    let (name, subtype) = if let Some((base, sub)) = name_part.split_once(':') {
-        (base.trim().to_string(), Some(sub.trim().to_string()))
-    } else {
-        (name_part.trim().to_string(), None)
-    };
-
-    ensure!(
-        !name.is_empty(),
-        "Named construct in brackets cannot have an empty name: '[{trimmed}]'"
-    );
-
     Ok(SyntaxElement::exact(SyntaxTerm::NamedConstruct {
-        name,
-        subtype,
+        name: name.to_string(),
+        subtype: None,
         capture_var,
     }))
 }

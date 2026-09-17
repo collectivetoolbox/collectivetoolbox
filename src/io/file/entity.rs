@@ -1270,21 +1270,30 @@ mod tests {
         entity.identity.raw_relative_path.clear();
         entity.identity.raw_filename.clear();
 
-        // Include AppleMetadata with FinderInfo to test Mac metadata roundtrip
+        // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
         entity.metadata.apple = Some(crate::file::AppleMetadata {
             finder_info: Some(crate::file::FinderInfo {
                 file_type: "TEXT".to_string(),
                 file_creator: "ttxt".to_string(),
-                raw_flags: 0,
+                raw_flags: 0x450D,
                 label: ctb_formats_apple_single_double::FinderLabel::from_index(6),
-                flags: ctb_formats_apple_single_double::FinderFlags::default(),
+                flags: ctb_formats_apple_single_double::FinderFlags::from_raw_u16(0x450D),
                 location: (10, 20),
                 folder_id: 0,
-                extended: None,
+                extended: Some(crate::file::ExtendedFinderInfo {
+                    icon_id: -16455,
+                    script: 1,
+                    xflags: 0,
+                    comment: 10,
+                    put_away: 999,
+                    scroll_position: None,
+                }),
+                window_bounds: None,
             }),
             real_name: Some("regular_file.txt".to_string()),
             comment: Some("Test comment".to_string()),
             backup_timestamp_sec: Some(1_700_000_000),
+            unrecognized_entries: Vec::new(),
         });
 
         // Add a semantic flag and an attached stream to test full representation

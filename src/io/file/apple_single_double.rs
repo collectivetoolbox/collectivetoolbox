@@ -32,7 +32,7 @@ use crate::file::payload::Extent;
 use crate::file::streams::{AttachedStream, StreamKind, StreamName};
 pub use ctb_formats_apple_single_double::{
     AppleArchive, AppleArchiveEntry, AppleDatesInfo, AppleDoubleStyle,
-    AppleExtendedAttribute, AppleFormat, AppleReadOptions,
+    AppleExtendedAttribute, AppleFormat, AppleRawEntry, AppleReadOptions,
     AppleSingleExtension, EntryType, ExtendedFinderInfo, FinderFlags,
     FinderInfo, FinderLabel, get_companion_path, is_apple_double_file,
     is_apple_single_file, read_apple_single_double, write_apple_single_double,
@@ -88,6 +88,7 @@ impl AppleArchiveExt for AppleArchive {
             && self.real_name.is_none()
             && self.comment.is_none()
             && backup_timestamp_sec.is_none()
+            && self.unrecognized_entries.is_empty()
         {
             return None;
         }
@@ -97,6 +98,7 @@ impl AppleArchiveExt for AppleArchive {
             real_name: self.real_name.clone(),
             comment: self.comment.clone(),
             backup_timestamp_sec,
+            unrecognized_entries: self.unrecognized_entries.clone(),
         })
     }
 }
@@ -137,10 +139,62 @@ pub fn create_apple_archive_from_entity(
     }
 
     let apple_meta = entity.metadata.apple.as_ref();
-    let finder_info = apple_meta.and_then(|a| a.finder_info.clone());
+    let mut finder_info = apple_meta.and_then(|a| a.finder_info.clone());
+
+    let has_mac_flags = entity.metadata.flags.iter().any(|f| matches!(
+        f,
+        crate::file::metadata::FileFlag::OnDesk
+            | crate::file::metadata::FileFlag::SharedApp
+            | crate::file::metadata::FileFlag::NoInits
+            | crate::file::metadata::FileFlag::Inited
+            | crate::file::metadata::FileFlag::CustomIcon
+            | crate::file::metadata::FileFlag::Stationery
+            | crate::file::metadata::FileFlag::NameLocked
+            | crate::file::metadata::FileFlag::HasBundle
+            | crate::file::metadata::FileFlag::Invisible
+            | crate::file::metadata::FileFlag::Alias
+            | crate::file::metadata::FileFlag::CustomBadge
+            | crate::file::metadata::FileFlag::RoutingInfo
+            | crate::file::metadata::FileFlag::ExtendedFlagsInvalid
+    ));
+    if has_mac_flags && finder_info.is_none() {
+        finder_info = Some(FinderInfo::default());
+    }
+    if let Some(ref mut finfo) = finder_info {
+        for flag in &entity.metadata.flags {
+            match flag {
+                crate::file::metadata::FileFlag::OnDesk => finfo.flags.is_on_desk = true,
+                crate::file::metadata::FileFlag::SharedApp => finfo.flags.is_shared = true,
+                crate::file::metadata::FileFlag::NoInits => finfo.flags.has_no_inits = true,
+                crate::file::metadata::FileFlag::Inited => finfo.flags.has_been_inited = true,
+                crate::file::metadata::FileFlag::CustomIcon => finfo.flags.has_custom_icon = true,
+                crate::file::metadata::FileFlag::Stationery => finfo.flags.is_stationery = true,
+                crate::file::metadata::FileFlag::NameLocked => finfo.flags.name_locked = true,
+                crate::file::metadata::FileFlag::HasBundle => finfo.flags.has_bundle = true,
+                crate::file::metadata::FileFlag::Invisible => finfo.flags.is_invisible = true,
+                crate::file::metadata::FileFlag::Alias => finfo.flags.is_alias = true,
+                crate::file::metadata::FileFlag::CustomBadge => {
+                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    ext.xflags |= 0x01;
+                }
+                crate::file::metadata::FileFlag::RoutingInfo => {
+                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    ext.xflags |= 0x04;
+                }
+                crate::file::metadata::FileFlag::ExtendedFlagsInvalid => {
+                    let ext = finfo.extended.get_or_insert_with(ExtendedFinderInfo::default);
+                    ext.xflags |= 0x80;
+                }
+                _ => {}
+            }
+        }
+    }
     let real_name = apple_meta.and_then(|a| a.real_name.clone());
     let comment = apple_meta.and_then(|a| a.comment.clone());
     let backup_timestamp_sec = apple_meta.and_then(|a| a.backup_timestamp_sec);
+    let unrecognized_entries = apple_meta
+        .map(|a| a.unrecognized_entries.clone())
+        .unwrap_or_default();
 
     let timestamps = Some(AppleDatesInfo {
         birthtime_sec: entity.metadata.timestamps.birthtime_sec,
@@ -162,6 +216,7 @@ pub fn create_apple_archive_from_entity(
         backup_timestamp_sec,
         finder_info,
         extended_attributes,
+        unrecognized_entries,
         data_fork,
         resource_fork,
         data_fork_size,
@@ -442,6 +497,36 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             entity.streams.push(stream);
         }
     }
+    if let Some(ref finfo) = archive.finder_info {
+        let flags_to_add = [
+            (finfo.flags.is_on_desk, crate::file::metadata::FileFlag::OnDesk),
+            (finfo.flags.is_shared, crate::file::metadata::FileFlag::SharedApp),
+            (finfo.flags.has_no_inits, crate::file::metadata::FileFlag::NoInits),
+            (finfo.flags.has_been_inited, crate::file::metadata::FileFlag::Inited),
+            (finfo.flags.has_custom_icon, crate::file::metadata::FileFlag::CustomIcon),
+            (finfo.flags.is_stationery, crate::file::metadata::FileFlag::Stationery),
+            (finfo.flags.name_locked, crate::file::metadata::FileFlag::NameLocked),
+            (finfo.flags.has_bundle, crate::file::metadata::FileFlag::HasBundle),
+            (finfo.flags.is_invisible, crate::file::metadata::FileFlag::Invisible),
+            (finfo.flags.is_alias, crate::file::metadata::FileFlag::Alias),
+        ];
+        for (is_set, flag) in flags_to_add {
+            if is_set && !entity.metadata.flags.contains(&flag) {
+                entity.metadata.flags.push(flag);
+            }
+        }
+        if let Some(ref ext) = finfo.extended {
+            if (ext.xflags & 0x01) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::CustomBadge) {
+                entity.metadata.flags.push(crate::file::metadata::FileFlag::CustomBadge);
+            }
+            if (ext.xflags & 0x04) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::RoutingInfo) {
+                entity.metadata.flags.push(crate::file::metadata::FileFlag::RoutingInfo);
+            }
+            if (ext.xflags & 0x80) != 0 && !entity.metadata.flags.contains(&crate::file::metadata::FileFlag::ExtendedFlagsInvalid) {
+                entity.metadata.flags.push(crate::file::metadata::FileFlag::ExtendedFlagsInvalid);
+            }
+        }
+    }
     if let Some(apple_meta) = archive.to_apple_metadata() {
         if entity.metadata.apple.is_none() {
             entity.metadata.apple = Some(apple_meta);
@@ -458,7 +543,61 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             if existing.backup_timestamp_sec.is_none() {
                 existing.backup_timestamp_sec = apple_meta.backup_timestamp_sec;
             }
+            for unrec in apple_meta.unrecognized_entries {
+                if !existing
+                    .unrecognized_entries
+                    .iter()
+                    .any(|e| e.entry_id == unrec.entry_id)
+                {
+                    existing.unrecognized_entries.push(unrec);
+                }
+            }
         }
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace test prelude"
+)]
+mod tests {
+    use super::*;
+    use crate::file::metadata::FileFlag;
+
+    #[crate::ctb_test]
+    fn test_mac_file_flags_sync() -> Result<()> {
+        let temp = tempfile::tempdir()?;
+        let file_path = temp.path().join("test_file.txt");
+        std::fs::write(&file_path, b"payload")?;
+
+        let mut entity = FileEntity::from_filesystem(&file_path, None)?;
+        entity.metadata.flags = vec![
+            FileFlag::OnDesk,
+            FileFlag::NoInits,
+            FileFlag::Invisible,
+            FileFlag::CustomBadge,
+        ];
+
+        let archive = create_apple_archive_from_entity(&entity, AppleFormat::AppleDouble, None)?;
+        let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
+        ensure!(finfo.flags.is_on_desk);
+        ensure!(finfo.flags.has_no_inits);
+        ensure!(finfo.flags.is_invisible);
+        let ext = finfo.extended.as_ref().context("missing extended finder info")?;
+        ensure!((ext.xflags & 0x01) != 0);
+
+        let mut roundtrip_entity = FileEntity::from_filesystem(&file_path, None)?;
+        roundtrip_entity.metadata.flags.clear();
+        join_apple_archive_into_entity(&mut roundtrip_entity, &archive)?;
+        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::OnDesk));
+        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::NoInits));
+        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::Invisible));
+        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::CustomBadge));
+
+        Ok(())
+    }
+}
+

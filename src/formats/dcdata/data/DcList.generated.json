@@ -282,7 +282,7 @@
     "combining_class": 0,
     "bidi_class": "BN",
     "general_category": "!Cx",
-    "script": "Semantic",
+    "script": "Format",
     "is_deprecated": false,
     "decompositions": [],
     "aliases": [],
@@ -6718,7 +6718,7 @@
   {
     "dc_id": 1114422,
     "short_id": 310,
-    "name": "Begin list of type",
+    "name": "Begin list (ordered, contiguous, typed)",
     "category": "el",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -6733,6 +6733,16 @@
         "Sequence": [
           {
             "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": "length?"
+              }
+            },
             "quantifier": "ExactOne"
           },
           {
@@ -6756,7 +6766,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ [type] 311"
+      "raw": ":~ [number $length?] [type] 311"
     },
     "description": "Begins an ordered, contiguous, typed homogenous or heterogenous list.",
     "source_file": "el.csv",
@@ -6765,7 +6775,7 @@
   {
     "dc_id": 1114423,
     "short_id": 311,
-    "name": "End list of type",
+    "name": "End list",
     "category": "el",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -6775,37 +6785,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "syntax": {
-      "pattern": {
-        "Sequence": [
-          {
-            "term": {
-              "CharRef": {
-                "Dc": 310
-              }
-            },
-            "quantifier": "ExactOne"
-          },
-          {
-            "term": {
-              "NamedConstruct": {
-                "name": "type",
-                "subtype": null,
-                "capture_var": null
-              }
-            },
-            "quantifier": "ExactOne"
-          },
-          {
-            "term": "SelfChar",
-            "quantifier": "ExactOne"
-          }
-        ]
-      },
-      "action": null,
-      "raw": ":310 [type] ~"
-    },
-    "description": "Terminates a typed list begun by 310.",
+    "description": "Terminates a typed list begun by 310. Optionally, a length can be specified, in which case it must have that many elements declared.",
     "source_file": "el.csv",
     "line_number": 43
   },
@@ -6829,7 +6809,7 @@
   {
     "dc_id": 1114425,
     "short_id": 313,
-    "name": "Begin key-value map",
+    "name": "Begin key-value array (ordered)",
     "category": "el",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -6849,6 +6829,16 @@
           {
             "term": {
               "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": "length?"
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
                 "name": "type",
                 "subtype": null,
                 "capture_var": null
@@ -6868,16 +6858,79 @@
           },
           {
             "term": {
-              "CharSet": {
-                "negated": true,
-                "members": [
+              "Group": {
+                "Sequence": [
                   {
-                    "Dc": 314
+                    "term": {
+                      "Group": {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "Group": {
+                                "Sequence": [
+                                  {
+                                    "term": {
+                                      "CharSet": {
+                                        "negated": true,
+                                        "members": [
+                                          {
+                                            "Dc": 314
+                                          },
+                                          {
+                                            "Dc": 312
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "quantifier": "ExactOne"
+                                  }
+                                ]
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          },
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 312
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      }
+                    },
+                    "quantifier": "ZeroOrMore"
+                  },
+                  {
+                    "term": {
+                      "Group": {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharSet": {
+                                "negated": true,
+                                "members": [
+                                  {
+                                    "Dc": 314
+                                  },
+                                  {
+                                    "Dc": 312
+                                  }
+                                ]
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      }
+                    },
+                    "quantifier": "ExactOne"
                   }
                 ]
               }
             },
-            "quantifier": "OneOrMore"
+            "quantifier": "Optional"
           },
           {
             "term": {
@@ -6890,16 +6943,16 @@
         ]
       },
       "action": null,
-      "raw": ":~ [type] [type] [^314]+ 314"
+      "raw": ":~ [number $length?] [type] [type] ((([^(314 | 312)]) 312)* ([^(314 | 312)]))? 314"
     },
-    "description": "Begins a key-value associative map.",
+    "description": "Begins an ordered key-value associative map.",
     "source_file": "el.csv",
     "line_number": 45
   },
   {
     "dc_id": 1114426,
     "short_id": 314,
-    "name": "End key-value map",
+    "name": "End key-value array",
     "category": "el",
     "combining_class": 0,
     "bidi_class": "BN",
@@ -6909,7 +6962,7 @@
     "decompositions": [],
     "aliases": [],
     "cross_references": [],
-    "description": "Terminates a key-value associative map begun by 313.",
+    "description": "Terminates an ordered key-value associative map begun by 313.",
     "source_file": "el.csv",
     "line_number": 46
   },
@@ -7716,37 +7769,10 @@
           },
           {
             "term": {
-              "Group": {
-                "Alternation": [
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "string",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  },
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "data",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                ]
+              "NamedConstruct": {
+                "name": "filepath",
+                "subtype": null,
+                "capture_var": null
               }
             },
             "quantifier": "ExactOne"
@@ -7754,7 +7780,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ ([string] | [data])"
+      "raw": ":~ [filepath]"
     },
     "description": "Primary relative or canonical path of a file entity.",
     "source_file": "semantic.csv",
@@ -7811,20 +7837,6 @@
                         "quantifier": "ExactOne"
                       }
                     ]
-                  },
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "unicode_any",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
                   }
                 ]
               }
@@ -7834,7 +7846,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ ([string] | [data] | [unicode_any])"
+      "raw": ":~ ([string] | [data])"
     },
     "description": "Name or identifier of an alternate data stream or fork.",
     "source_file": "semantic.csv",
@@ -7862,37 +7874,10 @@
           },
           {
             "term": {
-              "Group": {
-                "Alternation": [
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "string",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  },
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "data",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                ]
+              "NamedConstruct": {
+                "name": "filepath",
+                "subtype": null,
+                "capture_var": null
               }
             },
             "quantifier": "ExactOne"
@@ -7900,7 +7885,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ ([string] | [data])"
+      "raw": ":~ [filepath]"
     },
     "description": "Target destination path for a symbolic or hard link.",
     "source_file": "semantic.csv",
@@ -8122,37 +8107,10 @@
           },
           {
             "term": {
-              "Group": {
-                "Alternation": [
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "string",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  },
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "data",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                ]
+              "NamedConstruct": {
+                "name": "filepath",
+                "subtype": null,
+                "capture_var": null
               }
             },
             "quantifier": "ExactOne"
@@ -8160,7 +8118,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ ([string] | [data])"
+      "raw": ":~ [filepath]"
     },
     "description": "Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)",
     "source_file": "semantic.csv",
@@ -8181,77 +8139,33 @@
     "cross_references": [],
     "syntax": {
       "pattern": {
-        "Alternation": [
+        "Sequence": [
           {
-            "Sequence": [
-              {
-                "term": "SelfChar",
-                "quantifier": "ExactOne"
-              },
-              {
-                "term": {
-                  "Group": {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "CharRef": {
-                            "Format": 490
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      },
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "number",
-                            "subtype": "f207",
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                },
-                "quantifier": "ExactOne"
-              }
-            ]
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
           },
           {
-            "Sequence": [
-              {
-                "term": {
-                  "Group": {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "CharRef": {
-                            "Format": 491
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      },
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "number",
-                            "subtype": "f211",
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                },
-                "quantifier": "ExactOne"
+            "term": {
+              "CharRef": {
+                "Dc": 511
               }
-            ]
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Format": 490
+                }
+              }
+            },
+            "quantifier": "Optional"
           }
         ]
       },
       "action": null,
-      "raw": ":~ (f490 [number:f207]) | (f491 [number:f211])"
+      "raw": ":~ 511 [f490:]"
     },
     "description": "Local network IP address of an execution environment host.",
     "source_file": "semantic.csv",
@@ -8570,37 +8484,10 @@
           },
           {
             "term": {
-              "Group": {
-                "Alternation": [
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "string",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  },
-                  {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "data",
-                            "subtype": null,
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                ]
+              "NamedConstruct": {
+                "name": "filepath",
+                "subtype": null,
+                "capture_var": null
               }
             },
             "quantifier": "ExactOne"
@@ -8608,7 +8495,7 @@
         ]
       },
       "action": null,
-      "raw": ":~ ([string] | [data])"
+      "raw": ":~ [filepath]"
     },
     "description": "Enclosing directory path from which relative path was resolved.",
     "source_file": "semantic.csv",
@@ -9852,77 +9739,33 @@
     "cross_references": [],
     "syntax": {
       "pattern": {
-        "Alternation": [
+        "Sequence": [
           {
-            "Sequence": [
-              {
-                "term": "SelfChar",
-                "quantifier": "ExactOne"
-              },
-              {
-                "term": {
-                  "Group": {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "CharRef": {
-                            "Format": 490
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      },
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "number",
-                            "subtype": "f207",
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                },
-                "quantifier": "ExactOne"
-              }
-            ]
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
           },
           {
-            "Sequence": [
-              {
-                "term": {
-                  "Group": {
-                    "Sequence": [
-                      {
-                        "term": {
-                          "CharRef": {
-                            "Format": 491
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      },
-                      {
-                        "term": {
-                          "NamedConstruct": {
-                            "name": "number",
-                            "subtype": "f211",
-                            "capture_var": null
-                          }
-                        },
-                        "quantifier": "ExactOne"
-                      }
-                    ]
-                  }
-                },
-                "quantifier": "ExactOne"
+            "term": {
+              "CharRef": {
+                "Dc": 511
               }
-            ]
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Format": 490
+                }
+              }
+            },
+            "quantifier": "Optional"
           }
         ]
       },
       "action": null,
-      "raw": ":~ (f490 [number:f207]) | (f491 [number:f211])"
+      "raw": ":~ 511 [f490:]"
     },
     "description": "Public or remote network IP address of an execution environment host.",
     "source_file": "semantic.csv",
@@ -10464,28 +10307,26 @@
           },
           {
             "term": {
-              "NamedConstruct": {
-                "name": "number",
-                "subtype": "Integer",
-                "capture_var": null
+              "CharRef": {
+                "Dc": 511
               }
             },
             "quantifier": "ExactOne"
           },
           {
             "term": {
-              "NamedConstruct": {
-                "name": "number",
-                "subtype": "Integer",
-                "capture_var": null
+              "RuleRef": {
+                "target": {
+                  "Format": 523
+                }
               }
             },
-            "quantifier": "ExactOne"
+            "quantifier": "Optional"
           }
         ]
       },
       "action": null,
-      "raw": ":~ [number:Integer] [number:Integer]"
+      "raw": ":~ 511 [f523:]"
     },
     "description": "Mac OS Finder icon coordinates in QuickDraw grid.",
     "source_file": "semantic.csv",
@@ -12058,5 +11899,746 @@
     "description": "Finder label index 7, Orange.",
     "source_file": "semantic.csv",
     "line_number": 180
+  },
+  {
+    "dc_id": 1114602,
+    "short_id": 490,
+    "name": "Begin Mac OS extended Finder info description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 491
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 491
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^491]+ 491"
+    },
+    "description": "Begins an extended Mac OS Finder information record (FXInfo).",
+    "source_file": "semantic.csv",
+    "line_number": 181
+  },
+  {
+    "dc_id": 1114603,
+    "short_id": 491,
+    "name": "End Mac OS extended Finder info description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates an extended Mac OS Finder information record (FXInfo).",
+    "source_file": "semantic.csv",
+    "line_number": 182
+  },
+  {
+    "dc_id": 1114604,
+    "short_id": 492,
+    "name": "Mac OS extended Finder icon identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Integer]"
+    },
+    "description": "Custom icon resource ID in extended Finder info.",
+    "source_file": "semantic.csv",
+    "line_number": 183
+  },
+  {
+    "dc_id": 1114605,
+    "short_id": 493,
+    "name": "Mac OS extended Finder script code",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Integer]"
+    },
+    "description": "Script system text encoding code in extended Finder info.",
+    "source_file": "semantic.csv",
+    "line_number": 184
+  },
+  {
+    "dc_id": 1114606,
+    "short_id": 494,
+    "name": "Mac OS extended Finder comment identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Integer]"
+    },
+    "description": "Comment resource ID in extended Finder info.",
+    "source_file": "semantic.csv",
+    "line_number": 185
+  },
+  {
+    "dc_id": 1114607,
+    "short_id": 495,
+    "name": "Mac OS extended Finder put away folder identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0]"
+    },
+    "description": "Directory ID for desktop put away in extended Finder info.",
+    "source_file": "semantic.csv",
+    "line_number": 186
+  },
+  {
+    "dc_id": 1114608,
+    "short_id": 496,
+    "name": "Mac OS AppleSingle real file name",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "filename",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [filename]"
+    },
+    "description": "Original real file name preserved in AppleSingle or AppleDouble archive.",
+    "source_file": "semantic.csv",
+    "line_number": 187
+  },
+  {
+    "dc_id": 1114609,
+    "short_id": 497,
+    "name": "File flag: custom badge",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "custombadge"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object has custom badge.",
+    "source_file": "semantic.csv",
+    "line_number": 188
+  },
+  {
+    "dc_id": 1114610,
+    "short_id": 498,
+    "name": "File flag: routing info",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "routinginfo"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object has routing info.",
+    "source_file": "semantic.csv",
+    "line_number": 189
+  },
+  {
+    "dc_id": 1114611,
+    "short_id": 499,
+    "name": "File flag: on desk",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "ondesk"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object resides on desktop.",
+    "source_file": "semantic.csv",
+    "line_number": 190
+  },
+  {
+    "dc_id": 1114612,
+    "short_id": 500,
+    "name": "File flag: shared application",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sharedapp"
+    ],
+    "cross_references": [],
+    "description": "Mac OS application is multi-user shared.",
+    "source_file": "semantic.csv",
+    "line_number": 191
+  },
+  {
+    "dc_id": 1114613,
+    "short_id": 501,
+    "name": "File flag: no inits",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "noinits"
+    ],
+    "cross_references": [],
+    "description": "Mac OS file contains no INIT resource.",
+    "source_file": "semantic.csv",
+    "line_number": 192
+  },
+  {
+    "dc_id": 1114614,
+    "short_id": 502,
+    "name": "File flag: initialized",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "inited"
+    ],
+    "cross_references": [],
+    "description": "Mac OS Finder has initialized bundle resources.",
+    "source_file": "semantic.csv",
+    "line_number": 193
+  },
+  {
+    "dc_id": 1114615,
+    "short_id": 503,
+    "name": "File flag: custom icon",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "customicon"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object has custom icon resource.",
+    "source_file": "semantic.csv",
+    "line_number": 194
+  },
+  {
+    "dc_id": 1114616,
+    "short_id": 504,
+    "name": "File flag: stationery",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "stationery"
+    ],
+    "cross_references": [],
+    "description": "Mac OS file is stationery or template.",
+    "source_file": "semantic.csv",
+    "line_number": 195
+  },
+  {
+    "dc_id": 1114617,
+    "short_id": 505,
+    "name": "File flag: name locked",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "namelocked"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object name cannot be edited.",
+    "source_file": "semantic.csv",
+    "line_number": 196
+  },
+  {
+    "dc_id": 1114618,
+    "short_id": 506,
+    "name": "File flag: has bundle",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "hasbundle"
+    ],
+    "cross_references": [],
+    "description": "Mac OS application has bundle resource.",
+    "source_file": "semantic.csv",
+    "line_number": 197
+  },
+  {
+    "dc_id": 1114619,
+    "short_id": 507,
+    "name": "File flag: invisible",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "invisible"
+    ],
+    "cross_references": [],
+    "description": "Mac OS Finder invisible flag.",
+    "source_file": "semantic.csv",
+    "line_number": 198
+  },
+  {
+    "dc_id": 1114620,
+    "short_id": 508,
+    "name": "File flag: alias",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "alias"
+    ],
+    "cross_references": [],
+    "description": "Mac OS object is an alias file.",
+    "source_file": "semantic.csv",
+    "line_number": 199
+  },
+  {
+    "dc_id": 1114621,
+    "short_id": 509,
+    "name": "File flag: extended flags invalid",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "xflaginvalid"
+    ],
+    "cross_references": [],
+    "description": "Mac OS extended Finder flags are invalid.",
+    "source_file": "semantic.csv",
+    "line_number": 200
+  },
+  {
+    "dc_id": 1114622,
+    "short_id": 510,
+    "name": "Mac OS Finder folder window bounds",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 511
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "RuleRef": {
+                "target": {
+                  "Format": 524
+                }
+              }
+            },
+            "quantifier": "Optional"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ 511 [f524:]"
+    },
+    "description": "Mac OS Finder folder window bounds rectangle coordinates.",
+    "source_file": "semantic.csv",
+    "line_number": 201
+  },
+  {
+    "dc_id": 1114623,
+    "short_id": 511,
+    "name": "Begin Dc representation of format",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "format",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 512
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": false,
+                "members": [
+                  {
+                    "Dc": 512
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [format] [^512]+ [512]"
+    },
+    "description": "E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”",
+    "source_file": "semantic.csv",
+    "line_number": 202
+  },
+  {
+    "dc_id": 1114624,
+    "short_id": 512,
+    "name": "End Dc representation of format",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 203
+  },
+  {
+    "dc_id": 1114625,
+    "short_id": 513,
+    "name": "File path delimiter",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 204
+  },
+  {
+    "dc_id": 1114626,
+    "short_id": 514,
+    "name": "Key-value pair (tuple)",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 515
+                  },
+                  {
+                    "Dc": 312
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 312
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 515
+                  },
+                  {
+                    "Dc": 312
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^(515 | 312)]+ 312 [^(515 | 312)]+"
+    },
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 49
+  },
+  {
+    "dc_id": 1114627,
+    "short_id": 515,
+    "name": "End key-value pair",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "el.csv",
+    "line_number": 50
   }
 ]

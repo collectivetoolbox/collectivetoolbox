@@ -629,89 +629,89 @@ pub struct EnvDescription {
     pub usize_width: u8,
     #[dc(short = 343)]
     pub ctb_version: String,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_cli_lightweight: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_workspace: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_workspace_main_process: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_service_subprocess: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_browser_vm: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_browser_vm_fullscreen: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_browser_vm_mobile: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_v86: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_pwa: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_pwa_mobile: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_unix: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_linux: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_windows: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_mac_os_10_or_newer: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_apple_ios: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_watchos: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_tvos: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_visionos: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_darwin: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub looks_like_gnustep: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub looks_like_nextstep_or_openstep: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_bsd: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_openbsd: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_dragonfly: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_freebsd: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_netbsd: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_public_website: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_official_public_website: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_local: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_webui: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_webui_in_system_browser: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_webui_in_webview: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_gui: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_cli: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_cli_tty: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_cli_videoterminal: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_release_build: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_debug_build: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_cargo_target_binary: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_in_test: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_branded_build: bool,
-    #[dc(flag)]
+    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
     pub is_official_signed_build: bool,
     #[dc(short = 346)]
     pub local_ipv4: Option<Ipv4Addr>,
@@ -1267,7 +1267,15 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_env_description_roundtrip() -> Result<()> {
-        let env = capture_quick();
+        let env = EnvDescription {
+            os: "linux".to_string(),
+            usize_width: 64,
+            ctb_version: "0.1.49".to_string(),
+            local_ipv4: Some(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+            system_time_resolution_nanos: Some(1),
+            cwd: Some("/workspace".to_string()),
+            ..Default::default()
+        };
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
         Ok(())
     }

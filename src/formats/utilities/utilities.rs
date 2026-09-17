@@ -36,14 +36,7 @@ pub use format_info::{FormatInfo, describe_format, get_format_info};
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
-use include_dir::{Dir, include_dir};
 
-pub(crate) static FORMATS_UTILITIES_DATA_DIR: Dir =
-    include_dir!("$CARGO_MANIFEST_DIR/data");
-
-pub(crate) fn get_formats_utilities_data(key: &str) -> Option<Vec<u8>> {
-    get_embedded_asset(&FORMATS_UTILITIES_DATA_DIR, key)
-}
 
 // Trait to extend char with a as_utf8_bytes() convenience method
 pub trait CharUtfBytesExt {
