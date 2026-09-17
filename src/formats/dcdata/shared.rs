@@ -500,7 +500,7 @@ pub fn validate_cross_table_uniqueness(
                 format!(
                     "Dc name '{clean_name}' (Short ID {short_id}) collides with official Unicode character name"
                 ),
-                Some("Disambiguate name or append ' (short Dc)'"),
+                Some("Disambiguate name, or do not add Dc as duplicate"),
             );
         }
     }

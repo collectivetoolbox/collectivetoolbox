@@ -42,8 +42,7 @@ Import/export/tests support columns meaning:
 2228578,354,Base,A radix in a number system,number,:~ [number:f351],,,,,,,,,,,
 2228579,355,AbstractNumber,"Any number, but not in a specific representation",number_abstract,,,,,,,,,,,,
 2228581,357,DcNumber,"A number represented using Dcs, a sequence of Dcs between Dcs 6 and 7",number,,,,,,,,,,,,
-2228582,358,DcNumberB64Int,A DcNumber representing an integer expressed in base 64,number,DcNumber,,,,,,,,,,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start
-",
+2228582,358,DcNumberB64Int,A DcNumber representing an integer expressed in base 64,number,DcNumber,,,,,,,,,,"A DcNumber representing an integer expressed in base 64 using the encapsulation Dcs, not byte-oriented, with optional sign flag (Dc 10 or 11) at start",
 2228583,359,BaseAlphabet,A set of characters used in a positional number system,base_alphabet,,,,,,,,,,,,
 2228584,360,AlphabetBase64Rfc4648,Standard Base 64 alphabet from RFC 4648. Case-sensitive.,base_alphabet,,,,,,,,,,,,
 2228585,361,AlphabetBase36,Base alphabet with 36 characters; standard Arabic digits + Latin letters: 0-9 (A-Z|a-z),base_alphabet,,,,,,,,,,,,
