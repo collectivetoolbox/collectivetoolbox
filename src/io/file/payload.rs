@@ -36,20 +36,26 @@ use std::os::fd::AsFd;
 use std::path::{Path, PathBuf};
 
 /// A contiguous extent within a file, either holding data or representing a hole.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
 pub enum Extent {
     /// A region containing written data.
+    #[dc(short = 374)]
     Data {
         /// Starting byte offset in file.
+        #[dc(short = 376)]
         offset: u64,
         /// Extent length in bytes.
+        #[dc(short = 377)]
         length: u64,
     },
     /// A sparse hole containing all zeroes.
+    #[dc(short = 375)]
     Hole {
         /// Starting byte offset in file.
+        #[dc(short = 376)]
         offset: u64,
         /// Extent length in bytes.
+        #[dc(short = 377)]
         length: u64,
     },
 }

@@ -6714,5 +6714,5349 @@
     "description": "Glyph variant of U+007C. Broken variant is unambiguously U+00A6.",
     "source_file": "symbols.csv",
     "line_number": 18
+  },
+  {
+    "dc_id": 1114422,
+    "short_id": 310,
+    "name": "Begin list of type",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 311
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] 311"
+    },
+    "description": "Begins an ordered, contiguous, typed homogenous or heterogenous list.",
+    "source_file": "el.csv",
+    "line_number": 42
+  },
+  {
+    "dc_id": 1114423,
+    "short_id": 311,
+    "name": "End list of type",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 310
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":310 [type] ~"
+    },
+    "description": "Terminates a typed list begun by 310.",
+    "source_file": "el.csv",
+    "line_number": 43
+  },
+  {
+    "dc_id": 1114424,
+    "short_id": 312,
+    "name": "List element separator",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Separates elements within a list or sequence.",
+    "source_file": "el.csv",
+    "line_number": 44
+  },
+  {
+    "dc_id": 1114425,
+    "short_id": 313,
+    "name": "Begin key-value map",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "type",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 314
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 314
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [type] [type] [^314]+ 314"
+    },
+    "description": "Begins a key-value associative map.",
+    "source_file": "el.csv",
+    "line_number": 45
+  },
+  {
+    "dc_id": 1114426,
+    "short_id": 314,
+    "name": "End key-value map",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a key-value associative map begun by 313.",
+    "source_file": "el.csv",
+    "line_number": 46
+  },
+  {
+    "dc_id": 1114427,
+    "short_id": 315,
+    "name": "Optional value present",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "value",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [value]"
+    },
+    "description": "Indicates an optional value is present.",
+    "source_file": "el.csv",
+    "line_number": 47
+  },
+  {
+    "dc_id": 1114428,
+    "short_id": 316,
+    "name": "Optional value absent",
+    "category": "el",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "EL Syntax",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Indicates an optional value is absent.",
+    "source_file": "el.csv",
+    "line_number": 48
+  },
+  {
+    "dc_id": 1114429,
+    "short_id": 317,
+    "name": "Begin file",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 318
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 318
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^318]+ 318"
+    },
+    "description": "Begins a universal file representation record.",
+    "source_file": "semantic.csv",
+    "line_number": 22
+  },
+  {
+    "dc_id": 1114430,
+    "short_id": 318,
+    "name": "End file",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a universal file representation record.",
+    "source_file": "semantic.csv",
+    "line_number": 23
+  },
+  {
+    "dc_id": 1114431,
+    "short_id": 319,
+    "name": "Begin file identity",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 320
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 320
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^320]+ 320"
+    },
+    "description": "Begins a file identity descriptor.",
+    "source_file": "semantic.csv",
+    "line_number": 24
+  },
+  {
+    "dc_id": 1114432,
+    "short_id": 320,
+    "name": "End file identity",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a file identity descriptor.",
+    "source_file": "semantic.csv",
+    "line_number": 25
+  },
+  {
+    "dc_id": 1114433,
+    "short_id": 321,
+    "name": "Begin file metadata",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 322
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 322
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^322]+ 322"
+    },
+    "description": "Begins a file metadata record.",
+    "source_file": "semantic.csv",
+    "line_number": 26
+  },
+  {
+    "dc_id": 1114434,
+    "short_id": 322,
+    "name": "End file metadata",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a file metadata record.",
+    "source_file": "semantic.csv",
+    "line_number": 27
+  },
+  {
+    "dc_id": 1114435,
+    "short_id": 323,
+    "name": "Begin file stream",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 324
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 324
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^324]+ 324"
+    },
+    "description": "Begins an attached or alternate data stream record.",
+    "source_file": "semantic.csv",
+    "line_number": 28
+  },
+  {
+    "dc_id": 1114436,
+    "short_id": 324,
+    "name": "End file stream",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates an attached or alternate data stream record.",
+    "source_file": "semantic.csv",
+    "line_number": 29
+  },
+  {
+    "dc_id": 1114437,
+    "short_id": 325,
+    "name": "Begin file kind description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 326
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 326
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^326]+ 326"
+    },
+    "description": "Begins a description of the kind of a file. Note that this is different from the data format of a file.",
+    "source_file": "semantic.csv",
+    "line_number": 30
+  },
+  {
+    "dc_id": 1114438,
+    "short_id": 326,
+    "name": "End file kind description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a file kind description.",
+    "source_file": "semantic.csv",
+    "line_number": 31
+  },
+  {
+    "dc_id": 1114439,
+    "short_id": 327,
+    "name": "File system node identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Filesystem inode number or equivalent unique node ID.",
+    "source_file": "semantic.csv",
+    "line_number": 32
+  },
+  {
+    "dc_id": 1114440,
+    "short_id": 328,
+    "name": "Storage device identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Filesystem device ID on which the file resides.",
+    "source_file": "semantic.csv",
+    "line_number": 33
+  },
+  {
+    "dc_id": 1114441,
+    "short_id": 329,
+    "name": "File modification timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Modification timestamp of a file in nanoseconds since Unix epoch.",
+    "source_file": "semantic.csv",
+    "line_number": 34
+  },
+  {
+    "dc_id": 1114442,
+    "short_id": 330,
+    "name": "File access timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Access timestamp of a file in nanoseconds since Unix epoch.",
+    "source_file": "semantic.csv",
+    "line_number": 35
+  },
+  {
+    "dc_id": 1114443,
+    "short_id": 331,
+    "name": "File creation timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Creation or birth timestamp of a file in nanoseconds since Unix epoch.",
+    "source_file": "semantic.csv",
+    "line_number": 36
+  },
+  {
+    "dc_id": 1114444,
+    "short_id": 332,
+    "name": "File status change timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Metadata status change timestamp of a file in nanoseconds since Unix epoch.",
+    "source_file": "semantic.csv",
+    "line_number": 37
+  },
+  {
+    "dc_id": 1114445,
+    "short_id": 333,
+    "name": "File permissions mode",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "POSIX permissions mode flags.",
+    "source_file": "semantic.csv",
+    "line_number": 38
+  },
+  {
+    "dc_id": 1114446,
+    "short_id": 334,
+    "name": "File owner user identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "User ID of the file owner.",
+    "source_file": "semantic.csv",
+    "line_number": 39
+  },
+  {
+    "dc_id": 1114447,
+    "short_id": 335,
+    "name": "File owner group identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Group ID of the file group.",
+    "source_file": "semantic.csv",
+    "line_number": 40
+  },
+  {
+    "dc_id": 1114448,
+    "short_id": 336,
+    "name": "File payload size",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Logical size of the primary file payload in bytes.",
+    "source_file": "semantic.csv",
+    "line_number": 41
+  },
+  {
+    "dc_id": 1114449,
+    "short_id": 337,
+    "name": "File primary path",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([string] | [data])"
+    },
+    "description": "Primary relative or canonical path of a file entity.",
+    "source_file": "semantic.csv",
+    "line_number": 42
+  },
+  {
+    "dc_id": 1114450,
+    "short_id": 338,
+    "name": "File stream name",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "unicode_any",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([string] | [data] | [unicode_any])"
+    },
+    "description": "Name or identifier of an alternate data stream or fork.",
+    "source_file": "semantic.csv",
+    "line_number": 43
+  },
+  {
+    "dc_id": 1114451,
+    "short_id": 339,
+    "name": "File target link path",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([string] | [data])"
+    },
+    "description": "Target destination path for a symbolic or hard link.",
+    "source_file": "semantic.csv",
+    "line_number": 44
+  },
+  {
+    "dc_id": 1114452,
+    "short_id": 340,
+    "name": "Begin execution environment description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 341
+                  }
+                ]
+              }
+            },
+            "quantifier": "ZeroOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 341
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number] [^341]* 341"
+    },
+    "description": "Begins an execution environment snapshot.",
+    "source_file": "semantic.csv",
+    "line_number": 45
+  },
+  {
+    "dc_id": 1114453,
+    "short_id": 341,
+    "name": "End execution environment description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates an execution environment snapshot.",
+    "source_file": "semantic.csv",
+    "line_number": 46
+  },
+  {
+    "dc_id": 1114454,
+    "short_id": 342,
+    "name": "Operating system description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "formats",
+                "subtype": "os",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [formats:os]"
+    },
+    "description": "Host operating system description.",
+    "source_file": "semantic.csv",
+    "line_number": 47
+  },
+  {
+    "dc_id": 1114455,
+    "short_id": 343,
+    "name": "Collective Toolbox build version",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "string",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [string]"
+    },
+    "description": "Toolbox software build version string.",
+    "source_file": "semantic.csv",
+    "line_number": 48
+  },
+  {
+    "dc_id": 1114456,
+    "short_id": 344,
+    "name": "Architecture pointer bit width description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Description of a pointer bit width of architecture.",
+    "source_file": "semantic.csv",
+    "line_number": 49
+  },
+  {
+    "dc_id": 1114457,
+    "short_id": 345,
+    "name": "Working directory path",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([string] | [data])"
+    },
+    "description": "Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)",
+    "source_file": "semantic.csv",
+    "line_number": 50
+  },
+  {
+    "dc_id": 1114458,
+    "short_id": 346,
+    "name": "Host local network IP address",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": "SelfChar",
+                "quantifier": "ExactOne"
+              },
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Format": 490
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "number",
+                            "subtype": "f207",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Format": 491
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "number",
+                            "subtype": "f211",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ (f490 [number:f207]) | (f491 [number:f211])"
+    },
+    "description": "Local network IP address of an execution environment host.",
+    "source_file": "semantic.csv",
+    "line_number": 51
+  },
+  {
+    "dc_id": 1114459,
+    "short_id": 347,
+    "name": "System clock resolution nanoseconds",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "System time resolution in nanoseconds.",
+    "source_file": "semantic.csv",
+    "line_number": 52
+  },
+  {
+    "dc_id": 1114460,
+    "short_id": 348,
+    "name": "Ambiguous values",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "list",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [list]"
+    },
+    "description": "Indicates that any of the values in the list may be the case.",
+    "source_file": "semantic.csv",
+    "line_number": 53
+  },
+  {
+    "dc_id": 1114461,
+    "short_id": 349,
+    "name": "Begin file origin description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 350
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 350
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^350]+ 350"
+    },
+    "description": "Begins a file origin descriptor.",
+    "source_file": "semantic.csv",
+    "line_number": 54
+  },
+  {
+    "dc_id": 1114462,
+    "short_id": 350,
+    "name": "End file origin description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a file origin descriptor.",
+    "source_file": "semantic.csv",
+    "line_number": 55
+  },
+  {
+    "dc_id": 1114463,
+    "short_id": 351,
+    "name": "File origin: filesystem source",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Indicates origin is a local filesystem entry.",
+    "source_file": "semantic.csv",
+    "line_number": 56
+  },
+  {
+    "dc_id": 1114464,
+    "short_id": 352,
+    "name": "File origin: archive container",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Indicates origin is an archive container entry.",
+    "source_file": "semantic.csv",
+    "line_number": 57
+  },
+  {
+    "dc_id": 1114465,
+    "short_id": 353,
+    "name": "File origin: remote resource",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Indicates origin is a remote network resource.",
+    "source_file": "semantic.csv",
+    "line_number": 58
+  },
+  {
+    "dc_id": 1114466,
+    "short_id": 354,
+    "name": "File origin: synthetic source",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Indicates origin is a synthetic in-memory file.",
+    "source_file": "semantic.csv",
+    "line_number": 59
+  },
+  {
+    "dc_id": 1114467,
+    "short_id": 355,
+    "name": "File hardlink reference count",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Link count of file on source filesystem.",
+    "source_file": "semantic.csv",
+    "line_number": 60
+  },
+  {
+    "dc_id": 1114468,
+    "short_id": 356,
+    "name": "File hardlink group identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number]"
+    },
+    "description": "Hardlink grouping identifier.",
+    "source_file": "semantic.csv",
+    "line_number": 61
+  },
+  {
+    "dc_id": 1114469,
+    "short_id": 357,
+    "name": "File enclosing path",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "string",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([string] | [data])"
+    },
+    "description": "Enclosing directory path from which relative path was resolved.",
+    "source_file": "semantic.csv",
+    "line_number": 62
+  },
+  {
+    "dc_id": 1114470,
+    "short_id": 358,
+    "name": "File kind: regular",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a regular file entity.",
+    "source_file": "semantic.csv",
+    "line_number": 63
+  },
+  {
+    "dc_id": 1114471,
+    "short_id": 359,
+    "name": "File kind: directory",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a directory file entity.",
+    "source_file": "semantic.csv",
+    "line_number": 64
+  },
+  {
+    "dc_id": 1114472,
+    "short_id": 360,
+    "name": "File kind: symbolic link",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a symbolic link entity.",
+    "source_file": "semantic.csv",
+    "line_number": 65
+  },
+  {
+    "dc_id": 1114473,
+    "short_id": 361,
+    "name": "File kind: hardlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a hardlink entity.",
+    "source_file": "semantic.csv",
+    "line_number": 66
+  },
+  {
+    "dc_id": 1114474,
+    "short_id": 362,
+    "name": "File kind: named pipe/FIFO",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a named pipe FIFO entity.",
+    "source_file": "semantic.csv",
+    "line_number": 67
+  },
+  {
+    "dc_id": 1114475,
+    "short_id": 363,
+    "name": "File kind: character device",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a character device node entity.",
+    "source_file": "semantic.csv",
+    "line_number": 68
+  },
+  {
+    "dc_id": 1114476,
+    "short_id": 364,
+    "name": "File kind: block device",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a block device node entity.",
+    "source_file": "semantic.csv",
+    "line_number": 69
+  },
+  {
+    "dc_id": 1114477,
+    "short_id": 365,
+    "name": "File kind: socket",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a UNIX domain socket entity.",
+    "source_file": "semantic.csv",
+    "line_number": 70
+  },
+  {
+    "dc_id": 1114478,
+    "short_id": 366,
+    "name": "File kind: door descriptor",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a door descriptor entity.",
+    "source_file": "semantic.csv",
+    "line_number": 71
+  },
+  {
+    "dc_id": 1114479,
+    "short_id": 367,
+    "name": "File kind: bundle",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a composite application or document bundle.",
+    "source_file": "semantic.csv",
+    "line_number": 72
+  },
+  {
+    "dc_id": 1114480,
+    "short_id": 368,
+    "name": "File payload checksum",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "checksum",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [checksum]"
+    },
+    "description": "Cryptographic digest hash of file payload.",
+    "source_file": "semantic.csv",
+    "line_number": 73
+  },
+  {
+    "dc_id": 1114481,
+    "short_id": 369,
+    "name": "File sparse allocation flag",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Flag indicating sparse hole allocation.",
+    "source_file": "semantic.csv",
+    "line_number": 74
+  },
+  {
+    "dc_id": 1114482,
+    "short_id": 370,
+    "name": "File device node number",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0]"
+    },
+    "description": "Encoded device node identifier (dev_t / rdev).",
+    "source_file": "semantic.csv",
+    "line_number": 75
+  },
+  {
+    "dc_id": 1114483,
+    "short_id": 371,
+    "name": "File bundle type format",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "asciilatinletterdigits",
+                "subtype": "1..16",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [asciilatinletterdigits:1..16]"
+    },
+    "description": "Application bundle type format identifier.",
+    "source_file": "semantic.csv",
+    "line_number": 76
+  },
+  {
+    "dc_id": 1114484,
+    "short_id": 372,
+    "name": "Begin file extents descriptor",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 373
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 373
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^373]+ 373"
+    },
+    "description": "Begins a list of sparse and data extents.",
+    "source_file": "semantic.csv",
+    "line_number": 77
+  },
+  {
+    "dc_id": 1114485,
+    "short_id": 373,
+    "name": "End file extents descriptor",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a list of sparse and data extents.",
+    "source_file": "semantic.csv",
+    "line_number": 78
+  },
+  {
+    "dc_id": 1114486,
+    "short_id": 374,
+    "name": "File data extent",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 376
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 377
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ 376 [number:Natural0] 377 [number:Natural0]"
+    },
+    "description": "Identifies a data extent region.",
+    "source_file": "semantic.csv",
+    "line_number": 79
+  },
+  {
+    "dc_id": 1114487,
+    "short_id": 375,
+    "name": "File sparse hole extent",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 376
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 377
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ 376 [number:Natural0] 377 [number:Natural0]"
+    },
+    "description": "Identifies a sparse hole extent region.",
+    "source_file": "semantic.csv",
+    "line_number": 80
+  },
+  {
+    "dc_id": 1114488,
+    "short_id": 376,
+    "name": "Extent byte offset",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0]"
+    },
+    "description": "Byte offset where an extent starts.",
+    "source_file": "semantic.csv",
+    "line_number": 81
+  },
+  {
+    "dc_id": 1114489,
+    "short_id": 377,
+    "name": "Extent byte length",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Natural0",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0]"
+    },
+    "description": "Byte length of an extent.",
+    "source_file": "semantic.csv",
+    "line_number": 82
+  },
+  {
+    "dc_id": 1114490,
+    "short_id": 378,
+    "name": "Timestamp clock resolution",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "datemagnitude",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [datemagnitude]"
+    },
+    "description": "Clock resolution in nanoseconds.",
+    "source_file": "semantic.csv",
+    "line_number": 83
+  },
+  {
+    "dc_id": 1114491,
+    "short_id": 379,
+    "name": "Stream kind: extended attribute",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a standard extended attribute stream.",
+    "source_file": "semantic.csv",
+    "line_number": 84
+  },
+  {
+    "dc_id": 1114492,
+    "short_id": 380,
+    "name": "Stream kind: macOS resource fork",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a macOS resource fork stream.",
+    "source_file": "semantic.csv",
+    "line_number": 85
+  },
+  {
+    "dc_id": 1114493,
+    "short_id": 381,
+    "name": "Stream kind: NTFS alternate stream",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies an NTFS alternate data stream.",
+    "source_file": "semantic.csv",
+    "line_number": 86
+  },
+  {
+    "dc_id": 1114494,
+    "short_id": 382,
+    "name": "Stream kind: POSIX ACL access",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a POSIX ACL access stream.",
+    "source_file": "semantic.csv",
+    "line_number": 87
+  },
+  {
+    "dc_id": 1114495,
+    "short_id": 383,
+    "name": "Stream kind: POSIX ACL default",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a POSIX default ACL stream.",
+    "source_file": "semantic.csv",
+    "line_number": 88
+  },
+  {
+    "dc_id": 1114496,
+    "short_id": 384,
+    "name": "Stream kind: security label",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Identifies a security label stream.",
+    "source_file": "semantic.csv",
+    "line_number": 89
+  },
+  {
+    "dc_id": 1114497,
+    "short_id": 385,
+    "name": "Stream data",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "data",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [data]"
+    },
+    "description": "In-memory payload bytes of an attached stream.",
+    "source_file": "semantic.csv",
+    "line_number": 90
+  },
+  {
+    "dc_id": 1114498,
+    "short_id": 386,
+    "name": "File filesystem type string",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "string",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [string]"
+    },
+    "description": "Originating filesystem type string.",
+    "source_file": "semantic.csv",
+    "line_number": 91
+  },
+  {
+    "dc_id": 1114499,
+    "short_id": 387,
+    "name": "File inspection timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Timestamp documenting when file was inspected.",
+    "source_file": "semantic.csv",
+    "line_number": 92
+  },
+  {
+    "dc_id": 1114500,
+    "short_id": 388,
+    "name": "Begin file flags description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "list",
+                "subtype": "fileflag",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 389
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 389
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [list:fileflag] [^389]+ 389"
+    },
+    "description": "Begins a collection of semantic file flags attached to a file.",
+    "source_file": "semantic.csv",
+    "line_number": 93
+  },
+  {
+    "dc_id": 1114501,
+    "short_id": 389,
+    "name": "End file flags description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a collection of semantic file flags attached to a file.",
+    "source_file": "semantic.csv",
+    "line_number": 94
+  },
+  {
+    "dc_id": 1114502,
+    "short_id": 390,
+    "name": "Begin time moment description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "formats",
+                "subtype": "date",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 391
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 391
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [formats:date] [^391]+ 391"
+    },
+    "description": "Begins a time moment description.",
+    "source_file": "semantic.csv",
+    "line_number": 95
+  },
+  {
+    "dc_id": 1114503,
+    "short_id": 391,
+    "name": "End time moment description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a time moment description.",
+    "source_file": "semantic.csv",
+    "line_number": 96
+  },
+  {
+    "dc_id": 1114504,
+    "short_id": 392,
+    "name": "File data",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "data",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [data]"
+    },
+    "description": "File contents",
+    "source_file": "semantic.csv",
+    "line_number": 97
+  },
+  {
+    "dc_id": 1114505,
+    "short_id": 393,
+    "name": "Begin date magnitude description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "formats",
+                "subtype": "duration",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 394
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 394
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [formats:duration] [^394]+ 394"
+    },
+    "description": "A positive date duration",
+    "source_file": "semantic.csv",
+    "line_number": 98
+  },
+  {
+    "dc_id": 1114506,
+    "short_id": 394,
+    "name": "End date magnitude description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 99
+  },
+  {
+    "dc_id": 1114507,
+    "short_id": 395,
+    "name": "Begin date duration description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "formats",
+                "subtype": "duration",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 396
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 396
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [formats:duration] [^396]+ 396"
+    },
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 100
+  },
+  {
+    "dc_id": 1114508,
+    "short_id": 396,
+    "name": "End date duration description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "semantic.csv",
+    "line_number": 101
+  },
+  {
+    "dc_id": 1114509,
+    "short_id": 397,
+    "name": "Equivalent representations",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "list",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [list]"
+    },
+    "description": "Indicates that all values within the list have the same underlying meaning.",
+    "source_file": "semantic.csv",
+    "line_number": 102
+  },
+  {
+    "dc_id": 1114510,
+    "short_id": 398,
+    "name": "Host public network IP address",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": "SelfChar",
+                "quantifier": "ExactOne"
+              },
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Format": 490
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "number",
+                            "subtype": "f207",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Format": 491
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "number",
+                            "subtype": "f211",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ (f490 [number:f207]) | (f491 [number:f211])"
+    },
+    "description": "Public or remote network IP address of an execution environment host.",
+    "source_file": "semantic.csv",
+    "line_number": 103
+  },
+  {
+    "dc_id": 1114511,
+    "short_id": 399,
+    "name": "File backup timestamp",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "date",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [date]"
+    },
+    "description": "Backup timestamp of a file.",
+    "source_file": "semantic.csv",
+    "line_number": 104
+  },
+  {
+    "dc_id": 1114512,
+    "short_id": 400,
+    "name": "File comment",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "string",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [string]"
+    },
+    "description": "File comment string.",
+    "source_file": "semantic.csv",
+    "line_number": 105
+  },
+  {
+    "dc_id": 1114513,
+    "short_id": 401,
+    "name": "Begin Mac OS file metadata description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "CharSet": {
+                "negated": true,
+                "members": [
+                  {
+                    "Dc": 402
+                  }
+                ]
+              }
+            },
+            "quantifier": "OneOrMore"
+          },
+          {
+            "term": {
+              "CharRef": {
+                "Dc": 402
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [^402]+ 402"
+    },
+    "description": "Begins a preserved Mac OS Finder and archive metadata record.",
+    "source_file": "semantic.csv",
+    "line_number": 106
+  },
+  {
+    "dc_id": 1114514,
+    "short_id": 402,
+    "name": "End Mac OS file metadata description",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Terminates a preserved Mac OS Finder and archive metadata record.",
+    "source_file": "semantic.csv",
+    "line_number": 107
+  },
+  {
+    "dc_id": 1114515,
+    "short_id": 403,
+    "name": "Mac OS Finder file type",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "asciiprintable",
+                            "subtype": "4",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([asciiprintable:4] | [data])"
+    },
+    "description": "Four-character Mac OS Finder file type code.",
+    "source_file": "semantic.csv",
+    "line_number": 108
+  },
+  {
+    "dc_id": 1114516,
+    "short_id": 404,
+    "name": "Mac OS Finder file creator",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "Group": {
+                "Alternation": [
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "asciiprintable",
+                            "subtype": "4",
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  },
+                  {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "NamedConstruct": {
+                            "name": "data",
+                            "subtype": null,
+                            "capture_var": null
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ ([asciiprintable:4] | [data])"
+    },
+    "description": "Four-character Mac OS Finder file creator code.",
+    "source_file": "semantic.csv",
+    "line_number": 109
+  },
+  {
+    "dc_id": 1114517,
+    "short_id": 405,
+    "name": "Mac OS Finder label color",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": "SelfChar",
+                "quantifier": "ExactOne"
+              },
+              {
+                "term": {
+                  "NamedConstruct": {
+                    "name": "number",
+                    "subtype": "Natural0&<8",
+                    "capture_var": null
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Alternation": [
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 482
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 483
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 484
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 485
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 486
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 487
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 488
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      },
+                      {
+                        "Sequence": [
+                          {
+                            "term": {
+                              "CharRef": {
+                                "Dc": 489
+                              }
+                            },
+                            "quantifier": "ExactOne"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489)"
+    },
+    "description": "Mac OS Finder label color code.",
+    "source_file": "semantic.csv",
+    "line_number": 110
+  },
+  {
+    "dc_id": 1114518,
+    "short_id": 406,
+    "name": "Mac OS Finder flags",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Alternation": [
+          {
+            "Sequence": [
+              {
+                "term": "SelfChar",
+                "quantifier": "ExactOne"
+              },
+              {
+                "term": {
+                  "NamedConstruct": {
+                    "name": "number",
+                    "subtype": "Natural0",
+                    "capture_var": null
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          },
+          {
+            "Sequence": [
+              {
+                "term": {
+                  "Group": {
+                    "Sequence": [
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Dc": 388
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      },
+                      {
+                        "term": {
+                          "CharSet": {
+                            "negated": true,
+                            "members": [
+                              {
+                                "Dc": 389
+                              }
+                            ]
+                          }
+                        },
+                        "quantifier": "OneOrMore"
+                      },
+                      {
+                        "term": {
+                          "CharRef": {
+                            "Dc": 389
+                          }
+                        },
+                        "quantifier": "ExactOne"
+                      }
+                    ]
+                  }
+                },
+                "quantifier": "ExactOne"
+              }
+            ]
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Natural0] | (388 [^389]+ 389)"
+    },
+    "description": "Mac OS Finder flags.",
+    "source_file": "semantic.csv",
+    "line_number": 111
+  },
+  {
+    "dc_id": 1114519,
+    "short_id": 407,
+    "name": "Mac OS Finder icon location",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Integer] [number:Integer]"
+    },
+    "description": "Mac OS Finder icon coordinates in QuickDraw grid.",
+    "source_file": "semantic.csv",
+    "line_number": 112
+  },
+  {
+    "dc_id": 1114520,
+    "short_id": 408,
+    "name": "Mac OS Finder window folder identifier",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "number",
+                "subtype": "Integer",
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [number:Integer]"
+    },
+    "description": "Mac OS Finder window folder identifier.",
+    "source_file": "semantic.csv",
+    "line_number": 113
+  },
+  {
+    "dc_id": 1114521,
+    "short_id": 409,
+    "name": "File flag: nodump",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "nodump"
+    ],
+    "cross_references": [],
+    "description": "Do not include file in backups.",
+    "source_file": "semantic.csv",
+    "line_number": 114
+  },
+  {
+    "dc_id": 1114522,
+    "short_id": 410,
+    "name": "File flag: user immutable",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "uchg"
+    ],
+    "cross_references": [],
+    "description": "User immutable.",
+    "source_file": "semantic.csv",
+    "line_number": 115
+  },
+  {
+    "dc_id": 1114523,
+    "short_id": 411,
+    "name": "File flag: user append",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "uappnd"
+    ],
+    "cross_references": [],
+    "description": "User append-only.",
+    "source_file": "semantic.csv",
+    "line_number": 116
+  },
+  {
+    "dc_id": 1114524,
+    "short_id": 412,
+    "name": "File flag: opaque",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "opaque"
+    ],
+    "cross_references": [],
+    "description": "Directory opaque to union mounts.",
+    "source_file": "semantic.csv",
+    "line_number": 117
+  },
+  {
+    "dc_id": 1114525,
+    "short_id": 413,
+    "name": "File flag: hidden",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "hidden"
+    ],
+    "cross_references": [],
+    "description": "Hidden in GUI or Finder.",
+    "source_file": "semantic.csv",
+    "line_number": 118
+  },
+  {
+    "dc_id": 1114526,
+    "short_id": 414,
+    "name": "File flag: archived",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "arch"
+    ],
+    "cross_references": [],
+    "description": "System archived flag.",
+    "source_file": "semantic.csv",
+    "line_number": 119
+  },
+  {
+    "dc_id": 1114527,
+    "short_id": 415,
+    "name": "File flag: system immutable",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "schg"
+    ],
+    "cross_references": [],
+    "description": "Superuser immutable.",
+    "source_file": "semantic.csv",
+    "line_number": 120
+  },
+  {
+    "dc_id": 1114528,
+    "short_id": 416,
+    "name": "File flag: system append",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sappnd"
+    ],
+    "cross_references": [],
+    "description": "Superuser append-only.",
+    "source_file": "semantic.csv",
+    "line_number": 121
+  },
+  {
+    "dc_id": 1114529,
+    "short_id": 417,
+    "name": "File flag: system no unlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sunlnk"
+    ],
+    "cross_references": [],
+    "description": "Superuser cannot unlink or rename.",
+    "source_file": "semantic.csv",
+    "line_number": 122
+  },
+  {
+    "dc_id": 1114530,
+    "short_id": 418,
+    "name": "File flag: user no unlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "uunlnk"
+    ],
+    "cross_references": [],
+    "description": "User cannot unlink or rename.",
+    "source_file": "semantic.csv",
+    "line_number": 123
+  },
+  {
+    "dc_id": 1114531,
+    "short_id": 419,
+    "name": "File flag: system",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "system"
+    ],
+    "cross_references": [],
+    "description": "Windows/DOS system file attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 124
+  },
+  {
+    "dc_id": 1114532,
+    "short_id": 420,
+    "name": "File flag: sparse",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sparse"
+    ],
+    "cross_references": [],
+    "description": "Windows/DOS sparse file attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 125
+  },
+  {
+    "dc_id": 1114533,
+    "short_id": 421,
+    "name": "File flag: offline",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "offline"
+    ],
+    "cross_references": [],
+    "description": "Windows/CIFS offline storage attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 126
+  },
+  {
+    "dc_id": 1114534,
+    "short_id": 422,
+    "name": "File flag: read only",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "readonly"
+    ],
+    "cross_references": [],
+    "description": "Read-only attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 127
+  },
+  {
+    "dc_id": 1114535,
+    "short_id": 423,
+    "name": "File flag: reparse",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "reparse"
+    ],
+    "cross_references": [],
+    "description": "Reparse point attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 128
+  },
+  {
+    "dc_id": 1114536,
+    "short_id": 424,
+    "name": "File flag: snapshot",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "snapshot"
+    ],
+    "cross_references": [],
+    "description": "Snapshot file attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 129
+  },
+  {
+    "dc_id": 1114537,
+    "short_id": 425,
+    "name": "File flag: user archive",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "uarch"
+    ],
+    "cross_references": [],
+    "description": "User archived flag.",
+    "source_file": "semantic.csv",
+    "line_number": 130
+  },
+  {
+    "dc_id": 1114538,
+    "short_id": 426,
+    "name": "File flag: user no cache",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "unocache"
+    ],
+    "cross_references": [],
+    "description": "User do not cache file data.",
+    "source_file": "semantic.csv",
+    "line_number": 131
+  },
+  {
+    "dc_id": 1114539,
+    "short_id": 427,
+    "name": "File flag: user no history",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "unohistory"
+    ],
+    "cross_references": [],
+    "description": "User do not retain history or snapshots.",
+    "source_file": "semantic.csv",
+    "line_number": 132
+  },
+  {
+    "dc_id": 1114540,
+    "short_id": 428,
+    "name": "File flag: user cache",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "ucache"
+    ],
+    "cross_references": [],
+    "description": "User enable data swapcache.",
+    "source_file": "semantic.csv",
+    "line_number": 133
+  },
+  {
+    "dc_id": 1114541,
+    "short_id": 429,
+    "name": "File flag: user xlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "uxlink"
+    ],
+    "cross_references": [],
+    "description": "User cross-link hardlink boundary.",
+    "source_file": "semantic.csv",
+    "line_number": 134
+  },
+  {
+    "dc_id": 1114542,
+    "short_id": 430,
+    "name": "File flag: system no history",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "snohistory"
+    ],
+    "cross_references": [],
+    "description": "Superuser do not retain history or snapshots.",
+    "source_file": "semantic.csv",
+    "line_number": 135
+  },
+  {
+    "dc_id": 1114543,
+    "short_id": 431,
+    "name": "File flag: system no cache",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "snocache"
+    ],
+    "cross_references": [],
+    "description": "Superuser disable data swapcache.",
+    "source_file": "semantic.csv",
+    "line_number": 136
+  },
+  {
+    "dc_id": 1114544,
+    "short_id": 432,
+    "name": "File flag: system xlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sxlink"
+    ],
+    "cross_references": [],
+    "description": "Superuser cross-link hardlink boundary.",
+    "source_file": "semantic.csv",
+    "line_number": 137
+  },
+  {
+    "dc_id": 1114545,
+    "short_id": 433,
+    "name": "File flag: compressed",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "compressed"
+    ],
+    "cross_references": [],
+    "description": "Compressed file attribute.",
+    "source_file": "semantic.csv",
+    "line_number": 138
+  },
+  {
+    "dc_id": 1114546,
+    "short_id": 434,
+    "name": "File flag: tracked",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "tracked"
+    ],
+    "cross_references": [],
+    "description": "Document tracking active.",
+    "source_file": "semantic.csv",
+    "line_number": 139
+  },
+  {
+    "dc_id": 1114547,
+    "short_id": 435,
+    "name": "File flag: data vault",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "datavault"
+    ],
+    "cross_references": [],
+    "description": "System integrity data vault.",
+    "source_file": "semantic.csv",
+    "line_number": 140
+  },
+  {
+    "dc_id": 1114548,
+    "short_id": 436,
+    "name": "File flag: restricted",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "restricted"
+    ],
+    "cross_references": [],
+    "description": "System integrity restricted.",
+    "source_file": "semantic.csv",
+    "line_number": 141
+  },
+  {
+    "dc_id": 1114549,
+    "short_id": 437,
+    "name": "File flag: firmlink",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "firmlink"
+    ],
+    "cross_references": [],
+    "description": "APFS firmlink.",
+    "source_file": "semantic.csv",
+    "line_number": 142
+  },
+  {
+    "dc_id": 1114550,
+    "short_id": 438,
+    "name": "File flag: dataless",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "dataless"
+    ],
+    "cross_references": [],
+    "description": "APFS dataless file.",
+    "source_file": "semantic.csv",
+    "line_number": 143
+  },
+  {
+    "dc_id": 1114551,
+    "short_id": 439,
+    "name": "File flag: system log",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "slog"
+    ],
+    "cross_references": [],
+    "description": "NetBSD WAPBL log file inode.",
+    "source_file": "semantic.csv",
+    "line_number": 144
+  },
+  {
+    "dc_id": 1114552,
+    "short_id": 440,
+    "name": "File flag: snapshot invalid",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "snapinval"
+    ],
+    "cross_references": [],
+    "description": "NetBSD invalid snapshot inode.",
+    "source_file": "semantic.csv",
+    "line_number": 145
+  },
+  {
+    "dc_id": 1114553,
+    "short_id": 441,
+    "name": "File flag: secure removal",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "secrm"
+    ],
+    "cross_references": [],
+    "description": "Secure deletion.",
+    "source_file": "semantic.csv",
+    "line_number": 146
+  },
+  {
+    "dc_id": 1114554,
+    "short_id": 442,
+    "name": "File flag: undelete",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "unrm"
+    ],
+    "cross_references": [],
+    "description": "Undelete.",
+    "source_file": "semantic.csv",
+    "line_number": 147
+  },
+  {
+    "dc_id": 1114555,
+    "short_id": 443,
+    "name": "File flag: sync",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "sync"
+    ],
+    "cross_references": [],
+    "description": "Synchronous file updates.",
+    "source_file": "semantic.csv",
+    "line_number": 148
+  },
+  {
+    "dc_id": 1114556,
+    "short_id": 444,
+    "name": "File flag: no atime",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "noatime"
+    ],
+    "cross_references": [],
+    "description": "Do not update access time.",
+    "source_file": "semantic.csv",
+    "line_number": 149
+  },
+  {
+    "dc_id": 1114557,
+    "short_id": 445,
+    "name": "File flag: dirty",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "dirty"
+    ],
+    "cross_references": [],
+    "description": "Dirty compressed file.",
+    "source_file": "semantic.csv",
+    "line_number": 150
+  },
+  {
+    "dc_id": 1114558,
+    "short_id": 446,
+    "name": "File flag: compressed blocks",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "comprblk"
+    ],
+    "cross_references": [],
+    "description": "Compressed cluster or blocks.",
+    "source_file": "semantic.csv",
+    "line_number": 151
+  },
+  {
+    "dc_id": 1114559,
+    "short_id": 447,
+    "name": "File flag: no compress",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "nocomp"
+    ],
+    "cross_references": [],
+    "description": "Do not compress.",
+    "source_file": "semantic.csv",
+    "line_number": 152
+  },
+  {
+    "dc_id": 1114560,
+    "short_id": 448,
+    "name": "File flag: encrypted",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "encrypt"
+    ],
+    "cross_references": [],
+    "description": "Encrypted file.",
+    "source_file": "semantic.csv",
+    "line_number": 153
+  },
+  {
+    "dc_id": 1114561,
+    "short_id": 449,
+    "name": "File flag: indexed directory",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "index"
+    ],
+    "cross_references": [],
+    "description": "Hash-indexed directory.",
+    "source_file": "semantic.csv",
+    "line_number": 154
+  },
+  {
+    "dc_id": 1114562,
+    "short_id": 450,
+    "name": "File flag: btree",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "btree"
+    ],
+    "cross_references": [],
+    "description": "Btree format directory.",
+    "source_file": "semantic.csv",
+    "line_number": 155
+  },
+  {
+    "dc_id": 1114563,
+    "short_id": 451,
+    "name": "File flag: imagic",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "imagic"
+    ],
+    "cross_references": [],
+    "description": "AFS magic directory inode.",
+    "source_file": "semantic.csv",
+    "line_number": 156
+  },
+  {
+    "dc_id": 1114564,
+    "short_id": 452,
+    "name": "File flag: journal data",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "journal"
+    ],
+    "cross_references": [],
+    "description": "Journal file data.",
+    "source_file": "semantic.csv",
+    "line_number": 157
+  },
+  {
+    "dc_id": 1114565,
+    "short_id": 453,
+    "name": "File flag: no tail",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "notail"
+    ],
+    "cross_references": [],
+    "description": "Do not merge tail.",
+    "source_file": "semantic.csv",
+    "line_number": 158
+  },
+  {
+    "dc_id": 1114566,
+    "short_id": 454,
+    "name": "File flag: dir sync",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "dirsync"
+    ],
+    "cross_references": [],
+    "description": "Synchronous directory updates.",
+    "source_file": "semantic.csv",
+    "line_number": 159
+  },
+  {
+    "dc_id": 1114567,
+    "short_id": 455,
+    "name": "File flag: top dir",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "topdir"
+    ],
+    "cross_references": [],
+    "description": "Top of directory hierarchy.",
+    "source_file": "semantic.csv",
+    "line_number": 160
+  },
+  {
+    "dc_id": 1114568,
+    "short_id": 456,
+    "name": "File flag: huge file",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "hugefile"
+    ],
+    "cross_references": [],
+    "description": "Huge file format.",
+    "source_file": "semantic.csv",
+    "line_number": 161
+  },
+  {
+    "dc_id": 1114569,
+    "short_id": 457,
+    "name": "File flag: extent",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "extent"
+    ],
+    "cross_references": [],
+    "description": "Extents format.",
+    "source_file": "semantic.csv",
+    "line_number": 162
+  },
+  {
+    "dc_id": 1114570,
+    "short_id": 458,
+    "name": "File flag: verity",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "verity"
+    ],
+    "cross_references": [],
+    "description": "fs-verity enabled.",
+    "source_file": "semantic.csv",
+    "line_number": 163
+  },
+  {
+    "dc_id": 1114571,
+    "short_id": 459,
+    "name": "File flag: ea inode",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "eainode"
+    ],
+    "cross_references": [],
+    "description": "Large extended attribute inode.",
+    "source_file": "semantic.csv",
+    "line_number": 164
+  },
+  {
+    "dc_id": 1114572,
+    "short_id": 460,
+    "name": "File flag: eof blocks",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "eofblocks"
+    ],
+    "cross_references": [],
+    "description": "Blocks allocated beyond EOF.",
+    "source_file": "semantic.csv",
+    "line_number": 165
+  },
+  {
+    "dc_id": 1114573,
+    "short_id": 461,
+    "name": "File flag: no cow",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "nocow"
+    ],
+    "cross_references": [],
+    "description": "Do not copy-on-write.",
+    "source_file": "semantic.csv",
+    "line_number": 166
+  },
+  {
+    "dc_id": 1114574,
+    "short_id": 462,
+    "name": "File flag: dax",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "dax"
+    ],
+    "cross_references": [],
+    "description": "Direct access DAX mode.",
+    "source_file": "semantic.csv",
+    "line_number": 167
+  },
+  {
+    "dc_id": 1114575,
+    "short_id": 463,
+    "name": "File flag: inline data",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "inlinedata"
+    ],
+    "cross_references": [],
+    "description": "Inode contains inline data.",
+    "source_file": "semantic.csv",
+    "line_number": 168
+  },
+  {
+    "dc_id": 1114576,
+    "short_id": 464,
+    "name": "File flag: project inherit",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "projinherit"
+    ],
+    "cross_references": [],
+    "description": "Project inheritance.",
+    "source_file": "semantic.csv",
+    "line_number": 169
+  },
+  {
+    "dc_id": 1114577,
+    "short_id": 465,
+    "name": "File flag: casefold",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "casefold"
+    ],
+    "cross_references": [],
+    "description": "Directory casefolding.",
+    "source_file": "semantic.csv",
+    "line_number": 170
+  },
+  {
+    "dc_id": 1114578,
+    "short_id": 466,
+    "name": "File flag: reserved for ext2",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Fileflag",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [
+      "reservedforext2"
+    ],
+    "cross_references": [],
+    "description": "Reserved flag for ext2/ext4.",
+    "source_file": "semantic.csv",
+    "line_number": 171
+  },
+  {
+    "dc_id": 1114579,
+    "short_id": 467,
+    "name": "Maybe value",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "syntax": {
+      "pattern": {
+        "Sequence": [
+          {
+            "term": "SelfChar",
+            "quantifier": "ExactOne"
+          },
+          {
+            "term": {
+              "NamedConstruct": {
+                "name": "string",
+                "subtype": null,
+                "capture_var": null
+              }
+            },
+            "quantifier": "ExactOne"
+          }
+        ]
+      },
+      "action": null,
+      "raw": ":~ [string]"
+    },
+    "description": "Indicates that a value may be the case, but maybe not.",
+    "source_file": "semantic.csv",
+    "line_number": 172
+  },
+  {
+    "dc_id": 1114580,
+    "short_id": 468,
+    "name": "Mac Classic label color: brown",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 1114581,
+    "short_id": 469,
+    "name": "Mac Classic label color: green",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 9
+  },
+  {
+    "dc_id": 1114582,
+    "short_id": 470,
+    "name": "Mac Classic label color: blue",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 10
+  },
+  {
+    "dc_id": 1114583,
+    "short_id": 471,
+    "name": "Mac Classic label color: cyan",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 11
+  },
+  {
+    "dc_id": 1114584,
+    "short_id": 472,
+    "name": "Mac Classic label color: pink",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 12
+  },
+  {
+    "dc_id": 1114585,
+    "short_id": 473,
+    "name": "Mac Classic label color: red",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 13
+  },
+  {
+    "dc_id": 1114586,
+    "short_id": 474,
+    "name": "Mac Classic label color: orange",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 14
+  },
+  {
+    "dc_id": 1114587,
+    "short_id": 475,
+    "name": "Mac OS X label color: gray",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 15
+  },
+  {
+    "dc_id": 1114588,
+    "short_id": 476,
+    "name": "Mac OS X label color: green",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 16
+  },
+  {
+    "dc_id": 1114589,
+    "short_id": 477,
+    "name": "Mac OS X label color: purple",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 17
+  },
+  {
+    "dc_id": 1114590,
+    "short_id": 478,
+    "name": "Mac OS X label color: blue",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 18
+  },
+  {
+    "dc_id": 1114591,
+    "short_id": 479,
+    "name": "Mac OS X label color: yellow",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 1114592,
+    "short_id": 480,
+    "name": "Mac OS X label color: red",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 20
+  },
+  {
+    "dc_id": 1114593,
+    "short_id": 481,
+    "name": "Mac OS X label color: orange",
+    "category": "colors",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Colors",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "source_file": "colors.csv",
+    "line_number": 21
+  },
+  {
+    "dc_id": 1114594,
+    "short_id": 482,
+    "name": "Mac OS Finder label: none",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 0.",
+    "source_file": "semantic.csv",
+    "line_number": 173
+  },
+  {
+    "dc_id": 1114595,
+    "short_id": 483,
+    "name": "Mac OS Finder label 1: (default: \"Project 2\")",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>468 475"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 1, Brown in Classic Mac OS and Gray in macOS.",
+    "source_file": "semantic.csv",
+    "line_number": 174
+  },
+  {
+    "dc_id": 1114596,
+    "short_id": 484,
+    "name": "Mac OS Finder label 2: (default: \"Project 1)",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>469 476"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 2, Green.",
+    "source_file": "semantic.csv",
+    "line_number": 175
+  },
+  {
+    "dc_id": 1114597,
+    "short_id": 485,
+    "name": "Mac OS Finder label 3: (default: \"Personal)",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>470 477"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 3, Blue in Classic Mac OS and Purple in macOS.",
+    "source_file": "semantic.csv",
+    "line_number": 176
+  },
+  {
+    "dc_id": 1114598,
+    "short_id": 486,
+    "name": "Mac OS Finder label 4: (default: \"Cool\")",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>471 478"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 4, Cyan in Classic Mac OS and Blue in macOS.",
+    "source_file": "semantic.csv",
+    "line_number": 177
+  },
+  {
+    "dc_id": 1114599,
+    "short_id": 487,
+    "name": "Mac OS Finder label 5: (default: \"In Progress\")",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>472 479"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 5, Pink in Classic Mac OS and Yellow in macOS.",
+    "source_file": "semantic.csv",
+    "line_number": 178
+  },
+  {
+    "dc_id": 1114600,
+    "short_id": 488,
+    "name": "Mac OS Finder label 6: (default: \"Hot\")",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>473 480"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 6, Red.",
+    "source_file": "semantic.csv",
+    "line_number": 179
+  },
+  {
+    "dc_id": 1114601,
+    "short_id": 489,
+    "name": "Mac OS Finder label 7: (default: \"Essential\")",
+    "category": "semantic",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Semantic",
+    "is_deprecated": false,
+    "decompositions": [
+      "<ambiguous>474 481"
+    ],
+    "aliases": [],
+    "cross_references": [],
+    "description": "Finder label index 7, Orange.",
+    "source_file": "semantic.csv",
+    "line_number": 180
   }
 ]

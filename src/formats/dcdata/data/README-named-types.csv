@@ -1,0 +1,17 @@
+Named type,Syntax,notes
+number,:6 [format:number] [^7]+ 7,
+string,:[:260],
+date,:[:390],
+data,:[:203],
+checksum,:[format:hash][:203],
+unicode_any,:[u0..u10ffff],includes unpaired surrogates
+identifier,:[:270],
+type,:([:262] | [format]),
+format,:[f0..f3342335],
+list,:[:310],
+key_value,:[:313],
+duration,:[:395],
+datemagnitude,:[:393],A positive duration
+asciilatinletters,:([u41..u5a] | [u61..u7a]),ASCII Latin letters (A-Z and a-z)
+asciilatinletterdigits,:([u30..u39] | [u41..u5a] | [u61..u7a]),ASCII Latin letters and digits (0-9 A-Z a-z)
+asciiprintable,:[u20..u7e],ASCII printable characters

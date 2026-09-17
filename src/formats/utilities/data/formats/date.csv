@@ -17,3 +17,7 @@ Import/export/tests support columns meaning:
 2228445,221,PanDate,Panorama date,date,,,,,,,,,,,,
 2228446,222,PanTime,Panorama time,date,,,,,,,,,,,,
 2228447,223,PanSuperDate,Panorama SuperDate,date,,,,,,,,,,,,
+2228710,486,SecondsSinceEpoch,Seconds since Unix epoch,date,,,,,,,,,,,,
+2228711,487,NsSinceEpoch,Nanoseconds since Unix epoch,date,SecondsSinceEpoch,,,,,,,,,,,
+2228712,488,Second,Second,duration,,,,,,,,,,,,
+2228713,489,Nanosecond,Nanosecond,duration,,,,,,,,,,,,

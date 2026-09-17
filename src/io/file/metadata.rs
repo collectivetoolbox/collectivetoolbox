@@ -26,6 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_formats_dcstring::{DcMixedDecode, DcMixedEncode};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -175,133 +176,192 @@ impl FlagSettability {
     Hash,
     Serialize,
     Deserialize,
+    ctb_formats_dcstring::DcMixed,
 )]
 pub enum FileFlag {
     /// Do not include file in backups (`UF_NODUMP` / `FS_NODUMP_FL`).
+    #[dc(short = 409)]
     NoDump,
     /// User immutable (`UF_IMMUTABLE` / `FS_IMMUTABLE_FL` / `uchg`).
+    #[dc(short = 410)]
     UserImmutable,
     /// User append-only (`UF_APPEND` / `FS_APPEND_FL` / `uappnd`).
+    #[dc(short = 411)]
     UserAppend,
     /// Directory opaque to union mounts (`UF_OPAQUE`).
+    #[dc(short = 412)]
     Opaque,
     /// Hidden in GUI / Finder (`UF_HIDDEN`). (not on OpenBSD)
+    #[dc(short = 413)]
     Hidden,
     /// System archived flag (`SF_ARCHIVED`).
+    #[dc(short = 414)]
     Archived,
     /// Superuser immutable (`SF_IMMUTABLE` / `schg`).
+    #[dc(short = 415)]
     SystemImmutable,
     /// Superuser append-only (`SF_APPEND` / `sappnd`).
+    #[dc(short = 416)]
     SystemAppend,
     /// Superuser cannot unlink or rename (`SF_NOUNLINK` / `sunlnk`). (not on OpenBSD)
+    #[dc(short = 417)]
     SystemNoUnlink,
 
     // FreeBSD specific
     /// User cannot unlink or rename (`UF_NOUNLINK` / `uunlnk`).
+    #[dc(short = 418)]
     UserNoUnlink,
     /// Windows/DOS system file attribute (`UF_SYSTEM`).
+    #[dc(short = 419)]
     System,
     /// Windows/DOS sparse file attribute (`UF_SPARSE`).
+    #[dc(short = 420)]
     Sparse,
     /// Windows/CIFS offline storage attribute (`UF_OFFLINE`).
+    #[dc(short = 421)]
     Offline,
     /// Read-only attribute (`UF_READONLY`).
+    #[dc(short = 422)]
     ReadOnly,
     /// Reparse point attribute (`UF_REPARSE`).
+    #[dc(short = 423)]
     Reparse,
     /// Snapshot file attribute (`SF_SNAPSHOT`).
+    #[dc(short = 424)]
     Snapshot,
     /// User archived flag (`UF_ARCHIVE` / `uarch`).
+    #[dc(short = 425)]
     UserArchive,
     /// User do not cache file data (`UF_NOCACHE` / `unocache`).
+    #[dc(short = 426)]
     UserNoCache,
 
     // DragonFly specific
     /// User do not retain history or snapshots (`UF_NOHISTORY` / `unohistory`).
+    #[dc(short = 427)]
     UserNoHistory,
     /// User enable data swapcache (`UF_CACHE` / `ucache`).
+    #[dc(short = 428)]
     UserCache,
     /// User cross-link hardlink boundary (`UF_XLINK` / `uxlink`).
+    #[dc(short = 429)]
     UserXlink,
     /// Superuser do not retain history or snapshots (`SF_NOHISTORY` / `snohistory`).
+    #[dc(short = 430)]
     SystemNoHistory,
     /// Superuser disable data swapcache (`SF_NOCACHE` / `snocache`).
+    #[dc(short = 431)]
     SystemNoCache,
     /// Superuser cross-link hardlink boundary (`SF_XLINK` / `sxlink`).
+    #[dc(short = 432)]
     SystemXlink,
 
     // Darwin specific
     /// HFS+/APFS compressed file (`UF_COMPRESSED`).
+    #[dc(short = 433)]
     Compressed,
     /// Document tracking active (`UF_TRACKED`).
+    #[dc(short = 434)]
     Tracked,
     /// System integrity data vault (`UF_DATAVAULT`).
+    #[dc(short = 435)]
     DataVault,
     /// System integrity restricted (`SF_RESTRICTED`).
+    #[dc(short = 436)]
     Restricted,
     /// APFS firmlink (`SF_FIRMLINK`).
+    #[dc(short = 437)]
     Firmlink,
     /// APFS dataless file (`SF_DATALESS`).
+    #[dc(short = 438)]
     Dataless,
 
     // NetBSD specific
     /// NetBSD WAPBL log file inode (`SF_LOG` / `slog`).
+    #[dc(short = 439)]
     SystemLog,
     /// NetBSD invalid snapshot inode (`SF_SNAPINVAL` / `snapinval`).
+    #[dc(short = 440)]
     SnapshotInvalid,
 
     // Linux specific
     /// Secure deletion (`FS_SECRM_FL` / `secrm`).
+    #[dc(short = 441)]
     SecureRemoval,
     /// Undelete (`FS_UNRM_FL` / `unrm`).
+    #[dc(short = 442)]
     Undelete,
     /// Synchronous file updates (`FS_SYNC_FL` / `sync`).
+    #[dc(short = 443)]
     Sync,
     /// Do not update access time (`FS_NOATIME_FL` / `noatime`).
+    #[dc(short = 444)]
     NoAtime,
     /// Dirty compressed file (`FS_DIRTY_FL` / `dirty`).
+    #[dc(short = 445)]
     Dirty,
     /// Compressed cluster/blocks (`FS_COMPRBLK_FL` / `comprblk`).
+    #[dc(short = 446)]
     CompressedBlocks,
     /// Do not compress (`FS_NOCOMP_FL` / `nocomp`).
+    #[dc(short = 447)]
     NoCompress,
     /// Encrypted file (`FS_ENCRYPT_FL` / `encrypt`).
+    #[dc(short = 448)]
     Encrypted,
     /// Hash-indexed directory (`FS_INDEX_FL` / `index`).
+    #[dc(short = 449)]
     IndexedDirectory,
     /// Btree format directory (`FS_BTREE_FL` / `btree`).
+    #[dc(short = 450)]
     Btree,
     /// AFS magic directory inode (`FS_IMAGIC_FL` / `imagic`).
+    #[dc(short = 451)]
     Imagic,
     /// Journal file data (`FS_JOURNAL_DATA_FL` / `journal`).
+    #[dc(short = 452)]
     JournalData,
     /// Do not merge tail (`FS_NOTAIL_FL` / `notail`).
+    #[dc(short = 453)]
     NoTail,
     /// Synchronous directory updates (`FS_DIRSYNC_FL` / `dirsync`).
+    #[dc(short = 454)]
     DirSync,
     /// Top of directory hierarchy (`FS_TOPDIR_FL` / `topdir`).
+    #[dc(short = 455)]
     TopDir,
     /// Huge file format (`FS_HUGE_FILE_FL` / `hugefile`).
+    #[dc(short = 456)]
     HugeFile,
     /// Extents format (`FS_EXTENT_FL` / `extent`).
+    #[dc(short = 457)]
     Extent,
     /// fs-verity enabled (`FS_VERITY_FL` / `verity`).
+    #[dc(short = 458)]
     Verity,
     /// Large extended attribute inode (`FS_EA_INODE_FL` / `eainode`).
+    #[dc(short = 459)]
     EaInode,
     /// Blocks allocated beyond EOF (`FS_EOFBLOCKS_FL` / `eofblocks`).
+    #[dc(short = 460)]
     EofBlocks,
     /// Do not copy-on-write (`FS_NOCOW_FL` / `nocow`).
+    #[dc(short = 461)]
     NoCow,
     /// Direct access DAX mode (`FS_DAX_FL` / `dax`).
+    #[dc(short = 462)]
     Dax,
     /// Inode contains inline data (`FS_INLINE_DATA_FL` / `inlinedata`).
+    #[dc(short = 463)]
     InlineData,
     /// Project inheritance (`FS_PROJINHERIT_FL` / `projinherit`).
+    #[dc(short = 464)]
     ProjectInherit,
     /// Directory casefolding (`FS_CASEFOLD_FL` / `casefold`).
+    #[dc(short = 465)]
     Casefold,
     /// Reserved flag (`FS_RESERVED_FL` / `reservedforext2`).
+    #[dc(short = 466)]
     ReservedForExt2,
 }
 
@@ -494,42 +554,389 @@ pub struct FileTimestamps {
     pub resolution_nsec: Option<u32>,
 }
 
+impl ctb_formats_dcstring::DcMixedEncode for FileTimestamps {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        let atime_nanos = (i128::from(self.atime_sec))
+            .checked_mul(1_000_000_000)
+            .context("atime sec overflow")?
+            .checked_add(i128::from(self.atime_nsec))
+            .context("atime nsec overflow")?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(330));
+        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&atime_nanos, mst)?;
+
+        let mtime_nanos = (i128::from(self.mtime_sec))
+            .checked_mul(1_000_000_000)
+            .context("mtime sec overflow")?
+            .checked_add(i128::from(self.mtime_nsec))
+            .context("mtime nsec overflow")?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(329));
+        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&mtime_nanos, mst)?;
+
+        let ctime_nanos = (i128::from(self.ctime_sec))
+            .checked_mul(1_000_000_000)
+            .context("ctime sec overflow")?
+            .checked_add(i128::from(self.ctime_nsec))
+            .context("ctime nsec overflow")?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(332));
+        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&ctime_nanos, mst)?;
+
+        if let (Some(b_sec), Some(b_nsec)) = (self.birthtime_sec, self.birthtime_nsec) {
+            let birth_nanos = (i128::from(b_sec))
+                .checked_mul(1_000_000_000)
+                .context("birthtime sec overflow")?
+                .checked_add(i128::from(b_nsec))
+                .context("birthtime nsec overflow")?;
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(331));
+            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&birth_nanos, mst)?;
+        }
+
+        if let Some(res) = self.resolution_nsec {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(378));
+            ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&res, mst)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for FileTimestamps {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        let mut atime_sec = 0i64;
+        let mut atime_nsec = 0u32;
+        let mut mtime_sec = 0i64;
+        let mut mtime_nsec = 0u32;
+        let mut ctime_sec = 0i64;
+        let mut ctime_nsec = 0u32;
+        let mut birthtime_sec = None;
+        let mut birthtime_nsec = None;
+        let mut resolution_nsec = None;
+
+        loop {
+            let tag = match reader.peek_short_dc()? {
+                Some(t) => t,
+                None => break,
+            };
+            match tag {
+                330 => {
+                    reader.read_short_dc()?;
+                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    atime_sec = sec;
+                    atime_nsec = nsec;
+                }
+                329 => {
+                    reader.read_short_dc()?;
+                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    mtime_sec = sec;
+                    mtime_nsec = nsec;
+                }
+                332 => {
+                    reader.read_short_dc()?;
+                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    ctime_sec = sec;
+                    ctime_nsec = nsec;
+                }
+                331 => {
+                    reader.read_short_dc()?;
+                    let nanos = <i128 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let sec = i64::try_from(nanos.checked_div(1_000_000_000).context("div")?).context("sec")?;
+                    let nsec = u32::try_from(nanos.checked_rem(1_000_000_000).context("rem")?).context("nsec")?;
+                    birthtime_sec = Some(sec);
+                    birthtime_nsec = Some(nsec);
+                }
+                378 => {
+                    reader.read_short_dc()?;
+                    let res = <u32 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    resolution_nsec = Some(res);
+                }
+                _ => break,
+            }
+        }
+
+        Ok(Self {
+            atime_sec,
+            atime_nsec,
+            mtime_sec,
+            mtime_nsec,
+            ctime_sec,
+            ctime_nsec,
+            birthtime_sec,
+            birthtime_nsec,
+            resolution_nsec,
+        })
+    }
+}
+
 /// Complete file metadata, combining POSIX attributes, timestamps, and flags.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 321, end = 322)]
 pub struct FileMetadata {
     /// Native observations retained even when a target cannot reproduce them.
     #[serde(default)]
+    #[dc(skip, reason = "Native observations retained in-memory for target replication, omitted from canonical serialization")]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
+    #[dc(short = 333)]
     pub mode: u32,
     /// Owner user ID.
+    #[dc(short = 334)]
     pub uid: u32,
     /// Owner group ID.
+    #[dc(short = 335)]
     pub gid: u32,
     /// Timestamps with nanosecond precision.
+    #[dc(nested = 330)]
     pub timestamps: FileTimestamps,
     /// Semantic file flags.
+    #[dc(begin = 388, end = 389)]
     pub flags: Vec<FileFlag>,
     /// Raw platform-specific flags if captured on a native filesystem.
+    #[dc(skip, reason = "Raw bitmasks preserved for audit provenance, flags are canonized in semantic flags")]
     pub platform_raw_flags: Option<PlatformRawFlags>,
     /// Timestamp when this file record was read/inspected from the filesystem,
     /// documenting when that file is current as of.
+    #[dc(short = 387)]
     pub read_time: Option<SystemTime>,
     /// Originating filesystem type, if known (e.g. "ext4", "ntfs", "vfat", "apfs").
     #[serde(default)]
+    #[dc(short = 386)]
     pub filesystem_type: Option<String>,
     /// Execution environment where this file was observed or captured.
     ///
     /// Wrapped in [`Arc`] to allow millions of file records to share a single
     /// environment description in memory with zero deduplication overhead.
     #[serde(default, skip_serializing)]
+    #[dc(skip, reason = "Execution environment snapshot serialized at document level or shared across session")]
     pub environment: Option<Arc<EnvDescription>>,
     /// Preserved AppleSingle / AppleDouble / Mac metadata.
     #[serde(default)]
+    #[dc(nested = 401)]
     pub apple: Option<AppleMetadata>,
 }
 
 pub use ctb_formats_apple_single_double::FinderInfo;
+
+fn encode_finder_info(fi: &FinderInfo, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(403));
+    fi.file_type.encode_dc_mixed(mst)?;
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(404));
+    fi.file_creator.encode_dc_mixed(mst)?;
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(405));
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
+    u32::from(fi.label.index).encode_dc_mixed(mst)?;
+    let label_dc = 482u32.checked_add(u32::from(fi.label.index)).context("label dc overflow")?;
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(label_dc));
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(406));
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(397));
+    u32::from(fi.raw_flags).encode_dc_mixed(mst)?;
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(388));
+    if fi.flags.is_invisible {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(413));
+    }
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(389));
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(407));
+    i64::from(fi.location.0).encode_dc_mixed(mst)?;
+    i64::from(fi.location.1).encode_dc_mixed(mst)?;
+    mst.push_char(ctb_formats_dcstring::DcChar::from_short(408));
+    i64::from(fi.folder_id).encode_dc_mixed(mst)?;
+    Ok(())
+}
+
+fn decode_finder_info(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<FinderInfo> {
+    let mut file_type = String::new();
+    let mut file_creator = String::new();
+    let mut label = ctb_formats_apple_single_double::FinderLabel::from_index(0);
+    let mut raw_flags = 0u16;
+    let mut location = (0i16, 0i16);
+    let mut folder_id = 0i16;
+
+    loop {
+        let tag = match reader.peek_short_dc()? {
+            Some(t) => t,
+            None => break,
+        };
+        match tag {
+            403 => {
+                reader.read_short_dc()?;
+                file_type = String::decode_dc_mixed(reader)?;
+            }
+            404 => {
+                reader.read_short_dc()?;
+                file_creator = String::decode_dc_mixed(reader)?;
+            }
+            405 => {
+                reader.read_short_dc()?;
+                if reader.peek_short_dc()? == Some(397) {
+                    reader.read_short_dc()?;
+                }
+                if let Some(lbl_tag @ 482..=489) = reader.peek_short_dc()? {
+                    reader.read_short_dc()?;
+                    // Reason for fallback: label index offset within 0..=7 bounds
+                    let l_u8 = u8::try_from(lbl_tag.saturating_sub(482)).unwrap_or(0);
+                    label = ctb_formats_apple_single_double::FinderLabel::from_index(l_u8);
+                    if let Ok(l_u32) = u32::decode_dc_mixed(reader) {
+                        let _ = l_u32;
+                    }
+                } else {
+                    let l_u32 = u32::decode_dc_mixed(reader)?;
+                    // Reason for fallback: invalid label numbers default to 0 (None)
+                    let l_u8 = u8::try_from(l_u32).unwrap_or(0);
+                    label = ctb_formats_apple_single_double::FinderLabel::from_index(l_u8);
+                    if let Some(482..=489) = reader.peek_short_dc()? {
+                        reader.read_short_dc()?;
+                    }
+                }
+            }
+            406 => {
+                reader.read_short_dc()?;
+                if reader.peek_short_dc()? == Some(397) {
+                    reader.read_short_dc()?;
+                }
+                if reader.peek_short_dc()? == Some(388) {
+                    reader.read_short_dc()?;
+                    while let Some(flag_tag) = reader.peek_short_dc()? {
+                        reader.read_short_dc()?;
+                        if flag_tag == 389 {
+                            break;
+                        }
+                        if flag_tag == 413 {
+                            raw_flags |= 0x4000;
+                        }
+                    }
+                    if let Ok(f_u32) = u32::decode_dc_mixed(reader) {
+                        // Reason for fallback: raw flags exceeding 16-bit bounds default to 0
+                        raw_flags = u16::try_from(f_u32).unwrap_or(0);
+                    }
+                } else {
+                    let f_u32 = u32::decode_dc_mixed(reader)?;
+                    // Reason for fallback: raw flags exceeding 16-bit bounds default to 0
+                    raw_flags = u16::try_from(f_u32).unwrap_or(0);
+                    if reader.peek_short_dc()? == Some(388) {
+                        reader.read_short_dc()?;
+                        while let Some(flag_tag) = reader.peek_short_dc()? {
+                            reader.read_short_dc()?;
+                            if flag_tag == 389 {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            407 => {
+                reader.read_short_dc()?;
+                let v = i64::decode_dc_mixed(reader)?;
+                let h = i64::decode_dc_mixed(reader)?;
+                // Reason for fallback: QuickDraw coordinate overflow defaults to 0
+                let v_i16 = i16::try_from(v).unwrap_or(0);
+                // Reason for fallback: QuickDraw coordinate overflow defaults to 0
+                let h_i16 = i16::try_from(h).unwrap_or(0);
+                location = (v_i16, h_i16);
+            }
+            408 => {
+                reader.read_short_dc()?;
+                let fid = i64::decode_dc_mixed(reader)?;
+                // Reason for fallback: folder ID overflow defaults to 0
+                folder_id = i16::try_from(fid).unwrap_or(0);
+            }
+            _ => break,
+        }
+    }
+
+    let flags = ctb_formats_apple_single_double::FinderFlags {
+        is_on_desk: (raw_flags & 0x0001) != 0,
+        is_shared: (raw_flags & 0x0040) != 0,
+        has_been_inited: (raw_flags & 0x0100) != 0,
+        has_custom_icon: (raw_flags & 0x0400) != 0,
+        is_stationery: (raw_flags & 0x0800) != 0,
+        name_locked: (raw_flags & 0x1000) != 0,
+        has_bundle: (raw_flags & 0x2000) != 0,
+        is_invisible: (raw_flags & 0x4000) != 0,
+        is_alias: (raw_flags & 0x8000) != 0,
+    };
+    Ok(FinderInfo {
+        file_type,
+        file_creator,
+        raw_flags,
+        label,
+        flags,
+        location,
+        folder_id,
+        extended: None,
+    })
+}
+
+impl ctb_formats_dcstring::DcMixedEncode for AppleMetadata {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(401));
+        if let Some(ref fi) = self.finder_info {
+            encode_finder_info(fi, mst)?;
+        }
+        if let Some(ref rn) = self.real_name {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(337));
+            rn.encode_dc_mixed(mst)?;
+        }
+        if let Some(ref c) = self.comment {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(400));
+            c.encode_dc_mixed(mst)?;
+        }
+        if let Some(ts) = self.backup_timestamp_sec {
+            mst.push_char(ctb_formats_dcstring::DcChar::from_short(399));
+            ts.encode_dc_mixed(mst)?;
+        }
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(402));
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(401)?;
+        let mut finder_info = None;
+        let mut real_name = None;
+        let mut comment = None;
+        let mut backup_timestamp_sec = None;
+
+        while reader.peek_short_dc()? != Some(402) {
+            let tag = match reader.peek_short_dc()? {
+                Some(t) => t,
+                None => anyhow::bail!("Unexpected EOF waiting for closing Dc 402"),
+            };
+            match tag {
+                403 => {
+                    finder_info = Some(decode_finder_info(reader)?);
+                }
+                337 => {
+                    reader.read_short_dc()?;
+                    real_name = Some(String::decode_dc_mixed(reader)?);
+                }
+                400 => {
+                    reader.read_short_dc()?;
+                    comment = Some(String::decode_dc_mixed(reader)?);
+                }
+                399 => {
+                    reader.read_short_dc()?;
+                    backup_timestamp_sec = Some(i64::decode_dc_mixed(reader)?);
+                }
+                _ => {
+                    reader.next_char()?;
+                }
+            }
+        }
+        reader.expect_end(402)?;
+
+        Ok(Self {
+            finder_info,
+            real_name,
+            comment,
+            backup_timestamp_sec,
+        })
+    }
+}
 
 /// Specific Apple / Mac OS metadata preserved from AppleSingle, AppleDouble,
 /// or macOS extended attributes.

@@ -38,55 +38,95 @@ pub struct InodeKey {
     pub inode: u64,
 }
 
+impl ctb_formats_dcstring::DcMixedEncode for InodeKey {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(328));
+        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&self.device_id, mst)?;
+        mst.push_char(ctb_formats_dcstring::DcChar::from_short(327));
+        ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&self.inode, mst)?;
+        Ok(())
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for InodeKey {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        reader.expect_short_dc(328)?;
+        let device_id = <u64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+        reader.expect_short_dc(327)?;
+        let inode = <u64 as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+        Ok(Self { device_id, inode })
+    }
+}
+
 /// The origin source where a file was discovered or extracted from.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 349, end = 350)]
 pub enum FileOrigin {
     /// Residing on a local filesystem.
+    #[dc(short = 351)]
     Filesystem {
         /// Inode key on the origin filesystem.
+        #[dc(short = 328)]
         key: InodeKey,
         /// Canonical path on the origin filesystem.
+        #[dc(short = 337)]
         canonical_path: PathBuf,
     },
     /// An entry residing inside an archive (tar, zip, pax, cpio).
+    #[dc(short = 352)]
     Archive {
         /// Path to the archive container file.
+        #[dc(short = 337)]
         archive_path: PathBuf,
         /// Sequential index of the entry inside the archive.
+        #[dc(short = 327)]
         entry_index: u64,
         /// Format of the archive container (e.g. "tar", "zip").
+        #[dc(short = 371)]
         archive_format: String,
     },
     /// Remote network resource.
+    #[dc(short = 353)]
     Remote {
         /// Full URI of the resource.
+        #[dc(short = 337)]
         uri: String,
         /// Entity tag if supplied by the remote endpoint.
+        #[dc(short = 368)]
         etag: Option<String>,
     },
     /// Synthetic in-memory file.
+    #[dc(short = 354)]
     Synthetic,
 }
 
 /// Multifaceted identity information for a file entity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 319, end = 320)]
 pub struct FileIdentity {
     /// Origin locator where the file was discovered.
+    #[dc(nested = 349)]
     pub origin: FileOrigin,
     /// Logical relative path within the operation or archive.
+    #[dc(short = 337)]
     pub relative_path: PathBuf,
     /// Original enclosing directory or root path from which relative_path was
     /// resolved, if applicable.
+    #[dc(short = 357)]
     pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
     #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
+    #[dc(skip, reason = "Raw relative path bytes are an alternative representation unified with relative_path (Dc 337)")]
     pub raw_relative_path: Vec<u8>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
     #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
+    #[dc(skip, reason = "Raw filename bytes are an alternative representation unified with relative_path (Dc 337)")]
     pub raw_filename: Vec<u8>,
     /// Link count on the source filesystem.
+    #[dc(short = 355)]
     pub nlink: u64,
     /// Optional hardlink grouping identifier (e.g. InodeKey or archive linkname).
+    #[dc(short = 356)]
     pub hardlink_group: Option<u64>,
 }
 

@@ -66,6 +66,20 @@ pub const DC_NEGATIVE: DcChar = DcChar::from_short(11);
 /// Format 199 in Dc stream.
 pub const DC_FORMAT_199: DcChar = DcChar::from_format(199);
 
+/// Begin list of type (Dc 310).
+pub const DC_BEGIN_LIST: DcChar = DcChar::from_short(310);
+/// End list of type (Dc 311).
+pub const DC_END_LIST: DcChar = DcChar::from_short(311);
+/// Begin map of types (Dc 313).
+pub const DC_BEGIN_KV_MAP: DcChar = DcChar::from_short(313);
+/// End map of types (Dc 314).
+pub const DC_END_KV_MAP: DcChar = DcChar::from_short(314);
+/// Optional value present (Dc 315).
+pub const DC_OPTIONAL_PRESENT: DcChar = DcChar::from_short(315);
+/// Optional value absent (Dc 316).
+pub const DC_OPTIONAL_ABSENT: DcChar = DcChar::from_short(316);
+
+
 /// First Base64 encapsulation digit (digit 0 = 'A' = Dc 127).
 pub const DC_BASE64_START: DcChar = DcChar::from_short(127);
 /// Last Base64 encapsulation digit (digit 63 = '/' = Dc 190).

@@ -93,6 +93,7 @@ ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
 ctb-formats-dcdata = { path = "src/formats/dcdata" }
 ctb-formats-dceutils = { path = "src/formats/dceutils" }
 ctb-formats-dcstring = { path = "src/formats/dcstring" }
+ctb-dc-macro = { path = "src/formats/dcstring/ctb_dc_macro" }
 ctb-formats-dct-el = { path = "src/formats/dct_el" }
 ctb-formats-docker = { path = "src/formats/docker" }
 ctb-formats-dpkg = { path = "src/formats/dpkg" }

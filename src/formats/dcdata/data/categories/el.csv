@@ -39,3 +39,10 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114392,280,Built-in type identifier: Routine,0,BN,,!Cx,EL Types,Routine,
 1114418,306,Built-in type identifier: Routine name,0,BN,,!Cx,EL Types,RoutineName,Subtype of string
 1114419,307,void lang.invoke(Routine | RoutineName),0,BN,,!Cx,EL Routines,,
+1114422,310,Begin list of type,0,BN,,!Cx,EL Syntax,:~ [type] 311,"Begins an ordered, contiguous, typed homogenous or heterogenous list."
+1114423,311,End list of type,0,BN,,!Cx,EL Syntax,:310 [type] ~,Terminates a typed list begun by 310.
+1114424,312,List element separator,0,BN,,!Cx,EL Syntax,,Separates elements within a list or sequence.
+1114425,313,Begin key-value map,0,BN,,!Cx,EL Syntax,:~ [type] [type] [^314]+ 314,Begins a key-value associative map.
+1114426,314,End key-value map,0,BN,,!Cx,EL Syntax,,Terminates a key-value associative map begun by 313.
+1114427,315,Optional value present,0,BN,,!Cx,EL Syntax,:~ [value],Indicates an optional value is present.
+1114428,316,Optional value absent,0,BN,,!Cx,EL Syntax,,Indicates an optional value is absent.

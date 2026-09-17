@@ -66,6 +66,8 @@
 - Avoid !important in CSS; prefer precedence corrections.
 - Prefer rem sizes, not px or em.
 
+- Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints.
+
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.
 - Async runtime: tokio; web server: axum; storage: Turso database.

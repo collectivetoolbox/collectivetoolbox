@@ -61,19 +61,35 @@ pub enum Quantifier {
     ZeroOrMore,
     /// Zero or one occurrence (`?` or bracketed optional construct `[...]`).
     Optional,
+    /// Bounded repetition range (e.g. `{min..max}`, `{min,max}`, `{n}`).
+    Range {
+        min: usize,
+        max: Option<usize>,
+    },
 }
 
 impl Quantifier {
     /// Returns true if matching zero occurrences is permitted.
     #[must_use]
     pub const fn allows_zero(self) -> bool {
-        matches!(self, Self::ZeroOrMore | Self::Optional)
+        match self {
+            Self::ZeroOrMore | Self::Optional => true,
+            Self::Range { min, .. } => min == 0,
+            _ => false,
+        }
     }
 
     /// Returns true if matching multiple occurrences is permitted.
     #[must_use]
     pub const fn allows_multiple(self) -> bool {
-        matches!(self, Self::OneOrMore | Self::ZeroOrMore)
+        match self {
+            Self::OneOrMore | Self::ZeroOrMore => true,
+            Self::Range { max, .. } => match max {
+                Some(m) => m > 1,
+                None => true,
+            },
+            _ => false,
+        }
     }
 }
 

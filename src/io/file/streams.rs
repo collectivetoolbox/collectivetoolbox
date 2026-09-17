@@ -53,6 +53,36 @@ pub enum StreamName {
     WindowsUtf16(Vec<u16>),
 }
 
+impl ctb_formats_dcstring::DcMixedEncode for StreamName {
+    fn encode_dc_mixed(&self, mst: &mut ctb_formats_dcstring::DcMst) -> Result<()> {
+        match self {
+            Self::Bytes(bytes) => {
+                if let Ok(s) = std::str::from_utf8(bytes) {
+                    ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&s.to_string(), mst)
+                } else {
+                    ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(bytes, mst)
+                }
+            }
+            Self::WindowsUtf16(u16s) => {
+                let s = String::from_utf16_lossy(u16s);
+                ctb_formats_dcstring::DcMixedEncode::encode_dc_mixed(&s, mst)
+            }
+        }
+    }
+}
+
+impl ctb_formats_dcstring::DcMixedDecode for StreamName {
+    fn decode_dc_mixed(reader: &mut ctb_formats_dcstring::DcMixedReader<'_>) -> Result<Self> {
+        if reader.peek_short_dc()? == Some(203) {
+            let bytes = reader.read_binary_payload()?;
+            Ok(Self::Bytes(bytes.to_vec()))
+        } else {
+            let s = <String as ctb_formats_dcstring::DcMixedDecode>::decode_dc_mixed(reader)?;
+            Ok(Self::from_str(&s))
+        }
+    }
+}
+
 impl StreamName {
     /// Creates a stream name from raw bytes.
     #[must_use]
@@ -147,19 +177,26 @@ impl StreamName {
     Ord,
     serde::Serialize,
     serde::Deserialize,
+    ctb_formats_dcstring::DcMixed,
 )]
 pub enum StreamKind {
     /// Standard extended attribute (`user.*`).
+    #[dc(short = 379)]
     ExtendedAttribute,
     /// Apple macOS resource fork (`com.apple.ResourceFork` or `..namedfork/rsrc` nowadays; historically not given a specific name).
+    #[dc(short = 380)]
     MacOsResourceFork,
     /// NTFS alternate data stream (`:stream`).
+    #[dc(short = 381)]
     NtfsAlternateDataStream,
     /// POSIX access control list.
+    #[dc(short = 382)]
     PosixAclAccess,
     /// POSIX default access control list.
+    #[dc(short = 383)]
     PosixAclDefault,
     /// Security label (SELinux, AppArmor, MAC).
+    #[dc(short = 384)]
     SecurityLabel,
 }
 
@@ -197,20 +234,25 @@ impl StreamKind {
 }
 
 /// An alternate stream, resource fork, or extended attribute attached to a file.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 323, end = 324)]
 pub struct AttachedStream {
     /// Original name and encoding, including ill-formed Unicode.
     ///
     /// A `None` value represents a nameless stream, such as a Classic Mac OS
     /// resource fork (which in HFS/MFS was an intrinsic nameless fork rather
     /// than a named stream) or a default unnamed stream.
+    #[dc(short = 338)]
     pub name: Option<StreamName>,
     /// Classification of the stream.
+    #[dc(short = 379)]
     pub kind: StreamKind,
     /// The stream represented as a full `FileEntity`.
+    #[dc(nested = 317)]
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
     #[serde(default, with = "crate::file::serde_helpers::opt_base64")]
+    #[dc(short = 385, default)]
     pub data: Option<Vec<u8>>,
 }
 

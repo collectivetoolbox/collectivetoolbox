@@ -220,6 +220,18 @@ fn match_element(
             }
         }
         Quantifier::ZeroOrMore => MatchOutcome::Matched { consumed: total_consumed },
+        Quantifier::Range { min, max } => {
+            let within_min = count >= min;
+            let within_max = match max {
+                Some(m) => count <= m,
+                None => true,
+            };
+            if within_min && within_max {
+                MatchOutcome::Matched { consumed: total_consumed }
+            } else {
+                MatchOutcome::Mismatch
+            }
+        }
     }
 }
 

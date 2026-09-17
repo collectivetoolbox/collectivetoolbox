@@ -151,8 +151,8 @@ fn parse_bracket_content(content: &str) -> Result<SyntaxElement> {
         ));
     }
 
-    // Range: [260-265]
-    if let Some((start_tok, end_tok)) = trimmed.split_once('-') {
+    // Range: [260-265] or [u41..u5a]
+    if let Some((start_tok, end_tok)) = trimmed.split_once("..").or_else(|| trimmed.split_once('-')) {
         if let (Some(start), Some(end)) = (
             parse_target_token(start_tok.trim()),
             parse_target_token(end_tok.trim()),
@@ -376,7 +376,7 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
             let Some(&c) = chars.get(idx) else {
                 break;
             };
-            if c.is_whitespace() || c == '(' || c == ')' || c == '[' || c == ']' || c == '|' {
+            if c.is_whitespace() || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' || c == '}' || c == '|' {
                 break;
             }
             idx = idx.saturating_add(1);
@@ -417,13 +417,47 @@ fn parse_pattern_expression(raw: &str) -> Result<SyntaxPattern> {
     Ok(SyntaxPattern::Sequence(elements))
 }
 
-/// Helper to consume a trailing quantifier character (`+`, `*`, `?`).
+/// Helper to consume a trailing quantifier character (`+`, `*`, `?`, or `{...}`).
 fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) {
     if let Some(&q_char) = chars.get(idx) {
         match q_char {
             '+' => (Quantifier::OneOrMore, idx.saturating_add(1)),
             '*' => (Quantifier::ZeroOrMore, idx.saturating_add(1)),
             '?' => (Quantifier::Optional, idx.saturating_add(1)),
+            '{' => {
+                let start = idx.saturating_add(1);
+                let mut end = start;
+                while end < chars.len() && chars.get(end) != Some(&'}') {
+                    end = end.saturating_add(1);
+                }
+                if end < chars.len() {
+                    let content: String = chars[start..end].iter().collect();
+                    let trimmed = content.trim();
+                    let parsed = if let Some((min_s, max_s)) =
+                        trimmed.split_once("..").or_else(|| trimmed.split_once(','))
+                    {
+                        // Reason for fallback: omitted min in range defaults to 0
+                        let min = min_s.trim().parse::<usize>().unwrap_or(0);
+                        let max = if max_s.trim().is_empty() {
+                            None
+                        } else {
+                            max_s.trim().parse::<usize>().ok()
+                        };
+                        Some(Quantifier::Range { min, max })
+                    } else if let Ok(n) = trimmed.parse::<usize>() {
+                        Some(Quantifier::Range {
+                            min: n,
+                            max: Some(n),
+                        })
+                    } else {
+                        None
+                    };
+                    if let Some(q) = parsed {
+                        return (q, end.saturating_add(1));
+                    }
+                }
+                (Quantifier::ExactOne, idx)
+            }
             _ => (Quantifier::ExactOne, idx),
         }
     } else {

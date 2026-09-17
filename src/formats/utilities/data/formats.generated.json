@@ -7285,7 +7285,7 @@
     "description": "",
     "format": {
       "base_format": "DcIdentifier",
-      "chain": "=[Natural1 & <(2^128)]"
+      "chain": "=[number:Natural1 & <(2^128)]"
     },
     "source_file": "identifier.csv",
     "line_number": 14
@@ -7307,7 +7307,7 @@
     "description": "",
     "format": {
       "base_format": "DcIdentifier",
-      "chain": "=[Natural1 & <(2^128)]"
+      "chain": "=[number:Natural1 & <(2^128)]"
     },
     "source_file": "identifier.csv",
     "line_number": 15
@@ -10130,5 +10130,125 @@
     },
     "source_file": "container.csv",
     "line_number": 17
+  },
+  {
+    "dc_id": 2228710,
+    "short_id": 486,
+    "ident": "SecondsSinceEpoch",
+    "name": "Seconds since Unix epoch",
+    "category": "format_date",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {},
+    "source_file": "date.csv",
+    "line_number": 5
+  },
+  {
+    "dc_id": 2228711,
+    "short_id": 487,
+    "ident": "NsSinceEpoch",
+    "name": "Nanoseconds since Unix epoch",
+    "category": "format_date",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "SecondsSinceEpoch"
+    },
+    "source_file": "date.csv",
+    "line_number": 6
+  },
+  {
+    "dc_id": 2228712,
+    "short_id": 488,
+    "ident": "Second",
+    "name": "Second",
+    "category": "format_duration",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {},
+    "source_file": "date.csv",
+    "line_number": 7
+  },
+  {
+    "dc_id": 2228713,
+    "short_id": 489,
+    "ident": "Nanosecond",
+    "name": "Nanosecond",
+    "category": "format_duration",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {},
+    "source_file": "date.csv",
+    "line_number": 8
+  },
+  {
+    "dc_id": 2228714,
+    "short_id": 490,
+    "ident": "IpV4",
+    "name": "IPV4 address",
+    "category": "format_identifier",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "IpAddr"
+    },
+    "source_file": "identifier.csv",
+    "line_number": 19
+  },
+  {
+    "dc_id": 2228715,
+    "short_id": 491,
+    "ident": "IpV6",
+    "name": "IPV6 address",
+    "category": "format_identifier",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "IpAddr"
+    },
+    "source_file": "identifier.csv",
+    "line_number": 20
   }
 ]

@@ -33,6 +33,7 @@ pub mod cli_identifiers;
 pub mod converters;
 pub mod dc_char;
 pub mod dc_mixed;
+pub mod dc_mixed_serde;
 pub mod dc_number;
 pub mod dc_str;
 pub mod dcstring_impl;
@@ -44,6 +45,11 @@ pub use dc_char::DcChar;
 pub use dc_mixed::{
     DcMixed, DcMixedChunk, DcMixedError, DcMixedOwned, DcMst, DcMstr,
     DcMstring, DcMstSlice, validate_dcmst,
+};
+pub use ctb_dc_macro::DcMixed;
+pub use dc_mixed_serde::{
+    BinaryPayload, DcMixedDecode, DcMixedEncode, DcMixedReader,
+    assert_dc_roundtrip,
 };
 pub use dc_str::{DcCharIndices, DcChars, DcStr, validate_dcutf};
 pub use dcstring_impl::DcString;

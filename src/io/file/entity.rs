@@ -44,83 +44,126 @@ use std::time::SystemTime;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 
 /// The concrete filesystem or archive kind of a file entity.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 325, end = 326)]
 pub enum FileEntityKind {
     /// A regular file with size, extents, and payload digest.
+    #[dc(short = 358)]
     Regular {
         /// Logical file size in bytes.
+        #[dc(short = 336)]
         size: u64,
         /// SHA-256 cryptographic digest of payload.
         #[serde(with = "crate::file::serde_helpers::hex_sha256")]
+        #[dc(short = 368)]
         sha256: [u8; 32],
         /// True if any sparse extents (holes) exist.
+        #[dc(short = 369)]
         is_sparse: bool,
         /// Discovered data and hole extents.
+        #[dc(begin = 372, end = 373)]
         extents: Vec<Extent>,
     },
     /// A directory node.
+    #[dc(short = 359)]
     Directory,
     /// A symbolic link pointing to raw target bytes.
+    #[dc(short = 360)]
     Symlink {
         /// Exact target bytes (not lossily decoded).
         #[serde(with = "crate::file::serde_helpers::text_or_base64")]
+        #[dc(short = 339, binary)]
         target: Vec<u8>,
     },
     /// A hardlink to an existing path or inode in the session.
+    #[dc(short = 361)]
     Hardlink {
         /// Relative path to the original linked file in raw bytes.
         #[serde(with = "crate::file::serde_helpers::text_or_base64")]
+        #[dc(short = 339, binary)]
         target_relative_path: Vec<u8>,
     },
     /// A named pipe (FIFO).
+    #[dc(short = 362)]
     Fifo,
     /// A character device node.
+    #[dc(short = 363)]
     CharDevice {
         /// Major and minor device numbers.
+        #[dc(short = 370)]
         rdev: u64,
     },
     /// A block device node.
+    #[dc(short = 364)]
     BlockDevice {
         /// Major and minor device numbers.
+        #[dc(short = 370)]
         rdev: u64,
     },
     /// A UNIX domain socket node.
+    #[dc(short = 365)]
     Socket,
     /// A POSIX or Solaris Door descriptor node.
+    #[dc(short = 366)]
     Door,
     /// A composite application or document bundle directory (e.g. .app, .pages).
+    #[dc(short = 367)]
     Bundle {
         /// The recognized bundle extension or type.
+        #[dc(short = 371)]
         bundle_type: String,
     },
 }
 
 /// Canonical categorical type of a file entity without payload details.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    ctb_formats_dcstring::DcMixed,
+)]
 pub enum FileEntityType {
     /// Regular file.
+    #[dc(short = 358)]
     Regular,
     /// Directory node.
+    #[dc(short = 359)]
     Directory,
     /// Symbolic link.
+    #[dc(short = 360)]
     Symlink,
     /// Hardlink to an existing path or inode.
+    #[dc(short = 361)]
     Hardlink,
     /// Named pipe (FIFO).
+    #[dc(short = 362)]
     Fifo,
     /// Character device node.
+    #[dc(short = 363)]
     CharDevice,
     /// Block device node.
+    #[dc(short = 364)]
     BlockDevice,
     /// UNIX domain socket node.
+    #[dc(short = 365)]
     Socket,
     /// Door descriptor node.
+    #[dc(short = 366)]
     Door,
     /// Composite bundle directory.
+    #[dc(short = 367)]
     Bundle,
 }
 
 impl FileEntityType {
+
     /// Returns the canonical string representation matching the SQLite `kind` column.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -206,15 +249,20 @@ impl FileEntityKind {
 
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
+#[dc(begin = 317, end = 318)]
 pub struct FileEntity {
     /// Multifaceted identity and origin.
+    #[dc(nested = 319)]
     pub identity: FileIdentity,
     /// Standard POSIX and platform metadata.
+    #[dc(nested = 321)]
     pub metadata: FileMetadata,
     /// Concrete entity kind and payload details.
+    #[dc(nested = 325)]
     pub kind: FileEntityKind,
     /// Alternate data streams, resource forks, and security labels.
+    #[dc(nested = 323)]
     pub streams: Vec<AttachedStream>,
 }
 
@@ -1142,6 +1190,53 @@ mod tests {
         let env = entity.environment().expect("environment must be recorded");
         assert!(!env.os.is_empty());
         let _ = env.looks_like_gnustep;
+    }
+
+    #[crate::ctb_test]
+    fn test_file_entity_dc_mixed_roundtrip() {
+        let temp = tempfile::tempdir().unwrap();
+        let file_path = temp.path().join("regular_file.txt");
+        std::fs::write(&file_path, b"Hello DcMixed payload").unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&file_path, None).unwrap();
+        // Clear in-memory / platform-specific skipped fields for pure canonical comparison
+        entity.metadata.environment = None;
+        entity.metadata.native = None;
+        entity.metadata.platform_raw_flags = None;
+        entity.identity.raw_relative_path.clear();
+        entity.identity.raw_filename.clear();
+
+        // Include AppleMetadata with FinderInfo to test Mac metadata roundtrip
+        entity.metadata.apple = Some(crate::file::AppleMetadata {
+            finder_info: Some(crate::file::FinderInfo {
+                file_type: "TEXT".to_string(),
+                file_creator: "ttxt".to_string(),
+                raw_flags: 0,
+                label: ctb_formats_apple_single_double::FinderLabel::from_index(6),
+                flags: ctb_formats_apple_single_double::FinderFlags::default(),
+                location: (10, 20),
+                folder_id: 0,
+                extended: None,
+            }),
+            real_name: Some("regular_file.txt".to_string()),
+            comment: Some("Test comment".to_string()),
+            backup_timestamp_sec: Some(1_700_000_000),
+        });
+
+        // Add a semantic flag and an attached stream to test full representation
+        let mut stream_entity = entity.clone();
+        stream_entity.metadata.apple = None;
+        stream_entity.identity.raw_relative_path.clear();
+        stream_entity.identity.raw_filename.clear();
+        entity.metadata.flags.push(crate::file::FileFlag::Hidden);
+        entity.streams.push(crate::file::AttachedStream {
+            name: Some(crate::file::StreamName::from_bytes(b"user.comment")),
+            kind: crate::file::StreamKind::ExtendedAttribute,
+            data: Some(b"roundtrip test".to_vec()),
+            entity: Box::new(stream_entity),
+        });
+
+        ctb_formats_dcstring::assert_dc_roundtrip(&entity).expect("FileEntity DcMixed roundtrip failed");
     }
 }
 
