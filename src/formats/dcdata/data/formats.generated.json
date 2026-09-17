@@ -12051,5 +12051,26 @@
     "format": {},
     "source_file": "math.csv",
     "line_number": 47
+  },
+  {
+    "dc_id": 2228766,
+    "short_id": 542,
+    "ident": "Iso88591",
+    "name": "ISO 8859-1",
+    "category": "format_encoding",
+    "combining_class": 0,
+    "bidi_class": "BN",
+    "general_category": "!Cx",
+    "script": "Formats",
+    "is_deprecated": false,
+    "decompositions": [],
+    "aliases": [],
+    "cross_references": [],
+    "description": "",
+    "format": {
+      "base_format": "Ascii"
+    },
+    "source_file": "encoding.csv",
+    "line_number": 19
   }
 ]

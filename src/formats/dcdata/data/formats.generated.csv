@@ -557,3 +557,4 @@ Import/export/tests support columns meaning:
 2228763,539,OrderXY,Cartesian tuple axis ordering [x y],math,,,,,,,,,,,Horizontal axis first vertical axis second [x y].,
 2228764,540,OrderVH,Row-major / QuickDraw tuple axis ordering [v h],math,,,,,,,,,,,Vertical / row axis first horizontal / column axis second [v h] (or [row col]). V = distance down from the top edge of the coordinate plane. H = distance right from the left edge of the coordinate plane.,
 2228765,541,OrderXYZ,3D Cartesian tuple axis ordering [x y z],math,,,,,,,,,,,Standard 3D axis ordering [x y z].,
+2228766,542,Iso88591,ISO 8859-1,encoding,Ascii,,,,,,,,,,,

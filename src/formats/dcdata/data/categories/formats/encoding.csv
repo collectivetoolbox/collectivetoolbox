@@ -23,7 +23,7 @@ Import/export/tests support columns meaning:
 2228310,86,Cp437,Code page 437 (CCSID 437),encoding,,,,,,,,,,,,
 2228311,87,MacRoman,MacRoman,encoding,,,,,,,,,,,,
 2228334,110,Utf8_Base64,UTF-8 (Base64-encoded),encoding,Utf8 & Base64,,,,,,,,,,Not really a unique format; it's a chain of UTF-8 within base64. Entered separately because it's separate in dceutils.,
-2228549,325,Win1252,"Windows-1252 (""ANSI"")",encoding,,,,,,ansi,,,,,,
+2228549,325,Win1252,"Windows-1252 (""ANSI"")",encoding,Iso88591,,,,,ansi,,,,,,
 2228550,326,AlphaSmartNeo,AlphaSmart Neo encoding (has several variants),encoding,,,,,,,,,,,,
 2228551,327,AlphaSmartNeoLowGrUs,"AlphaSmart Neo, graphical low bytes, USA",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228552,328,AlphaSmartNeoLowGrUaMac,"AlphaSmart Neo, graphical low bytes, Ukraine (Mac)",encoding,AlphaSmartNeo,,,,,,,,,,,
@@ -31,3 +31,4 @@ Import/export/tests support columns meaning:
 2228554,330,AlphaSmartNeoLowCtlUs,"AlphaSmart Neo, control low bytes, USA",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228555,331,AlphaSmartNeoLowCtlUaMac,"AlphaSmart Neo, control low bytes, Ukraine (Mac)",encoding,AlphaSmartNeo,,,,,,,,,,,
 2228556,332,AlphaSmartNeoLowCtlUaPc,"AlphaSmart Neo, control low bytes, Ukraine (PC)",encoding,AlphaSmartNeo,,,,,,,,,,,
+,,Iso88591,ISO 8859-1,encoding,Ascii,,,,,,,,,,,
