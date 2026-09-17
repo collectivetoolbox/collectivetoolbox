@@ -1,0 +1,18 @@
+[package]
+name = "ctb-io-environment"
+edition = "2024"
+
+[lib]
+path = "environment.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-dcstring = { path = "../../formats/dcstring" }
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+anyhow = "1.0"
+smart-default = "0.7.1"
+
+[lints]
+workspace = true

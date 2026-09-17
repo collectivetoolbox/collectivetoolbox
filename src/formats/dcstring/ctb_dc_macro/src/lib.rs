@@ -165,6 +165,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut skip = false;
     let mut skip_has_reason = false;
     let mut default = false;
+    let mut flag = false;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -356,6 +357,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut decode_arms = Vec::new();
             let mut field_validations = Vec::new();
             let mut construct_fields = Vec::new();
+            let mut flag_idents = Vec::new();
 
             for field in fields {
                 let field_ident = field.ident.as_ref().unwrap();
@@ -365,6 +367,14 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 if attr.skip {
                     construct_fields.push(quote! {
                         #field_ident: ::std::default::Default::default()
+                    });
+                    continue;
+                }
+
+                if attr.flag {
+                    flag_idents.push(field_ident);
+                    construct_fields.push(quote! {
+                        #field_ident
                     });
                     continue;
                 }
@@ -561,11 +571,41 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 });
             }
 
+            let encode_flags = if !flag_idents.is_empty() {
+                quote! {
+                    let mut __flags = 0u64;
+                    let mut __bit = 1u64;
+                    #(
+                        if self.#flag_idents {
+                            __flags |= __bit;
+                        }
+                        __bit = __bit.checked_shl(1).ok_or_else(|| #anyhow_path::anyhow!("Flag bit overflow in {}", stringify!(#type_name)))?;
+                    )*
+                    #crate_root::DcMixedEncode::encode_dc_mixed(&__flags, mst)?;
+                }
+            } else {
+                quote! {}
+            };
+
+            let decode_flags = if !flag_idents.is_empty() {
+                quote! {
+                    let __flags = <u64 as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                    let mut __bit = 1u64;
+                    #(
+                        let #flag_idents = (__flags & __bit) != 0;
+                        __bit = __bit.checked_shl(1).ok_or_else(|| #anyhow_path::anyhow!("Flag bit overflow in {}", stringify!(#type_name)))?;
+                    )*
+                }
+            } else {
+                quote! {}
+            };
+
             Ok(quote! {
                 #[automatically_derived]
                 impl #impl_generics #crate_root::DcMixedEncode for #type_name #ty_generics #where_clause {
                     fn encode_dc_mixed(&self, mst: &mut #crate_root::DcMst) -> #anyhow_path::Result<()> {
                         mst.push_char(#crate_root::DcChar::from_short(#begin_dc));
+                        #encode_flags
                         #(#encode_fields)*
                         mst.push_char(#crate_root::DcChar::from_short(#end_dc));
                         Ok(())
@@ -576,6 +616,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 impl #impl_generics #crate_root::DcMixedDecode for #type_name #ty_generics #where_clause {
                     fn decode_dc_mixed(reader: &mut #crate_root::DcMixedReader<'_>) -> #anyhow_path::Result<Self> {
                         reader.expect_begin(#begin_dc)?;
+                        #decode_flags
                         #(#field_inits)*
                         loop {
                             let tag = match reader.peek_short_dc()? {

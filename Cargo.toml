@@ -137,6 +137,7 @@ ctb-io = { path = "src/io" }
 ctb-io-file = { path = "src/io/file" }
 ctb-io-webui = { path = "src/io/webui" }
 ctb-io-csc = { path = "src/io/csc" }
+ctb-io-environment = { path = "src/io/environment" }
 ctb-api-client = { path = "src/io/api_client" }
 ctb-installer = { path = "src/installer" }
 ctb-network = { path = "src/network" }
