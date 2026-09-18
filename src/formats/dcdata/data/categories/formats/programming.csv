@@ -15,10 +15,10 @@ Import/export/tests support columns meaning:
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
 2228242,18,JavaScript,JavaScript,programming,,.js,,,,,,,,,"Programming languages are both formats on their own account, and variants of other formats: for exporting to a text-based format, you could opt to have programmatic Dcs exported to a programming language or a natlang.",
-2228343,119,AppleScript,AppleScript,programming,,,,,,,,,,,,
+2228343,119,AppleScript,AppleScript,programming,@os(f405),,,,,,,,,,,
 2228344,120,TypeScript,TypeScript,programming,,,,,,,,,,,,
 2228345,121,Perl,Perl,programming,,,,,,,,,,,,
-2228346,122,Bash,Bash,programming,,,,,,,,,,,,
+2228346,122,Bash,Bash,programming,@os(f492),,,,,,,,,,,
 2228347,123,C,C,programming,,,,,,"c, csrc",,,,,,
 2228348,124,Cpp,C++,programming,,,,,,,,,,,,
 2228349,125,Cs,C#,programming,,,,,,,,,,,,
@@ -28,7 +28,7 @@ Import/export/tests support columns meaning:
 2228353,129,Raku,Raku (successor of Perl 6),programming,@base(f128),,,,,,,,,,,
 2228354,130,Rust,Rust,programming,,,,,,,,,,,,
 2228355,131,Php,PHP,programming,,,,,,,,,,,,
-2228356,132,Sh,POSIX sh,programming,,,,,,,,,,,,
+2228356,132,Sh,POSIX sh,programming,@os(f492),,,,,,,,,,,
 2228357,133,StageL,StageL,programming,,.stagel,,,,,,,,,,
 2228358,134,StageLParseResult,StageL parse result,programming,,,,,,,,,,,,
 2228562,338,Jq,jq programming language,programming,,,,,,,,,,,,

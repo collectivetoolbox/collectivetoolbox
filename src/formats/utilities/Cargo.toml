@@ -1,6 +1,7 @@
 [package]
 name = "ctb-formats-utilities"
 edition = "2024"
+build = "build.rs"
 
 [lib]
 path="utilities.rs"
@@ -8,6 +9,10 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
+ctb-formats-dcdata = { path = "../dcdata" }
+
+[build-dependencies]
+anyhow = "1.0"
 ctb-formats-dcdata = { path = "../dcdata" }
 
 [lints]

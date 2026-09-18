@@ -900,6 +900,374 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     parts.join(", ")
 }
 
+fn to_snake_case(s: &str) -> String {
+    let mut res = String::new();
+    let mut prev_is_upper = false;
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 && !prev_is_upper {
+                res.push('_');
+            }
+            res.push(c.to_ascii_lowercase());
+            prev_is_upper = true;
+        } else {
+            res.push(c);
+            prev_is_upper = false;
+        }
+    }
+    res
+}
+
+fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
+    if path.exists() {
+        if let Ok(existing) = fs::read_to_string(path) {
+            if existing == content {
+                return Ok(false);
+            }
+        }
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, content)?;
+    Ok(true)
+}
+
+/// Generates the contents of `format_id.generated.rs` from format category CSV files.
+///
+/// # Errors
+/// Returns an error if reading files or CSV parsing fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Code generator for FormatId enum with all variants and mappings"
+)]
+pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
+    struct FormatRowData {
+        dc_id: u128,
+        short_id: usize,
+        ident: String,
+        label: String,
+        category: String,
+        nicknames: Vec<String>,
+    }
+
+    let mut records: Vec<FormatRowData> = Vec::new();
+    let mut seen_idents = HashSet::new();
+
+    if formats_dir.is_dir() {
+        let mut entries = Vec::new();
+        for entry in fs::read_dir(formats_dir)? {
+            entries.push(entry?);
+        }
+        entries.sort_by_key(|e| e.file_name());
+
+        for entry in entries {
+            let path = entry.path();
+            if path.is_file() {
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if file_name.ends_with(".csv")
+                    && file_name != "schema.csv"
+                    && !file_name.ends_with(".generated.csv")
+                {
+                    let (_, rows) = read_csv_file(&path)?;
+                    for row in rows {
+                        if is_empty_row(&row) {
+                            continue;
+                        }
+                        let get = |idx: usize| -> String {
+                            row.get(idx).cloned().unwrap_or_default()
+                        };
+                        let raw_ident = get(2);
+                        let clean_ident = raw_ident.trim_start_matches('!').trim().to_string();
+                        if clean_ident.is_empty() {
+                            continue;
+                        }
+                        if seen_idents.contains(&clean_ident) {
+                            continue;
+                        }
+                        seen_idents.insert(clean_ident.clone());
+
+                        let short_id = if let Ok(s_id) = parse_format_shorthand(&get(1)) {
+                            s_id
+                        } else if let Ok(dc_id) = get(0).parse::<u128>() {
+                            usize::try_from(dc_id.saturating_sub(FORMAT_REGION_START)).unwrap_or(0)
+                        } else {
+                            0
+                        };
+
+                        let dc_id = if let Ok(dc) = get(0).parse::<u128>() {
+                            dc
+                        } else {
+                            FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0))
+                        };
+
+                        let raw_label = get(3);
+                        let label = raw_label.trim_start_matches('!').trim().to_string();
+                        let category = get(4).trim().to_string();
+
+                        let raw_nicknames = get(10);
+                        let nicknames: Vec<String> = if raw_nicknames.is_empty() {
+                            Vec::new()
+                        } else {
+                            crate::shared::split_comma_separated_items(&raw_nicknames)
+                                .into_iter()
+                                .filter(|s| !s.is_empty())
+                                .collect()
+                        };
+
+                        records.push(FormatRowData {
+                            dc_id,
+                            short_id,
+                            ident: clean_ident,
+                            label,
+                            category,
+                            nicknames,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    records.sort_by_key(|r| r.short_id);
+
+    let mut out = String::new();
+    out.push_str("// SPDX-License-Identifier: AGPL-3.0-or-later\n");
+    out.push_str("/*\n");
+    out.push_str("This file is part of Collective Toolbox, a database and document workspace and utilities.\n");
+    out.push_str("Copyright (C) 2026 Collective Toolbox Developers\n");
+    out.push_str("Contact: info@collectivetoolbox.com\n\n");
+    out.push_str("This program is free software: you can redistribute it and/or modify it under\n");
+    out.push_str("the terms of the GNU Affero General Public License as published by the Free\n");
+    out.push_str("Software Foundation, either version 3 of the License, or (at your option) any\n");
+    out.push_str("later version.\n\n");
+    out.push_str("This program is distributed in the hope that it will be useful, but WITHOUT ANY\n");
+    out.push_str("WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR\n");
+    out.push_str("A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.\n\n");
+    out.push_str("You should have received a copy of the GNU Affero General Public License along\n");
+    out.push_str("with this program.  If not, see <https://www.gnu.org/licenses/>.\n");
+    out.push_str("*/\n\n");
+    out.push_str("//! @generated by ctb-formats-dcdata::updater from format category data tables.\n");
+    out.push_str("//! Do not edit by hand.\n\n");
+    out.push_str("use crate::detection::FormatCategory;\n");
+    out.push_str("#[allow(\n");
+    out.push_str("    unused_imports,\n");
+    out.push_str("    clippy::wildcard_imports,\n");
+    out.push_str("    reason = \"Standard workspace module prelude\"\n");
+    out.push_str(")]\n");
+    out.push_str("use ctb_utilities::*;\n\n");
+
+    out.push_str("/// Standardized format identifier enum derived from formats category tables.\n");
+    out.push_str("#[expect(\n");
+    out.push_str("    non_camel_case_types,\n");
+    out.push_str("    reason = \"Language and format variants use underscores to reflect canonical format abbreviations\"\n");
+    out.push_str(")]\n");
+    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
+    out.push_str("pub enum FormatId {\n");
+
+    for r in &records {
+        let escaped_label = r.label.replace('\n', " ").replace('"', "\\\"");
+        out.push_str(&format!("    /// {} (Short {}, Category: {})\n", escaped_label, r.short_id, r.category));
+        out.push_str(&format!("    {},\n", r.ident));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("    /// Unrecognized format.\n");
+        out.push_str("    Unknown,\n");
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("impl FormatId {\n");
+    out.push_str("    /// Returns the primary format category for this format ID.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub fn category(&self) -> FormatCategory {\n");
+    out.push_str("        match self {\n");
+
+    // Group variants by FormatCategory
+    let mut compression = Vec::new();
+    let mut archive = Vec::new();
+    let mut audio = Vec::new();
+    let mut image = Vec::new();
+    let mut video = Vec::new();
+    let mut document = Vec::new();
+    let mut executable = Vec::new();
+    let mut database = Vec::new();
+
+    for r in &records {
+        match r.category.as_str() {
+            "compression" => compression.push(r.ident.as_str()),
+            "container" | "archive" => archive.push(r.ident.as_str()),
+            "audio" => audio.push(r.ident.as_str()),
+            "image" => image.push(r.ident.as_str()),
+            "video" => video.push(r.ident.as_str()),
+            "document" | "text" => document.push(r.ident.as_str()),
+            "executable" => executable.push(r.ident.as_str()),
+            "database" => database.push(r.ident.as_str()),
+            _ => {}
+        }
+    }
+
+    if !compression.is_empty() {
+        out.push_str("            ");
+        out.push_str(&compression.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Compression,\n");
+    }
+    if !archive.is_empty() {
+        out.push_str("            ");
+        out.push_str(&archive.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Archive,\n");
+    }
+    if !audio.is_empty() {
+        out.push_str("            ");
+        out.push_str(&audio.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Audio,\n");
+    }
+    if !image.is_empty() {
+        out.push_str("            ");
+        out.push_str(&image.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Image,\n");
+    }
+    if !video.is_empty() {
+        out.push_str("            ");
+        out.push_str(&video.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Video,\n");
+    }
+    if !document.is_empty() {
+        out.push_str("            ");
+        out.push_str(&document.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Document,\n");
+    }
+    if !executable.is_empty() {
+        out.push_str("            ");
+        out.push_str(&executable.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Executable,\n");
+    }
+    if !database.is_empty() {
+        out.push_str("            ");
+        out.push_str(&database.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(" => FormatCategory::Database,\n");
+    }
+    out.push_str("            _ => FormatCategory::Other,\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Looks up a `FormatId` variant from its identifier name or nickname.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub fn from_ident(ident: &str) -> Option<Self> {\n");
+    out.push_str("        let trimmed = ident.trim();\n");
+    out.push_str("        match trimmed.to_ascii_lowercase().as_str() {\n");
+    for r in &records {
+        let lower = r.ident.to_ascii_lowercase();
+        let mut patterns = vec![format!("\"{lower}\"")];
+        let snake = to_snake_case(&r.ident);
+        if snake != lower && !patterns.contains(&format!("\"{snake}\"")) {
+            patterns.push(format!("\"{snake}\""));
+        }
+        for nick in &r.nicknames {
+            let nick_lower = nick.trim().to_ascii_lowercase();
+            if !nick_lower.is_empty() && !patterns.contains(&format!("\"{nick_lower}\"")) {
+                patterns.push(format!("\"{nick_lower}\""));
+            }
+        }
+        out.push_str(&format!("            {} => Some(Self::{}),\n", patterns.join(" | "), r.ident));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("            \"unknown\" => Some(Self::Unknown),\n");
+    }
+    out.push_str("            _ => None,\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Returns the canonical Rust identifier string for this format.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn ident(&self) -> &'static str {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        out.push_str(&format!("            Self::{} => \"{}\",\n", r.ident, r.ident));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("            Self::Unknown => \"Unknown\",\n");
+    }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\" or \"405\").\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n");
+    out.push_str("        let trimmed = shorthand.trim();\n");
+    out.push_str("        match trimmed {\n");
+    for r in &records {
+        out.push_str(&format!("            \"f{}\" | \"{}\" => Some(Self::{}),\n", r.short_id, r.short_id, r.ident));
+    }
+    out.push_str("            _ => None,\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Returns the Short format ID integer if known.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn short_id(&self) -> Option<usize> {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        out.push_str(&format!("            Self::{} => Some({}),\n", r.ident, r.short_id));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("            Self::Unknown => None,\n");
+    }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Returns the Global Document Character ID if known.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn dc_id(&self) -> Option<u128> {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        out.push_str(&format!("            Self::{} => Some({}_u128),\n", r.ident, r.dc_id));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("            Self::Unknown => None,\n");
+    }
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
+    Ok(out)
+}
+
+/// Generates or updates `src/formats/utilities/format_id.generated.rs` if the contents changed.
+///
+/// # Errors
+/// Returns an error if directory resolution, generation, or writing fails.
+pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
+    let (formats_dir, target_file) = if base_dir
+        .join("src/formats/dcdata/data/categories/formats")
+        .is_dir()
+    {
+        (
+            base_dir.join("src/formats/dcdata/data/categories/formats"),
+            base_dir.join("src/formats/utilities/format_id.generated.rs"),
+        )
+    } else if base_dir.join("../dcdata/data/categories/formats").is_dir() {
+        (
+            base_dir.join("../dcdata/data/categories/formats"),
+            base_dir.join("format_id.generated.rs"),
+        )
+    } else if base_dir.join("data/categories/formats").is_dir() {
+        (
+            base_dir.join("data/categories/formats"),
+            base_dir.join("../utilities/format_id.generated.rs"),
+        )
+    } else {
+        bail!(
+            "Could not locate formats directory from {}",
+            base_dir.display()
+        );
+    };
+
+    let code = generate_format_id_code(&formats_dir)?;
+    write_if_changed(&target_file, &code)
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,

@@ -15,7 +15,7 @@ Import/export/tests support columns meaning:
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
 2228226,2,DcIntegerList,Dc Integer List (short Dcs),document,,.dcil,,,,,2,3,1,,"ASCII text containing list of integers representing short Dcs. Strictly, one space after every int, and no newlines. Loosely, with newlines or multiple spaces, or no end space.",
-2228229,5,Html,HTML,document,,".htm, .html",,,,,,1,1,encoding,,
+2228229,5,Html,HTML,document,,".htm, .html",text/html,,,,,1,1,encoding,,
 2228230,6,Sems,SEMS (short Dcs),document,,.sems,,,,,2,,1,,"Space-separated list of ints representing short Dcs, with comments. Comments are UTF-8. Strictly, one space after every int, valid UTF-8 comments only, and a final newline.",
 2228237,13,HtmlFragment,HTML fragment,document,,.htmfrag,,,,,,1,1,,Variants: same as HTML,
 2228238,14,Text,Text,document,,.txt,,,,,,,,encoding,HTML and text both should default to UTF8 as the default encoding. Encodings fill a somewhat odd role since they are both encodings and formats (with the text format plus a given encoding being the same thing as that encoding by itself).,
@@ -52,7 +52,7 @@ Import/export/tests support columns meaning:
 2228340,116,Utf8_Dc64_bin_enc_hex,"UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)",document,"@base(f115), @chain(f115 > f53)",,,,,,,,,,,
 2228341,117,HtmlLegacyCdce,HTML (legacy CDCE output),document,,,,,,,,,,,,
 2228342,118,HtmlLegacyCdceSnippet,HTML (snippet) (legacy CDCE output),document,,,,,,,,,,,,
-2228388,164,Pdf,PDF (Portable Document Format),document,,.pdf,,,,,,,,,,
+2228388,164,Pdf,PDF (Portable Document Format),document,,.pdf,application/pdf,,,,,,,,,
 2228389,165,Markdown,Markdown,document,,.md,,,,,,,,,,
 2228390,166,Troff,Troff,document,,.troff,,,,,,,,,,
 2228391,167,Rss,"RSS 2, the common RSS format",document,,.rss,,,,,,,,,,
@@ -70,8 +70,8 @@ Import/export/tests support columns meaning:
 2228403,179,WfparseOutput,`wfparser` output (a tool to make some binary data and file formats more readable),document,,,,,,,,,,,,
 2228502,278,Mime,Multipurpose Internet Mail Extensions,document,,".eml, .mim, .mime","message/rfc822, multipart/mixed",,,,,,,,,
 2228518,294,OutlookMsg,Microsoft Outlook Email,document,,.msg,application/vnd.ms-outlook,,,,,,,,,
-2228539,315,AppleSingle,AppleSingle,document,,.as,application/applefile,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
-2228540,316,AppleDouble,AppleDouble (RFC 1740),document,,"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",multipart/appledouble,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+2228539,315,AppleSingle,AppleSingle,document,@os(f405),.as,application/applefile,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
+2228540,316,AppleDouble,AppleDouble (RFC 1740),document,@os(f405),"~^\._~, ~/\.AppleDouble/~, ~/__MACOSX/~, .ADF, ~^%~, ~^R\.~, .rsrc",multipart/appledouble,,,,,,,,,https://raw.githubusercontent.com/fadden/CiderPress2/7a055a200e31f752f3a92bb9fe6ae6f67cd55534/DiskArc/Arc/AppleSingle-notes.md
 2228541,317,CtbNode,Collective Toolbox serialized node package,document,,.ctbn,,,,,,,,,,
 2228542,318,CtbNodeV1,"Collective Toolbox serialized node package, version 1",document,@base(f317),.ctbn,,,,,,,,,,
 2228543,319,CtbNodeV2,"Collective Toolbox serialized node package, version 2",document,@base(f317),.ctbn,,,,,,,,,,

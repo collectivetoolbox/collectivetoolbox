@@ -14,12 +14,12 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228385,161,Tar,`tar` (tape archive),container,,,,,,,,,,,,
-2228386,162,Zip,ZIP archive,container,,,,,,,,,,,,
+2228385,161,Tar,`tar` (tape archive),container,@os(f492),.tar,application/x-tar,,,,,,,,,
+2228386,162,Zip,ZIP archive,container,,.zip,application/zip,,,,,,,,,
 2228387,163,CtbAssetBundle,Collective Toolbox asset bundle,container,,.rsrc,,,,,,,,,,
-2228512,288,Shar,Shell archive,container,,.shar,,,,,,,,,,
-2228513,289,Cpio,CPIO archive,container,,.cpio,,,,,,,,,,
-2228514,290,Pax,PAX archive,container,,.pax,,,,,,,,,,
+2228512,288,Shar,Shell archive,container,@os(f492),.shar,,,,,,,,,,
+2228513,289,Cpio,CPIO archive,container,@os(f492),.cpio,application/x-cpio,,,,,,,,,
+2228514,290,Pax,PAX archive,container,@os(f492),.pax,application/x-pax,,,,,,,,,
 2228515,291,TarGz,"TAR, Gzip",container,"@base(f161), @chain(f161 > f35)",".tar.gz, .tgz",,,,,,,,,,
 2228516,292,TarZ,"TAR, `compress` (LZW)",container,"@base(f161), @chain(f161 > f44)",".tar.Z, .taz",,,,,,,,,,
 2228517,293,TarBz2,"TAR, Bzip2",container,"@base(f161), @chain(f161 > f38)",".tar.bz2, .tbz2",,,,,,,,,,

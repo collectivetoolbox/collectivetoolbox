@@ -14,16 +14,16 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228404,180,Csv,Comma-Separated Values,database,,.csv,,,,,,,,,,
-2228405,181,Tsv,Tab-Separated Values,database,,.tsv,,,,,,,,,,
+2228404,180,Csv,Comma-Separated Values,database,,.csv,text/csv,,,,,,,,,
+2228405,181,Tsv,Tab-Separated Values,database,,.tsv,text/tab-separated-values,,,,,,,,,
 2228406,182,Ssv,Semicolon-Separated Values,database,,.ssv,,,,,,,,,,
-2228407,183,Multipart,Multipart form data,database,,,,,,,,,,,,
-2228408,184,Json,JSON,database,,.json,,,,,,,,,,
+2228407,183,Multipart,Multipart form data,database,,,multipart/form-data,,,,,,,,,
+2228408,184,Json,JSON,database,,.json,application/json,,,,,,,,,
 2228409,185,Jsonc,JSONC,database,@base(f184),.json,,,,,,,,,,
-2228410,186,Xml,XML,database,,.xml,,,,,,,,,,
+2228410,186,Xml,XML,database,,.xml,"application/xml, text/xml",,,,,,,,,
 2228411,187,Warc,WARC,database,,.warc,,,,,,,,,,
 2228412,188,Pan,Panorama database,database,,".pan, ",,,,,,,,,,
-2228413,189,Sqlite,SQLite database,database,,.sqlite,,,,,,,,,,
+2228413,189,Sqlite,SQLite database,database,,.sqlite,application/vnd.sqlite3,,,,,,,,,
 2228414,190,IaMetaJson,Internet Archive metadata JSON,database,@base(f184),.json,,,,,,,,,,
 2228415,191,IaFilesXml,Internet Archive files XML,database,@base(f186),~_files\.xml$~,,,,,,,,,,
 2228416,192,IaMetaXml,Internet Archive metadata XML,database,@base(f186),~_meta\.xml$~,,,,,,,,,,

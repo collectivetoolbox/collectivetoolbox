@@ -3278,6 +3278,7 @@ dependencies = [
 name = "ctb-formats-utilities"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "ctb-formats-dcdata",
  "ctb-utilities",
 ]

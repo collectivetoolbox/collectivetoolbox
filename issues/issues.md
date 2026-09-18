@@ -42,6 +42,8 @@ Windows-style streams (:Zone.Identifier)
 
 - Windows runner in GitHub actions to run test suite?
 
+- Restore semantic definitions of coordinate types in formats/math (removed recently; could probably find it in a commit, though a new implementation would need to be different)
+
 - Path Dcs have :~ ([string] | [data]) or whatever, not path
 
 - Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
