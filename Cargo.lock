@@ -3446,6 +3446,7 @@ dependencies = [
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-formats-unicode",
+ "ctb-formats-utilities",
  "ctb-io-environment",
  "ctb-utilities",
  "filetime",

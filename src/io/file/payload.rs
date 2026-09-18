@@ -231,7 +231,7 @@ pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
 }
 
 /// Abstract streaming provider for file payload data and extents.
-pub trait PayloadSource: Read + Seek + Send {
+pub trait PayloadSource: Read + Seek + Send + ctb_formats_utilities::detection::DetectionSource {
     /// Total logical byte size of the payload.
     fn total_size(&self) -> u64;
     /// Discovered sparse extents.
@@ -535,3 +535,43 @@ pub fn hash_payload_stream<R: Read + Seek>(
     }
     Ok(hasher.finalize())
 }
+
+fn read_payload_at<P: PayloadSource + ?Sized>(
+    payload: &mut P,
+    offset: u64,
+    buf: &mut [u8],
+) -> Result<usize> {
+    payload.seek(SeekFrom::Start(offset))?;
+    let mut read_bytes = 0;
+    while read_bytes < buf.len() {
+        let n = payload.read(&mut buf[read_bytes..])?;
+        if n == 0 {
+            break;
+        }
+        read_bytes = read_bytes.saturating_add(n);
+    }
+    Ok(read_bytes)
+}
+
+// FIXME: Make sure this detection uses the OS (where file was observed) data from the file struct for OS hints. May also be good to support retrieving the enclosing archive type from the file (in the case of a file that is being detected while it's within an archive) to also use as an OS hint, since archive formats are associated with OSes. (The OS from an archive type is probably a stronger signal than the OS where the archive is observed/unpacked.)
+impl ctb_formats_utilities::detection::DetectionSource for DiskPayloadSource {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        read_payload_at(self, offset, buf)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(self.total_size())
+    }
+}
+
+impl ctb_formats_utilities::detection::DetectionSource for MemoryPayloadSource {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        read_payload_at(self, offset, buf)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(self.total_size())
+    }
+}
+
+

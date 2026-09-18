@@ -35,6 +35,9 @@ Windows-style streams (:Zone.Identifier)
 
 - Csc archiver with verification pass, quick indexing, and being able to materialize/verify a file into an archive; rsync equivalent by sending an archive and ctb binary and then unpacking it on the other end?
 
+- payload.rs: // FIXME: Make sure this detection uses the OS (where file was observed) data from the file struct for OS hints. May also be good to support retrieving the enclosing archive type from the file (in the case of a file that is being detected while it's within an archive) to also use as an OS hint, since archive formats are associated with OSes. (The OS from an archive type is probably a stronger signal than the OS where the archive is observed/unpacked.)
+
+
 - Windows runner in GitHub actions to run test suite?
 
 - Path Dcs have :~ ([string] | [data]) or whatever, not path

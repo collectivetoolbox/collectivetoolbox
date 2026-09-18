@@ -15,6 +15,7 @@ ctb-formats-checksum = { path = "../../formats/checksum" }
 ctb-formats-dcstring = { path = "../../formats/dcstring" }
 ctb-formats-text-extraction = { path = "../../formats/text_extraction" }
 ctb-formats-time = { path = "../../formats/time" }
+ctb-formats-utilities = { path = "../../formats/utilities" }
 clap = { version = "4.5", features = ["derive"] }
 cfg-if = "1.0"
 filetime = "0.2"

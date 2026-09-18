@@ -116,6 +116,29 @@ pub enum PlatformHint {
     Posix,
 }
 
+impl PlatformHint {
+    /// Infers the default platform hint from the current target operating system.
+    #[must_use]
+    pub const fn from_env() -> Self {
+        #[cfg(target_os = "macos")]
+        {
+            Self::MacOS
+        }
+        #[cfg(target_os = "windows")]
+        {
+            Self::Windows
+        }
+        #[cfg(all(unix, not(target_os = "macos")))]
+        {
+            Self::Posix
+        }
+        #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
+        {
+            Self::Generic
+        }
+    }
+}
+
 /// Contextual hints provided by the caller to guide detection.
 #[derive(Debug, Clone, Default)]
 pub struct DetectionHint {

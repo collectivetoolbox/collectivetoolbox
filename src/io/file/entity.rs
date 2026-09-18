@@ -286,6 +286,49 @@ impl FileEntity {
         }
     }
 
+    /// Guesses file format candidates using multi-signal evidence: magic byte patterns,
+    /// hierarchical libmagic rules, file extension hints, platform priors, and bundle probing.
+    pub fn guess_format(
+        &self,
+        payload: &mut dyn PayloadSource,
+    ) -> Vec<ctb_formats_utilities::detection::DetectionCandidate> {
+        let filename = self
+            .identity
+            .relative_path
+            .file_name()
+            .and_then(|n| n.to_str());
+
+        let hint = ctb_formats_utilities::detection::DetectionHint {
+            filename: filename.map(|s| s.to_string()),
+            extension: None,
+            platform: ctb_formats_utilities::detection::PlatformHint::from_env(),
+            expected_category: None,
+        };
+
+        // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.
+        if let FileEntityKind::Directory = self.kind {
+            if let Some(name) = filename {
+                if name.ends_with(".app") || name.ends_with(".framework") || name.ends_with(".bundle") {
+                    return vec![ctb_formats_utilities::detection::DetectionCandidate {
+                        format_id: None,
+                        dc_id: None,
+                        mime: Some("application/x-apple-application".to_string()),
+                        description: "macOS Application Bundle".to_string(),
+                        confidence: ctb_formats_utilities::detection::ConfidenceTier::Strong,
+                        score: 75,
+                        evidence: vec![ctb_formats_utilities::detection::DetectionEvidence::Extension {
+                            ext: "app".to_string(),
+                            is_primary: true,
+                            score: 75,
+                        }],
+                    }];
+                }
+            }
+        }
+
+        ctb_formats_utilities::detection::guess_format_candidates(payload, Some(&hint))
+    }
+
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`),
     /// streaming the payload from `source` into a `DcMst` buffer without
     /// buffering the entire payload into an intermediate vector.
@@ -1310,5 +1353,29 @@ mod tests {
 
         ctb_formats_dcstring::assert_dc_roundtrip(&entity).expect("FileEntity DcMixed roundtrip failed");
     }
+
+    #[crate::ctb_test]
+    fn test_file_entity_guess_format() {
+        let temp = tempfile::tempdir().unwrap();
+        let gz_path = temp.path().join("archive.tar.gz");
+        let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+        std::fs::write(&gz_path, gz_header).unwrap();
+
+        let entity = FileEntity::from_filesystem(&gz_path, None).unwrap();
+        let mut source = crate::file::payload::DiskPayloadSource::open(&gz_path).unwrap();
+        let candidates = entity.guess_format(&mut source);
+
+        assert!(!candidates.is_empty());
+        let top = &candidates[0];
+        assert_eq!(
+            top.format_id,
+            Some(ctb_formats_utilities::format_id::FormatId::Gzip)
+        );
+        assert_eq!(
+            top.confidence,
+            ctb_formats_utilities::detection::ConfidenceTier::HighestConfidence
+        );
+    }
 }
+
 
