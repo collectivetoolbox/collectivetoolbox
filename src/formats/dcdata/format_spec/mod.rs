@@ -98,6 +98,10 @@ mod tests {
         // Verify Dc stream decoding
         let decoded = decode_dc_stream_string(&dc_string).unwrap();
         assert_eq!(decoded, expr);
+        // Confirm the parser flexibly supports other valid syntaxes
+        let manually_written_dc_string = "302 303 302 f15 f542 299 f0 299 f0";
+        let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
+        assert_eq!(decoded, expr);
     }
 
     #[crate::ctb_test]

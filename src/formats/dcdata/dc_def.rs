@@ -27,6 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::shared::{BidiClass, GeneralCategory};
+use crate::format_spec::FormatExpr;
 use crate::syntax::DcSyntaxRule;
 use serde::{Deserialize, Serialize};
 
@@ -37,6 +38,8 @@ pub struct FormatDetails {
     pub base_format: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chain: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub format_spec: Option<FormatExpr>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub extensions: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

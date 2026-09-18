@@ -33,6 +33,7 @@ use crate::shared::{
     validate_extensions_field, validate_mime_field, validate_rust_identifier,
     validate_support_level,
 };
+use crate::format_spec::{parse_format_expr, validate_format_expr};
 use crate::syntax::parse_dc_syntax;
 use include_dir::Dir;
 use std::collections::{HashMap, HashSet};
@@ -329,11 +330,14 @@ pub fn validate_formats_category_file(
         let mut decompositions = Vec::new();
         let mut syntax_raw = None;
         let mut chain_raw = None;
+        let mut format_spec_raw = None;
         for item in items {
             if item.starts_with(':') {
                 syntax_raw = Some(item);
             } else if item.starts_with('=') {
                 chain_raw = Some(item);
+            } else if item.starts_with("@chain(") {
+                format_spec_raw = Some(item);
             } else if item.starts_with('<') {
                 decompositions.push(item);
             } else {
@@ -346,6 +350,34 @@ pub fn validate_formats_category_file(
             Some(base_parts.join(", "))
         };
         let chain = chain_raw;
+        let format_spec = if let Some(raw_spec) = &format_spec_raw {
+            match parse_format_expr(raw_spec) {
+                Ok(expr) => {
+                    if let Err(e) = validate_format_expr(&expr) {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Base/Related Format (format_spec)"),
+                            format!("Semantic validation failed for format spec '{raw_spec}': {e}"),
+                            Some("Check format IDs and registered named types in expression"),
+                        );
+                    }
+                    Some(expr)
+                }
+                Err(e) => {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some("Base/Related Format (format_spec)"),
+                        format!("Failed to parse format specification DSL rule '{raw_spec}': {e}"),
+                        Some("Verify format specification DSL syntax (@chain(...))"),
+                    );
+                    None
+                }
+            }
+        } else {
+            None
+        };
         let syntax = if let Some(raw_syn) = &syntax_raw {
             match parse_dc_syntax(raw_syn) {
                 Ok(rule) => Some(rule),
@@ -373,6 +405,7 @@ pub fn validate_formats_category_file(
         let format_details = FormatDetails {
             base_format,
             chain,
+            format_spec,
             extensions: if extensions.is_empty() {
                 None
             } else {
