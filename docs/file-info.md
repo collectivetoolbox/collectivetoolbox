@@ -89,9 +89,9 @@ runtime file detection. No IDs are allocated, reassigned, or merged.
   union", does not make it a choice between alternatives. Dcs 301-303 describe
   operations, but do not authorize execution.
 
-## Proposed Model Boundaries
+## Model Boundaries and Implementation Status
 
-The following is a design proposal, not an implemented schema or DSL.
+The following describes model boundaries and current implementation status for format identities, classifications, and compositions.
 
 1. **Identity:** The global graph ID is authoritative. Existing short Dcs use
    offset 1114112; format-local IDs use offset 2228224. For example, `f542` is
@@ -113,13 +113,17 @@ The following is a design proposal, not an implemented schema or DSL.
    In source CSV files, column 6 consolidates format specifications using
    `@chain(...)` (e.g., `@chain(((f15 > f542) ! f0) > f0)`), avoiding horizontal
    scrolling while permitting future annotations such as `@formalalias(...)`.
-   Persisted chains accept numeric Dc references and explicitly registered stable
+   The format specification DSL is implemented in `src/formats/dcdata/format_spec/`
+   and integrated into the format CSV loader (`format_spec: Option<FormatExpr>` on
+   `FormatDetails` and `DcDef`). Persisted chains accept numeric Dc references
+   (shorthands like `f542`, `l2228766`, `0`) and explicitly registered stable
    named types only; aliases, Rust identifiers, and nicknames are never resolved
-   implicitly. Migrate legacy `Chain (=)` entries individually once this
-   representation is defined. Do not reinterpret every `&` in the overloaded
-   base column as an executable pipeline; `Utf8_Base64` (f110), for example,
-   describes nested representations, not two independent constraints on the same
-   bytes.
+   implicitly. Semantic validation (`validate_format_expr`) enforces these constraints
+   along with transformation target bounds and complexity limits during data loading.
+   Migrate legacy `Chain (=)` entries individually. Do not reinterpret every `&`
+   in the overloaded base column as an executable pipeline; `Utf8_Base64` (f110),
+   for example, describes nested representations, not two independent constraints
+   on the same bytes.
 5. **Metadata and evidence:** Preferred extension, preferred nickname, aliases,
    MIME/UTI identifiers, creator/type codes, timestamp resolution, and detection
    rules are separate predicates. Missing metadata is unknown or inapplicable,
@@ -137,7 +141,7 @@ ordering or confuse alternative frames with simultaneous constraints. The CSV
 importer can eventually generate these Dc documents; indexing should consume
 those documents, not re-infer semantics from comments.
 
-## Proposed Description Syntax
+## Format Specification DSL and Dc Stream Encoding
 
 Use distinct operators for distinct operations:
 
@@ -148,21 +152,20 @@ Use distinct operators for distinct operations:
 | `A : T` | 301 | Apply registered transformation T to representation A |
 | `A > B` | 302 | Convert/encode A into representation B |
 | `A ! B` | 303 | Reinterpret A's unchanged representation as B |
-| `(A)` | 298 / 299 | Explicit grouping |
+| `(A)` | 298 / 299 | Explicit grouping in infix syntax |
 
-`>`/`!`/`:` bind more tightly than `&` and `|`, with left-to-right association.
-Association must not be automatic when mixing `&` or `|` with the other
-operators - explicit grouping is required for an expression like `A & (B : C)`;
-it should not be inferred by precedence. Parentheses can override this; the
-canonical printer should show mixed-operation grouping. Thus `directory > tar >
-bz2` means `(directory > tar) > bz2`, while `pan > (json & utf8)` applies both
-constraints to the output.
+`>`/`!`/`:` bind more tightly than `&` and `|`, with left-to-right association
+(`f10 > f20 > f30` parses as `(f10 > f20) > f30`). Association is not automatic
+when mixing `&` or `|` with operational operators — explicit grouping is
+required for an expression like `A & (B : C)` or `(A > B) & C`; expressions
+without parentheses like `A & B > C` are rejected.
 
 Neither `&` nor `|` takes precedence over the other. Parentheses are required
-whenever `&` or `|` could have interpretations in different grouping ways (such
-as mixing `&` and `|` without grouping, e.g., `A & B | C` vs `(A & B) | C` or
-`A & (B | C)`). Ambiguous expressions without explicit parenthesization must be
-rejected.
+whenever `&` and `|` are mixed without grouping (e.g., `(A & B) | C` vs
+`A & (B | C)`). Ambiguous expressions without explicit parenthesization are
+rejected by the parser. Homogeneous chaining of `&` (`A & B & C`) and `|`
+(`A | B | C`) is permitted and represented as n-ary nodes in the AST
+(`FormatExpr::Union(Vec<FormatExpr>)`, `FormatExpr::Intersection(Vec<FormatExpr>)`).
 
 The spelling `directory` in examples is schematic until it is explicitly bound to
 a suitable descriptor; the existing file-kind Dc 359 must not be confused with
@@ -170,10 +173,10 @@ format f359 (BaseAlphabet).
 
 Persisted chains accept numeric Dc references (as defined in
 [README.shorthand.md](../src/formats/dcdata/data/README.shorthand.md)) and
-explicitly registered stable named types only. Global IDs use lowercase `l`,
-not `@`: `l2228766` and `f542` identify the same Dc. Bare integers denote short
-Dcs in this shorthand; uppercase `L` denotes a local graph reference and is
-not interchangeable with lowercase `l`.
+explicitly registered stable named types from `README-named-types.csv` only.
+Global IDs use lowercase `l`, not `@`: `l2228766` and `f542` identify the same Dc.
+Bare integers denote short Dcs in this shorthand; uppercase `L` denotes a local
+graph reference and is not interchangeable with lowercase `l`.
 Labels, Rust identifiers, nicknames, and other aliases are never resolved
 implicitly. There is currently no stability guarantee for keyword references or
 other human-readable identifiers for Dcs; accepting aliases or attempting to
@@ -206,31 +209,63 @@ dialect, not a conjunction asserting that the original bytes are already a
 hexdump. Query expressions such as `jq['.prelude']` remain outside this subset.
 Neither parsing nor detection should invoke external commands.
 
-One proposed canonical Dc encoding uses a balanced group for each binary
-expression: `298 operator left right 299`. Leaves are type references. For
-`((english > iso8859-1) ! utf8) > utf8`, the symbolic token stream would be:
+### Canonical Dc Token Stream Encoding
 
-```text
-298 302
-  298 303
-    298 302 f15 f542 299
-    f0
-  299
-  f0
-299
-```
+The canonical Document Character (Dc) token stream representation uses a succinct
+prefix (Polish) notation:
 
-Here short operator numbers stand for their short-region global IDs; `fN`
-stands for a formats-region global ID. This preserves the existing identities
-of group delimiters. Do not use unmatched closing groups as implicit operator
-terminators. A purely arity-delimited prefix encoding would also be possible,
-but should not be mixed with this balanced encoding.
+1. **Fixed-arity binary operators** (`301` `:`, `302` `>`, `303` `!`): Because
+   their arity is strictly fixed at two operands (`op left right`), they are
+   emitted directly in prefix order without requiring opening (`298`) or closing
+   (`299`) group delimiters. For example, `((f15 > f542) ! f0) > f0` encodes
+   directly as:
 
-**Blocked on grammar work:** `[type]` currently means `[262:]` or a bare format,
-not recursive expressions containing Dcs 298, 300-303, and 516. Before implementing
-this proposal, define a recursive type-expression grammar, transformation operand
-constraints, depth/size limits, and text/Dc/AST round-trip tests. Do not claim
-these example streams are already accepted by the payload syntax machinery.
+   ```text
+   302 303 302 f15 f542 f0 f0
+   ```
+
+2. **Variable-arity operators** (`300` `&` / Type union, `516` `|` / Type intersection):
+   Take an arbitrary number of child operands (`op child1 child2 ...`). A trailing
+   `299` (or `)`) delimiter is emitted **only when necessary to disambiguate**
+   where the child list terminates relative to subsequent operands in an enclosing
+   expression (i.e. when not in tail position). When a variable-arity operator
+   occupies the tail position of the expression, no trailing delimiter is required:
+
+   - Non-tail position with subsequent operand: `1 & ((2 | 3 | 4) > 5)` encodes as:
+     ```text
+     300 1 302 516 2 3 4 299 5
+     ```
+     Here, `516 2 3 4 299` is the left operand of `302`, so `299` disambiguates
+     where the intersection ends and the right operand `5` begins.
+   - Tail position: `5 > (2 | 3 | 4)` encodes as:
+     ```text
+     302 5 516 2 3 4
+     ```
+     No closing `299` is required at the tail because the stream naturally ends.
+
+3. **Dual Syntax and Backward Compatibility:**
+   - The stream decoder (`decode_dc_stream`) supports both numeric Dc tokens
+     (e.g., `300 1 302 ...`) and symbolic operator tokens (e.g., `& 1 > | 2 3 4 ) 5`).
+   - The decoder also accepts legacy balanced grouping (`298 ... 299`) and explicit
+     group terminators (`299` / `)`).
+   - The parser (`parse_format_expr`) transparently accepts both infix notation
+     and prefix notation strings, with optional `@chain(...)` directive wrapping.
+
+### Grammar and Payload Syntax Boundary
+
+The recursive type-expression grammar, AST (`FormatExpr`), recursive parser,
+formatter, semantic validator, and bidirectional Dc stream encoder/decoder are
+implemented in `src/formats/dcdata/format_spec/`. Expressions are bounded by a
+maximum tree depth of 32 (`MAX_FORMAT_EXPR_DEPTH`) and maximum node count of
+256 (`MAX_FORMAT_EXPR_NODES`). Transformation target operands (`A : T`) are
+constrained to registered transformation format IDs (`KNOWN_TRANSFORMATION_FORMAT_IDS`,
+e.g. 19, 20, 323, 324) or the named types `type`/`format`.
+
+Format specifications describe how representations compose, layer, and
+transform (e.g., in `@chain(...)` declarations and multipart extension parsing).
+They remain logically distinct from the inline payload syntax DSL used after
+typed markers (e.g., `[type]`, `[262:]`), which specifies the intra-record byte
+structure of specific format markers.
 
 Parameterized descriptions could use a separate, typed application form such as
 `base-numeral(radix=16, alphabet=alphabet-id)`. This spelling is illustrative and
@@ -324,8 +359,16 @@ grammar before inclusion in `statement` or `value`. The existing literal type
 header currently accepts only the built-in String marker 264; extending typed
 literals is separate from treating quoted payloads as executable code.
 
-## Next Data Work
+## Format Detection and Next Work
 
+- Format specifications are now parsed and validated for persisted `@chain(...)`
+  entries via `ctb_formats_dcdata::format_spec`. In addition, multipart filename
+  extensions (such as `.html.gz` and `.pan.Z`) are parsed into structured layers
+  via `FormatChain` in `ctb_formats_utilities::detection`, generating format
+  specification chains (`Html > Gzip`). Initial multi-signal detection
+  (`detect_format_id`) combines magic byte signatures (`MAGIC_REGISTRY`),
+  weighted extension patterns (`EXTENSION_REGISTRY`), and `FormatCategory` domain
+  filtering.
 - Define and allocate relation predicates only after fixing their domains,
   cardinality, ordering, and relation-instance representation. Then migrate math
   metadata out of prose and split the overloaded base/chain/syntax field.
