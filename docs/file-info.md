@@ -245,9 +245,7 @@ prefix (Polish) notation:
 
 3. **Dual Syntax and Backward Compatibility:**
    - The stream decoder (`decode_dc_stream`) supports both numeric Dc tokens
-     (e.g., `300 1 302 ...`) and symbolic operator tokens (e.g., `& 1 > | 2 3 4 ) 5`).
-   - The decoder also accepts legacy balanced grouping (`298 ... 299`) and explicit
-     group terminators (`299` / `)`).
+     (e.g., `300 1 302 ...`) and symbolic operator tokens in either infix or prefix syntax (e.g., `1 & ((2 | 3 | 4) > 5)` or `& 1 > | 2 3 4 ) 5`). Infix syntax is mildly preferred for the CSVs, while prefix syntax is preferred for Dc encoding of them.
    - The parser (`parse_format_expr`) transparently accepts both infix notation
      and prefix notation strings, with optional `@chain(...)` directive wrapping.
 
