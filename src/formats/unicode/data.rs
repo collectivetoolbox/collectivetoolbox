@@ -281,33 +281,23 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
             let alias_trimmed = alias.trim().to_string();
             match kind.trim() {
                 "correction" => {
-                    if entry.correction.is_none() {
-                        entry.correction = Some(alias_trimmed.clone());
-                    }
+                    entry.correction = Some(alias_trimmed.clone());
                     entry.corrections.push(alias_trimmed);
                 }
                 "control" => {
-                    if entry.control.is_none() {
-                        entry.control = Some(alias_trimmed.clone());
-                    }
+                    entry.control = Some(alias_trimmed.clone());
                     entry.controls.push(alias_trimmed);
                 }
                 "abbreviation" => {
-                    if entry.abbreviation.is_none() {
-                        entry.abbreviation = Some(alias_trimmed.clone());
-                    }
+                    entry.abbreviation = Some(alias_trimmed.clone());
                     entry.abbreviations.push(alias_trimmed);
                 }
                 "alternate" => {
-                    if entry.alternate.is_none() {
-                        entry.alternate = Some(alias_trimmed.clone());
-                    }
+                    entry.alternate = Some(alias_trimmed.clone());
                     entry.alternates.push(alias_trimmed);
                 }
                 "figment" => {
-                    if entry.figment.is_none() {
-                        entry.figment = Some(alias_trimmed.clone());
-                    }
+                    entry.figment = Some(alias_trimmed.clone());
                     entry.figments.push(alias_trimmed);
                 }
                 _ => {}
@@ -381,20 +371,14 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                                         Some(trimmed_alias.to_string());
                                 }
                             } else if !trimmed_alias.ends_with("(1.0)") {
-                                for sub in trimmed_alias.split(", ") {
-                                    let s = sub.trim();
-                                    if !s.is_empty() {
-                                        entry.informative_aliases.push(s.to_string());
-                                    }
-                                }
+                                entry
+                                    .informative_aliases
+                                    .push(trimmed_alias.to_string());
                             }
                         } else if !trimmed_alias.ends_with("(1.0)") {
-                            for sub in trimmed_alias.split(", ") {
-                                let s = sub.trim();
-                                if !s.is_empty() {
-                                    entry.informative_aliases.push(s.to_string());
-                                }
-                            }
+                            entry
+                                .informative_aliases
+                                .push(trimmed_alias.to_string());
                         }
                     } else if let Some(annot) = rest.strip_prefix("* ") {
                         let entry = char_data.entry(cp).or_default();

@@ -903,13 +903,23 @@ pub fn validate_dc_category_file(
             None
         };
 
-        let (aliases, cross_references, decompositions, raw_dc_syntax) =
-            parse_dc_aliases_column(
-                &raw_aliases_untrimmed,
-                file_path,
-                line_no,
-                report,
-            );
+        let parsed_col = crate::column_spec::parse_aliases_or_base_column(
+            &raw_aliases_untrimmed,
+            file_path,
+            line_no,
+            report,
+            false,
+        );
+        let aliases = parsed_col.aliases;
+        let cross_references = parsed_col.cross_references;
+        let decompositions = parsed_col.decompositions;
+        let raw_dc_syntax = parsed_col.syntax_raw;
+        let formal_aliases = parsed_col
+            .formal_aliases
+            .into_iter()
+            .map(|f| (f.kind, f.alias))
+            .collect();
+        let annotations = parsed_col.annotations;
 
         let dc_syntax = if let Some(raw_syn) = &raw_dc_syntax {
             match parse_dc_syntax(raw_syn) {
@@ -943,7 +953,9 @@ pub fn validate_dc_category_file(
             is_deprecated,
             decompositions,
             aliases,
+            formal_aliases,
             cross_references,
+            annotations,
             syntax: dc_syntax,
             description,
             format: None,

@@ -41,17 +41,28 @@ use crate::utilities::*;
 use crate::report::ValidationReport;
 use ctb_storage_minimal::shorthand::is_valid_shorthand;
 
+/// Parsed formal alias with kind and alias name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsedFormalAlias {
+    pub kind: String,
+    pub alias: String,
+}
+
 /// Structured representation of parsed elements from an Aliases / Base / Chain / Syntax cell.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ParsedAliasesOrBaseColumn {
     /// Plain aliases (character tables only).
     pub aliases: Vec<String>,
+    /// Formal aliases extracted from `@formalAliasCorrection(...)`, `@formalAliasControl(...)`, etc.
+    pub formal_aliases: Vec<ParsedFormalAlias>,
     /// Base format or parent category references extracted from `@base(...)`.
     pub base_formats: Vec<String>,
-    /// Cross-reference targets extracted from `><target>`.
+    /// Cross-reference targets extracted from `@xref(...)` and `><target>`.
     pub cross_references: Vec<String>,
     /// Decomposition expressions extracted from `<<tag>payload>`.
     pub decompositions: Vec<String>,
+    /// Annotations extracted from `@annotation(...)`.
+    pub annotations: Vec<String>,
     /// Syntax specification string extracted from `:<syntax>`.
     pub syntax_raw: Option<String>,
     /// Format specification DSL string extracted from `@chain(...)` or `@(...)`.
@@ -122,8 +133,25 @@ pub fn parse_aliases_or_base_column(
     let mut item_start = 0_usize;
     let mut paren_depth = 0_usize;
     let mut bracket_depth = 0_usize;
+    let mut in_quotes = false;
+    let mut is_escaped = false;
 
     for (i, &(byte_idx, ch)) in chars.iter().enumerate() {
+        if is_escaped {
+            is_escaped = false;
+            continue;
+        }
+        if ch == '\\' {
+            is_escaped = true;
+            continue;
+        }
+        if ch == '"' {
+            in_quotes = !in_quotes;
+            continue;
+        }
+        if in_quotes {
+            continue;
+        }
         match ch {
             '(' => paren_depth = paren_depth.saturating_add(1),
             ')' => paren_depth = paren_depth.saturating_sub(1),
@@ -225,6 +253,16 @@ pub fn parse_aliases_or_base_column(
         }
     }
 
+    if in_quotes {
+        report.add_error(
+            file_path,
+            Some(line_no),
+            Some(col_name),
+            format!("Unterminated string quote in {col_name} column: '{raw}'"),
+            Some("Ensure all double quotes are closed"),
+        );
+    }
+
     if let Some(last_raw) = raw.get(item_start..) {
         process_column_item(
             last_raw,
@@ -238,6 +276,29 @@ pub fn parse_aliases_or_base_column(
     }
 
     parsed
+}
+
+/// Unescapes a double-quoted string payload inside a directive (e.g. `"foo \"bar\""` -> `foo "bar"`).
+fn unescape_quoted_directive_payload(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    let content = trimmed.strip_prefix('"')?.strip_suffix('"')?;
+    let mut res = String::with_capacity(content.len());
+    let mut chars = content.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            if let Some(&next_c) = chars.peek() {
+                if next_c == '"' || next_c == '\\' {
+                    res.push(next_c);
+                    chars.next();
+                    continue;
+                }
+            }
+            res.push('\\');
+        } else {
+            res.push(c);
+        }
+    }
+    Some(res)
 }
 
 fn process_column_item(
@@ -279,6 +340,107 @@ fn process_column_item(
                     Some("Ensure '@base(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@xref(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let target = stripped.trim();
+                if target.is_empty() {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Empty '@xref()' directive in {col_name} column: '{item_trimmed}'"),
+                        Some("Specify a target shorthand inside @xref(...) (e.g. '@xref(u22ee)')"),
+                    );
+                } else if !is_valid_shorthand(target) {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Invalid target shorthand in '@xref({target})'"),
+                        Some("Specify a valid shorthand like 'u22ee', short Dc, or format 'f161'"),
+                    );
+                } else {
+                    parsed.cross_references.push(target.to_string());
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@xref(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@xref(...)' closes with a parenthesis"),
+                );
+            }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@annotation(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    parsed.annotations.push(unescaped);
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@annotation(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@annotation(\"...\")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@annotation(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@annotation(...)' closes with a parenthesis"),
+                );
+            }
+        } else if item_trimmed.starts_with("@formalAlias") {
+            let formal_types = [
+                ("Correction", "@formalAliasCorrection("),
+                ("Control", "@formalAliasControl("),
+                ("Alternate", "@formalAliasAlternate("),
+                ("Figment", "@formalAliasFigment("),
+                ("Abbreviation", "@formalAliasAbbreviation("),
+            ];
+            let mut matched = false;
+            for (kind, prefix) in formal_types {
+                if let Some(inner) = item_trimmed.strip_prefix(prefix) {
+                    matched = true;
+                    if let Some(stripped) = inner.strip_suffix(')') {
+                        if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                            parsed.formal_aliases.push(ParsedFormalAlias {
+                                kind: kind.to_string(),
+                                alias: unescaped,
+                            });
+                        } else {
+                            report.add_error(
+                                file_path,
+                                Some(line_no),
+                                Some(col_name),
+                                format!("Malformed '{prefix}...)': alias must be enclosed in double quotes in '{item_trimmed}'"),
+                                Some("Use '@formalAlias<Type>(\"...\")'"),
+                            );
+                        }
+                    } else {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Malformed '{prefix}...)': missing closing parenthesis in '{item_trimmed}'"),
+                            Some("Ensure directive closes with a parenthesis"),
+                        );
+                    }
+                    break;
+                }
+            }
+            if !matched {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Unknown formal alias directive '{item_trimmed}' in {col_name} column"),
+                    Some("Supported formal alias directives are: @formalAliasCorrection, @formalAliasControl, @formalAliasAlternate, @formalAliasFigment, @formalAliasAbbreviation"),
+                );
+            }
         } else if item_trimmed.starts_with("@chain(") || item_trimmed.starts_with("@(") {
             parsed.format_spec_raw = Some(item_trimmed.to_string());
         } else {
@@ -287,7 +449,7 @@ fn process_column_item(
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@base(...)' and '@chain(...)'"),
+                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', and '@annotation(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -517,5 +679,39 @@ mod tests {
         assert_eq!(parsed.aliases, vec!["dot", "point"]);
         assert_eq!(parsed.cross_references, vec![">32"]);
         assert_eq!(parsed.decompositions, vec!["<approx>u2e"]);
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_formal_aliases_xrefs_and_annotations() {
+        let mut report = ValidationReport::new();
+        let parsed = parse_aliases_or_base_column(
+            r#"@formalAliasCorrection("PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRACKET"), @formalAliasAbbreviation("NUL"), @xref(u22ee), @annotation("misspelling of \"BRACKET\" in character name is a known defect"), @annotation("German, note with comma")"#,
+            "test.csv",
+            1,
+            &mut report,
+            false,
+        );
+        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert_eq!(
+            parsed.formal_aliases,
+            vec![
+                ParsedFormalAlias {
+                    kind: "Correction".to_string(),
+                    alias: "PRESENTATION FORM FOR VERTICAL RIGHT WHITE LENTICULAR BRACKET".to_string(),
+                },
+                ParsedFormalAlias {
+                    kind: "Abbreviation".to_string(),
+                    alias: "NUL".to_string(),
+                }
+            ]
+        );
+        assert_eq!(parsed.cross_references, vec!["u22ee"]);
+        assert_eq!(
+            parsed.annotations,
+            vec![
+                "misspelling of \"BRACKET\" in character name is a known defect",
+                "German, note with comma",
+            ]
+        );
     }
 }

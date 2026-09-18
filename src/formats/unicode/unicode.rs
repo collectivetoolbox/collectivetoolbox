@@ -238,20 +238,14 @@ static ALL_UNICODE_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
             names.insert(n.to_lowercase());
         }
         if let Some(entry) = tables.name_aliases.get(&cp) {
-            for c in &entry.corrections {
+            if let Some(ref c) = entry.correction {
                 names.insert(c.to_lowercase());
             }
-            for c in &entry.controls {
+            if let Some(ref c) = entry.control {
                 names.insert(c.to_lowercase());
             }
-            for a in &entry.alternates {
-                names.insert(a.to_lowercase());
-            }
-            for f in &entry.figments {
-                names.insert(f.to_lowercase());
-            }
-            for ab in &entry.abbreviations {
-                names.insert(ab.to_lowercase());
+            if let Some(ref alt) = entry.alternate {
+                names.insert(alt.to_lowercase());
             }
         }
     }
@@ -371,17 +365,59 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
             .to_string();
 
         let mut alias_parts = Vec::new();
+        let mut seen_aliases = HashSet::new();
+
+        // 1. Formal aliases from NameAliases.txt
         if let Some(entry) = tables.name_aliases.get(&cp) {
-            if let Some(ref c) = entry.correction {
-                alias_parts.push(c.clone());
+            for c in &entry.corrections {
+                alias_parts.push(format!("@formalAliasCorrection(\"{c}\")"));
+                seen_aliases.insert(c.to_lowercase());
             }
-            if let Some(ref a) = entry.abbreviation {
-                alias_parts.push(a.clone());
+            for c in &entry.controls {
+                alias_parts.push(format!("@formalAliasControl(\"{c}\")"));
+                seen_aliases.insert(c.to_lowercase());
             }
-            if let Some(ref alt) = entry.alternate {
-                alias_parts.push(alt.clone());
+            for a in &entry.alternates {
+                alias_parts.push(format!("@formalAliasAlternate(\"{a}\")"));
+                seen_aliases.insert(a.to_lowercase());
+            }
+            for f in &entry.figments {
+                alias_parts.push(format!("@formalAliasFigment(\"{f}\")"));
+                seen_aliases.insert(f.to_lowercase());
+            }
+            for ab in &entry.abbreviations {
+                alias_parts.push(format!("@formalAliasAbbreviation(\"{ab}\")"));
+                seen_aliases.insert(ab.to_lowercase());
             }
         }
+        seen_aliases.insert(name.to_lowercase());
+
+        if let Some(info) = tables.char_data.get(&cp) {
+            // 2. Informal aliases from NamesList.txt
+            for alias_line in &info.informative_aliases {
+                for alias in alias_line.split(", ") {
+                    let s = alias.trim();
+                    if !s.is_empty() && seen_aliases.insert(s.to_lowercase()) {
+                        alias_parts.push(s.to_string());
+                    }
+                }
+            }
+
+            // 3. Cross-references from NamesList.txt
+            let mut seen_xrefs = HashSet::new();
+            for xref_cp in &info.cross_references {
+                if seen_xrefs.insert(*xref_cp) {
+                    alias_parts.push(format!("@xref(u{xref_cp:x})"));
+                }
+            }
+
+            // 4. Annotations from NamesList.txt
+            for annot in &info.annotations {
+                let escaped = escape_directive_string(annot);
+                alias_parts.push(format!("@annotation(\"{escaped}\")"));
+            }
+        }
+
         let aliases = alias_parts.join(", ");
 
         let is_deprecated = is_deprecated_unicode(cp);
@@ -400,6 +436,19 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
     }
 
     records
+}
+
+/// Escapes double quotes and backslashes for inclusion inside a quoted directive string literal.
+fn escape_directive_string(s: &str) -> String {
+    let mut res = String::with_capacity(s.len().saturating_add(4));
+    for c in s.chars() {
+        match c {
+            '\\' => res.push_str("\\\\"),
+            '"' => res.push_str("\\\""),
+            other => res.push(other),
+        }
+    }
+    res
 }
 
 #[cfg(test)]

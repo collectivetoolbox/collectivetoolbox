@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::{Context, Result, bail};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -736,9 +736,9 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             unicode_clarifications.get(&rec.cp)
         {
             let a = if rec.aliases.is_empty() {
-                clar_aliases.clone()
+                format_canonical_aliases_cell(clar_aliases)
             } else if !clar_aliases.is_empty() {
-                format!("{}, {}", rec.aliases, clar_aliases)
+                format_canonical_aliases_cell(&format!("{}, {}", rec.aliases, clar_aliases))
             } else {
                 rec.aliases
             };
@@ -826,6 +826,58 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     }
 
     Ok(stats)
+}
+
+/// Escapes double quotes and backslashes for inclusion inside a quoted directive string literal.
+fn escape_directive_string(s: &str) -> String {
+    let mut res = String::with_capacity(s.len().saturating_add(4));
+    for c in s.chars() {
+        match c {
+            '\\' => res.push_str("\\\\"),
+            '"' => res.push_str("\\\""),
+            other => res.push(other),
+        }
+    }
+    res
+}
+
+/// Formats and orders directives in an aliases cell into canonical order.
+fn format_canonical_aliases_cell(raw: &str) -> String {
+    if raw.trim().is_empty() {
+        return String::new();
+    }
+    let mut report = crate::report::ValidationReport::new();
+    let parsed = crate::column_spec::parse_aliases_or_base_column(raw, "", 0, &mut report, false);
+    let mut parts = Vec::new();
+    for fa in parsed.formal_aliases {
+        parts.push(format!("@formalAlias{}(\"{}\")", fa.kind, escape_directive_string(&fa.alias)));
+    }
+    let mut seen_aliases = HashSet::new();
+    for a in parsed.aliases {
+        if seen_aliases.insert(a.to_lowercase()) {
+            parts.push(a);
+        }
+    }
+    for xr in parsed.cross_references {
+        if xr.starts_with('>') {
+            parts.push(xr);
+        } else {
+            parts.push(format!("@xref({xr})"));
+        }
+    }
+    for d in parsed.decompositions {
+        parts.push(d);
+    }
+    for an in parsed.annotations {
+        parts.push(format!("@annotation(\"{}\")", escape_directive_string(&an)));
+    }
+    if let Some(syn) = parsed.syntax_raw {
+        parts.push(syn);
+    }
+    if let Some(chain) = parsed.format_spec_raw {
+        parts.push(chain);
+    }
+    parts.join(", ")
 }
 
 #[cfg(test)]

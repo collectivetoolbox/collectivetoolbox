@@ -84,7 +84,11 @@ pub struct DcDefn {
 
     // Cross-references & Aliases
     pub aliases: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub formal_aliases: Vec<(String, String)>,
     pub cross_references: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub annotations: Vec<String>,
 
     // Syntax Rule
     #[serde(skip_serializing_if = "Option::is_none")]
