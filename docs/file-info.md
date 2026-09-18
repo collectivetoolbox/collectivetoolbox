@@ -205,6 +205,13 @@ The following describes model boundaries and current implementation status for f
      base format relationships using valid Dc shorthand syntax (e.g., `f<id>`). Bare
      format identifiers without a directive prefix are disallowed in format category files
      and trigger validation errors to prevent ambiguous parsing.
+   - `@xref(...)` (e.g., `@xref(u22ee)`): expresses cross-references to code points or Dcs.
+   - `@formalAliasCorrection("...")`, `@formalAliasControl("...")`, `@formalAliasAlternate("...")`,
+     `@formalAliasFigment("...")`, `@formalAliasAbbreviation("...")`: normative formal name aliases
+     from Unicode Standard Annex #44.
+   - `@annotation("...")`: informative character notes and annotations from Unicode `NamesList.txt`.
+   See [`src/formats/dcdata/data/README.columns.md`](file:///workspaces/ctoolbox/src/formats/dcdata/data/README.columns.md)
+   for the complete column specification and directive catalog.
    The format specification DSL is implemented in `src/formats/dcdata/format_spec/`
    and integrated into the format CSV loader (`format_spec: Option<FormatExpr>` on
    `FormatDetails` and `DcDef`). Persisted chains accept numeric Dc references

@@ -90,6 +90,11 @@ pub struct NameAliasEntry {
     pub abbreviation: Option<String>,
     pub alternate: Option<String>,
     pub figment: Option<String>,
+    pub corrections: Vec<String>,
+    pub controls: Vec<String>,
+    pub abbreviations: Vec<String>,
+    pub alternates: Vec<String>,
+    pub figments: Vec<String>,
 }
 
 /// Parsed character entry from UnicodeData.txt / NamesList.txt.
@@ -101,6 +106,9 @@ pub struct UnicodeCharInfo {
     pub general_category: String,
     pub nameslist_control_name: Option<String>,
     pub nameslist_control_abbr: Option<String>,
+    pub annotations: Vec<String>,
+    pub cross_references: Vec<u32>,
+    pub formal_aliases: Vec<String>,
 }
 
 /// Egyptian Hieroglyph metadata from Unikemet.txt.
@@ -201,6 +209,23 @@ impl UnicodeDataTables {
     }
 }
 
+/// Parses a cross-reference line from NamesList.txt to extract the target codepoint.
+fn parse_nameslist_xref(text: &str) -> Option<u32> {
+    let trimmed = text.trim();
+    if let Some(inside) = trimmed.strip_prefix('(').and_then(|s| s.strip_suffix(')')) {
+        let inside = inside.trim();
+        if let Some((_name, hex_part)) = inside.rsplit_once('-') {
+            u32::from_str_radix(hex_part.trim(), 16).ok()
+        } else if let Some(last_tok) = inside.split_whitespace().next_back() {
+            u32::from_str_radix(last_tok.trim(), 16).ok()
+        } else {
+            None
+        }
+    } else {
+        u32::from_str_radix(trimmed, 16).ok()
+    }
+}
+
 fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
     // 1. Parse Blocks.txt
     let mut blocks = Vec::new();
@@ -253,16 +278,38 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                 continue;
             };
             let entry = name_aliases.entry(cp).or_default();
+            let alias_trimmed = alias.trim().to_string();
             match kind.trim() {
                 "correction" => {
-                    entry.correction = Some(alias.trim().to_string());
+                    if entry.correction.is_none() {
+                        entry.correction = Some(alias_trimmed.clone());
+                    }
+                    entry.corrections.push(alias_trimmed);
                 }
-                "control" => entry.control = Some(alias.trim().to_string()),
+                "control" => {
+                    if entry.control.is_none() {
+                        entry.control = Some(alias_trimmed.clone());
+                    }
+                    entry.controls.push(alias_trimmed);
+                }
                 "abbreviation" => {
-                    entry.abbreviation = Some(alias.trim().to_string());
+                    if entry.abbreviation.is_none() {
+                        entry.abbreviation = Some(alias_trimmed.clone());
+                    }
+                    entry.abbreviations.push(alias_trimmed);
                 }
-                "alternate" => entry.alternate = Some(alias.trim().to_string()),
-                "figment" => entry.figment = Some(alias.trim().to_string()),
+                "alternate" => {
+                    if entry.alternate.is_none() {
+                        entry.alternate = Some(alias_trimmed.clone());
+                    }
+                    entry.alternates.push(alias_trimmed);
+                }
+                "figment" => {
+                    if entry.figment.is_none() {
+                        entry.figment = Some(alias_trimmed.clone());
+                    }
+                    entry.figments.push(alias_trimmed);
+                }
                 _ => {}
             }
         }
@@ -299,6 +346,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                     general_category: cat.trim().to_string(),
                     nameslist_control_name: None,
                     nameslist_control_abbr: None,
+                    annotations: Vec::new(),
+                    cross_references: Vec::new(),
+                    formal_aliases: Vec::new(),
                 },
             );
         }
@@ -307,7 +357,9 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
     if let Some(content) = get_ucd_file_for_version(version, "NamesList.txt") {
         let mut current_cp: Option<u32> = None;
         for line in content.lines() {
-            if line.starts_with('\t') {
+            if line.starts_with('@') {
+                current_cp = None;
+            } else if line.starts_with('\t') {
                 if let Some(cp) = current_cp {
                     let rest = line.trim_start_matches('\t');
                     if let Some(alias) = rest.strip_prefix("= ") {
@@ -329,18 +381,41 @@ fn load_tables(version: UnicodeVersion) -> UnicodeDataTables {
                                         Some(trimmed_alias.to_string());
                                 }
                             } else if !trimmed_alias.ends_with("(1.0)") {
-                                entry
-                                    .informative_aliases
-                                    .push(trimmed_alias.to_string());
+                                for sub in trimmed_alias.split(", ") {
+                                    let s = sub.trim();
+                                    if !s.is_empty() {
+                                        entry.informative_aliases.push(s.to_string());
+                                    }
+                                }
                             }
                         } else if !trimmed_alias.ends_with("(1.0)") {
-                            entry
-                                .informative_aliases
-                                .push(trimmed_alias.to_string());
+                            for sub in trimmed_alias.split(", ") {
+                                let s = sub.trim();
+                                if !s.is_empty() {
+                                    entry.informative_aliases.push(s.to_string());
+                                }
+                            }
+                        }
+                    } else if let Some(annot) = rest.strip_prefix("* ") {
+                        let entry = char_data.entry(cp).or_default();
+                        let trimmed_annot = annot.trim();
+                        if !trimmed_annot.is_empty() {
+                            entry.annotations.push(trimmed_annot.to_string());
+                        }
+                    } else if let Some(xref_raw) = rest.strip_prefix("x ") {
+                        if let Some(target) = parse_nameslist_xref(xref_raw) {
+                            let entry = char_data.entry(cp).or_default();
+                            entry.cross_references.push(target);
+                        }
+                    } else if let Some(formal) = rest.strip_prefix("% ") {
+                        let entry = char_data.entry(cp).or_default();
+                        let trimmed_formal = formal.trim();
+                        if !trimmed_formal.is_empty() {
+                            entry.formal_aliases.push(trimmed_formal.to_string());
                         }
                     }
                 }
-            } else if !line.starts_with('@') && !line.is_empty() {
+            } else if !line.is_empty() {
                 let trimmed = line.trim();
                 if let Some((hex_str, name)) = trimmed.split_once('\t') {
                     if let Ok(cp) = u32::from_str_radix(hex_str.trim(), 16) {

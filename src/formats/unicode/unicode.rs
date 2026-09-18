@@ -238,14 +238,20 @@ static ALL_UNICODE_NAMES: LazyLock<HashSet<String>> = LazyLock::new(|| {
             names.insert(n.to_lowercase());
         }
         if let Some(entry) = tables.name_aliases.get(&cp) {
-            if let Some(ref c) = entry.correction {
+            for c in &entry.corrections {
                 names.insert(c.to_lowercase());
             }
-            if let Some(ref c) = entry.control {
+            for c in &entry.controls {
                 names.insert(c.to_lowercase());
             }
-            if let Some(ref alt) = entry.alternate {
-                names.insert(alt.to_lowercase());
+            for a in &entry.alternates {
+                names.insert(a.to_lowercase());
+            }
+            for f in &entry.figments {
+                names.insert(f.to_lowercase());
+            }
+            for ab in &entry.abbreviations {
+                names.insert(ab.to_lowercase());
             }
         }
     }
