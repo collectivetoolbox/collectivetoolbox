@@ -47,7 +47,8 @@
 
 ### Phase 5: Declarative File Type Detection Engine
 - [x] **Basic Multi-Signal Detection Prototype:** Initial prototype combining static magic byte matching (`MAGIC_REGISTRY`), preliminary extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
-- [ ] **Probabilistic Multipart Extension Parsing & Candidate Chains:**
+- [ ] **Probabilistic Multipart Extension Parsing & Candidate Chains; old/filedetect/ ports:**
+  - Note: Reusing/porting algorithms from the packages in old/filedetect/ (which should all be compatibly licensed), or using standard Rust crates, is encouraged, rather than reinventing things wholesale. We'll want to reuse existing databases, perhaps mapping them to Dcs, so that the data maintained directly in this crate (`src/formats/dcdata/data/categories/formats/` and as-yet-unimplemented `src/formats/dcdata/data/categories/formats/magic/`) can be relatively limited.
   - [ ] Replace hardcoded extension lists with data-driven extension resolution sourced directly from the Dc format dataset (preferred extensions, alternate extensions, and MIME mappings).
   - [ ] Support probabilistic multi-candidate extension parsing (`Vec<ProbableFormatChain>` or `Vec<FormatCandidate>`) rather than collapsing ambiguities into a single deterministic `FormatChain`.
   - [ ] Account for ambiguous extensions (e.g., `.as` for ActionScript vs. AppleSingle vs. AngelScript; `.m` for Objective-C vs. MATLAB vs. Mathematica; `.doc` for Word vs. FrameMaker vs. plain documentation) with ranked likelihood.
