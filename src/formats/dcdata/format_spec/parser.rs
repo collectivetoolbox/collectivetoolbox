@@ -188,13 +188,20 @@ pub fn parse_format_expr(input: &str) -> Result<FormatExpr> {
         );
         let inner = &stripped[..stripped.len().saturating_sub(1)];
         inner.trim()
+    } else if let Some(stripped) = trimmed.strip_prefix("@(") {
+        ensure!(
+            stripped.ends_with(')'),
+            "Malformed '@(...)': missing closing parenthesis"
+        );
+        let inner = &stripped[..stripped.len().saturating_sub(1)];
+        inner.trim()
     } else {
         trimmed
     };
 
     ensure!(
         !expr_str.is_empty(),
-        "Empty format specification inside '@chain(...)'"
+        "Empty format specification inside '@chain(...)' or '@(...)'"
     );
 
     let tokens = tokenize(expr_str)?;

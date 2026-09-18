@@ -334,10 +334,19 @@ pub fn validate_formats_category_file(
         for item in items {
             if item.starts_with(':') {
                 syntax_raw = Some(item);
-            } else if item.starts_with('=') {
-                chain_raw = Some(item);
-            } else if item.starts_with("@chain(") {
+            } else if item.starts_with("@chain(") || item.starts_with("@(") {
                 format_spec_raw = Some(item);
+            } else if item.starts_with('=') {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Base/Related Format (chain)"),
+                    format!(
+                        "Legacy chain syntax '=' is deprecated: '{item}'. Use '@chain(...)' instead"
+                    ),
+                    Some("Update to '@chain(...)' format specification syntax"),
+                );
+                chain_raw = Some(item);
             } else if item.starts_with('<') {
                 decompositions.push(item);
             } else {
@@ -764,7 +773,7 @@ mod tests {
         let mut report = ValidationReport::new();
         let valid_variants = HashSet::new();
 
-        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (=), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestMojibake,Test Mojibake,encoding,\"@chain(((f15 > f542) ! f0) > f0)\",,,,,,,,,,, \n";
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestMojibake,Test Mojibake,encoding,\"@chain(((f15 > f542) ! f0) > f0)\",,,,,,,,,,, \n";
         let rows = validate_formats_category_file(
             csv_data,
             "test/formats/encoding.csv",
@@ -786,7 +795,7 @@ mod tests {
         let valid_variants = HashSet::new();
 
         // Ambiguous unparenthesized mixing of & and | inside @chain(...)
-        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (=), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestBadChain,Test Bad Chain,encoding,\"@chain(f15 & f542 | f0)\",,,,,,,,,,, \n";
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestBadChain,Test Bad Chain,encoding,\"@chain(f15 & f542 | f0)\",,,,,,,,,,, \n";
         validate_formats_category_file(
             csv_data,
             "test/formats/encoding.csv",
@@ -797,6 +806,24 @@ mod tests {
         assert!(report.has_errors());
         let err = report.format_report();
         assert!(err.contains("Failed to parse format specification DSL rule"));
+    }
+
+    #[crate::ctb_test]
+    fn test_legacy_chain_syntax_reports_error() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestOldChain,Test Old Chain,encoding,\"=f15 > f0\",,,,,,,,,,, \n";
+        validate_formats_category_file(
+            csv_data,
+            "test/formats/encoding.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(report.has_errors());
+        let err = report.format_report();
+        assert!(err.contains("Legacy chain syntax '=' is deprecated"));
     }
 }
 

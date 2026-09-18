@@ -59,7 +59,7 @@ pub const UNIFIED_SCHEMA_HEADER: [&str; 22] = [
     "Aa",
     "Type",
     "Script",
-    "Aliases; >=xref, <=decompos., :=Dc syntax, =chain",
+    "Aliases; >=xref, <=decompos., :=Dc syntax, @chain",
     "Description",
     "Ident (Rust-friendly)",
     "Category",

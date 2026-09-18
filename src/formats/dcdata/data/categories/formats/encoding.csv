@@ -1,4 +1,4 @@
-Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Chain (=), or Syntax (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
+Dc,Short,Ident (Rust-friendly),Label,Category,"Base/Related Format/Category, Chain (@), or Syntax (:)","Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
@@ -22,7 +22,7 @@ Import/export/tests support columns meaning:
 2228309,85,Utf32_BE,"UTF-32, big-endian",encoding,Unicode,,,,,,,,,,,
 2228310,86,Cp437,Code page 437 (CCSID 437),encoding,,,,,,,,,,,,
 2228311,87,MacRoman,MacRoman,encoding,,,,,,,,,,,,
-2228334,110,Utf8_Base64,UTF-8 (Base64-encoded),encoding,Utf8 & Base64,,,,,,,,,,Not really a unique format; it's a chain of UTF-8 within base64. Entered separately because it's separate in dceutils.,
+2228334,110,Utf8_Base64,UTF-8 (Base64-encoded),encoding,"Utf8, @chain(f0 > f52)",,,,,,,,,,Not really a unique format; it's a chain of UTF-8 within base64. Entered separately because it's separate in dceutils.,
 2228549,325,Win1252,"Windows-1252 (""ANSI"")",encoding,Iso88591,,,,,ansi,,,,,,
 2228550,326,AlphaSmartNeo,AlphaSmart Neo encoding (has several variants),encoding,,,,,,,,,,,,
 2228551,327,AlphaSmartNeoLowGrUs,"AlphaSmart Neo, graphical low bytes, USA",encoding,AlphaSmartNeo,,,,,,,,,,,

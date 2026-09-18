@@ -1,4 +1,4 @@
-Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax, =chain",Description,Ident (Rust-friendly),Category,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
+Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax, @chain",Description,Ident (Rust-friendly),Category,"Extensions (Primary extension first, followed by comma-separated alternatives)","MIME (Primary MIME type first, followed by comma-separated aliases)",Apple Uniform Type Identifier (UTI),Apple Type code,Nicknames (short names for uses like CLI arguments),"Import support
 (for trans_:
   =run the tr.)","Export support
 (for trans_:
