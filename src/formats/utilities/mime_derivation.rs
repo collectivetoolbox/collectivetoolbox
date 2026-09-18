@@ -70,7 +70,7 @@ use std::sync::LazyLock;
 /// authoritative Document Character format definition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormatMapping {
-    /// Authoritative workspace FormatId if a matching variant exists.
+    /// Authoritative workspace `FormatId` if a matching variant exists.
     pub format_id: Option<FormatId>,
     /// Global graph Document Character ID (offset by 2,228,224 for format Dcs).
     pub dc_id: u128,
@@ -86,6 +86,18 @@ pub struct FormatMapping {
     pub extensions: Vec<String>,
     /// Primary and alternative MIME types.
     pub mime_types: Vec<String>,
+    /// Associated operating systems extracted from `@os(...)` format shorthands.
+    pub os_associations: Vec<FormatId>,
+}
+
+impl FormatMapping {
+    /// Checks whether this format is associated with or compatible with a target OS.
+    #[must_use]
+    pub fn matches_os(&self, target_os: FormatId) -> bool {
+        self.os_associations
+            .iter()
+            .any(|&cand_os| crate::detection::is_os_match(cand_os, target_os))
+    }
 }
 
 /// Consolidated lookup table mapping MIME types, extensions, and idents to
@@ -111,16 +123,15 @@ impl FormatCatalog {
             }
 
             let vec_bytes = file.contents().to_vec();
-            let table = match csv_tools::parse_csv_reader(
+            let Ok(table) = csv_tools::parse_csv_reader(
                 &vec_bytes,
                 csv_tools::CsvParseOptions {
                     has_header: true,
                     flexible: true,
                     ..Default::default()
                 },
-            ) {
-                Ok(t) => t,
-                Err(_) => continue,
+            ) else {
+                continue;
             };
 
             for i in 0..table.row_count() {
@@ -153,6 +164,7 @@ impl FormatCatalog {
                 };
 
                 let category = get_cell(4);
+                let aliases_base_field = get_cell(5);
                 let ext_field = get_cell(6);
                 let mime_field = get_cell(7);
 
@@ -174,6 +186,27 @@ impl FormatCatalog {
                     })
                     .filter(|s| !s.is_empty())
                     .collect();
+
+                let mut os_associations = Vec::new();
+                if !aliases_base_field.is_empty() {
+                    let mut report =
+                        ctb_formats_dcdata::report::ValidationReport::default();
+                    let parsed = ctb_formats_dcdata::parse_aliases_or_base_column(
+                        &aliases_base_field,
+                        "format_table.csv",
+                        0,
+                        &mut report,
+                        true,
+                    );
+                    for os_shorthand in parsed.os_associations {
+                        if let Some(fid) = FormatId::from_shorthand(&os_shorthand)
+                        {
+                            if !os_associations.contains(&fid) {
+                                os_associations.push(fid);
+                            }
+                        }
+                    }
+                }
 
                 let nicknames_field = get_cell(10);
                 let nicknames: Vec<String> = nicknames_field
@@ -197,6 +230,7 @@ impl FormatCatalog {
                     category,
                     extensions: extensions.clone(),
                     mime_types: mime_types.clone(),
+                    os_associations,
                 };
 
                 if !ident.is_empty() {
@@ -226,39 +260,37 @@ impl FormatCatalog {
             }
         }
 
-        // Canonical MIME type aliases that may be omitted in specific categories CSV rows
-        let canonical_mimes = [
-            ("application/gzip", "gzip"),
-            ("application/x-gzip", "gzip"),
-            ("application/zip", "zip"),
-            ("application/x-tar", "tar"),
-            ("application/x-bzip2", "bzip2"),
-            ("application/x-7z-compressed", "sevenzip"),
-            ("application/x-xz", "xz"),
-            ("application/zstd", "zstd"),
-            ("application/x-apple-diskimage", "dmg"),
-            ("application/pdf", "pdf"),
-            ("image/png", "png"),
-            ("image/jpeg", "jpeg"),
-            ("image/gif", "gif"),
-            ("image/webp", "webp"),
-            ("image/svg+xml", "svg"),
-            ("audio/mpeg", "mp3"),
-            ("audio/ogg", "ogg"),
-            ("audio/wav", "wav"),
-            ("audio/flac", "flac"),
-            ("video/mp4", "mp4"),
-            ("video/x-matroska", "mkv"),
-            ("text/html", "html"),
-            ("application/json", "json"),
-            ("application/xml", "xml"),
-            ("text/xml", "xml"),
-        ];
-
-        for (mime, ident) in canonical_mimes {
-            if !catalog.by_mime.contains_key(mime) {
-                if let Some(mapping) = catalog.by_ident.get(ident).cloned() {
-                    catalog.by_mime.insert(mime.to_string(), mapping);
+        // Ingest supplementary MIME-to-extension mappings from the embedded
+        // Apache HTTPD MIME database.
+        if let Some(httpd_bytes) =
+            ctb_formats_dcdata::get_dc_data_file("mimes/httpd/mime.types")
+        {
+            if let Ok(content) = std::str::from_utf8(&httpd_bytes) {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() || trimmed.starts_with('#') {
+                        continue;
+                    }
+                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        if let Some(mime) = parts.first() {
+                            let mime_lower = mime.to_ascii_lowercase();
+                            if !catalog.by_mime.contains_key(&mime_lower) {
+                                for ext in parts.iter().skip(1) {
+                                    if let Some(candidates) =
+                                        catalog.by_extension.get(*ext)
+                                    {
+                                        if let Some(m) = candidates.first() {
+                                            catalog
+                                                .by_mime
+                                                .insert(mime_lower.clone(), m.clone());
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

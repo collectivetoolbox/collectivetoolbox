@@ -300,27 +300,33 @@ impl FileEntity {
 
         // Infer platform prior from Apple metadata, enclosing archive format, or recorded OS environment
         let platform = if self.metadata.apple.is_some() {
-            ctb_formats_utilities::detection::PlatformHint::MacOS
-        } else if let crate::file::identity::FileOrigin::Archive { archive_format, .. } = &self.identity.origin {
-            let lower = archive_format.to_ascii_lowercase();
-            if lower == "tar" || lower == "cpio" || lower == "pax" || lower == "ar" {
-                ctb_formats_utilities::detection::PlatformHint::Posix
-            } else {
-                ctb_formats_utilities::detection::PlatformHint::Generic
-            }
+            Some(ctb_formats_utilities::format_id::FormatId::MacOs)
+        } else if let crate::file::identity::FileOrigin::Archive {
+            archive_format,
+            ..
+        } = &self.identity.origin
+        {
+            ctb_formats_utilities::FORMAT_CATALOG
+                .lookup_ident(archive_format)
+                .and_then(|m| m.os_associations.first().copied())
         } else if let Some(env) = self.environment() {
             let lower_os = env.os.to_ascii_lowercase();
-            if lower_os.contains("darwin") || lower_os.contains("macos") || env.looks_like_gnustep {
-                ctb_formats_utilities::detection::PlatformHint::MacOS
+            if lower_os.contains("darwin")
+                || lower_os.contains("macos")
+                || env.looks_like_gnustep
+            {
+                Some(ctb_formats_utilities::format_id::FormatId::MacOs)
             } else if lower_os.contains("windows") {
-                ctb_formats_utilities::detection::PlatformHint::Windows
-            } else if lower_os.contains("linux") || lower_os.contains("bsd") || lower_os.contains("unix") {
-                ctb_formats_utilities::detection::PlatformHint::Posix
+                Some(ctb_formats_utilities::format_id::FormatId::Windows)
+            } else if lower_os.contains("linux") {
+                Some(ctb_formats_utilities::format_id::FormatId::GnuLinux)
+            } else if lower_os.contains("bsd") || lower_os.contains("unix") {
+                Some(ctb_formats_utilities::format_id::FormatId::Unix)
             } else {
-                ctb_formats_utilities::detection::PlatformHint::from_env()
+                ctb_formats_utilities::detection::current_platform_os()
             }
         } else {
-            ctb_formats_utilities::detection::PlatformHint::from_env()
+            ctb_formats_utilities::detection::current_platform_os()
         };
 
         let hint = ctb_formats_utilities::detection::DetectionHint {

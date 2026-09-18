@@ -1123,8 +1123,6 @@ pub enum FormatId {
     Iso88591,
     /// ActionScript (Short 543, Category: programming)
     ActionScript,
-    /// Unrecognized format.
-    Unknown,
 }
 
 impl FormatId {
@@ -1828,7 +1826,6 @@ impl FormatId {
             "orderxyz" | "order_xyz" => Some(Self::OrderXYZ),
             "iso88591" => Some(Self::Iso88591),
             "actionscript" | "action_script" => Some(Self::ActionScript),
-            "unknown" => Some(Self::Unknown),
             _ => None,
         }
     }
@@ -2381,7 +2378,6 @@ impl FormatId {
             Self::OrderXYZ => "OrderXYZ",
             Self::Iso88591 => "Iso88591",
             Self::ActionScript => "ActionScript",
-            Self::Unknown => "Unknown",
         }
     }
 
@@ -3486,7 +3482,6 @@ impl FormatId {
             Self::OrderXYZ => Some(541),
             Self::Iso88591 => Some(542),
             Self::ActionScript => Some(543),
-            Self::Unknown => None,
         }
     }
 
@@ -4038,7 +4033,6 @@ impl FormatId {
             Self::OrderXYZ => Some(2228765_u128),
             Self::Iso88591 => Some(2228766_u128),
             Self::ActionScript => Some(2228767_u128),
-            Self::Unknown => None,
         }
     }
 }

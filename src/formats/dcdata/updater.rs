@@ -1239,29 +1239,48 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
 /// # Errors
 /// Returns an error if directory resolution, generation, or writing fails.
 pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
-    let (formats_dir, target_file) = if base_dir
-        .join("src/formats/dcdata/data/categories/formats")
-        .is_dir()
-    {
-        (
-            base_dir.join("src/formats/dcdata/data/categories/formats"),
-            base_dir.join("src/formats/utilities/format_id.generated.rs"),
-        )
-    } else if base_dir.join("../dcdata/data/categories/formats").is_dir() {
-        (
-            base_dir.join("../dcdata/data/categories/formats"),
-            base_dir.join("format_id.generated.rs"),
-        )
-    } else if base_dir.join("data/categories/formats").is_dir() {
-        (
-            base_dir.join("data/categories/formats"),
-            base_dir.join("../utilities/format_id.generated.rs"),
-        )
-    } else {
-        bail!(
+    let candidates = [
+        ("src/formats/dcdata/data/categories/formats", "src/formats/utilities/format_id.rs"),
+        ("formats/dcdata/data/categories/formats", "formats/utilities/format_id.rs"),
+        ("dcdata/data/categories/formats", "utilities/format_id.rs"),
+        ("data/categories/formats", "../utilities/format_id.rs"),
+        ("../dcdata/data/categories/formats", "format_id.rs"),
+    ];
+
+    let mut resolved_formats = None;
+    let mut resolved_target = None;
+
+    for &(f_rel, t_rel) in &candidates {
+        if base_dir.join(f_rel).is_dir() {
+            resolved_formats = Some(base_dir.join(f_rel));
+            resolved_target = Some(base_dir.join(t_rel));
+            break;
+        }
+    }
+
+    if resolved_formats.is_none() {
+        let mut cur = base_dir;
+        while let Some(parent) = cur.parent() {
+            for &(f_rel, t_rel) in &candidates {
+                if parent.join(f_rel).is_dir() {
+                    resolved_formats = Some(parent.join(f_rel));
+                    resolved_target = Some(parent.join(t_rel));
+                    break;
+                }
+            }
+            if resolved_formats.is_some() {
+                break;
+            }
+            cur = parent;
+        }
+    }
+
+    let (formats_dir, target_file) = match (resolved_formats, resolved_target) {
+        (Some(f), Some(t)) => (f, t),
+        _ => bail!(
             "Could not locate formats directory from {}",
             base_dir.display()
-        );
+        ),
     };
 
     let code = generate_format_id_code(&formats_dir)?;
@@ -1371,5 +1390,12 @@ mod tests {
         // Must be assigned 21 (max_id + 1), NEVER backfilling 1..19!
         assert_eq!(auto_row[1], "21");
         assert_eq!(auto_row[0], (SHORT_DC_REGION_START + 21).to_string());
+    }
+
+    #[crate::ctb_test]
+    fn test_generate_format_id_file() {
+        let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let updated = generate_format_id_file(manifest).unwrap();
+        println!("format_id.rs generated: {updated}");
     }
 }

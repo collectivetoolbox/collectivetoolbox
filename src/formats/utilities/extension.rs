@@ -137,68 +137,45 @@ impl ExtensionRule {
 }
 
 /// Resolves candidate `FormatId` variants and scores for a given file extension,
-/// taking into account ambiguous extensions (e.g. `.as`, `.m`, `.doc`) and platform priors.
+/// taking into account database OS associations and platform priors.
 #[must_use]
 pub fn resolve_extension_candidates(
     ext: &str,
-    platform: crate::detection::PlatformHint,
+    platform: Option<crate::format_id::FormatId>,
 ) -> Vec<(crate::format_id::FormatId, u32)> {
-    use crate::detection::PlatformHint;
     use crate::format_id::FormatId;
 
     let trimmed = ext.trim().trim_start_matches('.').to_ascii_lowercase();
     let mut results = Vec::new();
 
-    match trimmed.as_str() {
-        "as" => {
-            // Ambiguous extension: AppleSingle vs ActionScript
-            let apple_score = match platform {
-                PlatformHint::MacOS => 70,
-                _ => 50,
-            };
-            results.push((FormatId::AppleSingle, apple_score));
-            results.push((FormatId::ActionScript, 35));
-        }
-        "m" => {
-            // Ambiguous extension: Objective-C vs Matlab
-            let objc_score: u32 = match platform {
-                PlatformHint::MacOS => 75,
-                _ => 50,
-            };
-            results.push((FormatId::C, objc_score));
-        }
-        _ => {
-            for mapping in crate::mime_derivation::FORMAT_CATALOG.lookup_extension(&trimmed) {
-                if let Some(fmt) = mapping.format_id {
-                    if !results.iter().any(|(f, _)| *f == fmt) {
-                        let mut score: u32 = 50;
-                        match platform {
-                            PlatformHint::MacOS
-                                if fmt == FormatId::AppleSingle
-                                    || fmt == FormatId::AppleDouble
-                                    || fmt == FormatId::MachO =>
-                            {
-                                score = score.saturating_add(15);
-                            }
-                            PlatformHint::Windows
-                                if fmt == FormatId::Pe || fmt == FormatId::Lnk =>
-                            {
-                                score = score.saturating_add(15);
-                            }
-                            PlatformHint::Posix
-                                if fmt == FormatId::Elf || fmt == FormatId::Sh =>
-                            {
-                                score = score.saturating_add(15);
-                            }
-                            _ => {}
-                        }
-                        results.push((fmt, score));
+    for mapping in
+        crate::mime_derivation::FORMAT_CATALOG.lookup_extension(&trimmed)
+    {
+        if let Some(fmt) = mapping.format_id {
+            if !results.iter().any(|(f, _)| *f == fmt) {
+                let mut score: u32 = 50;
+                if let Some(target_os) = platform {
+                    if mapping.os_associations.iter().any(|&cand_os| {
+                        crate::detection::is_os_match(cand_os, target_os)
+                    }) {
+                        score = score.saturating_add(20);
                     }
                 }
+                results.push((fmt, score));
             }
         }
     }
 
+    // Fallback for .m (Objective-C source files mapped to C format)
+    if trimmed == "m" && results.is_empty() {
+        let score: u32 = match platform {
+            Some(FormatId::MacOs | FormatId::MacOsDarwin) => 75,
+            _ => 50,
+        };
+        results.push((FormatId::C, score));
+    }
+
+    results.sort_by(|a, b| b.1.cmp(&a.1));
     results
 }
 
@@ -215,6 +192,21 @@ pub fn resolve_extension_candidates(
 )]
 mod tests {
     use super::*;
+    use crate::format_id::FormatId;
+
+    #[ctb_test]
+    fn test_resolve_extension_candidates_os_prior() {
+        // .as has both AppleSingle (@os(f405)) and ActionScript (no os)
+        let mac_candidates =
+            resolve_extension_candidates("as", Some(FormatId::MacOs));
+        assert!(!mac_candidates.is_empty());
+        assert_eq!(mac_candidates[0].0, FormatId::AppleSingle);
+        assert_eq!(mac_candidates[0].1, 70);
+
+        let generic_candidates = resolve_extension_candidates("as", None);
+        assert!(!generic_candidates.is_empty());
+        assert_eq!(generic_candidates[0].1, 50);
+    }
 
     #[ctb_test]
     fn test_extension_rule_matching() {

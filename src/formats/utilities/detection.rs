@@ -106,36 +106,73 @@ pub enum ConfidenceTier {
     HighestConfidence = 4,
 }
 
-/// Environment and operating system prior hints to shift candidate likelihoods.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum PlatformHint {
-    #[default]
-    Generic,
-    MacOS,
-    Windows,
-    Posix,
+/// Determines whether a format's associated operating system is compatible
+/// with a target operating system context.
+#[must_use]
+pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
+    if candidate_os == target_os {
+        return true;
+    }
+    match (candidate_os, target_os) {
+        (
+            FormatId::MacOs | FormatId::MacOsDarwin,
+            FormatId::MacOs | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+        ) => true,
+        (
+            FormatId::Unix,
+            FormatId::Unix
+                | FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd
+                | FormatId::MacOs
+                | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd,
+            FormatId::Unix,
+        ) => true,
+        (
+            FormatId::Linux | FormatId::GnuLinux,
+            FormatId::Linux | FormatId::GnuLinux,
+        ) => true,
+        _ => false,
+    }
 }
 
-impl PlatformHint {
-    /// Infers the default platform hint from the current target operating system.
-    #[must_use]
-    pub const fn from_env() -> Self {
-        #[cfg(target_os = "macos")]
-        {
-            Self::MacOS
-        }
-        #[cfg(target_os = "windows")]
-        {
-            Self::Windows
-        }
-        #[cfg(all(unix, not(target_os = "macos")))]
-        {
-            Self::Posix
-        }
-        #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
-        {
-            Self::Generic
-        }
+/// Infers the host platform operating system as an authoritative `FormatId`.
+#[must_use]
+pub fn current_platform_os() -> Option<FormatId> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(FormatId::MacOs)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Some(FormatId::Windows)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Some(FormatId::GnuLinux)
+    }
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+    {
+        Some(FormatId::Unix)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
+    {
+        None
     }
 }
 
@@ -144,7 +181,7 @@ impl PlatformHint {
 pub struct DetectionHint {
     pub filename: Option<String>,
     pub extension: Option<String>,
-    pub platform: PlatformHint,
+    pub platform: Option<FormatId>,
     pub expected_category: Option<FormatCategory>,
 }
 
@@ -153,7 +190,7 @@ pub struct DetectionHint {
 pub enum DetectionEvidence {
     Magic { description: String, score: u32 },
     Extension { ext: String, is_primary: bool, score: u32 },
-    PlatformPrior { platform: PlatformHint, score: u32 },
+    PlatformPrior { platform: FormatId, score: u32 },
     CategoryMatch { category: FormatCategory, score: u32 },
 }
 
@@ -294,7 +331,7 @@ pub fn guess_format_candidates(
         })
     });
 
-    let platform = hint.map(|h| h.platform).unwrap_or(PlatformHint::Generic);
+    let platform = hint.and_then(|h| h.platform);
     let expected_cat = hint.and_then(|h| h.expected_category);
 
     // 1. Evaluate static fast magic patterns (MAGIC_REGISTRY)
@@ -424,28 +461,26 @@ pub fn guess_format_candidates(
                 }
             }
 
-            // Platform prior boost
-            if platform != PlatformHint::Generic {
-                let is_mac_format = format_id == Some(FormatId::AppleSingle)
-                    || format_id == Some(FormatId::AppleDouble)
-                    || format_id == Some(FormatId::MachO);
-                let is_win_format = format_id == Some(FormatId::Pe) || format_id == Some(FormatId::Lnk);
-                let is_posix_format = format_id == Some(FormatId::Elf) || format_id == Some(FormatId::Sh);
+            // Platform prior boost from format dataset OS associations
+            if let Some(target_os) = platform {
+                let is_matched = format_id.is_some_and(|fid| {
+                    if let Some(mapping) =
+                        FORMAT_CATALOG.lookup_ident(fid.ident())
+                    {
+                        mapping.os_associations.iter().any(|&cand_os| {
+                            is_os_match(cand_os, target_os)
+                        })
+                    } else {
+                        false
+                    }
+                });
 
-                match platform {
-                    PlatformHint::MacOS if is_mac_format => {
-                        score = score.saturating_add(15);
-                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
-                    }
-                    PlatformHint::Windows if is_win_format => {
-                        score = score.saturating_add(15);
-                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
-                    }
-                    PlatformHint::Posix if is_posix_format => {
-                        score = score.saturating_add(15);
-                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
-                    }
-                    _ => {}
+                if is_matched {
+                    score = score.saturating_add(15);
+                    evidence.push(DetectionEvidence::PlatformPrior {
+                        platform: target_os,
+                        score: 15,
+                    });
                 }
             }
 
@@ -600,7 +635,7 @@ pub fn detect_format_id(
     let hint = filename_or_ext.map(|name| DetectionHint {
         filename: Some(name.to_string()),
         extension: None,
-        platform: PlatformHint::Generic,
+        platform: None,
         expected_category,
     });
 
@@ -653,7 +688,7 @@ impl FormatChain {
 /// Parses a filename or path into candidate format chains, branching on ambiguous extensions.
 pub fn guess_format_chains(
     filename: &str,
-    platform: PlatformHint,
+    platform: Option<FormatId>,
 ) -> Vec<ProbableFormatChain> {
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let mut parts: Vec<&str> = basename.split('.').collect();
@@ -713,7 +748,7 @@ pub fn guess_format_chains(
 
 /// Parses a filename or path into a single structured `FormatChain`.
 pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
-    let chains = guess_format_chains(filename, PlatformHint::Generic);
+    let chains = guess_format_chains(filename, None);
     let top = chains.first()?;
     Some(FormatChain {
         outer: top.outer,
@@ -748,7 +783,7 @@ mod tests {
 
     #[ctb_test]
     fn test_ambiguous_peeling() {
-        let chains = guess_format_chains("archive.as.gz", PlatformHint::MacOS);
+        let chains = guess_format_chains("archive.as.gz", Some(FormatId::MacOs));
         assert!(!chains.is_empty());
         assert_eq!(chains[0].outer, FormatId::Gzip);
         assert_eq!(chains[0].inner, Some(FormatId::AppleSingle));
