@@ -134,12 +134,15 @@ pub fn parse_aliases_or_base_column(
                 if i > 0 {
                     if let Some(&(_, prev_ch)) = chars.get(i.saturating_sub(1)) {
                         if prev_ch.is_whitespace() {
+                            let snippet_start = byte_idx.saturating_sub(10);
+                            let snippet_end = byte_idx.saturating_add(1).min(raw.len());
+                            let snippet = raw.get(snippet_start..snippet_end).unwrap_or(",");
                             report.add_error(
                                 file_path,
                                 Some(line_no),
                                 Some(col_name),
                                 format!(
-                                    "Whitespace before ',' in {col_name} column: '{raw}'"
+                                    "Extra space before ',' in {col_name} column: '{snippet}'"
                                 ),
                                 Some("Do not place spaces before commas"),
                             );
@@ -332,14 +335,34 @@ fn process_column_item(
                     format!("Empty decomposition tag: '<>' in '{item_trimmed}'"),
                     Some("Provide a tag name between angle brackets (e.g. '<approx>', '<equiv>')"),
                 );
-            } else if tag_name.contains(char::is_whitespace) {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some(col_name),
-                    format!("Whitespace inside decomposition tag: '{tag_full}'"),
-                    Some("Remove whitespace from decomposition tag name (e.g. '<approx>')"),
-                );
+            } else {
+                if tag_name.starts_with(char::is_whitespace) {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Extra space after '<' in decomposition tag: '{tag_full}'"),
+                        Some("Remove leading space inside '<...>' tag"),
+                    );
+                }
+                if tag_name.ends_with(char::is_whitespace) {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Extra space before '>' in decomposition tag: '{tag_full}'"),
+                        Some("Remove trailing space inside '<...>' tag"),
+                    );
+                }
+                if tag_name.trim().contains(char::is_whitespace) {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Whitespace inside decomposition tag: '{tag_full}'"),
+                        Some("Remove whitespace from decomposition tag name (e.g. '<approx>')"),
+                    );
+                }
             }
             if payload.starts_with(char::is_whitespace) {
                 let first_token = payload

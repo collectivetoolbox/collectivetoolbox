@@ -110,9 +110,15 @@ The following describes model boundaries and current implementation status for f
    proof of a valid decomposition. `<equiv>`, `<approx>`, and `<semantic>` do not
    substitute for subtype, axis, origin, or conversion relationships.
 4. **Composition:** Use an expression tree of type references and operations.
-   In source CSV files, column 6 consolidates format specifications using
-   `@chain(...)` (e.g., `@chain(((f15 > f542) ! f0) > f0)`), avoiding horizontal
-   scrolling while permitting future annotations such as `@formalalias(...)`.
+   In source CSV files, column 6 (in format categories) and column 9 (in character
+   categories) share a unified column specification parser (`src/formats/dcdata/column_spec.rs`).
+   Consolidated directives avoid horizontal scrolling while ensuring unambiguous parsing:
+   - `@chain(...)` (e.g., `@chain(((f15 > f542) ! f0) > f0)` or `@chain(f161 > f35)`):
+     expresses format composition and conversion pipelines.
+   - `@base(...)` (e.g., `@base(f161)`, or compound `@base(f390 & f395)`): expresses
+     base format relationships using valid Dc shorthand syntax (e.g., `f<id>`). Bare
+     format identifiers without a directive prefix are disallowed in format category files
+     and trigger validation errors to prevent ambiguous parsing.
    The format specification DSL is implemented in `src/formats/dcdata/format_spec/`
    and integrated into the format CSV loader (`format_spec: Option<FormatExpr>` on
    `FormatDetails` and `DcDef`). Persisted chains accept numeric Dc references
