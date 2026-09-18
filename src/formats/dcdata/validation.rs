@@ -1426,12 +1426,12 @@ mod tests {
         ensure!(!report.has_errors(), "{}", report.format_report());
 
         for (short_id, ident, base) in [
-            (505, "Point1D", "Point"),
-            (506, "Point2D", "Point"),
-            (507, "Point3D", "Point"),
-            (509, "Vector1D", "Vector"),
-            (510, "Vector2D", "Vector"),
-            (511, "Vector3D", "Vector"),
+            (505, "Point1D", "f504"),
+            (506, "Point2D", "f504"),
+            (507, "Point3D", "f504"),
+            (509, "Vector1D", "f508"),
+            (510, "Vector2D", "f508"),
+            (511, "Vector3D", "f508"),
         ] {
             let row = rows
                 .iter()

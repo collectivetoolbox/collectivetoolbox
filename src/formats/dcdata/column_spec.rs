@@ -342,23 +342,45 @@ fn process_column_item(
                 );
             }
             if payload.starts_with(char::is_whitespace) {
-                let extra_spaces = payload.chars().take_while(|c| c.is_whitespace()).count();
+                let first_token = payload
+                    .split(|c: char| c.is_whitespace() || c == ',')
+                    .find(|s| !s.is_empty())
+                    .unwrap_or("");
+                let full_sample = if first_token.is_empty() {
+                    tag_full.clone()
+                } else {
+                    format!("{tag_full} {first_token}")
+                };
                 report.add_error(
                     file_path,
                     Some(line_no),
                     Some(col_name),
-                    format!("Extra space after closing '>' in decomposition: '{tag_full} '"),
-                    Some("Follow closing '>' immediately with decomposition targets without spaces"),
+                    if first_token.is_empty() {
+                        format!("Extra space after closing tag in decomposition: '{tag_full}'")
+                    } else {
+                        format!("Extra space before '{first_token}' in decomposition: '{full_sample}'")
+                    },
+                    Some(
+                        "Decomposition tags must be followed immediately by target without spaces (e.g. '<tag>{token}')",
+                    ),
                 );
                 let trimmed_payload = payload.trim_start();
-                let corrected = if extra_spaces > 0 {
-                    format!("{tag_full}{trimmed_payload}")
-                } else {
-                    item_trimmed.to_string()
-                };
+                let corrected = format!("{tag_full}{trimmed_payload}");
                 parsed.decompositions.push(corrected);
             } else {
                 parsed.decompositions.push(item_trimmed.to_string());
+            }
+
+            if payload.trim().contains("  ") {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!(
+                        "Multiple spaces between tokens in decomposition payload: '{tag_full}{payload}'"
+                    ),
+                    Some("Use single spaces between decomposition tokens"),
+                );
             }
         } else {
             report.add_error(
