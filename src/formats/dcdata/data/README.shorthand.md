@@ -8,4 +8,6 @@ Besides the bare-integer long Dc and short Dc formats, some tools also accept sh
 - `l` prefix: Long Dc
 - `L` prefix: Local graph ID (not accepted/relevant in all contexts); equivalent to short Dc 296 followed by a Dc number of the integer following the `L`
 
-These shorthands are case-sensitive; any other values should be rejected by parsers.
+These shorthands are case-sensitive.
+
+Valid shorthand identifiers match `[flL]?\d+` or `u[0-9a-f]+`; non-matching strings should be rejected by parsers.

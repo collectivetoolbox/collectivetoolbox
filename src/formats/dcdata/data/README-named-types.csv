@@ -18,3 +18,5 @@ asciiprintable,:[u20..u7e],ASCII printable character
 filename,:511 [f228:],
 filepath,:511 [f229:],
 ipaddr,:511 [f490:],
+statement,:~,A statement expression or routine invocation
+value,:[260:],A literal or computed value

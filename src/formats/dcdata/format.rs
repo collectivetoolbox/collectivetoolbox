@@ -137,10 +137,22 @@ pub fn validate_formats_category_file(
             continue;
         }
 
-        let short_id = if let Ok(v) = short_str
-            .trim_start_matches(|c| c == 'f' || c == 'F')
-            .parse::<usize>()
-        {
+        let short_clean = if let Some(rest) = short_str.strip_prefix('f') {
+            rest
+        } else if short_str.starts_with('F') {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Short"),
+                format!("Invalid Short format ID '{short_str}': uppercase 'F' prefix is not accepted"),
+                Some("Format shorthand prefix must be lowercase 'f' (case-sensitive per README.shorthand.md)"),
+            );
+            continue;
+        } else {
+            &short_str
+        };
+
+        let short_id = if let Ok(v) = short_clean.parse::<usize>() {
             v
         } else {
             report.add_error(
@@ -148,7 +160,7 @@ pub fn validate_formats_category_file(
                 Some(line_no),
                 Some("Short"),
                 format!("Invalid Short format ID integer: '{short_str}'"),
-                Some("Must be a non-negative integer or f<digits>"),
+                Some("Must be a non-negative integer or lowercase 'f<digits>'"),
             );
             continue;
         };

@@ -561,10 +561,13 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 clean_label.to_string()
                             };
 
-                            let short_cell = if let Ok(s_id) = get(1)
-                                .trim_start_matches(|c| c == 'f' || c == 'F')
-                                .parse::<u32>()
-                            {
+                            let short_cell = if let Some(rest) = get(1).strip_prefix('f') {
+                                if let Ok(s_id) = rest.parse::<u32>() {
+                                    format!("f{s_id}")
+                                } else {
+                                    get(1)
+                                }
+                            } else if let Ok(s_id) = get(1).parse::<u32>() {
                                 format!("f{s_id}")
                             } else if let Ok(dc_id) = get(0).parse::<u128>() {
                                 let s_id = dc_id.saturating_sub(FORMAT_REGION_START);

@@ -43,6 +43,8 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
         validate_all_dc_files(
             dc_dir,
             &known_format_ids,
+            None,
+            None,
             &mut report,
         )
     } else {

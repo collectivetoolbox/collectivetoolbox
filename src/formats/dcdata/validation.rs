@@ -67,11 +67,39 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     let known_format_ids: HashSet<usize> =
         format_rows.iter().filter_map(|r| r.short_id).collect();
 
-    // 3. Validate Document Characters category files
+    // 3. Validate Decompositions table
+    let known_decomp_tags = if let Some(decomp_bytes) =
+        crate::get_dc_data_file("README-decompositions.csv")
+    {
+        validate_decompositions_table(
+            &decomp_bytes,
+            "data/README-decompositions.csv",
+            &mut report,
+        )
+    } else {
+        report.add_error(
+            "data/README-decompositions.csv",
+            None,
+            None,
+            "Could not locate embedded README-decompositions.csv",
+            None,
+        );
+        HashSet::new()
+    };
+
+    let named_types_bytes_opt = crate::get_dc_data_file("README-named-types.csv");
+    let known_named_types = named_types_bytes_opt
+        .as_ref()
+        .map(|b| extract_named_type_names(b))
+        .unwrap_or_default();
+
+    // 4. Validate Document Characters category files
     let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
         validate_all_dc_files(
             dc_dir,
             &known_format_ids,
+            Some(&known_decomp_tags),
+            Some(&known_named_types),
             &mut report,
         )
     } else {
@@ -85,7 +113,7 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         Vec::new()
     };
 
-    // 4. Validate Cross-Table Name / Label Uniqueness
+    // 5. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
         .filter_map(|r| {
@@ -104,14 +132,14 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
 
-    // 5. Validate Named Types table
+    // 6. Validate Named Types table
     let known_dc_ids: HashSet<u32> = dc_rows
         .iter()
         .filter_map(|r| r.short_id)
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
-    if let Some(named_types_bytes) = crate::get_dc_data_file("README-named-types.csv") {
+    if let Some(named_types_bytes) = named_types_bytes_opt {
         validate_named_types_table(
             &named_types_bytes,
             "data/README-named-types.csv",
@@ -164,15 +192,45 @@ pub fn validate_all_data_tables_from_repo(
     let known_format_ids: HashSet<usize> =
         format_rows.iter().filter_map(|r| r.short_id).collect();
 
-    // 3. Validate Document Characters category files
+    // 3. Validate Decompositions table
+    let decomp_path =
+        repo_root.join("src/formats/dcdata/data/README-decompositions.csv");
+    let known_decomp_tags = if let Ok(bytes) = std::fs::read(&decomp_path) {
+        validate_decompositions_table(
+            &bytes,
+            "src/formats/dcdata/data/README-decompositions.csv",
+            &mut report,
+        )
+    } else {
+        report.add_error(
+            "src/formats/dcdata/data/README-decompositions.csv",
+            None,
+            None,
+            "Could not locate README-decompositions.csv on disk",
+            Some("Ensure file exists in src/formats/dcdata/data/"),
+        );
+        HashSet::new()
+    };
+
+    let named_types_path =
+        repo_root.join("src/formats/dcdata/data/README-named-types.csv");
+    let named_types_bytes_opt = std::fs::read(&named_types_path).ok();
+    let known_named_types = named_types_bytes_opt
+        .as_ref()
+        .map(|b| extract_named_type_names(b))
+        .unwrap_or_default();
+
+    // 4. Validate Document Characters category files
     let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
     let dc_rows = validate_all_dc_files_from_disk(
         &dc_dir,
         &known_format_ids,
+        Some(&known_decomp_tags),
+        Some(&known_named_types),
         &mut report,
     );
 
-    // 4. Validate Cross-Table Name / Label Uniqueness
+    // 5. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
         .filter_map(|r| {
@@ -191,16 +249,14 @@ pub fn validate_all_data_tables_from_repo(
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
 
-    // 5. Validate Named Types table
+    // 6. Validate Named Types table
     let known_dc_ids: HashSet<u32> = dc_rows
         .iter()
         .filter_map(|r| r.short_id)
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
-    let named_types_path =
-        repo_root.join("src/formats/dcdata/data/README-named-types.csv");
-    if let Ok(bytes) = std::fs::read(&named_types_path) {
+    if let Some(bytes) = named_types_bytes_opt {
         validate_named_types_table(
             &bytes,
             "src/formats/dcdata/data/README-named-types.csv",
@@ -221,15 +277,13 @@ pub fn validate_all_data_tables_from_repo(
     report
 }
 
-/// Validates the README-named-types.csv table, verifying syntax declarations
-/// for each named type.
-pub fn validate_named_types_table(
+/// Validates the README-decompositions.csv table, verifying schema and uniqueness,
+/// and returning the set of valid decomposition tags.
+pub fn validate_decompositions_table(
     csv_bytes: &[u8],
     file_path: &str,
-    known_dc_ids: &HashSet<u32>,
-    known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
-) {
+) -> HashSet<String> {
     let vec_bytes = csv_bytes.to_vec();
     let table = match csv_tools::parse_csv_reader(
         &vec_bytes,
@@ -248,7 +302,128 @@ pub fn validate_named_types_table(
                 format!("Failed to parse CSV: {e}"),
                 Some("Verify CSV syntax and formatting"),
             );
-            return;
+            return HashSet::new();
+        }
+    };
+
+    let mut valid_tags = HashSet::new();
+    for i in 0..table.row_count() {
+        let line_no = i.saturating_add(2);
+        let Some(row) = table.row(i) else {
+            continue;
+        };
+
+        if row.len() < 2 {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                None,
+                format!("Row has {} columns, expected at least 2", row.len()),
+                Some("Ensure row has 'Decomposition' and 'Description' columns"),
+            );
+            continue;
+        }
+
+        let tag = row.get(0).map_or("", |s| s.trim());
+        let desc = row.get(1).map_or("", |s| s.trim());
+
+        if tag.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Decomposition"),
+                "Decomposition tag cannot be empty".to_string(),
+                Some("Specify a tag name for the decomposition"),
+            );
+        } else if !tag.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Decomposition"),
+                format!("Invalid characters in decomposition tag '{tag}'"),
+                Some("Decomposition tags must be alphanumeric"),
+            );
+        } else if !valid_tags.insert(tag.to_string()) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Decomposition"),
+                format!("Duplicate decomposition tag '{tag}'"),
+                Some("Ensure each decomposition tag is defined uniquely"),
+            );
+        }
+
+        if desc.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Description"),
+                "Decomposition description cannot be empty".to_string(),
+                Some("Provide a description explaining the decomposition semantics"),
+            );
+        }
+    }
+
+    valid_tags
+}
+
+/// Extracts the set of named type identifiers from the README-named-types.csv table.
+pub fn extract_named_type_names(csv_bytes: &[u8]) -> HashSet<String> {
+    let vec_bytes = csv_bytes.to_vec();
+    let Ok(table) = csv_tools::parse_csv_reader(
+        &vec_bytes,
+        csv_tools::CsvParseOptions {
+            has_header: true,
+            flexible: true,
+            ..Default::default()
+        },
+    ) else {
+        return HashSet::new();
+    };
+
+    let mut names = HashSet::new();
+    for i in 0..table.row_count() {
+        if let Some(row) = table.row(i) {
+            if let Some(name) = row.get(0) {
+                let trimmed = name.trim();
+                if !trimmed.is_empty() {
+                    names.insert(trimmed.to_string());
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Validates the README-named-types.csv table, verifying syntax declarations
+/// for each named type, and returning the set of valid named type names.
+pub fn validate_named_types_table(
+    csv_bytes: &[u8],
+    file_path: &str,
+    known_dc_ids: &HashSet<u32>,
+    known_format_ids: &HashSet<usize>,
+    report: &mut ValidationReport,
+) -> HashSet<String> {
+    let all_known_names = extract_named_type_names(csv_bytes);
+    let vec_bytes = csv_bytes.to_vec();
+    let table = match csv_tools::parse_csv_reader(
+        &vec_bytes,
+        csv_tools::CsvParseOptions {
+            has_header: true,
+            flexible: true,
+            ..Default::default()
+        },
+    ) {
+        Ok(t) => t,
+        Err(e) => {
+            report.add_error(
+                file_path,
+                None,
+                None,
+                format!("Failed to parse CSV: {e}"),
+                Some("Verify CSV syntax and formatting"),
+            );
+            return HashSet::new();
         }
     };
 
@@ -309,6 +484,7 @@ pub fn validate_named_types_table(
                         0,
                         known_dc_ids,
                         known_format_ids,
+                        &all_known_names,
                         report,
                         file_path,
                         line_no,
@@ -326,6 +502,8 @@ pub fn validate_named_types_table(
             }
         }
     }
+
+    seen_names
 }
 
 
@@ -861,7 +1039,6 @@ pub fn validate_dc_category_file(
             if short_str.is_empty()
                 || short_str.starts_with("308")
                 || short_str.starts_with('u')
-                || short_str.starts_with('U')
             {
                 None
             } else {
@@ -870,7 +1047,7 @@ pub fn validate_dc_category_file(
                     Some(line_no),
                     Some("Short"),
                     format!("Invalid Short ID for Unicode character: '{short_str}'"),
-                    Some("Short ID for Unicode characters must be blank, u<hex>, or start with 308"),
+                    Some("Short ID for Unicode characters must be blank, lowercase 'u<hex>', or start with 308 (case-sensitive per README.shorthand.md)"),
                 );
                 None
             }
@@ -1180,6 +1357,8 @@ pub fn validate_dc_files_data<'a, I>(
     files: I,
     category_dir_label: &str,
     known_format_ids: &HashSet<usize>,
+    known_decomp_tags: Option<&HashSet<String>>,
+    known_named_types: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn>
 where
@@ -1319,6 +1498,17 @@ where
                 continue;
             };
             let tag_name = tag_raw.trim_start_matches('<').trim();
+            if let Some(tags) = known_decomp_tags {
+                if !tags.contains(tag_name) {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Aliases (decomposition)"),
+                        format!("Unknown decomposition tag '<{tag_name}>'"),
+                        Some("Ensure decomposition tag is defined in README-decompositions.csv"),
+                    );
+                }
+            }
             let enforce_deprecation = tag_name == "equiv" || tag_name == "approx";
             let tag_opt = if enforce_deprecation {
                 Some(tag_name)
@@ -1369,11 +1559,15 @@ where
                 continue;
             };
 
+            let default_named_types = HashSet::new();
+            let named_types = known_named_types.unwrap_or(&default_named_types);
+
             validate_dc_syntax(
                 syntax_rule,
                 short_id_u32,
                 &known_dc_ids,
                 known_format_ids,
+                named_types,
                 report,
                 &row.source_file,
                 row.line_number,
@@ -1388,6 +1582,8 @@ where
 pub fn validate_all_dc_files(
     dc_dir: &Dir,
     known_format_ids: &HashSet<usize>,
+    known_decomp_tags: Option<&HashSet<String>>,
+    known_named_types: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let mut files = Vec::new();
@@ -1400,6 +1596,8 @@ pub fn validate_all_dc_files(
         files,
         "src/formats/dcdata/data/categories/",
         known_format_ids,
+        known_decomp_tags,
+        known_named_types,
         report,
     )
 }
@@ -1408,6 +1606,8 @@ pub fn validate_all_dc_files(
 pub fn validate_all_dc_files_from_disk(
     dc_dir: &std::path::Path,
     known_format_ids: &HashSet<usize>,
+    known_decomp_tags: Option<&HashSet<String>>,
+    known_named_types: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(dc_dir) else {
@@ -1468,6 +1668,8 @@ pub fn validate_all_dc_files_from_disk(
         files_iter,
         &dc_dir.display().to_string(),
         known_format_ids,
+        known_decomp_tags,
+        known_named_types,
         report,
     )
 }
@@ -2026,6 +2228,8 @@ mod tests {
         let mut report = ValidationReport::new();
         let known_dcs: HashSet<u32> = [246, 248, 255, 260].into_iter().collect();
         let known_fmts: HashSet<usize> = [80].into_iter().collect();
+        let mut known_named_types: HashSet<String> = HashSet::new();
+        known_named_types.insert("identifier".to_string());
 
         // Valid rule
         let valid_rule = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
@@ -2034,6 +2238,7 @@ mod tests {
             246,
             &known_dcs,
             &known_fmts,
+            &known_named_types,
             &mut report,
             "test/syntax.csv",
             10,
@@ -2047,6 +2252,7 @@ mod tests {
             246,
             &known_dcs,
             &known_fmts,
+            &known_named_types,
             &mut report,
             "test/syntax.csv",
             11,
@@ -2063,12 +2269,29 @@ mod tests {
             269,
             &known_dcs,
             &known_fmts,
+            &known_named_types,
             &mut report2,
             "test/syntax.csv",
             12,
         );
         assert!(report2.has_errors());
         assert!(report2.format_report().contains("Variable '$unbound'"));
+
+        // Unknown named type construct: [unknown_type]
+        let mut report3 = ValidationReport::new();
+        let unknown_type_rule = parse_dc_syntax(":[unknown_type]").unwrap();
+        validate_dc_syntax(
+            &unknown_type_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            &mut report3,
+            "test/syntax.csv",
+            13,
+        );
+        assert!(report3.has_errors());
+        assert!(report3.format_report().contains("Unknown named type construct '[unknown_type]'"));
     }
 
     #[crate::ctb_test]
@@ -2160,6 +2383,8 @@ mod tests {
             [("test.csv", &csv_equiv_dc[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_equiv_dc,
         );
         assert!(report_equiv_dc.has_errors());
@@ -2176,6 +2401,8 @@ mod tests {
             [("test.csv", &csv_approx_dc[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_approx_dc,
         );
         assert!(report_approx_dc.has_errors());
@@ -2192,6 +2419,8 @@ mod tests {
             [("test.csv", &csv_equiv_uni[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_equiv_uni,
         );
         assert!(report_equiv_uni.has_errors());
@@ -2208,6 +2437,8 @@ mod tests {
             [("test.csv", &csv_approx_uni[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_approx_uni,
         );
         assert!(report_approx_uni.has_errors());
@@ -2224,6 +2455,8 @@ mod tests {
             [("test.csv", &csv_allowed[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_allowed,
         );
         assert!(!report_allowed.has_errors());
@@ -2235,9 +2468,61 @@ mod tests {
             [("test.csv", &csv_valid[..])],
             "test",
             &known_formats,
+            None,
+            None,
             &mut report_valid,
         );
         assert!(!report_valid.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_decomposition_tag_validation() {
+        let known_formats: HashSet<usize> = HashSet::new();
+        let mut known_tags: HashSet<String> = HashSet::new();
+        known_tags.insert("equiv".to_string());
+        known_tags.insert("approx".to_string());
+
+        // Unknown decomposition tag <unknown_decomp>
+        let mut report = ValidationReport::default();
+        let csv_unknown_tag = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<unknown_decomp>0,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_unknown_tag[..])],
+            "test",
+            &known_formats,
+            Some(&known_tags),
+            None,
+            &mut report,
+        );
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("Unknown decomposition tag '<unknown_decomp>'"));
+
+        // Valid decomposition tag <equiv>
+        let mut report_valid = ValidationReport::default();
+        let csv_valid = b"Dc,Short,Name (!=deprecated),\xe2\x97\x8c,\xe2\x87\x86,Aa,Type,Script,Aliases,Description\n1114112,0,Zero,0,BN,,Cc,Controls,,\n1114113,1,One,0,BN,,Po,Controls,<equiv>0,\n";
+        validate_dc_files_data(
+            [("test.csv", &csv_valid[..])],
+            "test",
+            &known_formats,
+            Some(&known_tags),
+            None,
+            &mut report_valid,
+        );
+        assert!(!report_valid.has_errors());
+    }
+
+    #[crate::ctb_test]
+    fn test_reject_uppercase_f_format_shorthand() {
+        let mut report = ValidationReport::default();
+        let invalid_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,BaseFormat,Extensions,MIME,UTI,Apple Type,Nicknames,Import,Export,Tests,Variants,Comments,References\n2228224,F0,FmtZero,Format Zero,document,,.fz,,,,3,3,1,,,\n";
+        let valid_variants = HashSet::new();
+        validate_formats_category_file(
+            invalid_csv,
+            "invalid_fmt.csv",
+            &valid_variants,
+            &mut report,
+        );
+        assert!(report.has_errors());
+        assert!(report.format_report().contains("uppercase 'F' prefix is not accepted"));
     }
 
     #[crate::ctb_test]

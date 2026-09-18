@@ -20,3 +20,6 @@ small,Same as Unicode. TBD what it does
 wide,The given Dc to fit fully in an ideographic square.
 narrow,The given Dc to fit in half an ideographic square.
 smallnarrow,Same as Unicode. TBD what it does
+ambiguous,This character has multiple interpretations or mappings and may be ambiguously represented by any of the given Dcs.
+style,This is a style variation of the given character (e.g. text or emoji style or glyph variant).
+prefer,This deprecated character or routine is superseded by and prefers the given active Dc.

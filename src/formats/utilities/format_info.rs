@@ -130,10 +130,15 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
         };
 
         let id_str = get_str(id_col);
-        let Ok(id) = id_str
-            .trim_start_matches(|c| c == 'f' || c == 'F')
-            .parse::<usize>()
-        else {
+        let id_clean = if let Some(rest) = id_str.strip_prefix('f') {
+            rest
+        } else if id_str.starts_with('F') {
+            // Reject uppercase 'F' prefix as an error per README.shorthand.md
+            continue;
+        } else {
+            &id_str
+        };
+        let Ok(id) = id_clean.parse::<usize>() else {
             continue;
         };
 

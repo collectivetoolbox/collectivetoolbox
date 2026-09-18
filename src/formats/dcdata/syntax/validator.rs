@@ -131,6 +131,7 @@ fn validate_pattern_node(
     col_name: &str,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    known_named_types: &HashSet<String>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
 ) {
@@ -144,6 +145,7 @@ fn validate_pattern_node(
                     col_name,
                     known_dc_ids,
                     known_format_ids,
+                    known_named_types,
                     bound_vars,
                     report,
                 );
@@ -158,6 +160,7 @@ fn validate_pattern_node(
                     col_name,
                     known_dc_ids,
                     known_format_ids,
+                    known_named_types,
                     bound_vars,
                     report,
                 );
@@ -174,6 +177,7 @@ fn validate_syntax_element(
     col_name: &str,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    known_named_types: &HashSet<String>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
 ) {
@@ -247,6 +251,17 @@ fn validate_syntax_element(
                     "Named construct has an empty name".to_string(),
                     Some("Ensure named construct has a non-empty name e.g. [name]"),
                 );
+            } else if !known_named_types.is_empty()
+                && !known_named_types.contains(name)
+                && name != "formats"
+            {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Unknown named type construct '[{name}]' in syntax rule"),
+                    Some("Must be a registered named type defined in README-named-types.csv"),
+                );
             }
             if let Some(var) = capture_var {
                 bound_vars.insert(var.clone());
@@ -260,6 +275,7 @@ fn validate_syntax_element(
                 col_name,
                 known_dc_ids,
                 known_format_ids,
+                known_named_types,
                 bound_vars,
                 report,
             );
@@ -273,6 +289,7 @@ pub fn validate_dc_syntax(
     _self_dc_id: u32,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    known_named_types: &HashSet<String>,
     report: &mut ValidationReport,
     source_file: &str,
     line_no: usize,
@@ -288,6 +305,7 @@ pub fn validate_dc_syntax(
         col_name,
         known_dc_ids,
         known_format_ids,
+        known_named_types,
         &mut bound_vars,
         report,
     );
