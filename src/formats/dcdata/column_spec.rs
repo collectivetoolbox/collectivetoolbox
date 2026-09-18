@@ -71,6 +71,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub rust_ident: Option<String>,
     /// Nicknames extracted from `@nick(...)`.
     pub nicknames: Vec<String>,
+    /// OS associations extracted from `@os(...)` containing format shorthands.
+    pub os_associations: Vec<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -510,13 +512,62 @@ fn process_column_item(
                     Some("Ensure '@nick(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@os(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let os_val = stripped.trim();
+                if os_val.is_empty() {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Empty '@os()' directive in {col_name} column: '{item_trimmed}'"),
+                        Some("Specify a format shorthand inside @os(...) (e.g. '@os(f405)')"),
+                    );
+                } else {
+                    for token in os_val.split(',') {
+                        let token_trimmed = token.trim();
+                        if token_trimmed.is_empty() {
+                            report.add_error(
+                                file_path,
+                                Some(line_no),
+                                Some(col_name),
+                                format!("Empty OS shorthand token in '{item_trimmed}'"),
+                                Some("Provide a non-empty format shorthand in '@os(...)'"),
+                            );
+                            continue;
+                        }
+                        match ctb_storage_minimal::shorthand::parse_format_shorthand(token_trimmed) {
+                            Ok(_) => {
+                                parsed.os_associations.push(token_trimmed.to_string());
+                            }
+                            Err(_) => {
+                                report.add_error(
+                                    file_path,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!("Invalid format shorthand '{token_trimmed}' in '@os(...)'. Only format shorthands (e.g. 'f405') are supported"),
+                                    Some("Use format shorthands like 'f405' (MacOs), 'f402' (Windows), 'f492' (Unix)"),
+                                );
+                            }
+                        }
+                    }
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@os(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@os(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', and '@nick(...)'"),
+                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', and '@os(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -808,5 +859,32 @@ mod tests {
         );
         assert!(err_report.has_errors());
         assert!(err_report.format_report().contains("Invalid Rust identifier"));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_os_directive() {
+        let mut report = ValidationReport::default();
+        let parsed = parse_aliases_or_base_column(
+            r#"@os(f405), @os(f406), @base(f161)"#,
+            "test_format.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(!report.has_errors(), "Errors: {}", report.format_report());
+        assert_eq!(parsed.os_associations, vec!["f405", "f406"]);
+        assert_eq!(parsed.base_formats, vec!["f161"]);
+
+        // Test invalid OS token (non-shorthand text like "macos" is disallowed)
+        let mut err_report = ValidationReport::default();
+        let _ = parse_aliases_or_base_column(
+            r#"@os(macos)"#,
+            "test_format.csv",
+            1,
+            &mut err_report,
+            true,
+        );
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("Invalid format shorthand 'macos' in '@os(...)'"));
     }
 }
