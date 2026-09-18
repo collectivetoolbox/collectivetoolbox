@@ -67,6 +67,10 @@ pub struct ParsedAliasesOrBaseColumn {
     pub syntax_raw: Option<String>,
     /// Format specification DSL string extracted from `@chain(...)` or `@(...)`.
     pub format_spec_raw: Option<String>,
+    /// Rust identifier extracted from `@ident(...)`.
+    pub rust_ident: Option<String>,
+    /// Nicknames extracted from `@nick(...)`.
+    pub nicknames: Vec<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -443,13 +447,76 @@ fn process_column_item(
             }
         } else if item_trimmed.starts_with("@chain(") || item_trimmed.starts_with("@(") {
             parsed.format_spec_raw = Some(item_trimmed.to_string());
+        } else if let Some(inner) = item_trimmed.strip_prefix("@ident(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    if let Err(e) = crate::validate_rust_identifier(&unescaped) {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Invalid Rust identifier in '@ident(\"{unescaped}\")': {e}"),
+                            Some("Identifier must be a valid Rust identifier (e.g. '@ident(\"TarGz\")')"),
+                        );
+                    }
+                    parsed.rust_ident = Some(unescaped);
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@ident(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@ident(\"...\")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@ident(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@ident(...)' closes with a parenthesis"),
+                );
+            }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@nick(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    if unescaped.trim().is_empty() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Empty '@nick()' in '{item_trimmed}'"),
+                            Some("Provide a non-empty nickname string inside '@nick(\"...\")'"),
+                        );
+                    } else {
+                        parsed.nicknames.push(unescaped);
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@nick(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@nick(\"...\")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@nick(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@nick(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', and '@annotation(...)'"),
+                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', and '@nick(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -713,5 +780,33 @@ mod tests {
                 "German, note with comma",
             ]
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_ident_and_nick_directives() {
+        let mut report = ValidationReport::default();
+        let parsed = parse_aliases_or_base_column(
+            r#"@ident("TarGz"), @nick("tgz"), @nick("tar-gz"), @base(f161)"#,
+            "test_format.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(!report.has_errors(), "Errors: {}", report.format_report());
+        assert_eq!(parsed.rust_ident.as_deref(), Some("TarGz"));
+        assert_eq!(parsed.nicknames, vec!["tgz", "tar-gz"]);
+        assert_eq!(parsed.base_formats, vec!["f161"]);
+
+        // Test invalid ident fails validation
+        let mut err_report = ValidationReport::default();
+        let _ = parse_aliases_or_base_column(
+            r#"@ident("123Invalid")"#,
+            "test_format.csv",
+            1,
+            &mut err_report,
+            true,
+        );
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("Invalid Rust identifier"));
     }
 }

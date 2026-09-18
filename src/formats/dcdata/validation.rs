@@ -597,7 +597,7 @@ pub fn validate_dc_category_file(
 
     let mut rows = Vec::new();
     let is_generated_csv = file_path.ends_with(".generated.csv");
-    let expected_cols = if is_generated_csv { 21 } else { 10 };
+    let expected_cols = if is_generated_csv { 19 } else { 10 };
 
     if let Some(header) = table.header() {
         if header.len() != expected_cols {
@@ -965,7 +965,11 @@ pub fn validate_dc_category_file(
                     mime: None,
                     uti: None,
                     apple_type: None,
-                    nicknames: None,
+                    nicknames: if parsed_col.nicknames.is_empty() {
+                        None
+                    } else {
+                        Some(parsed_col.nicknames.join(", "))
+                    },
                     import_support: None,
                     export_support: None,
                     tests: None,
@@ -979,7 +983,7 @@ pub fn validate_dc_category_file(
         rows.push(DcDefn {
             dc_id,
             short_id,
-            ident: None,
+            ident: parsed_col.rust_ident,
             name,
             category: row_category,
             combining_class,

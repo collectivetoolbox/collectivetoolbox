@@ -71,6 +71,7 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
         ident_col,
         label_col,
         category_col,
+        script_col,
         base_col,
         ext_col,
         mime_col,
@@ -84,36 +85,61 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
         comments_col,
         references_col,
     ) = if let Some(hdr) = table.header() {
+        let find_col_opt = |prefixes: &[&str]| -> Option<usize> {
+            hdr.iter().position(|name| {
+                let trimmed = name.trim();
+                prefixes.iter().any(|p| trimmed.starts_with(p))
+            })
+        };
         let find_col = |prefixes: &[&str], default: usize| -> usize {
-            hdr.iter()
-                .position(|name| {
-                    let trimmed = name.trim();
-                    prefixes.iter().any(|p| trimmed.starts_with(p))
-                })
-                .unwrap_or(default)
+            if let Some(pos) = find_col_opt(prefixes) {
+                pos
+            } else {
+                default
+            }
         };
 
         (
             find_col(&["Dc"], 0),
             find_col(&["Short"], 1),
-            find_col(&["Ident"], 2),
-            find_col(&["Label", "Name"], 3),
-            find_col(&["Category"], 4),
-            find_col(&["Base", "Aliases"], 5),
-            find_col(&["Extensions"], 6),
-            find_col(&["MIME"], 7),
-            find_col(&["Apple Uniform", "Apple UTI"], 8),
-            find_col(&["Apple Type"], 9),
-            find_col(&["Nicknames"], 10),
-            find_col(&["Import"], 11),
-            find_col(&["Export"], 12),
-            find_col(&["Tests"], 13),
-            find_col(&["Variant"], 14),
-            find_col(&["Comments", "Description"], 15),
-            find_col(&["References"], 16),
+            find_col_opt(&["Ident"]),
+            find_col(&["Label", "Name"], 2),
+            find_col_opt(&["Category"]),
+            find_col_opt(&["Script"]),
+            find_col_opt(&["Base", "Aliases"]),
+            find_col_opt(&["Extensions"]),
+            find_col_opt(&["MIME"]),
+            find_col_opt(&["Apple Uniform", "Apple UTI"]),
+            find_col_opt(&["Apple Type"]),
+            find_col_opt(&["Nicknames"]),
+            find_col_opt(&["Import"]),
+            find_col_opt(&["Export"]),
+            find_col_opt(&["Tests"]),
+            find_col_opt(&["Variant"]),
+            find_col_opt(&["Comments", "Description"]),
+            find_col_opt(&["References"]),
         )
     } else {
-        (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+        (
+            0,
+            1,
+            Some(2),
+            3,
+            Some(4),
+            None,
+            Some(5),
+            Some(6),
+            Some(7),
+            Some(8),
+            Some(9),
+            Some(10),
+            Some(11),
+            Some(12),
+            Some(13),
+            Some(14),
+            Some(15),
+            Some(16),
+        )
     };
 
     for i in 0..table.row_count() {
@@ -121,6 +147,13 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             match table.cell(i, col) {
                 Some(s) => s.trim().to_string(),
                 None => String::new(),
+            }
+        };
+        let get_opt = |col_opt: Option<usize>| -> String {
+            if let Some(col) = col_opt {
+                get_str(col)
+            } else {
+                String::new()
             }
         };
 
@@ -134,21 +167,62 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             continue;
         };
 
-        let ident = get_str(ident_col);
-        let label = get_str(label_col);
-        let category = get_str(category_col);
-        let base_format = get_str(base_col);
-        let extensions = get_str(ext_col);
-        let mime = get_str(mime_col);
-        let uti = get_str(uti_col);
-        let apple_type = get_str(apple_type_col);
-        let nicknames = get_str(nicknames_col);
-        let import_support = get_str(import_col);
-        let export_support = get_str(export_col);
-        let tests = get_str(tests_col);
-        let variant_types = get_str(variant_col);
-        let comments = get_str(comments_col);
-        let references = get_str(references_col);
+        let mut ident = get_opt(ident_col);
+        let raw_label = get_str(label_col);
+        let label = if let Some(s) = raw_label.strip_prefix('!') {
+            s.trim().to_string()
+        } else {
+            raw_label
+        };
+
+        let raw_cat = get_opt(category_col);
+        let category = if !raw_cat.is_empty() {
+            raw_cat
+        } else {
+            let sc = get_opt(script_col);
+            if let Some(stripped) = sc.strip_prefix("Formats:") {
+                stripped.to_string()
+            } else {
+                sc
+            }
+        };
+
+        let base_or_aliases = get_opt(base_col);
+        let mut nicknames = get_opt(nicknames_col);
+        let mut base_format = base_or_aliases.clone();
+
+        if !base_or_aliases.is_empty() {
+            let mut report = ctb_formats_dcdata::report::ValidationReport::new();
+            let parsed = ctb_formats_dcdata::column_spec::parse_aliases_or_base_column(
+                &base_or_aliases,
+                "",
+                0,
+                &mut report,
+                false,
+            );
+            if ident.is_empty() {
+                if let Some(id_str) = parsed.rust_ident {
+                    ident = id_str;
+                }
+            }
+            if nicknames.is_empty() && !parsed.nicknames.is_empty() {
+                nicknames = parsed.nicknames.join(", ");
+            }
+            if !parsed.base_formats.is_empty() {
+                base_format = parsed.base_formats.join(", ");
+            }
+        }
+
+        let extensions = get_opt(ext_col);
+        let mime = get_opt(mime_col);
+        let uti = get_opt(uti_col);
+        let apple_type = get_opt(apple_type_col);
+        let import_support = get_opt(import_col);
+        let export_support = get_opt(export_col);
+        let tests = get_opt(tests_col);
+        let variant_types = get_opt(variant_col);
+        let comments = get_opt(comments_col);
+        let references = get_opt(references_col);
 
         map.insert(
             id,

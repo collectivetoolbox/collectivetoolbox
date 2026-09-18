@@ -49,8 +49,8 @@ pub struct TableUpdateStats {
     pub max_short_id: usize,
 }
 
-/// Canonical 21-column unified CSV schema header shared by all generated tables.
-pub const UNIFIED_SCHEMA_HEADER: [&str; 21] = [
+/// Canonical 19-column unified CSV schema header shared by all generated tables.
+pub const UNIFIED_SCHEMA_HEADER: [&str; 19] = [
     "Dc",
     "Short",
     "Name (!=deprecated)",
@@ -61,12 +61,10 @@ pub const UNIFIED_SCHEMA_HEADER: [&str; 21] = [
     "Script",
     "Aliases; >=xref, <=decompos., :=Dc syntax, @chain",
     "Description",
-    "Ident (Rust-friendly)",
     "Extensions (Primary extension first, followed by comma-separated alternatives)",
     "MIME (Primary MIME type first, followed by comma-separated aliases)",
     "Apple Uniform Type Identifier (UTI)",
     "Apple Type code",
-    "Nicknames (short names for uses like CLI arguments)",
     "Import support\n(for trans_:\n  =run the tr.)",
     "Export support\n(for trans_:\n  =reverse the\n    tr.)",
     "Tests",
@@ -580,6 +578,25 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 format!("Formats:{format_category}")
                             };
 
+                            let clean_ident = ident.trim_start_matches('!').trim();
+                            let mut alias_parts = Vec::new();
+                            if !clean_ident.is_empty() {
+                                alias_parts.push(format!("@ident(\"{}\")", escape_directive_string(clean_ident)));
+                            }
+                            let raw_nicknames = get(10);
+                            if !raw_nicknames.is_empty() {
+                                for nick in crate::shared::split_comma_separated_items(&raw_nicknames) {
+                                    if !nick.is_empty() {
+                                        alias_parts.push(format!("@nick(\"{}\")", escape_directive_string(&nick)));
+                                    }
+                                }
+                            }
+                            let base_chain_syn = get(5);
+                            if !base_chain_syn.is_empty() {
+                                alias_parts.push(base_chain_syn);
+                            }
+                            let aliases_cell = alias_parts.join(", ");
+
                             let unified_row = vec![
                                 get(0),                 // Dc
                                 short_cell,             // Short
@@ -589,14 +606,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 String::new(),          // Aa
                                 "!Cx".to_string(),      // Type
                                 script_cell,            // Script
-                                get(5),                 // Aliases / Base / Chain / Syntax
+                                aliases_cell,           // Aliases / Base / Chain / Syntax / @ident / @nick
                                 get(15),                // Description / Comments
-                                ident,                  // Ident
                                 get(6),                 // Extensions
                                 get(7),                 // MIME
                                 get(8),                 // Apple UTI
                                 get(9),                 // Apple Type code
-                                get(10),                // Nicknames
                                 get(11),                // Import support
                                 get(12),                // Export support
                                 get(13),                // Tests
@@ -672,12 +687,10 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 get(7),         // Script
                                 get(8),         // Aliases...
                                 get(9),         // Description
-                                String::new(),  // Ident
                                 String::new(),  // Extensions
                                 String::new(),  // MIME
                                 String::new(),  // Apple UTI
                                 String::new(),  // Apple Type code
-                                String::new(),  // Nicknames
                                 String::new(),  // Import support
                                 String::new(),  // Export support
                                 String::new(),  // Tests
@@ -769,12 +782,10 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             rec.script,                       // Script
             merged_aliases,                   // Aliases
             merged_desc,                      // Description
-            String::new(),                    // Ident
             String::new(),                    // Extensions
             String::new(),                    // MIME
             String::new(),                    // Apple UTI
             String::new(),                    // Apple Type code
-            String::new(),                    // Nicknames
             String::new(),                    // Import support
             String::new(),                    // Export support
             String::new(),                    // Tests
@@ -854,6 +865,12 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     let mut parts = Vec::new();
     for fa in parsed.formal_aliases {
         parts.push(format!("@formalAlias{}(\"{}\")", fa.kind, escape_directive_string(&fa.alias)));
+    }
+    if let Some(ident) = parsed.rust_ident {
+        parts.push(format!("@ident(\"{}\")", escape_directive_string(&ident)));
+    }
+    for nick in parsed.nicknames {
+        parts.push(format!("@nick(\"{}\")", escape_directive_string(&nick)));
     }
     let mut seen_aliases = HashSet::new();
     for a in parsed.aliases {

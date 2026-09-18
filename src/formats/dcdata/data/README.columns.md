@@ -2,7 +2,7 @@
 
 This document describes the schema of columns used across Document Character (Dc) data tables, including `all.generated.csv`, `unicode.generated.csv`, `formats.generated.csv`, `DcList.generated.csv`, and category tables under `categories/`.
 
-## 21-Column Unified Schema Overview
+## 19-Column Unified Schema Overview
 
 | Col | Header | Description |
 |---|---|---|
@@ -16,17 +16,15 @@ This document describes the schema of columns used across Document Character (Dc
 | 8 | **Script** | Script or Unicode block name (e.g. `Latin`, `Common`, `Basic Latin`), or hierarchical namespaced script (e.g. `Formats:<category>`, `Semantic:fileflag`). |
 | 9 | **Aliases; >=xref, <=decompos., :=Dc syntax, @chain** | Composite column for aliases, directives, cross-references, decompositions, and syntax rules (detailed below). |
 | 10 | **Description** | Human-readable explanatory description, clarifications, and usage notes. |
-| 11 | **Ident (Rust-friendly)** | PascalCase or snake_case identifier suitable for code generation. |
-| 12 | **Extensions** | Primary file extension first (e.g. `.tar.gz`), followed by comma-separated alternatives. |
-| 13 | **MIME** | Primary MIME type first (e.g. `application/gzip`), followed by comma-separated aliases. |
-| 14 | **Apple Uniform Type Identifier (UTI)** | Apple UTI string (e.g. `org.gnu.gnu-tar-archive`). |
-| 15 | **Apple Type code** | Classic Mac OS 4-character Ostype code (e.g. `TAR `). |
-| 16 | **Nicknames** | Short CLI or argument aliases (e.g. `tgz`). |
-| 17 | **Import support** | Status or handler for importing/decoding format. |
-| 18 | **Export support** | Status or handler for exporting/encoding format. |
-| 19 | **Tests** | Test cases or test identifiers. |
-| 20 | **Variant Types** | Comma-separated list of variant subtypes or tags. |
-| 21 | **References** | External specifications, RFCs, ISO standards, or documentation URLs. |
+| 11 | **Extensions** | Primary file extension first (e.g. `.tar.gz`), followed by comma-separated alternatives. |
+| 12 | **MIME** | Primary MIME type first (e.g. `application/gzip`), followed by comma-separated aliases. |
+| 13 | **Apple Uniform Type Identifier (UTI)** | Apple UTI string (e.g. `org.gnu.gnu-tar-archive`). |
+| 14 | **Apple Type code** | Classic Mac OS 4-character Ostype code (e.g. `TAR `). |
+| 15 | **Import support** | Status or handler for importing/decoding format. |
+| 16 | **Export support** | Status or handler for exporting/encoding format. |
+| 17 | **Tests** | Test cases or test identifiers. |
+| 18 | **Variant Types** | Comma-separated list of variant subtypes or tags. |
+| 19 | **References** | External specifications, RFCs, ISO standards, or documentation URLs. |
 
 ---
 
@@ -93,6 +91,20 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
   - `@annotation("misspelling of \"BRACKET\" in character name is a known defect")`
   - `@annotation("also used for inches, seconds of arc")`
 
+#### `@ident("...")`
+- **Purpose**: Rust-friendly PascalCase or snake_case identifier for code generation and programmatic referencing.
+- **Syntax**: `@ident("<RustIdentifier>")` conforming to standard Rust identifier grammar (`[a-zA-Z_][a-zA-Z0-9_]*`).
+- **Examples**:
+  - `@ident("TarGz")`
+  - `@ident("Utf8")`
+
+#### `@nick("...")`
+- **Purpose**: Short CLI argument or invocation alias.
+- **Syntax**: `@nick("<nickname>")`.
+- **Examples**:
+  - `@nick("tgz")`
+  - `@nick("gz")`
+
 #### Bare Aliases (Informal Aliases)
 - **Purpose**: Informal aliases, secondary names, or common synonyms (e.g. from `NamesList.txt` `= ` lines).
 - **Syntax**: Bare strings (permitted in character category tables).
@@ -118,8 +130,10 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
 ### Canonical Ordering in Column 9
 When records are generated or serialized, directives and items in Column 9 are arranged in the following deterministic order:
 1. **Formal Name Aliases**: `@formalAliasCorrection(...)`, `@formalAliasControl(...)`, `@formalAliasAlternate(...)`, `@formalAliasFigment(...)`, `@formalAliasAbbreviation(...)`
-2. **Informal Aliases**: Bare alias strings
-3. **Cross-References**: `@xref(...)`
-4. **Decompositions**: `<tag>...`
-5. **Annotations**: `@annotation(...)`
-6. **Syntax Rules**: `:<syntax>`
+2. **Rust Identifier**: `@ident(...)`
+3. **Nicknames**: `@nick(...)`
+4. **Informal Aliases**: Bare alias strings
+5. **Cross-References**: `@xref(...)`
+6. **Decompositions**: `<tag>...`
+7. **Annotations**: `@annotation(...)`
+8. **Syntax Rules**: `:<syntax>`
