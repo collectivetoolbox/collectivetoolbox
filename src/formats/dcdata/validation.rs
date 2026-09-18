@@ -2294,6 +2294,142 @@ mod tests {
         assert!(report3.format_report().contains("Unknown named type construct '[unknown_type]'"));
     }
 
+    fn expand_expression_test_pattern(
+        mut pattern: SyntaxPattern,
+        dc_rules: &HashMap<u32, SyntaxPattern>,
+        named_rules: &HashMap<String, SyntaxPattern>,
+        self_dc: Option<u32>,
+        depth: usize,
+    ) -> Result<SyntaxPattern> {
+        ensure!(depth < 32, "Expression test rule expansion exceeded depth limit");
+        let expand = |pattern, self_dc| {
+            expand_expression_test_pattern(
+                pattern, dc_rules, named_rules, self_dc, depth.saturating_add(1),
+            )
+        };
+        match &mut pattern {
+            SyntaxPattern::Alternation(branches) => {
+                for branch in branches {
+                    *branch = expand(branch.clone(), self_dc)?;
+                }
+            }
+            SyntaxPattern::Sequence(elements) => {
+                for element in elements {
+                    element.term = match &element.term {
+                        SyntaxTerm::SelfChar => SyntaxTerm::CharRef(CharTarget::Dc(
+                            self_dc.context("Named types cannot use a self marker")?,
+                        )),
+                        SyntaxTerm::RuleRef { target: CharTarget::Dc(short_id) } => {
+                            SyntaxTerm::Group(expand(
+                                dc_rules.get(short_id).context("Missing Dc rule")?.clone(),
+                                Some(*short_id),
+                            )?)
+                        }
+                        SyntaxTerm::RuleRef { .. } => bail!("Unexpected non-Dc rule"),
+                        SyntaxTerm::NamedConstruct { name, subtype, .. } => {
+                            ensure!(subtype.is_none(), "Unexpected subtype in expression fixture");
+                            SyntaxTerm::Group(expand(
+                                named_rules.get(name).context("Missing named rule")?.clone(),
+                                None,
+                            )?)
+                        }
+                        SyntaxTerm::Group(group) => {
+                            SyntaxTerm::Group(expand(group.clone(), self_dc)?)
+                        }
+                        term => term.clone(),
+                    };
+                }
+            }
+        }
+        Ok(pattern)
+    }
+
+    #[crate::ctb_test]
+    fn test_expression_data_boundaries() -> Result<()> {
+        let data_dir = crate::find_repository_root()?.join("src/formats/dcdata/data");
+        let mut report = ValidationReport::new();
+        let rows = validate_dc_category_file(
+            &std::fs::read(data_dir.join("categories/el.csv"))?,
+            "el.csv",
+            &mut report,
+        );
+        ensure!(!report.has_errors(), "{}", report.format_report());
+        let mut dc_rules = HashMap::new();
+        for row in rows {
+            if let (Some(short_id), Some(rule)) = (row.short_id, row.syntax) {
+                dc_rules.insert(u32::try_from(short_id)?, rule.pattern);
+            }
+        }
+        let mut named_rules = HashMap::new();
+        let mut reader = csv::Reader::from_path(data_dir.join("README-named-types.csv"))?;
+        for record in reader.records() {
+            let record = record?;
+            let name = record.get(0).context("Missing named type name")?;
+            let syntax = record.get(1).context("Missing named type syntax")?;
+            named_rules.insert(name.to_string(), parse_dc_syntax(syntax)?.pattern);
+        }
+
+        let cases: &[(&str, &[u32], bool)] = &[
+            ("[string]", &[260, 262, 264, 263, 261], true),
+            ("[string]", &[260, 262, 264, 263, 255, 261, 261], true),
+            ("[string]", &[260, 262, 264, 263, 255, 255, 261], true),
+            ("[string]", &[260, 262, 264, 263, 255, 65, 261], true),
+            ("[string]", &[260, 262, 264, 263, 279, 270, 65, 271, 261], true),
+            ("[string]", &[260, 262, 264, 263, 260, 262, 264, 263, 255, 261, 261], true),
+            ("[string]", &[], false),
+            ("[string]", &[65], false),
+            ("[string]", &[260, 261], false),
+            ("[string]", &[260, 262, 264, 263, 255], false),
+            ("[string]", &[260, 262, 264, 263, 255, 261], false),
+            ("[identifier]", &[270, 65, 271], true),
+            ("[identifier]", &[270, 255, 271, 271], true),
+            ("[identifier]", &[270, 255, 255, 271], true),
+            ("[identifier]", &[], false),
+            ("[identifier]", &[270, 271], false),
+            ("[identifier]", &[270, 65, 255], false),
+            ("[value]", &[], false),
+            ("[value]", &[65], false),
+            ("[value]", &[270, 65, 271], false),
+            ("[value]", &[276, 270, 65, 271], true),
+            ("[value]", &[276, 262, 264, 263, 270, 65, 271], true),
+            ("[value]", &[262, 264, 263, 270, 65, 271], false),
+            ("[value]", &[279, 270, 65, 271], true),
+            ("[value]", &[279], false),
+            ("[statement]", &[], false),
+            ("[statement]", &[65], false),
+            ("[statement]", &[260, 262, 264, 263, 261], true),
+            ("[statement]", &[279, 270, 65, 271], true),
+            ("[statement]", &[270, 65, 271, 269, 276, 270, 66, 271], true),
+            ("[statement]", &[270, 65, 271, 269], false),
+            ("258:", &[258, 279, 270, 65, 271, 259], true),
+            ("258:", &[258, 260, 262, 264, 263, 259, 261, 259], true),
+            ("258:", &[258, 259], false),
+            ("315:", &[315, 276, 270, 65, 271], true),
+        ];
+        for (syntax, stream, expected) in cases {
+            let pattern = expand_expression_test_pattern(
+                parse_dc_syntax(syntax)?.pattern, &dc_rules, &named_rules, None, 0,
+            )?;
+            let mut context = crate::syntax::MatchContext::default();
+            let outcome = crate::syntax::match_pattern(stream, &pattern, &mut context);
+            let complete = outcome == (MatchOutcome::Matched { consumed: stream.len() })
+                && context.warnings.is_empty();
+            assert_eq!(complete, *expected, "{syntax}: {stream:?}: {outcome:?}");
+        }
+
+        let pattern = expand_expression_test_pattern(
+            parse_dc_syntax("[value]")?.pattern, &dc_rules, &named_rules, None, 0,
+        )?;
+        let stream = [260, 262, 264, 263, 255, 261, 261, 279, 270, 65, 271];
+        let mut context = crate::syntax::MatchContext::default();
+        assert_eq!(
+            crate::syntax::match_pattern(&stream, &pattern, &mut context),
+            MatchOutcome::Matched { consumed: 7 },
+        );
+        assert!(context.warnings.is_empty());
+        Ok(())
+    }
+
     #[crate::ctb_test]
     fn test_dc_syntax_matcher_resilient_tag_soup() {
         // Test matching single line comment: :~ [^248 255]+ 248

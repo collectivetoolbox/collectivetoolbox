@@ -165,7 +165,12 @@ The spelling `directory` in examples is schematic until it is explicitly bound t
 a suitable descriptor; the existing file-kind Dc 359 must not be confused with
 format f359 (BaseAlphabet).
 
-Persisted chains accept numeric Dc references (as defined in README.shorthand.md) and explicitly registered stable named types only.
+Persisted chains accept numeric Dc references (as defined in
+[README.shorthand.md](../src/formats/dcdata/data/README.shorthand.md)) and
+explicitly registered stable named types only. Global IDs use lowercase `l`,
+not `@`: `l2228766` and `f542` identify the same Dc. Bare integers denote short
+Dcs in this shorthand; uppercase `L` denotes a local graph reference and is
+not interchangeable with lowercase `l`.
 Labels, Rust identifiers, nicknames, and other aliases are never resolved
 implicitly. There is currently no stability guarantee for keyword references or
 other human-readable identifiers for Dcs; accepting aliases or attempting to
@@ -182,6 +187,10 @@ or conversion targets. Tools may display current human-readable labels alongside
 numeric references without making those labels part of the expression. Not every
 graph node is a type: validate the referenced node's role. Numeric IDs provide
 an unambiguous spelling even when a format has no registered named type.
+
+Human-readable format names in the illustrative expressions below are schematic,
+not implicitly accepted aliases. For example, the numeric spelling of the
+mojibake expression is `((f15 > f542) ! f0) > f0`.
 
 The `|` operator designates Dc 516 (Type intersection, expressing alternative
 constraints where any of multiple types satisfy the description). It is not
@@ -228,6 +237,89 @@ combination. Validate alphabet ordering, digit uniqueness, radix compatibility,
 case rules, signs, padding, and separators explicitly. The current f371-f375
 `<equiv>` entries contain `[number:'...']` syntax placeholders; replacing those
 with actual parameter bindings requires this model, not another textual chain.
+
+## Character Sequences and Evaluation
+
+Every Dc document and expression is represented by a character sequence. That
+does not require every such sequence to have the syntax or evaluation behavior
+of a **quoted literal**. Treat character sequences as the common representation;
+keep quotation, reference, and invocation distinct within that representation.
+Otherwise an arbitrary filename or quoted program could execute merely because
+it contains the same Dcs as an invocation.
+
+The named-type data now distinguishes these syntactic roles:
+
+| Named type | Current bounded forms | Interpretation |
+| --- | --- | --- |
+| `string` | Literal 260 through 261, with a type header | Quoted payload; empty content is allowed |
+| `identifier` | Name 270 through 271 | Nonempty name, not an implicit lookup |
+| `value` | Literal, reference 276, or invocation 279 | One expression usable where a value is expected |
+| `statement` | Value expression or assignment 269 | One expression in statement position |
+
+These are syntax definitions, not a complete runtime type hierarchy. In
+particular, `value` describes an expression that can produce a value, not only
+the already evaluated result. A literal evaluates to its own represented value;
+a reference resolves its binding; an invocation evaluates according to its
+routine contract. A variable and a constant need not have different reference
+framing: mutability belongs to the binding. Parsing, displaying, indexing, or
+deserializing any of these forms must not itself perform evaluation.
+
+A statement need not have a special return token merely to produce its result.
+However, the result of evaluating an expression is **not** implicitly parsed and
+evaluated again. If an invocation returns a string containing another invocation,
+that result stays data. Executing quoted source would require a separate explicit
+evaluation operation and execution context; this cleanup does not assign a Dc
+or an existing routine to that operation. Nor does it invent a result value for
+assignment or for routines currently described as returning void.
+
+### Framing and Escaping
+
+Literal syntax is `260 <type-header> <quoted-payload> 261`. Within that payload,
+255 protects exactly the next Dc from syntactic interpretation. Thus `255 261`
+represents payload Dc 261, and `255 255` represents payload Dc 255. Identifier
+payloads use the same rule with terminator 271. A dangling escape or missing
+terminator is invalid, not an implicit end of the string. Scanning must locate
+the unescaped boundary before decoding escapes, then decode only once at that
+quotation level.
+
+Begin/end characters belonging to another construct are ordinary quoted
+content. For example, parameter-end Dc 259 inside a literal cannot terminate
+its enclosing parameter. Embedding a quoted literal inside another quotation
+requires escaping its terminator and escape characters at the outer level;
+the outer quote scanner does not recursively interpret the embedded literal.
+
+An identifier's terminator supplies the boundary for reference 276 and the
+currently declared invocation 279. Assignment consumes a complete identifier,
+269, and one complete value expression. Parameter 258/259 now accepts a value
+expression rather than only a literal. Optional-present 315 consequently also
+has a bounded operand. No additional statement terminator is needed for these
+forms. A sequence of multiple statements still requires a separate enclosing
+grammar; `statement` does not mean "consume the rest of the document".
+
+In the existing syntax DSL, `260:` is a required rule expansion, but `[260:]`
+is optional. The named `string` and `identifier` rules therefore use the required
+form. The literal type header uses `[262:]{1}` to require exactly one header
+without triggering the parser's bare-colon/action ambiguity. An empty literal
+payload must not be confused with a missing literal frame.
+
+### Remaining Implementation Work
+
+This cleanup fixes data definitions, not the evaluator. The current syntax
+matcher consumes rule references and named constructs as token placeholders;
+it does not yet expand them into a full document grammar. Its recovery mode can
+also accept truncated structures with warnings. Neither behavior is suitable
+for execution validation. Regression tests expand the relevant data rules in
+test code and require complete, warning-free matches; they do not establish
+runtime support for these expressions.
+
+Before execution, implement namespace-safe Dc matching, bounded recursive rule
+resolution, strict framing validation, and an evaluator that never executes
+quoted payloads implicitly. Preserve original escaped spelling separately when
+bit-for-bit reconstruction is needed. Routine arguments, other routine markers,
+list/map element framing, and nested executable blocks need their own explicit
+grammar before inclusion in `statement` or `value`. The existing literal type
+header currently accepts only the built-in String marker 264; extending typed
+literals is separate from treating quoted payloads as executable code.
 
 ## Next Data Work
 
