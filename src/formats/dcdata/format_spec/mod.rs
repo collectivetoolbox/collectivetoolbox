@@ -99,8 +99,12 @@ mod tests {
         let decoded = decode_dc_stream_string(&dc_string).unwrap();
         assert_eq!(decoded, expr);
         // Confirm the parser flexibly supports other valid syntaxes
+        let long_dc_string = "298 302 298 303 298 302 f15 f542 299 f0 299 f0 299";
+        let decoded = decode_dc_stream_string(&long_dc_string).unwrap();
+        assert_eq!(decoded, expr);
         let manually_written_dc_string = "302 303 302 f15 f542 299 f0 299 f0";
         let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
+        assert_eq!(decoded, expr);
         // Doesn't actually need terminators for transmutation/conversion as they only take two parameters... only & or | would need them
         let manually_written_dc_string = "302 303 302 f15 f542 f0 f0";
         let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
