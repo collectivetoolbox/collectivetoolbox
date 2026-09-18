@@ -262,11 +262,13 @@ fn decode_recursive(
             *pos = pos.saturating_add(1);
 
             let op = match op_token {
-                DcToken::Dc(DcShorthand::Short(300)) => FormatOp::Union,
-                DcToken::Dc(DcShorthand::Short(301)) => FormatOp::Transform,
-                DcToken::Dc(DcShorthand::Short(302)) => FormatOp::Convert,
-                DcToken::Dc(DcShorthand::Short(303)) => FormatOp::Transmute,
-                DcToken::Dc(DcShorthand::Short(516)) => FormatOp::Intersection,
+                DcToken::Dc(DcShorthand::Short(id)) => {
+                    FormatOp::from_dc_id(*id).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Invalid operator in Dc group: expected operator 300, 301, 302, 303, or 516, found '{id}'"
+                        )
+                    })?
+                }
                 other => {
                     bail!(
                         "Invalid operator in Dc group: expected operator 300, 301, 302, 303, or 516, found '{other}'"
@@ -289,25 +291,43 @@ fn decode_recursive(
                 "Expected terminating '299' for Dc group, found '{closing}'"
             );
 
-            let expr = match op {
-                FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
-                FormatOp::Transmute => {
-                    FormatExpr::Transmute(Box::new(left), Box::new(right))
-                }
-                FormatOp::Transform => {
-                    FormatExpr::Transform(Box::new(left), Box::new(right))
-                }
-                FormatOp::Union => flatten_or_create_union(left, right),
-                FormatOp::Intersection => flatten_or_create_intersection(left, right),
-            };
+            Ok(build_op_expr(op, left, right))
+        }
+        DcToken::Dc(DcShorthand::Short(op_id))
+            if FormatOp::from_dc_id(*op_id).is_some() =>
+        {
+            let op = FormatOp::from_dc_id(*op_id).expect("Guaranteed by guard");
+            let left = decode_recursive(tokens, pos, depth.saturating_add(1))?;
+            let right = decode_recursive(tokens, pos, depth.saturating_add(1))?;
 
-            Ok(expr)
+            // Flexibly consume optional closing 299 if present
+            if *pos < tokens.len()
+                && tokens[*pos] == DcToken::Dc(DcShorthand::Short(299))
+            {
+                *pos = pos.saturating_add(1);
+            }
+
+            Ok(build_op_expr(op, left, right))
         }
         DcToken::Dc(DcShorthand::Short(299)) => {
             bail!("Unexpected closing group '299' without matching opening '298'");
         }
         DcToken::Dc(shorthand) => Ok(FormatExpr::Dc(*shorthand)),
         DcToken::NamedType(name) => Ok(FormatExpr::NamedType(name.clone())),
+    }
+}
+
+fn build_op_expr(op: FormatOp, left: FormatExpr, right: FormatExpr) -> FormatExpr {
+    match op {
+        FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
+        FormatOp::Transmute => {
+            FormatExpr::Transmute(Box::new(left), Box::new(right))
+        }
+        FormatOp::Transform => {
+            FormatExpr::Transform(Box::new(left), Box::new(right))
+        }
+        FormatOp::Union => flatten_or_create_union(left, right),
+        FormatOp::Intersection => flatten_or_create_intersection(left, right),
     }
 }
 

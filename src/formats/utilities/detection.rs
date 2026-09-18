@@ -65,6 +65,18 @@ pub struct FormatChain {
     pub stem: String,
 }
 
+impl FormatChain {
+    /// Converts this format chain into a format specification string representation,
+    /// ordering layers from innermost payload to outermost container (`inner > ... > outer`).
+    #[must_use]
+    pub fn to_format_spec_string(&self) -> String {
+        let mut rev_layers = self.layers.clone();
+        rev_layers.reverse();
+        let names: Vec<String> = rev_layers.iter().map(|fmt| format!("{fmt:?}")).collect();
+        names.join(" > ")
+    }
+}
+
 /// Parses a filename or path into a structured `FormatChain`.
 pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
     // Reason for fallback: rsplit yields at least one component, so fallback filename handles empty rsplit iterator.
@@ -203,11 +215,13 @@ mod tests {
         assert_eq!(chain.outer, FormatId::Gzip);
         assert_eq!(chain.inner, Some(FormatId::Html));
         assert_eq!(chain.stem, "example");
+        assert_eq!(chain.to_format_spec_string(), "Html > Gzip");
 
         let chain_pan = parse_format_chain("lemurs.pan.Z").unwrap();
         assert_eq!(chain_pan.outer, FormatId::ScoCompress);
         assert_eq!(chain_pan.inner, Some(FormatId::Pan));
         assert_eq!(chain_pan.stem, "lemurs");
+        assert_eq!(chain_pan.to_format_spec_string(), "Pan > ScoCompress");
     }
 
     #[ctb_test]

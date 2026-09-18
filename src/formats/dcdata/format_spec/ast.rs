@@ -67,6 +67,19 @@ impl FormatOp {
         }
     }
 
+    /// Returns the operator corresponding to a short Dc ID, if valid.
+    #[must_use]
+    pub const fn from_dc_id(id: u32) -> Option<Self> {
+        match id {
+            300 => Some(Self::Union),
+            301 => Some(Self::Transform),
+            302 => Some(Self::Convert),
+            303 => Some(Self::Transmute),
+            516 => Some(Self::Intersection),
+            _ => None,
+        }
+    }
+
     /// Returns the textual symbol for this operator.
     #[must_use]
     pub const fn as_str(self) -> &'static str {

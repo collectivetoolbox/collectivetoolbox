@@ -758,6 +758,47 @@ mod tests {
         assert!(report.has_errors());
         assert!(report.format_report().contains("Invalid Rust identifier '!123Invalid'"));
     }
+
+    #[crate::ctb_test]
+    fn test_format_spec_chain_directive_parsed() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (=), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestMojibake,Test Mojibake,encoding,\"@chain(((f15 > f542) ! f0) > f0)\",,,,,,,,,,, \n";
+        let rows = validate_formats_category_file(
+            csv_data,
+            "test/formats/encoding.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+        assert_eq!(rows.len(), 1);
+        let details = rows[0].format.as_ref().unwrap();
+        assert!(details.format_spec.is_some());
+        let spec_str = format!("{}", details.format_spec.as_ref().unwrap());
+        assert_eq!(spec_str, "((f15 > f542) ! f0) > f0");
+    }
+
+    #[crate::ctb_test]
+    fn test_format_spec_chain_invalid_syntax_reports_error() {
+        let mut report = ValidationReport::new();
+        let valid_variants = HashSet::new();
+
+        // Ambiguous unparenthesized mixing of & and | inside @chain(...)
+        let csv_data = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (=), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,TestBadChain,Test Bad Chain,encoding,\"@chain(f15 & f542 | f0)\",,,,,,,,,,, \n";
+        validate_formats_category_file(
+            csv_data,
+            "test/formats/encoding.csv",
+            &valid_variants,
+            &mut report,
+        );
+
+        assert!(report.has_errors());
+        let err = report.format_report();
+        assert!(err.contains("Failed to parse format specification DSL rule"));
+    }
 }
+
 
 
