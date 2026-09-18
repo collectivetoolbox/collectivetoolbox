@@ -2,7 +2,7 @@
 
 This document describes the schema of columns used across Document Character (Dc) data tables, including `all.generated.csv`, `unicode.generated.csv`, `formats.generated.csv`, `DcList.generated.csv`, and category tables under `categories/`.
 
-## 22-Column Unified Schema Overview
+## 21-Column Unified Schema Overview
 
 | Col | Header | Description |
 |---|---|---|
@@ -13,21 +13,20 @@ This document describes the schema of columns used across Document Character (Dc
 | 5 | **⇆** | Bidirectional class (e.g. `L`, `R`, `AL`, `EN`, `ES`, `ET`, `AN`, `CS`, `B`, `S`, `WS`, `ON`, `BN`). |
 | 6 | **Aa** | Casing partner Short Dc ID or format base if in legacy layout. |
 | 7 | **Type** | General Category (e.g. `Lu`, `Ll`, `Lt`, `Lm`, `Lo`, `Mn`, `Mc`, `Me`, `Nd`, `Nl`, `No`, `Zs`, `Zl`, `Zp`, `Cc`, `Cf`, `Cs`, `Co`, `Cn`, `Pd`, `Ps`, `Pe`, `Pc`, `Pi`, `Pf`, `Po`, `Sm`, `Sc`, `Sk`, `So`, or `!Cx` for extended Dcs). |
-| 8 | **Script** | Script or Unicode block name (e.g. `Latin`, `Common`, `Basic Latin`). |
+| 8 | **Script** | Script or Unicode block name (e.g. `Latin`, `Common`, `Basic Latin`), or hierarchical namespaced script (e.g. `Formats:<category>`, `Semantic:fileflag`). |
 | 9 | **Aliases; >=xref, <=decompos., :=Dc syntax, @chain** | Composite column for aliases, directives, cross-references, decompositions, and syntax rules (detailed below). |
 | 10 | **Description** | Human-readable explanatory description, clarifications, and usage notes. |
 | 11 | **Ident (Rust-friendly)** | PascalCase or snake_case identifier suitable for code generation. |
-| 12 | **Category** | Category folder or group name (e.g. `container`, `audio`, `controls`, `latin`). |
-| 13 | **Extensions** | Primary file extension first (e.g. `.tar.gz`), followed by comma-separated alternatives. |
-| 14 | **MIME** | Primary MIME type first (e.g. `application/gzip`), followed by comma-separated aliases. |
-| 15 | **Apple Uniform Type Identifier (UTI)** | Apple UTI string (e.g. `org.gnu.gnu-tar-archive`). |
-| 16 | **Apple Type code** | Classic Mac OS 4-character Ostype code (e.g. `TAR `). |
-| 17 | **Nicknames** | Short CLI or argument aliases (e.g. `tgz`). |
-| 18 | **Import support** | Status or handler for importing/decoding format. |
-| 19 | **Export support** | Status or handler for exporting/encoding format. |
-| 20 | **Tests** | Test cases or test identifiers. |
-| 21 | **Variant Types** | Comma-separated list of variant subtypes or tags. |
-| 22 | **References** | External specifications, RFCs, ISO standards, or documentation URLs. |
+| 12 | **Extensions** | Primary file extension first (e.g. `.tar.gz`), followed by comma-separated alternatives. |
+| 13 | **MIME** | Primary MIME type first (e.g. `application/gzip`), followed by comma-separated aliases. |
+| 14 | **Apple Uniform Type Identifier (UTI)** | Apple UTI string (e.g. `org.gnu.gnu-tar-archive`). |
+| 15 | **Apple Type code** | Classic Mac OS 4-character Ostype code (e.g. `TAR `). |
+| 16 | **Nicknames** | Short CLI or argument aliases (e.g. `tgz`). |
+| 17 | **Import support** | Status or handler for importing/decoding format. |
+| 18 | **Export support** | Status or handler for exporting/encoding format. |
+| 19 | **Tests** | Test cases or test identifiers. |
+| 20 | **Variant Types** | Comma-separated list of variant subtypes or tags. |
+| 21 | **References** | External specifications, RFCs, ISO standards, or documentation URLs. |
 
 ---
 

@@ -6,7 +6,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114118,6,Begin number,0,BN,,!Cx,Semantic,,Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,Semantic,,End a DCE number.
 1114120,8,Unknown value,0,BN,,!Cx,Semantic,,Substitution character for an unknown value.
-1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Formats,,Internal DCE calendar identifier for the Gregorian calendar.
+1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Formats:calendar,,Internal DCE calendar identifier for the Gregorian calendar.
 1114122,10,Positive,0,BN,,!Cx,Semantic,,Positive value (syntactical representation — This is not the + character)
 1114123,11,Negative,0,BN,,!Cx,Semantic,,Negative (syntactical representation — This is not the − character)
 1114226,114,Begin unbounded content,0,BN,,!Cx,Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"
@@ -90,7 +90,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114497,385,Stream data,0,BN,,!Cx,Semantic,:~ [data],In-memory payload bytes of an attached stream.
 1114498,386,File filesystem type string,0,BN,,!Cx,Semantic,:~ [string],Originating filesystem type string.
 1114499,387,File inspection timestamp,0,BN,,!Cx,Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,Semantic,:~ [list:fileflag] [^389]+ 389,Begins a collection of semantic file flags attached to a file.
+1114500,388,Begin file flags description,0,BN,,!Cx,Semantic,:~ [list:Semantic:fileflag] [^389]+ 389,Begins a collection of semantic file flags attached to a file.
 1114501,389,End file flags description,0,BN,,!Cx,Semantic,,Terminates a collection of semantic file flags attached to a file.
 1114502,390,Begin time moment description,0,BN,,!Cx,Semantic,:~ [formats:date] [^391]+ 391,Begins a time moment description.
 1114503,391,End time moment description,0,BN,,!Cx,Semantic,,Terminates a time moment description.
@@ -111,64 +111,64 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114518,406,Mac OS Finder flags,0,BN,,!Cx,Semantic,:~ [number:Natural0] | (388 [^389]+ 389),Mac OS Finder flags.
 1114519,407,Mac OS Finder icon location,0,BN,,!Cx,Semantic,:~ 511 [f523:],Mac OS Finder icon coordinates in QuickDraw grid.
 1114520,408,Mac OS Finder window folder identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Mac OS Finder window folder identifier.
-1114521,409,File flag: nodump,0,BN,,!Cx,Fileflag,nodump,Do not include file in backups.
-1114522,410,File flag: user immutable,0,BN,,!Cx,Fileflag,uchg,User immutable.
-1114523,411,File flag: user append,0,BN,,!Cx,Fileflag,uappnd,User append-only.
-1114524,412,File flag: opaque,0,BN,,!Cx,Fileflag,opaque,Directory opaque to union mounts.
-1114525,413,File flag: hidden,0,BN,,!Cx,Fileflag,hidden,Hidden in GUI or Finder.
-1114526,414,File flag: archived,0,BN,,!Cx,Fileflag,arch,System archived flag.
-1114527,415,File flag: system immutable,0,BN,,!Cx,Fileflag,schg,Superuser immutable.
-1114528,416,File flag: system append,0,BN,,!Cx,Fileflag,sappnd,Superuser append-only.
-1114529,417,File flag: system no unlink,0,BN,,!Cx,Fileflag,sunlnk,Superuser cannot unlink or rename.
-1114530,418,File flag: user no unlink,0,BN,,!Cx,Fileflag,uunlnk,User cannot unlink or rename.
-1114531,419,File flag: system,0,BN,,!Cx,Fileflag,system,Windows/DOS system file attribute.
-1114532,420,File flag: sparse,0,BN,,!Cx,Fileflag,sparse,Windows/DOS sparse file attribute.
-1114533,421,File flag: offline,0,BN,,!Cx,Fileflag,offline,Windows/CIFS offline storage attribute.
-1114534,422,File flag: read only,0,BN,,!Cx,Fileflag,readonly,Read-only attribute.
-1114535,423,File flag: reparse,0,BN,,!Cx,Fileflag,reparse,Reparse point attribute.
-1114536,424,File flag: snapshot,0,BN,,!Cx,Fileflag,snapshot,Snapshot file attribute.
-1114537,425,File flag: user archive,0,BN,,!Cx,Fileflag,uarch,User archived flag.
-1114538,426,File flag: user no cache,0,BN,,!Cx,Fileflag,unocache,User do not cache file data.
-1114539,427,File flag: user no history,0,BN,,!Cx,Fileflag,unohistory,User do not retain history or snapshots.
-1114540,428,File flag: user cache,0,BN,,!Cx,Fileflag,ucache,User enable data swapcache.
-1114541,429,File flag: user xlink,0,BN,,!Cx,Fileflag,uxlink,User cross-link hardlink boundary.
-1114542,430,File flag: system no history,0,BN,,!Cx,Fileflag,snohistory,Superuser do not retain history or snapshots.
-1114543,431,File flag: system no cache,0,BN,,!Cx,Fileflag,snocache,Superuser disable data swapcache.
-1114544,432,File flag: system xlink,0,BN,,!Cx,Fileflag,sxlink,Superuser cross-link hardlink boundary.
-1114545,433,File flag: compressed,0,BN,,!Cx,Fileflag,compressed,Compressed file attribute.
-1114546,434,File flag: tracked,0,BN,,!Cx,Fileflag,tracked,Document tracking active.
-1114547,435,File flag: data vault,0,BN,,!Cx,Fileflag,datavault,System integrity data vault.
-1114548,436,File flag: restricted,0,BN,,!Cx,Fileflag,restricted,System integrity restricted.
-1114549,437,File flag: firmlink,0,BN,,!Cx,Fileflag,firmlink,APFS firmlink.
-1114550,438,File flag: dataless,0,BN,,!Cx,Fileflag,dataless,APFS dataless file.
-1114551,439,File flag: system log,0,BN,,!Cx,Fileflag,slog,NetBSD WAPBL log file inode.
-1114552,440,File flag: snapshot invalid,0,BN,,!Cx,Fileflag,snapinval,NetBSD invalid snapshot inode.
-1114553,441,File flag: secure removal,0,BN,,!Cx,Fileflag,secrm,Secure deletion.
-1114554,442,File flag: undelete,0,BN,,!Cx,Fileflag,unrm,Undelete.
-1114555,443,File flag: sync,0,BN,,!Cx,Fileflag,sync,Synchronous file updates.
-1114556,444,File flag: no atime,0,BN,,!Cx,Fileflag,noatime,Do not update access time.
-1114557,445,File flag: dirty,0,BN,,!Cx,Fileflag,dirty,Dirty compressed file.
-1114558,446,File flag: compressed blocks,0,BN,,!Cx,Fileflag,comprblk,Compressed cluster or blocks.
-1114559,447,File flag: no compress,0,BN,,!Cx,Fileflag,nocomp,Do not compress.
-1114560,448,File flag: encrypted,0,BN,,!Cx,Fileflag,encrypt,Encrypted file.
-1114561,449,File flag: indexed directory,0,BN,,!Cx,Fileflag,index,Hash-indexed directory.
-1114562,450,File flag: btree,0,BN,,!Cx,Fileflag,btree,Btree format directory.
-1114563,451,File flag: imagic,0,BN,,!Cx,Fileflag,imagic,AFS magic directory inode.
-1114564,452,File flag: journal data,0,BN,,!Cx,Fileflag,journal,Journal file data.
-1114565,453,File flag: no tail,0,BN,,!Cx,Fileflag,notail,Do not merge tail.
-1114566,454,File flag: dir sync,0,BN,,!Cx,Fileflag,dirsync,Synchronous directory updates.
-1114567,455,File flag: top dir,0,BN,,!Cx,Fileflag,topdir,Top of directory hierarchy.
-1114568,456,File flag: huge file,0,BN,,!Cx,Fileflag,hugefile,Huge file format.
-1114569,457,File flag: extent,0,BN,,!Cx,Fileflag,extent,Extents format.
-1114570,458,File flag: verity,0,BN,,!Cx,Fileflag,verity,fs-verity enabled.
-1114571,459,File flag: ea inode,0,BN,,!Cx,Fileflag,eainode,Large extended attribute inode.
-1114572,460,File flag: eof blocks,0,BN,,!Cx,Fileflag,eofblocks,Blocks allocated beyond EOF.
-1114573,461,File flag: no cow,0,BN,,!Cx,Fileflag,nocow,Do not copy-on-write.
-1114574,462,File flag: dax,0,BN,,!Cx,Fileflag,dax,Direct access DAX mode.
-1114575,463,File flag: inline data,0,BN,,!Cx,Fileflag,inlinedata,Inode contains inline data.
-1114576,464,File flag: project inherit,0,BN,,!Cx,Fileflag,projinherit,Project inheritance.
-1114577,465,File flag: casefold,0,BN,,!Cx,Fileflag,casefold,Directory casefolding.
-1114578,466,File flag: reserved for ext2,0,BN,,!Cx,Fileflag,reservedforext2,Reserved flag for ext2/ext4.
+1114521,409,File flag: nodump,0,BN,,!Cx,Semantic:fileflag,nodump,Do not include file in backups.
+1114522,410,File flag: user immutable,0,BN,,!Cx,Semantic:fileflag,uchg,User immutable.
+1114523,411,File flag: user append,0,BN,,!Cx,Semantic:fileflag,uappnd,User append-only.
+1114524,412,File flag: opaque,0,BN,,!Cx,Semantic:fileflag,opaque,Directory opaque to union mounts.
+1114525,413,File flag: hidden,0,BN,,!Cx,Semantic:fileflag,hidden,Hidden in GUI or Finder.
+1114526,414,File flag: archived,0,BN,,!Cx,Semantic:fileflag,arch,System archived flag.
+1114527,415,File flag: system immutable,0,BN,,!Cx,Semantic:fileflag,schg,Superuser immutable.
+1114528,416,File flag: system append,0,BN,,!Cx,Semantic:fileflag,sappnd,Superuser append-only.
+1114529,417,File flag: system no unlink,0,BN,,!Cx,Semantic:fileflag,sunlnk,Superuser cannot unlink or rename.
+1114530,418,File flag: user no unlink,0,BN,,!Cx,Semantic:fileflag,uunlnk,User cannot unlink or rename.
+1114531,419,File flag: system,0,BN,,!Cx,Semantic:fileflag,system,Windows/DOS system file attribute.
+1114532,420,File flag: sparse,0,BN,,!Cx,Semantic:fileflag,sparse,Windows/DOS sparse file attribute.
+1114533,421,File flag: offline,0,BN,,!Cx,Semantic:fileflag,offline,Windows/CIFS offline storage attribute.
+1114534,422,File flag: read only,0,BN,,!Cx,Semantic:fileflag,readonly,Read-only attribute.
+1114535,423,File flag: reparse,0,BN,,!Cx,Semantic:fileflag,reparse,Reparse point attribute.
+1114536,424,File flag: snapshot,0,BN,,!Cx,Semantic:fileflag,snapshot,Snapshot file attribute.
+1114537,425,File flag: user archive,0,BN,,!Cx,Semantic:fileflag,uarch,User archived flag.
+1114538,426,File flag: user no cache,0,BN,,!Cx,Semantic:fileflag,unocache,User do not cache file data.
+1114539,427,File flag: user no history,0,BN,,!Cx,Semantic:fileflag,unohistory,User do not retain history or snapshots.
+1114540,428,File flag: user cache,0,BN,,!Cx,Semantic:fileflag,ucache,User enable data swapcache.
+1114541,429,File flag: user xlink,0,BN,,!Cx,Semantic:fileflag,uxlink,User cross-link hardlink boundary.
+1114542,430,File flag: system no history,0,BN,,!Cx,Semantic:fileflag,snohistory,Superuser do not retain history or snapshots.
+1114543,431,File flag: system no cache,0,BN,,!Cx,Semantic:fileflag,snocache,Superuser disable data swapcache.
+1114544,432,File flag: system xlink,0,BN,,!Cx,Semantic:fileflag,sxlink,Superuser cross-link hardlink boundary.
+1114545,433,File flag: compressed,0,BN,,!Cx,Semantic:fileflag,compressed,Compressed file attribute.
+1114546,434,File flag: tracked,0,BN,,!Cx,Semantic:fileflag,tracked,Document tracking active.
+1114547,435,File flag: data vault,0,BN,,!Cx,Semantic:fileflag,datavault,System integrity data vault.
+1114548,436,File flag: restricted,0,BN,,!Cx,Semantic:fileflag,restricted,System integrity restricted.
+1114549,437,File flag: firmlink,0,BN,,!Cx,Semantic:fileflag,firmlink,APFS firmlink.
+1114550,438,File flag: dataless,0,BN,,!Cx,Semantic:fileflag,dataless,APFS dataless file.
+1114551,439,File flag: system log,0,BN,,!Cx,Semantic:fileflag,slog,NetBSD WAPBL log file inode.
+1114552,440,File flag: snapshot invalid,0,BN,,!Cx,Semantic:fileflag,snapinval,NetBSD invalid snapshot inode.
+1114553,441,File flag: secure removal,0,BN,,!Cx,Semantic:fileflag,secrm,Secure deletion.
+1114554,442,File flag: undelete,0,BN,,!Cx,Semantic:fileflag,unrm,Undelete.
+1114555,443,File flag: sync,0,BN,,!Cx,Semantic:fileflag,sync,Synchronous file updates.
+1114556,444,File flag: no atime,0,BN,,!Cx,Semantic:fileflag,noatime,Do not update access time.
+1114557,445,File flag: dirty,0,BN,,!Cx,Semantic:fileflag,dirty,Dirty compressed file.
+1114558,446,File flag: compressed blocks,0,BN,,!Cx,Semantic:fileflag,comprblk,Compressed cluster or blocks.
+1114559,447,File flag: no compress,0,BN,,!Cx,Semantic:fileflag,nocomp,Do not compress.
+1114560,448,File flag: encrypted,0,BN,,!Cx,Semantic:fileflag,encrypt,Encrypted file.
+1114561,449,File flag: indexed directory,0,BN,,!Cx,Semantic:fileflag,index,Hash-indexed directory.
+1114562,450,File flag: btree,0,BN,,!Cx,Semantic:fileflag,btree,Btree format directory.
+1114563,451,File flag: imagic,0,BN,,!Cx,Semantic:fileflag,imagic,AFS magic directory inode.
+1114564,452,File flag: journal data,0,BN,,!Cx,Semantic:fileflag,journal,Journal file data.
+1114565,453,File flag: no tail,0,BN,,!Cx,Semantic:fileflag,notail,Do not merge tail.
+1114566,454,File flag: dir sync,0,BN,,!Cx,Semantic:fileflag,dirsync,Synchronous directory updates.
+1114567,455,File flag: top dir,0,BN,,!Cx,Semantic:fileflag,topdir,Top of directory hierarchy.
+1114568,456,File flag: huge file,0,BN,,!Cx,Semantic:fileflag,hugefile,Huge file format.
+1114569,457,File flag: extent,0,BN,,!Cx,Semantic:fileflag,extent,Extents format.
+1114570,458,File flag: verity,0,BN,,!Cx,Semantic:fileflag,verity,fs-verity enabled.
+1114571,459,File flag: ea inode,0,BN,,!Cx,Semantic:fileflag,eainode,Large extended attribute inode.
+1114572,460,File flag: eof blocks,0,BN,,!Cx,Semantic:fileflag,eofblocks,Blocks allocated beyond EOF.
+1114573,461,File flag: no cow,0,BN,,!Cx,Semantic:fileflag,nocow,Do not copy-on-write.
+1114574,462,File flag: dax,0,BN,,!Cx,Semantic:fileflag,dax,Direct access DAX mode.
+1114575,463,File flag: inline data,0,BN,,!Cx,Semantic:fileflag,inlinedata,Inode contains inline data.
+1114576,464,File flag: project inherit,0,BN,,!Cx,Semantic:fileflag,projinherit,Project inheritance.
+1114577,465,File flag: casefold,0,BN,,!Cx,Semantic:fileflag,casefold,Directory casefolding.
+1114578,466,File flag: reserved for ext2,0,BN,,!Cx,Semantic:fileflag,reservedforext2,Reserved flag for ext2/ext4.
 1114579,467,Maybe value,0,BN,,!Cx,Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
 1114594,482,Mac OS Finder label: none,0,BN,,!Cx,Semantic,,Finder label index 0.
 1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
@@ -185,19 +185,19 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114606,494,Mac OS extended Finder comment identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Comment resource ID in extended Finder info.
 1114607,495,Mac OS extended Finder put away folder identifier,0,BN,,!Cx,Semantic,:~ [number:Natural0],Directory ID for desktop put away in extended Finder info.
 1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.
-1114609,497,File flag: custom badge,0,BN,,!Cx,Fileflag,custombadge,Mac OS object has custom badge.
-1114610,498,File flag: routing info,0,BN,,!Cx,Fileflag,routinginfo,Mac OS object has routing info.
-1114611,499,File flag: on desk,0,BN,,!Cx,Fileflag,ondesk,Mac OS object resides on desktop.
-1114612,500,File flag: shared application,0,BN,,!Cx,Fileflag,sharedapp,Mac OS application is multi-user shared.
-1114613,501,File flag: no inits,0,BN,,!Cx,Fileflag,noinits,Mac OS file contains no INIT resource.
-1114614,502,File flag: initialized,0,BN,,!Cx,Fileflag,inited,Mac OS Finder has initialized bundle resources.
-1114615,503,File flag: custom icon,0,BN,,!Cx,Fileflag,customicon,Mac OS object has custom icon resource.
-1114616,504,File flag: stationery,0,BN,,!Cx,Fileflag,stationery,Mac OS file is stationery or template.
-1114617,505,File flag: name locked,0,BN,,!Cx,Fileflag,namelocked,Mac OS object name cannot be edited.
-1114618,506,File flag: has bundle,0,BN,,!Cx,Fileflag,hasbundle,Mac OS application has bundle resource.
-1114619,507,File flag: invisible,0,BN,,!Cx,Fileflag,invisible,Mac OS Finder invisible flag.
-1114620,508,File flag: alias,0,BN,,!Cx,Fileflag,alias,Mac OS object is an alias file.
-1114621,509,File flag: extended flags invalid,0,BN,,!Cx,Fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
+1114609,497,File flag: custom badge,0,BN,,!Cx,Semantic:fileflag,custombadge,Mac OS object has custom badge.
+1114610,498,File flag: routing info,0,BN,,!Cx,Semantic:fileflag,routinginfo,Mac OS object has routing info.
+1114611,499,File flag: on desk,0,BN,,!Cx,Semantic:fileflag,ondesk,Mac OS object resides on desktop.
+1114612,500,File flag: shared application,0,BN,,!Cx,Semantic:fileflag,sharedapp,Mac OS application is multi-user shared.
+1114613,501,File flag: no inits,0,BN,,!Cx,Semantic:fileflag,noinits,Mac OS file contains no INIT resource.
+1114614,502,File flag: initialized,0,BN,,!Cx,Semantic:fileflag,inited,Mac OS Finder has initialized bundle resources.
+1114615,503,File flag: custom icon,0,BN,,!Cx,Semantic:fileflag,customicon,Mac OS object has custom icon resource.
+1114616,504,File flag: stationery,0,BN,,!Cx,Semantic:fileflag,stationery,Mac OS file is stationery or template.
+1114617,505,File flag: name locked,0,BN,,!Cx,Semantic:fileflag,namelocked,Mac OS object name cannot be edited.
+1114618,506,File flag: has bundle,0,BN,,!Cx,Semantic:fileflag,hasbundle,Mac OS application has bundle resource.
+1114619,507,File flag: invisible,0,BN,,!Cx,Semantic:fileflag,invisible,Mac OS Finder invisible flag.
+1114620,508,File flag: alias,0,BN,,!Cx,Semantic:fileflag,alias,Mac OS object is an alias file.
+1114621,509,File flag: extended flags invalid,0,BN,,!Cx,Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
 1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.
 1114623,511,Begin Dc representation of format,0,BN,,!Cx,Semantic,:~ [format] [^512]+ [512],E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
 1114624,512,End Dc representation of format,0,BN,,!Cx,Semantic,,

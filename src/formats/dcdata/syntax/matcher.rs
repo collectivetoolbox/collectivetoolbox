@@ -270,6 +270,26 @@ fn match_term_single(
                 }
             }
 
+            // Format category check: [format:<category>]
+            if name == "format" {
+                if let (Some(sub), Some(resolver)) = (subtype, &context.resolver) {
+                    let script_name = format!("Formats:{sub}");
+                    if resolver.matches_script(&script_name, first)
+                        || resolver.matches_script(sub, first)
+                    {
+                        if let Some(var) = capture_var {
+                            context
+                                .captured_vars
+                                .entry(var.clone())
+                                .or_default()
+                                .push(first);
+                        }
+                        return MatchOutcome::Matched { consumed: 1 };
+                    }
+                    return MatchOutcome::Mismatch;
+                }
+            }
+
             // Typed literal framing: [string]
             if name == "string" {
                 if first == DC_LITERAL_BEGIN {

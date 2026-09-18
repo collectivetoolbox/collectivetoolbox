@@ -49,8 +49,8 @@ pub struct TableUpdateStats {
     pub max_short_id: usize,
 }
 
-/// Canonical 22-column unified CSV schema header shared by all generated tables.
-pub const UNIFIED_SCHEMA_HEADER: [&str; 22] = [
+/// Canonical 21-column unified CSV schema header shared by all generated tables.
+pub const UNIFIED_SCHEMA_HEADER: [&str; 21] = [
     "Dc",
     "Short",
     "Name (!=deprecated)",
@@ -62,7 +62,6 @@ pub const UNIFIED_SCHEMA_HEADER: [&str; 22] = [
     "Aliases; >=xref, <=decompos., :=Dc syntax, @chain",
     "Description",
     "Ident (Rust-friendly)",
-    "Category",
     "Extensions (Primary extension first, followed by comma-separated alternatives)",
     "MIME (Primary MIME type first, followed by comma-separated aliases)",
     "Apple Uniform Type Identifier (UTI)",
@@ -574,6 +573,13 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                     get(1)
                                 };
 
+                            let format_category = get(4);
+                            let script_cell = if format_category.is_empty() {
+                                "Formats".to_string()
+                            } else {
+                                format!("Formats:{format_category}")
+                            };
+
                             let unified_row = vec![
                                 get(0),                 // Dc
                                 short_cell,             // Short
@@ -582,11 +588,10 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 "BN".to_string(),       // ⇆
                                 String::new(),          // Aa
                                 "!Cx".to_string(),      // Type
-                                "Formats".to_string(),  // Script
+                                script_cell,            // Script
                                 get(5),                 // Aliases / Base / Chain / Syntax
                                 get(15),                // Description / Comments
                                 ident,                  // Ident
-                                get(4),                 // Category
                                 get(6),                 // Extensions
                                 get(7),                 // MIME
                                 get(8),                 // Apple UTI
@@ -668,7 +673,6 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 get(8),         // Aliases...
                                 get(9),         // Description
                                 String::new(),  // Ident
-                                String::new(),  // Category
                                 String::new(),  // Extensions
                                 String::new(),  // MIME
                                 String::new(),  // Apple UTI
@@ -766,7 +770,6 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             merged_aliases,                   // Aliases
             merged_desc,                      // Description
             String::new(),                    // Ident
-            String::new(),                    // Category
             String::new(),                    // Extensions
             String::new(),                    // MIME
             String::new(),                    // Apple UTI

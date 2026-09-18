@@ -597,7 +597,7 @@ pub fn validate_dc_category_file(
 
     let mut rows = Vec::new();
     let is_generated_csv = file_path.ends_with(".generated.csv");
-    let expected_cols = if is_generated_csv { 22 } else { 10 };
+    let expected_cols = if is_generated_csv { 21 } else { 10 };
 
     if let Some(header) = table.header() {
         if header.len() != expected_cols {
@@ -939,12 +939,49 @@ pub fn validate_dc_category_file(
             None
         };
 
+        let (row_category, format_details) = if let Some(fmt_cat) = script.strip_prefix("Formats:") {
+            let cat_trimmed = fmt_cat.trim();
+            if cat_trimmed.is_empty() {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some("Script"),
+                    "Format script 'Formats:' is missing category name (e.g. 'Formats:calendar')".to_string(),
+                    Some("Specify category name after 'Formats:'"),
+                );
+            }
+            let formatted_cat = if cat_trimmed.starts_with("format_") {
+                cat_trimmed.to_string()
+            } else {
+                format!("format_{cat_trimmed}")
+            };
+            (
+                formatted_cat,
+                Some(crate::dc_def::FormatDetails {
+                    base_format: None,
+                    chain: None,
+                    format_spec: None,
+                    extensions: None,
+                    mime: None,
+                    uti: None,
+                    apple_type: None,
+                    nicknames: None,
+                    import_support: None,
+                    export_support: None,
+                    tests: None,
+                    variant_types: None,
+                }),
+            )
+        } else {
+            (category.clone(), None)
+        };
+
         rows.push(DcDefn {
             dc_id,
             short_id,
             ident: None,
             name,
-            category: category.clone(),
+            category: row_category,
             combining_class,
             bidi_class,
             casing_partner,
@@ -958,7 +995,7 @@ pub fn validate_dc_category_file(
             annotations,
             syntax: dc_syntax,
             description,
-            format: None,
+            format: format_details,
             source_file: file_path.to_string(),
             line_number: line_no,
         });

@@ -94,6 +94,25 @@ impl DatasetRuleResolver {
             }
         }
 
+        // Index formats from formats category files under their script
+        let mut fmt_report = crate::report::ValidationReport::new();
+        for defn in crate::format::validate_all_format_files(
+            &crate::FORMATS_CATEGORIES_DIR,
+            &mut fmt_report,
+        ) {
+            if let Some(short_id) = defn.short_id {
+                let Ok(sid_u32) = u32::try_from(short_id) else {
+                    continue;
+                };
+                if !defn.script.is_empty() {
+                    resolver.add_script_char(defn.script.clone(), sid_u32);
+                }
+                if let Some(ref rule) = defn.syntax {
+                    resolver.add_rule(CharTarget::Format(short_id), rule.clone());
+                }
+            }
+        }
+
         // 2. Index named types from README-named-types.csv
         if let Some(bytes) = crate::get_dc_data_file("README-named-types.csv") {
             let mut rdr = csv::ReaderBuilder::new()
@@ -133,8 +152,24 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
     }
 
     fn matches_script(&self, script_name: &str, token: u32) -> bool {
-        self.script_chars
+        if self
+            .script_chars
             .get(script_name)
             .is_some_and(|set| set.contains(&token))
+        {
+            return true;
+        }
+
+        // Support matching by hierarchical suffix (e.g. "fileflag" matches "Semantic:fileflag",
+        // "calendar" matches "Formats:calendar")
+        for (name, set) in &self.script_chars {
+            if let Some(suffix) = name.split(':').last() {
+                if suffix == script_name && set.contains(&token) {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 }

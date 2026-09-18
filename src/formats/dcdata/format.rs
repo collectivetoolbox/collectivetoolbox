@@ -457,7 +457,7 @@ pub fn validate_formats_category_file(
             bidi_class: BidiClass::BN,
             casing_partner: None,
             general_category: GeneralCategory::NonUnicodeControl,
-            script: "Formats".to_string(),
+            script: format!("Formats:{category}"),
             is_deprecated,
             decompositions,
             aliases,
