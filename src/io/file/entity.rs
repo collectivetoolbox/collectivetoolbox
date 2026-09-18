@@ -298,10 +298,35 @@ impl FileEntity {
             .file_name()
             .and_then(|n| n.to_str());
 
+        // Infer platform prior from Apple metadata, enclosing archive format, or recorded OS environment
+        let platform = if self.metadata.apple.is_some() {
+            ctb_formats_utilities::detection::PlatformHint::MacOS
+        } else if let crate::file::identity::FileOrigin::Archive { archive_format, .. } = &self.identity.origin {
+            let lower = archive_format.to_ascii_lowercase();
+            if lower == "tar" || lower == "cpio" || lower == "pax" || lower == "ar" {
+                ctb_formats_utilities::detection::PlatformHint::Posix
+            } else {
+                ctb_formats_utilities::detection::PlatformHint::Generic
+            }
+        } else if let Some(env) = self.environment() {
+            let lower_os = env.os.to_ascii_lowercase();
+            if lower_os.contains("darwin") || lower_os.contains("macos") || env.looks_like_gnustep {
+                ctb_formats_utilities::detection::PlatformHint::MacOS
+            } else if lower_os.contains("windows") {
+                ctb_formats_utilities::detection::PlatformHint::Windows
+            } else if lower_os.contains("linux") || lower_os.contains("bsd") || lower_os.contains("unix") {
+                ctb_formats_utilities::detection::PlatformHint::Posix
+            } else {
+                ctb_formats_utilities::detection::PlatformHint::from_env()
+            }
+        } else {
+            ctb_formats_utilities::detection::PlatformHint::from_env()
+        };
+
         let hint = ctb_formats_utilities::detection::DetectionHint {
             filename: filename.map(|s| s.to_string()),
             extension: None,
-            platform: ctb_formats_utilities::detection::PlatformHint::from_env(),
+            platform,
             expected_category: None,
         };
 
