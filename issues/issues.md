@@ -2,7 +2,6 @@
 - [ ] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
   - [ ] Make the debug logging less of a footgun somehow?
 - [ ] Web UI: Errors should have a clear way of knowing whether they are serious errors that require a restart, or "normal" errors like password didn't match.
-- [ ] Implement collapse_filtered and collapse_only in base.rs
 - [ ] Support for request logging as a configurable option
 - [ ] Record a build ID and expose it via --version
 - [ ] Make sure to have a build with no bundled browser for linux if it stays 700mb
@@ -38,10 +37,6 @@ Windows-style streams (:Zone.Identifier)
 
 - Windows runner in GitHub actions to run test suite?
 
-- Apple_single_double has its own Dc serializer
-
-- [x] math.csv MathRelation should fail validation due to missing label
-
 - Path Dcs have :~ ([string] | [data]) or whatever, not path
 
 - Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
@@ -52,17 +47,7 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated
 
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
-- [x] Kaitai Struct use vendored runtime; move vendored runtime to local cp437 implementation
 - [x] Kaitai Struct make sure all fixtures are tested
-
-- /// Converts a floating-point number to an integer for Kaitai expressions.
-pub fn float_to_int<F: Into<f64>>(f: F) -> i64 {
-    #[allow(clippy::as_conversions, clippy::cast_possible_truncation, reason = "Kaitai float to integer conversion")]
-    let res = f.into() as i64;
-    res
-}
-use one of the float conversion helpers from utilities? Also the     clippy::as_conversions,
-            clippy::cast_possible_truncation, cast_precision_loss allows
 
 - Kaitai should use Result (bail on violated invariants) and remove all panicking code
 
@@ -70,55 +55,11 @@ use one of the float conversion helpers from utilities? Also the     clippy::as_
 
 - Regenerate Guix packaging in CI
 
-- [x] ia should read in chunks / range requests:
-
-Error: Failed to read download body
-
-Caused by:
-    0: Failed to read HTTP response body
-    1: error decoding response body
-    2: operation timed out
-
-
-Add a Dc to represent long Dcs
-
-
 Deprecate Dcs duplicating Unicode
 
 Pull and export oldest container
 
-- [x] Configurable journal path
-
-- [x] Add a way to flush deleted files from fsindex
-
-- [x] Appended indices should be deduplicated by path
-
-
 File flags did not have complete implementation
-
-- [x] Uninformative error: csc did not describe which file failed: `Error: Failed to preserve ownership (uid: 0, gid: 0) for /test-csc-2026sept8/.csc-tmp.271568.904175094.1035: EPERM: Operation not permitted`
-
-- [x] Skip fwrite based on checksum: materializer-driven smart update and lossless metadata synchronization by default, with --always-overwrite option
-
-- [x] Password-protectable fsindex: Turso native page-level AEAD encryption (aegis256), Argon2id key derivation, AES-256-GCM wrapped DEK, companion *.cscidxmeta metadata file, and transparent b"Turso" magic header detection
-
-- [x] csc --delete-manifest-after option, and `cp` as an alias for it? and mv that moves if possible or `csc --delete-manifest-after` if it needs to move across filesystems
-
-- [x] Progress always says "0.0%". I guess if it doesn't know what the total is, it should hide the percentage. Trying to estimate would probably be too slow.
-
-- [x] `cscv` should disallow verifying from a failed or truncated manifest by default (since it can be very misleading), but provide an option to allow it.
-
-- [x] And make sure a manifest is not marked finished (and thus verifiable by cscv) until it has finished *the full verification pass*.
-
-- [x] `cscv` in best-effort mode shouldn't say `Directory matches manifest perfectly.` if it doesn't - it should say something like `Directory matches manifest in best-effort mode; ignored 1234 ownership differences and 2345 timestamp differences.`
-
-- [x] fsearch `-k` should either be able to accept a single argument, or clearly document that it is able to consume multiple parameters. `-k 'new begun'` finds nothing; `-k 'new' 'begun'` finds something.
-
-- [x] For maximum fidelity, File struct should probably retain the original enclosing path too, even if the relative path is what's being used. For File structs read from a filesystem, they should probably also include a time of read, documenting when that File is current as of.
-
-
-- [x] Does it re-read *both* source and destination files for the verification step, or only one or the other? Should be both.
-
 
 magic-square
 
@@ -203,7 +144,6 @@ Could you investigate what the root cause of this broken behavior is, and correc
 - The Path field in the file picker is not reachable by tab key.
 - The License modal does not trap keyboard focus, so it's possible to tab out of it. It should use `set_focus_lock_filter` like the file picker to ensure you can't tab out.
 - The License modal does not respond to pressing the escape key to close it.
-- Could you refactor out the logic to make a modal dialog into its own module so the file picker, license dialog, and any other similar features later added can use the same component?
 
 - Scripts with cursive joining are badly mangled. See https://github.com/emilk/egui/issues/2517 (I guess the claim in the readme that it works with non-Latin characters is *technically* true, but I wish I'd realized this up front)
 
@@ -217,7 +157,5 @@ Could you investigate what the root cause of this broken behavior is, and correc
 
 
 Also also, I'm realizing that I don't think there's any way to have the local client authenticate to a corresponding registered remote account... remote account registration isn't turned on right now, anyway.
-
-No way to log out. "Register or log in" should probably become "Log out" when logged in.
 
 
