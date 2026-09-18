@@ -110,6 +110,9 @@ The following is a design proposal, not an implemented schema or DSL.
    proof of a valid decomposition. `<equiv>`, `<approx>`, and `<semantic>` do not
    substitute for subtype, axis, origin, or conversion relationships.
 4. **Composition:** Use an expression tree of type references and operations.
+   In source CSV files, column 6 consolidates format specifications using
+   `@chain(...)` (e.g., `@chain(((f15 > f542) ! f0) > f0)`), avoiding horizontal
+   scrolling while permitting future annotations such as `@formalalias(...)`.
    Persisted chains accept numeric Dc references and explicitly registered stable
    named types only; aliases, Rust identifiers, and nicknames are never resolved
    implicitly. Migrate legacy `Chain (=)` entries individually once this

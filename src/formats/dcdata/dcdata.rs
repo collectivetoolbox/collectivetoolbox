@@ -38,6 +38,7 @@ pub mod lookup;
 pub mod report;
 pub mod shared;
 pub mod dc_number_minimal;
+pub mod format_spec;
 pub mod syntax;
 pub mod updater;
 pub mod validation;
@@ -85,6 +86,12 @@ pub use shared::{
     validate_cross_table_uniqueness, validate_extension_entry,
     validate_extensions_field, validate_general_category, validate_mime_field,
     validate_rust_identifier, validate_support_level,
+};
+pub use format_spec::{
+    DcToken, FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH,
+    MAX_FORMAT_EXPR_NODES, decode_dc_stream, decode_dc_stream_string,
+    encode_dc_stream, encode_dc_stream_string, format_chain_directive,
+    format_expr, parse_format_expr, validate_format_expr,
 };
 pub use syntax::{
     ActionArg, CharTarget, DcSyntaxRule, MatchContext, MatchOutcome,
