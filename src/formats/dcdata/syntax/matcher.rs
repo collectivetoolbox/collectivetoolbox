@@ -377,15 +377,18 @@ fn match_term_single(
                 }
             }
 
-            // Fallback for placeholder consumption when resolver is absent or type is unmapped
-            if let Some(var) = capture_var {
-                context
-                    .captured_vars
-                    .entry(var.clone())
-                    .or_default()
-                    .push(first);
+            // Fallback for placeholder consumption when resolver is absent
+            if context.resolver.is_none() {
+                if let Some(var) = capture_var {
+                    context
+                        .captured_vars
+                        .entry(var.clone())
+                        .or_default()
+                        .push(first);
+                }
+                return MatchOutcome::Matched { consumed: 1 };
             }
-            MatchOutcome::Matched { consumed: 1 }
+            MatchOutcome::Mismatch
         }
         SyntaxTerm::RuleRef { target } => {
             if let Some(ref resolver) = context.resolver.clone() {
@@ -406,13 +409,19 @@ fn match_term_single(
                     return MatchOutcome::Mismatch;
                 }
                 if let Some(rule) = resolver.resolve_rule(target) {
+                    let old_self = context.self_dc;
+                    if let CharTarget::Dc(id) = target {
+                        context.self_dc = Some(*id);
+                    }
                     context.call_stack.push(frame_key);
                     context.depth = context.depth.saturating_add(1);
                     let outcome = match_pattern(stream, &rule.pattern, context);
                     context.depth = context.depth.saturating_sub(1);
                     context.call_stack.pop();
+                    context.self_dc = old_self;
                     return outcome;
                 }
+                return MatchOutcome::Mismatch;
             }
 
             if target_matches_token(target, first) {
@@ -528,6 +537,14 @@ pub fn match_pattern(
                         continue;
                     }
                     if context.mode == MatchMode::Strict {
+                        context.has_errors = true;
+                        context.diagnostics.push(SyntaxDiagnostic {
+                            message: format!(
+                                "Unclosed syntax structure at end-of-stream (element index {idx} in sequence)"
+                            ),
+                            token_offset: total_consumed,
+                            is_error: true,
+                        });
                         return MatchOutcome::Mismatch;
                     }
                     let warning = format!(

@@ -2004,93 +2004,12 @@ mod tests {
         assert!(report3.format_report().contains("Unknown named type construct '[unknown_type]'"));
     }
 
-    fn expand_expression_test_pattern(
-        mut pattern: SyntaxPattern,
-        dc_rules: &HashMap<u32, SyntaxPattern>,
-        named_rules: &HashMap<String, SyntaxPattern>,
-        self_dc: Option<u32>,
-        depth: usize,
-    ) -> Result<SyntaxPattern> {
-        ensure!(depth < 32, "Expression test rule expansion exceeded depth limit");
-        let expand = |pattern, self_dc| {
-            expand_expression_test_pattern(
-                pattern, dc_rules, named_rules, self_dc, depth.saturating_add(1),
-            )
-        };
-        match &mut pattern {
-            SyntaxPattern::Alternation(branches) => {
-                for branch in branches {
-                    *branch = expand(branch.clone(), self_dc)?;
-                }
-            }
-            SyntaxPattern::Sequence(elements) => {
-                for element in elements {
-                    element.term = match &element.term {
-                        SyntaxTerm::SelfChar => SyntaxTerm::CharRef(CharTarget::Dc(
-                            self_dc.context("Named types cannot use a self marker")?,
-                        )),
-                        SyntaxTerm::RuleRef { target: CharTarget::Dc(short_id) } => {
-                            SyntaxTerm::Group(expand(
-                                dc_rules.get(short_id).context("Missing Dc rule")?.clone(),
-                                Some(*short_id),
-                            )?)
-                        }
-                        SyntaxTerm::RuleRef { .. } => bail!("Unexpected non-Dc rule"),
-                        SyntaxTerm::NamedConstruct { name, subtype, .. } => {
-                            if name == "script" && subtype.as_deref() == Some("EL Types") {
-                                SyntaxTerm::CharSet {
-                                    negated: false,
-                                    members: vec![
-                                        CharTarget::Dc(264),
-                                        CharTarget::Dc(275),
-                                        CharTarget::Dc(278),
-                                        CharTarget::Dc(280),
-                                        CharTarget::Dc(306),
-                                    ],
-                                }
-                            } else {
-                                ensure!(subtype.is_none(), "Unexpected subtype in expression fixture");
-                                SyntaxTerm::Group(expand(
-                                    named_rules.get(name).context("Missing named rule")?.clone(),
-                                    None,
-                                )?)
-                            }
-                        }
-                        SyntaxTerm::Group(group) => {
-                            SyntaxTerm::Group(expand(group.clone(), self_dc)?)
-                        }
-                        term => term.clone(),
-                    };
-                }
-            }
-        }
-        Ok(pattern)
-    }
-
     #[crate::ctb_test]
     fn test_expression_data_boundaries() -> Result<()> {
-        let data_dir = crate::find_repository_root()?.join("src/formats/dcdata/data");
-        let mut report = ValidationReport::new();
-        let rows = validate_dc_category_file(
-            &std::fs::read(data_dir.join("categories/el.csv"))?,
-            "el.csv",
-            &mut report,
-        );
-        ensure!(!report.has_errors(), "{}", report.format_report());
-        let mut dc_rules = HashMap::new();
-        for row in rows {
-            if let (Some(short_id), Some(rule)) = (row.short_id, row.syntax) {
-                dc_rules.insert(u32::try_from(short_id)?, rule.pattern);
-            }
-        }
-        let mut named_rules = HashMap::new();
-        let mut reader = csv::Reader::from_path(data_dir.join("README-named-types.csv"))?;
-        for record in reader.records() {
-            let record = record?;
-            let name = record.get(0).context("Missing named type name")?;
-            let syntax = record.get(1).context("Missing named type syntax")?;
-            named_rules.insert(name.to_string(), parse_dc_syntax(syntax)?.pattern);
-        }
+        use crate::syntax::{DatasetRuleResolver, MatchMode};
+        use std::sync::Arc;
+
+        let resolver = Arc::new(DatasetRuleResolver::load());
 
         let cases: &[(&str, &[u32], bool)] = &[
             ("[string]", &[260, 262, 264, 263, 261], true),
@@ -2130,26 +2049,26 @@ mod tests {
             ("315:", &[315, 276, 270, 65, 271], true),
         ];
         for (syntax, stream, expected) in cases {
-            let pattern = expand_expression_test_pattern(
-                parse_dc_syntax(syntax)?.pattern, &dc_rules, &named_rules, None, 0,
-            )?;
-            let mut context = crate::syntax::MatchContext::default();
-            let outcome = crate::syntax::match_pattern(stream, &pattern, &mut context);
+            let rule = parse_dc_syntax(syntax)?;
+            let mut context = crate::syntax::MatchContext::default()
+                .with_resolver(resolver.clone())
+                .with_mode(MatchMode::Strict);
+            let outcome = crate::syntax::match_pattern(stream, &rule.pattern, &mut context);
             let complete = outcome == (MatchOutcome::Matched { consumed: stream.len() })
-                && context.warnings.is_empty();
+                && !context.has_errors;
             assert_eq!(complete, *expected, "{syntax}: {stream:?}: {outcome:?}");
         }
 
-        let pattern = expand_expression_test_pattern(
-            parse_dc_syntax("[value]")?.pattern, &dc_rules, &named_rules, None, 0,
-        )?;
+        let rule = parse_dc_syntax("[value]")?;
         let stream = [260, 262, 264, 263, 255, 261, 261, 279, 270, 65, 271];
-        let mut context = crate::syntax::MatchContext::default();
+        let mut context = crate::syntax::MatchContext::default()
+            .with_resolver(resolver.clone())
+            .with_mode(MatchMode::Strict);
         assert_eq!(
-            crate::syntax::match_pattern(&stream, &pattern, &mut context),
+            crate::syntax::match_pattern(&stream, &rule.pattern, &mut context),
             MatchOutcome::Matched { consumed: 7 },
         );
-        assert!(context.warnings.is_empty());
+        assert!(!context.has_errors);
         Ok(())
     }
 
