@@ -54,7 +54,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Parser for libmagic-style hierarchical magic signature rule files (`Magdir`).
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -449,6 +449,7 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
     let mut root_rules = Vec::new();
     // Stack of active rules at each level: (level, rule)
     let mut stack: Vec<HierarchicalMagicRule> = Vec::new();
+    let mut in_named_subroutine = false;
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -458,6 +459,9 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
 
         // Check directives: !:mime, !:ext, !:apple, !:strength
         if let Some(directive) = trimmed.strip_prefix("!:") {
+            if in_named_subroutine {
+                continue;
+            }
             let parts: Vec<&str> = directive.splitn(2, char::is_whitespace).collect();
             let name = parts.first().copied().unwrap_or("");
             let val = parts.get(1).copied().unwrap_or("").trim();
@@ -475,6 +479,22 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
                     _ => {}
                 }
             }
+            continue;
+        }
+
+        // Check for named subroutines (e.g. `0 name gzip-info`)
+        if !trimmed.starts_with('>') {
+            let tokens = split_magic_tokens(trimmed);
+            if tokens.len() >= 2 && tokens.get(1).map(|s| s.as_str()) == Some("name") {
+                in_named_subroutine = true;
+                if let Some(root) = collapse_stack(&mut stack) {
+                    root_rules.push(root);
+                }
+                continue;
+            } else {
+                in_named_subroutine = false;
+            }
+        } else if in_named_subroutine {
             continue;
         }
 

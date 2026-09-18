@@ -53,8 +53,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile, binwalk, fileid, and DROID at the end of this file.
 
 //! File extension registry and matching utilities for format identification.
+//!
+//! Adapted from extension and multi-layer disambiguation logic in
+//! `old/filedetect/polyfile` and `old/filedetect/binwalk`.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"

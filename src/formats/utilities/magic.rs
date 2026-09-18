@@ -54,7 +54,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Hierarchical magic byte pattern evaluation engine for format identification.
 
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -80,13 +80,18 @@ pub struct RuleMatchResult {
 }
 
 /// Evaluates a relational comparison operator.
-fn eval_rel_op<T: Ord + Eq>(val: T, op: RelOp, target: T) -> bool {
+fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
+    val: T,
+    op: RelOp,
+    target: T,
+) -> bool {
     match op {
         RelOp::Eq => val == target,
         RelOp::Ne => val != target,
         RelOp::Gt => val > target,
         RelOp::Lt => val < target,
-        RelOp::BitAnd | RelOp::Any => true,
+        RelOp::BitAnd => (val & target) == target,
+        RelOp::Any => true,
     }
 }
 

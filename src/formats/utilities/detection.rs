@@ -750,9 +750,6 @@ mod tests {
             ..Default::default()
         };
         let candidates = guess_format_candidates(&mut slice, Some(&hint));
-        for (idx, c) in candidates.iter().enumerate() {
-            eprintln!("CANDIDATE {idx}: id={:?}, desc={}, score={}, conf={:?}", c.format_id, c.description, c.score, c.confidence);
-        }
         assert!(!candidates.is_empty());
         let top = &candidates[0];
         assert_eq!(top.format_id, Some(FormatId::Gzip));
