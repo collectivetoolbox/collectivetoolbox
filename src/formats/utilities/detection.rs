@@ -128,7 +128,7 @@ pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
 }
 
 /// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
-pub fn detect_format_id(
+pub fn guess_format_id(
     data: Option<&[u8]>,
     filename_or_ext: Option<&str>,
     expected_category: Option<FormatCategory>,
@@ -225,9 +225,9 @@ mod tests {
     }
 
     #[ctb_test]
-    fn test_detect_format_id() {
+    fn test_guess_format_id() {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = detect_format_id(
+        let fmt = guess_format_id(
             Some(&gzip_data),
             Some("doc.gz"),
             Some(FormatCategory::Compression),
@@ -235,7 +235,7 @@ mod tests {
         assert_eq!(fmt, Some(FormatId::Gzip));
 
         let sco_data = [0x1F, 0xA0, 0x00, 0x00];
-        let fmt_sco = detect_format_id(Some(&sco_data), Some("file.Z"), None);
+        let fmt_sco = guess_format_id(Some(&sco_data), Some("file.Z"), None);
         assert_eq!(fmt_sco, Some(FormatId::ScoCompress));
     }
 }

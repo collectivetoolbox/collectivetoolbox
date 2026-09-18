@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
-use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
+use ctb_formats_utilities::detection::{FormatCategory, guess_format_id};
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 #[expect(
@@ -356,7 +356,7 @@ impl CompressionFormat {
 
     /// Infers compression format from magic header bytes if possible.
     pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        detect_format_id(Some(header), None, Some(FormatCategory::Compression))
+        guess_format_id(Some(header), None, Some(FormatCategory::Compression))
             .and_then(Self::from_format_id)
     }
 
@@ -365,7 +365,7 @@ impl CompressionFormat {
         data: Option<&[u8]>,
         filename_or_ext: Option<&str>,
     ) -> Option<Self> {
-        detect_format_id(
+        guess_format_id(
             data,
             filename_or_ext,
             Some(FormatCategory::Compression),

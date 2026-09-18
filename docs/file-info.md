@@ -472,7 +472,7 @@ literals is separate from treating quoted payloads as executable code.
 - Format specifications are now parsed and validated for persisted `@chain(...)`
   entries via `ctb_formats_dcdata::format_spec`. The preliminary multi-signal
   detection and extension parser in `ctb_formats_utilities::detection` (`FormatChain`,
-  `detect_format_id`, `MAGIC_REGISTRY`, `EXTENSION_REGISTRY`) is an early prototype
+  `guess_format_id`, `MAGIC_REGISTRY`, `EXTENSION_REGISTRY`) is an early prototype
   using hardcoded lists and first-match selection. It must be replaced by a
   declarative, data-driven engine using the Dc format catalog and comprehensive
   rule datasets.
