@@ -1,0 +1,1 @@
+From https://raw.githubusercontent.com/apache/httpd/7b93fd7027accbd3d2bfe9d482b5fd31ab4397db/docs/conf/mime.types
