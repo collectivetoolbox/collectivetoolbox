@@ -4,7 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)` & `@base(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Basic Multi-Signal Format Detection & Extension Chains:** Initial version completed (`ctb_formats_utilities::detection`)
+- **Basic Multi-Signal Format Detection & Extension Chains:** Prototype completed (`ctb_formats_utilities::detection`); pending data-driven probabilistic extension parsing and candidate ranking
 - **Initial Data Cleanup (Math/Line Endings/Calendar):** Completed (2026-09-17)
 - **Grammar & Evaluation Engine:** Completed (strict/permissive parser, bounded recursive matcher, framing validation, and runtime stubs)
 - **Declarative Detection Rule Dataset & Abstract Source Trait:** Pending
@@ -46,17 +46,27 @@
 - [x] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
 
 ### Phase 5: Declarative File Type Detection Engine
-- [x] **Basic Multi-Signal Detection:** Initial implementation combining magic byte matching (`MAGIC_REGISTRY`), extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
-- [x] **Multipart Extension Chain Parsing:** Parse layered extensions (e.g., `.html.gz`, `.pan.Z`) into structured `FormatChain` (`outer`, `inner`, `layers`, `stem`) and format spec chains (`Html > Gzip`).
-- [ ] **Abstract Source Interface (`Source` trait):**
-  - [ ] Implement read-only abstraction covering in-memory byte slices, filesystem paths, and archive member streams.
-  - [ ] Support bounded range reads, size reporting when known, and raw metadata access.
-  - [ ] Implement bounded immediate-child lookup for directory packages (e.g., macOS `.app`) with strict depth/budget limits (no arbitrary tree traversal or symlink following).
-  - [ ] Explicitly distinguish between insufficient data / budget exhaustion and negative matches.
-- [ ] **Declarative Detection Rules Dataset:**
-  - [ ] Create a versioned external dataset of detection rules keyed by format IDs (libmagic-style declarative rules).
-  - [ ] Support byte matches, arbitrary offset ranges, bitmasks, string patterns, and bounded structural probes.
-  - [ ] Multi-candidate detection returning candidates ranked with explicit evidence and confidence semantics (distinguishing heuristic hints from conclusive magic).
+- [x] **Basic Multi-Signal Detection Prototype:** Initial prototype combining static magic byte matching (`MAGIC_REGISTRY`), preliminary extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
+- [ ] **Probabilistic Multipart Extension Parsing & Candidate Chains:**
+  - [ ] Replace hardcoded extension lists with data-driven extension resolution sourced directly from the Dc format dataset (preferred extensions, alternate extensions, and MIME mappings).
+  - [ ] Support probabilistic multi-candidate extension parsing (`Vec<ProbableFormatChain>` or `Vec<FormatCandidate>`) rather than collapsing ambiguities into a single deterministic `FormatChain`.
+  - [ ] Account for ambiguous extensions (e.g., `.as` for ActionScript vs. AppleSingle vs. AngelScript; `.m` for Objective-C vs. MATLAB vs. Mathematica; `.doc` for Word vs. FrameMaker vs. plain documentation) with ranked likelihood.
+  - [ ] Add format prevalence/commonness metadata (frequency weights overall and relative likelihood among formats sharing the same extension).
+  - [ ] Add platform association and environment priors (e.g., AppleSingle / `.as` or `.app` on macOS / classic Mac OS; `.exe` / `.bat` on Windows; `.sh` on POSIX; web/cross-platform formats).
+  - [ ] Support recursive layer peeling that preserves branch probabilities across stages (e.g., `archive.as.gz` peels outer Gzip with high confidence, while the peeled inner `.as` branches into ranked ActionScript vs. AppleSingle candidates).
+- [ ] **Unified Source Interface via `ctb_io_file` (`FileEntity` & `PayloadSource`):**
+  - [ ] Ground detection `Source` abstraction directly in the universal file representation from `src/io/file/` (`FileEntity` and `PayloadSource` trait).
+  - [ ] Expose bounded range reads, known length, and sparse extent maps (`Extent::Data` / `Extent::Hole`) without eager in-memory buffering.
+  - [ ] Support in-memory byte slices (`MemoryPayloadSource`), disk files (`DiskPayloadSource`), and archive member streams through uniform `PayloadSource` handles.
+  - [ ] Implement bounded immediate-child probing for directory packages / application bundles (`FileEntityKind::Bundle` or `Directory`, e.g., macOS `.app`) using `SandboxedDir` / `read_dir_safe`, restricted to bounded depth (1-2) and strict entry/byte quotas without following arbitrary symlinks.
+  - [ ] Leverage attached streams / forks (`AttachedStream`, e.g., AppleDouble `._` companion metadata and resource forks) as rich detection signals.
+  - [ ] Explicitly distinguish between insufficient data / quota exhaustion, read errors, and true negative matches.
+- [ ] **Declarative Detection Rules Engine & Preexisting Engine Integration (`old/filedetect`):**
+  - [ ] **libmagic Engine Port & Rule Compilation:** Port the hierarchical `softmagic` interpreter from BSD-2-Clause `file` (`old/filedetect/file/`) into safe Rust, supporting test trees (`>` hierarchy), endian types, bitmasks, indirect offsets (`FILE_INDIRECT`), relative offsets, and search/regex patterns.
+  - [ ] **Magdir Rule Compilation:** Build an ingestion and compilation pipeline for libmagic's extensive `Magdir/` rule database (15,000+ rules), mapping libmagic MIME/description outputs to authoritative Dc format IDs.
+  - [ ] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
+  - [ ] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
+  - [ ] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`Conclusive`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
@@ -459,30 +469,69 @@ literals is separate from treating quoted payloads as executable code.
 ## Format Detection and Next Work
 
 - Format specifications are now parsed and validated for persisted `@chain(...)`
-  entries via `ctb_formats_dcdata::format_spec`. In addition, multipart filename
-  extensions (such as `.html.gz` and `.pan.Z`) are parsed into structured layers
-  via `FormatChain` in `ctb_formats_utilities::detection`, generating format
-  specification chains (`Html > Gzip`). Initial multi-signal detection
-  (`detect_format_id`) combines magic byte signatures (`MAGIC_REGISTRY`),
-  weighted extension patterns (`EXTENSION_REGISTRY`), and `FormatCategory` domain
-  filtering.
-- Define and allocate relation predicates only after fixing their domains,
-  cardinality, ordering, and relation-instance representation. Then migrate math
-  metadata out of prose and split the overloaded base/chain/syntax field.
-- Inventory supported EITE numeral options and missing line conventions against
-  existing identities. Add missing records without changing existing alphabets
-  or conflating termination with separation. Test empty input, missing final
-  terminators, mixed endings, and ambiguous interpretations.
-- Put detection rules in a separate versioned dataset keyed by format IDs. Each
-  rule should declare byte tests, offsets, masks, bounded structural probes,
-  optional filename patterns, provenance, and applicability. Return multiple
-  candidates with evidence and explicit confidence semantics; a score is not a
-  calibrated probability. Names and extensions alone are weak evidence.
-- Share a read-only source abstraction across byte buffers, filesystem nodes,
-  and archive entries: size when known, bounded range reads, raw names, metadata,
-  and bounded immediate-child lookup. Set byte/read/entry budgets; do not traverse
-  arbitrary subtrees or follow links during package detection. Distinguish
-  insufficient evidence and unavailable data from a negative match.
+  entries via `ctb_formats_dcdata::format_spec`. The preliminary multi-signal
+  detection and extension parser in `ctb_formats_utilities::detection` (`FormatChain`,
+  `detect_format_id`, `MAGIC_REGISTRY`, `EXTENSION_REGISTRY`) is an early prototype
+  using hardcoded lists and first-match selection. It must be replaced by a
+  declarative, data-driven engine using the Dc format catalog and comprehensive
+  rule datasets.
+- Extension parsing into format chains cannot be deterministic or rigid: deriving
+  formats from extensions must support probabilistic returns (`Vec<FormatCandidate>`).
+  While `.html.gz` unambiguously decomposes to `Html > Gzip`, many extensions are
+  inherently ambiguous (e.g., `.as` could be ActionScript, AppleSingle, or
+  AngelScript; `.m` could be Objective-C, MATLAB, or Mathematica; `.doc` could be
+  Word, FrameMaker, or text documentation). To preserve probabilities:
+  - Formats data must include prevalence and relative frequency metadata (how common
+    a format is globally, and its relative likelihood compared to other formats
+    sharing that extension).
+    - Platform affinity and environment priors must be supported (e.g., AppleSingle
+    `.as` or `.app` on macOS / classic Mac OS; `.exe` or `.bat` on Windows; `.sh` on
+    POSIX; web/cross-platform formats). Context passed by the caller (current OS,
+    MIME hints, or domain flags) shifts candidate prior probabilities.
+  - Multi-layer extension peeling must preserve branch probabilities across layers:
+    in `archive.as.gz`, outer `gz` resolves to Gzip with high confidence, while the
+    peeled inner `.as` branches into ranked ActionScript vs. AppleSingle candidates.
+- Ground the detection source abstraction directly on the universal file
+  architecture in `src/io/file/` (`ctb_io_file`):
+  - Do not invent an ad-hoc, isolated `Source` trait in `formats`. Instead, leverage
+    `FileEntity` and `PayloadSource` (`DiskPayloadSource`, `MemoryPayloadSource`),
+    which already provide uniform, zero-copy, and streamed access across disk files,
+    in-memory byte buffers, and archive member streams.
+  - Expose bounded range reads, known logical size, and sparse extent awareness
+    (`Extent::Data` / `Extent::Hole`) without eager intermediate buffering.
+  - For directory packages and application bundles (`FileEntityKind::Bundle` or
+    `Directory`, such as macOS `.app` or `.pages`), implement bounded child-node
+    probing using `SandboxedDir` / `read_dir_safe`. Probes must adhere to strict entry
+    count and shallow depth quotas (depth 1–2; e.g. checking for `Contents/Info.plist`),
+    never executing arbitrary recursive traversals or following external symlinks.
+  - Alternate data streams, resource forks, and companion metadata files (e.g.,
+    AppleDouble `._` files via `AttachedStream`) represent primary detection
+    signals and must be accessible to detection rules directly from `FileEntity`.
+  - Explicitly distinguish insufficient evidence / budget exhaustion from true
+    negative matches.
+- Leverage license-compatible algorithms, data structures, and datasets from
+  preexisting implementations in `old/filedetect`:
+  - **libmagic (`old/filedetect/file/`, BSD-2-Clause):** Port the core `softmagic`
+    interpreter to safe Rust (evaluating hierarchical `>` test trees, numerical/endian
+    comparisons, bitmasks, indirect pointer offsets `FILE_INDIRECT`, relative
+    offsets, and string/search/regex patterns). Create an offline ingestion/compilation
+    tool to compile libmagic's extensive `Magdir/` rule database (15,000+ rules)
+    into binary or Dc-keyed rule tables, mapping libmagic format outputs to
+    authoritative Dc format IDs.
+  - **Priority Weighting & MIME Inheritance:** Implement an explicit 0–100 priority/weight
+    scale for resolving signature conflicts between general and specific formats, as well
+    as MIME inheritance graphs (`sub-class-of`). Implementation must be strictly
+    clean-room using our own format schema; do not reuse existing implementations
+    of this idea.
+  - **DROID / PRONOM (`old/filedetect/droid/`, BSD-3-Clause):** Adopt dual-anchored
+    byte patterns: BOF (Beginning of File) and EOF (End of File) anchored signatures
+    with variable offset windows. Adopt its declarative **container signature model**
+    for inspecting internal entries within archive containers (ZIP, OLE2, ISO) to
+    classify formats (such as DOCX, EPUB, JAR, APK) without full extraction.
+  - **PolyFile (`old/filedetect/polyfile/`, Apache-2.0 / MIT):** Adopt
+    point-weighted scoring to compute calibrated confidence percentages across
+    candidates, and support polyglot/composite awareness where multiple valid format
+    signatures legitimately co-exist in one stream.
 - Lossless archive representation must preserve raw path bytes, metadata,
   multiple streams, links, sparse extents, timestamp precision and unknown fields.
   Logical entry round-tripping is not necessarily byte-for-byte archive
