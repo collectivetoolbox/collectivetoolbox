@@ -68,6 +68,8 @@
   - [ ] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
   - [x] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
   - [x] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
+  - [ ] **Nested file parsing** like polyfile.
+  - [ ] Integrate DROID database?
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).

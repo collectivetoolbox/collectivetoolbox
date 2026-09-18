@@ -49,8 +49,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// See license text at the beginning of this file for full license details for parts derived from `file`.
-// See the full license details for parts derived from polyfile, binwalk, fileid, and DROID at the end of this file.
+// See license text at the beginning of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
+// See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 //! Build-time and runtime derivation of MIME type and extension mappings to
 //! authoritative Document Characters (Dcs) and Format IDs.
