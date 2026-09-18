@@ -325,40 +325,22 @@ pub fn validate_formats_category_file(
             }
         }
 
-        let items = split_comma_separated_items(&base_format_raw);
-        let mut base_parts = Vec::new();
-        let mut decompositions = Vec::new();
-        let mut syntax_raw = None;
-        let mut chain_raw = None;
-        let mut format_spec_raw = None;
-        for item in items {
-            if item.starts_with(':') {
-                syntax_raw = Some(item);
-            } else if item.starts_with("@chain(") || item.starts_with("@(") {
-                format_spec_raw = Some(item);
-            } else if item.starts_with('=') {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Base/Related Format (chain)"),
-                    format!(
-                        "Legacy chain syntax '=' is deprecated: '{item}'. Use '@chain(...)' instead"
-                    ),
-                    Some("Update to '@chain(...)' format specification syntax"),
-                );
-                chain_raw = Some(item);
-            } else if item.starts_with('<') {
-                decompositions.push(item);
-            } else {
-                base_parts.push(item);
-            }
-        }
-        let base_format = if base_parts.is_empty() {
+        let parsed = crate::column_spec::parse_aliases_or_base_column(
+            &base_format_raw,
+            file_path,
+            line_no,
+            report,
+            true,
+        );
+        let base_format = if parsed.base_formats.is_empty() {
             None
         } else {
-            Some(base_parts.join(", "))
+            Some(parsed.base_formats.join(", "))
         };
-        let chain = chain_raw;
+        let chain = None;
+        let format_spec_raw = parsed.format_spec_raw;
+        let syntax_raw = parsed.syntax_raw;
+        let decompositions = parsed.decompositions;
         let format_spec = if let Some(raw_spec) = &format_spec_raw {
             match parse_format_expr(raw_spec) {
                 Ok(expr) => {

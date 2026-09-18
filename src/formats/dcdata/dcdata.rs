@@ -37,11 +37,16 @@ pub mod layout;
 pub mod lookup;
 pub mod report;
 pub mod shared;
+pub mod column_spec;
 pub mod dc_number_minimal;
 pub mod format_spec;
 pub mod syntax;
 pub mod updater;
 pub mod validation;
+
+pub use column_spec::{
+    ParsedAliasesOrBaseColumn, parse_aliases_or_base_column,
+};
 
 pub use ctb_storage_minimal::shorthand;
 pub use ctb_storage_minimal::shorthand::{
