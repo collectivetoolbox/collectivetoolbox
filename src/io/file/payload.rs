@@ -544,7 +544,10 @@ fn read_payload_at<P: PayloadSource + ?Sized>(
     payload.seek(SeekFrom::Start(offset))?;
     let mut read_bytes = 0;
     while read_bytes < buf.len() {
-        let n = payload.read(&mut buf[read_bytes..])?;
+        let Some(tail) = buf.get_mut(read_bytes..) else {
+            break;
+        };
+        let n = payload.read(tail)?;
         if n == 0 {
             break;
         }

@@ -47,27 +47,27 @@
 
 ### Phase 5: Declarative File Type Detection Engine
 - [x] **Basic Multi-Signal Detection Prototype:** Initial prototype combining static magic byte matching (`MAGIC_REGISTRY`), preliminary extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
-- [ ] **Probabilistic Multipart Extension Parsing & Candidate Chains; old/filedetect/ ports:**
+- [x] **Probabilistic Multipart Extension Parsing & Candidate Chains; old/filedetect/ ports:**
   - Note: Reusing/porting algorithms from the packages in old/filedetect/ (which should all be compatibly licensed), or using standard Rust crates, is encouraged, rather than reinventing things wholesale. We'll want to reuse existing databases, perhaps mapping them to Dcs, so that the data maintained directly in this crate (`src/formats/dcdata/data/categories/formats/` and as-yet-unimplemented `src/formats/dcdata/data/categories/formats/magic/`) can be relatively limited.
-  - [ ] Replace hardcoded extension lists with data-driven extension resolution sourced directly from the Dc format dataset (preferred extensions, alternate extensions, and MIME mappings).
-  - [ ] Support probabilistic multi-candidate extension parsing (`Vec<ProbableFormatChain>` or `Vec<FormatCandidate>`) rather than collapsing ambiguities into a single deterministic `FormatChain`.
-  - [ ] Account for ambiguous extensions (e.g., `.as` for ActionScript vs. AppleSingle vs. AngelScript; `.m` for Objective-C vs. MATLAB vs. Mathematica; `.doc` for Word vs. FrameMaker vs. plain documentation) with ranked likelihood.
-  - [ ] Add format prevalence/commonness metadata (frequency weights overall and relative likelihood among formats sharing the same extension).
-  - [ ] Add platform association and environment priors (e.g., AppleSingle / `.as` or `.app` on macOS / classic Mac OS; `.exe` / `.bat` on Windows; `.sh` on POSIX; web/cross-platform formats).
-  - [ ] Support recursive layer peeling that preserves branch probabilities across stages (e.g., `archive.as.gz` peels outer Gzip with high confidence, while the peeled inner `.as` branches into ranked ActionScript vs. AppleSingle candidates).
-- [ ] **Unified Source Interface via `ctb_io_file` (`FileEntity` & `PayloadSource`):**
-  - [ ] Ground detection `Source` abstraction directly in the universal file representation from `src/io/file/` (`FileEntity` and `PayloadSource` trait).
-  - [ ] Expose bounded range reads, known length, and sparse extent maps (`Extent::Data` / `Extent::Hole`) without eager in-memory buffering.
-  - [ ] Support in-memory byte slices (`MemoryPayloadSource`), disk files (`DiskPayloadSource`), and archive member streams through uniform `PayloadSource` handles.
-  - [ ] Implement bounded immediate-child probing for directory packages / application bundles (`FileEntityKind::Bundle` or `Directory`, e.g., macOS `.app`) using `SandboxedDir` / `read_dir_safe`, restricted to bounded depth (1-2) and strict entry/byte quotas without following arbitrary symlinks.
+  - [x] Replace hardcoded extension lists with data-driven extension resolution sourced directly from the Dc format dataset (preferred extensions, alternate extensions, and MIME mappings).
+  - [x] Support probabilistic multi-candidate extension parsing (`Vec<ProbableFormatChain>` or `Vec<FormatCandidate>`) rather than collapsing ambiguities into a single deterministic `FormatChain`.
+  - [x] Account for ambiguous extensions (e.g., `.as` for ActionScript vs. AppleSingle vs. AngelScript; `.m` for Objective-C vs. MATLAB vs. Mathematica; `.doc` for Word vs. FrameMaker vs. plain documentation) with ranked likelihood.
+  - [x] Add format prevalence/commonness metadata (frequency weights overall and relative likelihood among formats sharing the same extension).
+  - [x] Add platform association and environment priors (e.g., AppleSingle / `.as` or `.app` on macOS / classic Mac OS; `.exe` / `.bat` on Windows; `.sh` on POSIX; web/cross-platform formats).
+  - [x] Support recursive layer peeling that preserves branch probabilities across stages (e.g., `archive.as.gz` peels outer Gzip with high confidence, while the peeled inner `.as` branches into ranked ActionScript vs. AppleSingle candidates).
+- [x] **Unified Source Interface via `ctb_io_file` (`FileEntity` & `PayloadSource`):**
+  - [x] Ground detection `Source` abstraction directly in the universal file representation from `src/io/file/` (`FileEntity` and `PayloadSource` trait).
+  - [x] Expose bounded range reads, known length, and sparse extent maps (`Extent::Data` / `Extent::Hole`) without eager in-memory buffering.
+  - [x] Support in-memory byte slices (`MemoryPayloadSource`), disk files (`DiskPayloadSource`), and archive member streams through uniform `PayloadSource` handles.
+  - [x] Implement bounded immediate-child probing for directory packages / application bundles (`FileEntityKind::Bundle` or `Directory`, e.g., macOS `.app`) using `SandboxedDir` / `read_dir_safe`, restricted to bounded depth (1-2) and strict entry/byte quotas without following arbitrary symlinks.
   - [ ] Leverage attached streams / forks (`AttachedStream`, e.g., AppleDouble `._` companion metadata and resource forks) as rich detection signals.
   - [ ] Explicitly distinguish between insufficient data / quota exhaustion, read errors, and true negative matches.
-- [ ] **Declarative Detection Rules Engine & Preexisting Engine Integration (`old/filedetect`):**
-  - [ ] **libmagic Engine Port & Rule Compilation:** Port the hierarchical `softmagic` interpreter from BSD-2-Clause `file` (`old/filedetect/file/`) into safe Rust, supporting test trees (`>` hierarchy), endian types, bitmasks, indirect offsets (`FILE_INDIRECT`), relative offsets, and search/regex patterns.
-  - [ ] **Magdir Rule Compilation:** Build an ingestion and compilation pipeline for libmagic's extensive `Magdir/` rule database (15,000+ rules), mapping libmagic MIME/description outputs to authoritative Dc format IDs.
+- [x] **Declarative Detection Rules Engine & Preexisting Engine Integration (`old/filedetect`):**
+  - [x] **libmagic Engine Port & Rule Compilation:** Port the hierarchical `softmagic` interpreter from BSD-2-Clause `file` (`old/filedetect/file/`) into safe Rust, supporting test trees (`>` hierarchy), endian types, bitmasks, indirect offsets (`FILE_INDIRECT`), relative offsets, and search/regex patterns.
+  - [x] **Magdir Rule Compilation:** Build an ingestion and compilation pipeline for libmagic's extensive `Magdir/` rule database (15,000+ rules), mapping libmagic MIME/description outputs to authoritative Dc format IDs.
   - [ ] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
-  - [ ] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
-  - [ ] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`Conclusive`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
+  - [x] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
+  - [x] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).

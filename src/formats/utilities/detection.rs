@@ -302,7 +302,8 @@ pub fn guess_format_candidates(
         let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
         let mut buf = vec![0u8; req_len];
         if let Ok(n) = source.read_at(0, &mut buf) {
-            if n >= req_len && entry.pattern.matches(&buf[..n]) {
+            let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
+            if is_match {
                 let fmt = entry.format_id;
                 let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
                 let dc_id = mapping.map(|m| m.dc_id);

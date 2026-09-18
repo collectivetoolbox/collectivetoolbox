@@ -30,7 +30,10 @@ use crate::detection::FormatCategory;
 use ctb_utilities::*;
 
 /// Unified format identifier for compression, archives, documents, images, and encodings.
-#[allow(non_camel_case_types)]
+#[expect(
+    non_camel_case_types,
+    reason = "Language and format variants use underscores to reflect canonical format abbreviations"
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FormatId {
     // Single-stream compression formats
