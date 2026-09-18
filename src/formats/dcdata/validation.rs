@@ -2037,11 +2037,24 @@ mod tests {
                         }
                         SyntaxTerm::RuleRef { .. } => bail!("Unexpected non-Dc rule"),
                         SyntaxTerm::NamedConstruct { name, subtype, .. } => {
-                            ensure!(subtype.is_none(), "Unexpected subtype in expression fixture");
-                            SyntaxTerm::Group(expand(
-                                named_rules.get(name).context("Missing named rule")?.clone(),
-                                None,
-                            )?)
+                            if name == "script" && subtype.as_deref() == Some("EL Types") {
+                                SyntaxTerm::CharSet {
+                                    negated: false,
+                                    members: vec![
+                                        CharTarget::Dc(264),
+                                        CharTarget::Dc(275),
+                                        CharTarget::Dc(278),
+                                        CharTarget::Dc(280),
+                                        CharTarget::Dc(306),
+                                    ],
+                                }
+                            } else {
+                                ensure!(subtype.is_none(), "Unexpected subtype in expression fixture");
+                                SyntaxTerm::Group(expand(
+                                    named_rules.get(name).context("Missing named rule")?.clone(),
+                                    None,
+                                )?)
+                            }
                         }
                         SyntaxTerm::Group(group) => {
                             SyntaxTerm::Group(expand(group.clone(), self_dc)?)
@@ -2169,6 +2182,218 @@ mod tests {
         assert_eq!(outcome_assign, MatchOutcome::Matched { consumed: 3 });
         assert_eq!(ctx_assign.captured_vars.get("ident"), Some(&vec![100]));
         assert_eq!(ctx_assign.captured_vars.get("val"), Some(&vec![200]));
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_framing_and_escaping() {
+        use crate::syntax::{
+            MatchMode, scan_identifier_frame, scan_literal_frame,
+        };
+
+        // 1. Valid typed literal with escape sequences
+        let stream = vec![260, 262, 264, 263, 255, 261, 255, 255, 65, 261];
+        let mut diags = Vec::new();
+        let scanned = scan_literal_frame(&stream, MatchMode::Strict, &mut diags, 0);
+        assert!(scanned.is_some());
+        let (lit, consumed) = scanned.unwrap();
+        assert_eq!(consumed, 10);
+        assert_eq!(lit.raw_tokens, stream);
+        assert_eq!(lit.type_header, vec![264]);
+        assert_eq!(lit.decoded_payload, vec![261, 255, 65]);
+        assert!(diags.is_empty());
+
+        // 2. Delimiter belonging to another construct inside literal payload
+        let param_stream = vec![260, 262, 264, 263, 259, 261];
+        let (lit_p, consumed_p) = scan_literal_frame(
+            &param_stream,
+            MatchMode::Strict,
+            &mut diags,
+            0,
+        )
+        .unwrap();
+        assert_eq!(consumed_p, 6);
+        assert_eq!(lit_p.decoded_payload, vec![259]);
+
+        // 3. Dangling escape 255 at EOF
+        let dangling_stream = vec![260, 262, 264, 263, 65, 255];
+        let mut strict_diags = Vec::new();
+        assert!(
+            scan_literal_frame(
+                &dangling_stream,
+                MatchMode::Strict,
+                &mut strict_diags,
+                0
+            )
+            .is_none()
+        );
+        let mut perm_diags = Vec::new();
+        let perm_scanned = scan_literal_frame(
+            &dangling_stream,
+            MatchMode::Permissive,
+            &mut perm_diags,
+            0,
+        );
+        assert!(perm_scanned.is_some());
+        assert!(
+            perm_diags
+                .iter()
+                .any(|d| d.is_error && d.message.contains("Dangling escape"))
+        );
+
+        // 4. Missing terminator 261
+        let unclosed_stream = vec![260, 262, 264, 263, 65, 66];
+        let mut strict_diags2 = Vec::new();
+        assert!(
+            scan_literal_frame(
+                &unclosed_stream,
+                MatchMode::Strict,
+                &mut strict_diags2,
+                0
+            )
+            .is_none()
+        );
+        let mut perm_diags2 = Vec::new();
+        let perm_scanned2 = scan_literal_frame(
+            &unclosed_stream,
+            MatchMode::Permissive,
+            &mut perm_diags2,
+            0,
+        );
+        assert!(perm_scanned2.is_some());
+        assert!(
+            perm_diags2
+                .iter()
+                .any(|d| d.is_error && d.message.contains("Unclosed literal"))
+        );
+
+        // 5. Identifier framing
+        let ident_stream = vec![270, 65, 255, 271, 271];
+        let mut ident_diags = Vec::new();
+        let (ident, ident_consumed) = scan_identifier_frame(
+            &ident_stream,
+            MatchMode::Strict,
+            &mut ident_diags,
+            0,
+        )
+        .unwrap();
+        assert_eq!(ident_consumed, 5);
+        assert_eq!(ident.raw_tokens, ident_stream);
+        assert!(ident_diags.is_empty());
+
+        // 6. Empty identifier in strict mode
+        let empty_ident = vec![270, 271];
+        let mut empty_diags = Vec::new();
+        assert!(
+            scan_identifier_frame(
+                &empty_ident,
+                MatchMode::Strict,
+                &mut empty_diags,
+                0
+            )
+            .is_none()
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_typed_literal_headers_el_types() {
+        use crate::syntax::{
+            DatasetRuleResolver, MatchContext, MatchOutcome,
+            match_syntax_rule_with_context,
+        };
+        use std::sync::Arc;
+
+        let resolver = Arc::new(DatasetRuleResolver::load());
+        let rule = parse_dc_syntax(":~ [script:EL Types] 263").unwrap();
+
+        // Dc 262 defines type definition header: matches String (264), Object (275), Number (278), Routine (280), Routine name (306)
+        let valid_type_dcs = [264u32, 275, 278, 280, 306];
+        for type_dc in valid_type_dcs {
+            let stream = vec![262, type_dc, 263];
+            let mut ctx = MatchContext::new(Some(262))
+                .with_resolver(resolver.clone());
+            let outcome = match_syntax_rule_with_context(&stream, &rule, &mut ctx);
+            assert_eq!(
+                outcome,
+                MatchOutcome::Matched { consumed: 3 },
+                "Failed for type Dc {type_dc}"
+            );
+        }
+
+        // Non-EL Types character (e.g. comment begin Dc 246) must fail to match
+        let invalid_stream = vec![262, 246, 263];
+        let mut ctx = MatchContext::new(Some(262))
+            .with_resolver(resolver.clone());
+        let outcome = match_syntax_rule_with_context(&invalid_stream, &rule, &mut ctx);
+        assert_eq!(outcome, MatchOutcome::Mismatch);
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_non_evaluating_document_parser() {
+        use crate::syntax::{MatchMode, ParsedElement, parse_document_tokens};
+
+        // 1. Parse idiomatic-hello-world.sems: say 'Hello, World!'
+        let stream = vec![
+            256, 258, 260, 262, 264, 263, 57, 86, 93, 93, 96, 30, 18, 72, 96,
+            99, 93, 85, 19, 261, 259,
+        ];
+        let doc = parse_document_tokens(&stream, MatchMode::Permissive);
+        assert!(!doc.has_errors);
+        assert!(doc.diagnostics.is_empty());
+        assert_eq!(doc.elements.len(), 1);
+
+        let Some(ParsedElement::Invocation { target, args }) = doc.elements.first()
+        else {
+            panic!("Expected Invocation element");
+        };
+        assert_eq!(**target, ParsedElement::RawTokens(vec![256]));
+        assert_eq!(args.len(), 1);
+
+        let Some(ParsedElement::Parameter(param_children)) = args.first() else {
+            panic!("Expected Parameter element");
+        };
+        assert_eq!(param_children.len(), 1);
+
+        let Some(ParsedElement::Literal(lit)) = param_children.first() else {
+            panic!("Expected Literal element");
+        };
+        assert_eq!(lit.type_header, vec![264]);
+        assert_eq!(
+            lit.decoded_payload,
+            vec![57, 86, 93, 93, 96, 30, 18, 72, 96, 99, 93, 85, 19]
+        );
+
+        // 2. Mangled / broken document: unclosed literal followed by unparsed tokens
+        let mangled = vec![260, 262, 264, 263, 10, 20, 99, 100];
+        let mangled_doc = parse_document_tokens(&mangled, MatchMode::Permissive);
+        assert!(mangled_doc.has_errors);
+        assert!(!mangled_doc.diagnostics.is_empty());
+        assert!(!mangled_doc.elements.is_empty());
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_syntax_resolver_and_expansion_bounds() {
+        use crate::syntax::{
+            DatasetRuleResolver, MatchContext, MatchOutcome,
+            SyntaxRuleResolver, match_pattern,
+        };
+        use std::sync::Arc;
+
+        let resolver = Arc::new(DatasetRuleResolver::load());
+
+        // Verify resolver loads rules from el.csv and README-named-types.csv
+        assert!(resolver.resolve_named_type("list").is_some());
+        assert!(resolver.resolve_named_type("key_value").is_some());
+        assert!(resolver.resolve_named_type("string").is_some());
+
+        // Bounded recursion test: verify recursion depth limit protects against stack overflow
+        let recursive_rule = parse_dc_syntax(":[value]").unwrap();
+        let mut ctx = MatchContext::new(None)
+            .with_mode(crate::syntax::MatchMode::Permissive)
+            .with_resolver(resolver.clone());
+        ctx.max_depth = 5;
+        ctx.depth = 5;
+        let outcome = match_pattern(&[1, 2, 3], &recursive_rule.pattern, &mut ctx);
+        assert_eq!(outcome, MatchOutcome::Mismatch);
     }
 
     #[crate::ctb_test]

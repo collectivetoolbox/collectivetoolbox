@@ -150,7 +150,7 @@ use std::collections::HashMap;
 use ctb_formats_dcstring::DcString;
 
 /// Native Document Character runtime value.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeValue {
     /// Document Character string representation without premature UTF-8
     /// decoding.
@@ -174,6 +174,8 @@ pub enum Privilege {
     Network,
     /// High-resolution timers or performance counters.
     HighResolutionTimers,
+    /// Excessive compute budget exhausted before the document is fully parsed.
+    ExcessiveCompute,
     /// Custom privileged operation.
     Custom(String),
 }
@@ -190,6 +192,9 @@ pub enum PermissionDecision {
     ManualMock,
     /// Allow the permission (gated behind warning UI when parse errors exist).
     Allow,
+    /// Break out of infinite loops or excessive compute and resume executing
+    /// and printing the document on the next Dc.
+    BreakOutResumeNext,
 }
 
 /// Execution context for document evaluation and capability permission gating.
@@ -220,7 +225,13 @@ impl ExecutionContext {
     /// Evaluates a permission request, strongly steering toward mocking or
     /// denying if `has_errors` is true.
     #[must_use]
-    pub fn request_permission(&self, _privilege: &Privilege) -> PermissionDecision {
+    pub fn request_permission(&self, privilege: &Privilege) -> PermissionDecision {
+        if matches!(privilege, Privilege::ExcessiveCompute) {
+            // For compute exhaustion, default to offering breakout to resume
+            // execution/printing on the next Dc.
+            return PermissionDecision::BreakOutResumeNext;
+        }
+
         if self.has_errors {
             // Strongly steer away from Allow when document has errors
             PermissionDecision::AutoMock
@@ -229,17 +240,23 @@ impl ExecutionContext {
         }
     }
 
-    /// Increments compute step count, returning an error if compute budget is
-    /// exhausted.
-    pub fn step(&mut self) -> Result<(), anyhow::Error> {
+    /// Increments compute step count, checking if the compute budget is
+    /// exhausted. If exhausted, raises a permission request for
+    /// `Privilege::ExcessiveCompute`.
+    pub fn step(&mut self) -> Result<PermissionDecision, anyhow::Error> {
         self.compute_steps = self.compute_steps.saturating_add(1);
         if self.compute_steps > self.max_compute_steps {
+            let decision = self.request_permission(&Privilege::ExcessiveCompute);
+            if decision == PermissionDecision::BreakOutResumeNext {
+                // Reset or allow caller to break out and resume at the next Dc
+                return Ok(PermissionDecision::BreakOutResumeNext);
+            }
             anyhow::bail!(
-                "Compute budget exhausted ({} steps); permission required to continue",
+                "Compute budget exhausted ({} steps); permission denied to continue",
                 self.max_compute_steps
             );
         }
-        Ok(())
+        Ok(PermissionDecision::Allow)
     }
 }
 
@@ -276,5 +293,15 @@ mod tests {
             error_ctx.request_permission(&Privilege::FileIo),
             PermissionDecision::AutoMock
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_excessive_compute_breakout() {
+        let mut ctx = ExecutionContext::new(false);
+        ctx.max_compute_steps = 2;
+        assert_eq!(ctx.step().unwrap(), PermissionDecision::Allow);
+        assert_eq!(ctx.step().unwrap(), PermissionDecision::Allow);
+        // Exceeding budget triggers breakout to resume on next Dc
+        assert_eq!(ctx.step().unwrap(), PermissionDecision::BreakOutResumeNext);
     }
 }

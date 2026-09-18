@@ -96,25 +96,25 @@ impl DatasetRuleResolver {
 
         // 2. Index named types from README-named-types.csv
         if let Some(bytes) = crate::get_dc_data_file("README-named-types.csv") {
-            if let Ok(mut rdr) = csv::ReaderBuilder::new()
+            let mut rdr = csv::ReaderBuilder::new()
                 .has_headers(true)
                 .flexible(true)
-                .from_reader(&bytes[..])
-                .map(|r| r)
-            {
-                for result in rdr.records().flatten() {
-                    let Some(name) = result.get(0).map(str::trim) else {
-                        continue;
-                    };
-                    let Some(syntax_raw) = result.get(1).map(str::trim) else {
-                        continue;
-                    };
-                    if name.is_empty() || syntax_raw.is_empty() {
-                        continue;
-                    }
-                    if let Ok(rule) = parse_dc_syntax(syntax_raw) {
-                        resolver.add_named_type(name.to_string(), rule.pattern);
-                    }
+                .from_reader(&bytes[..]);
+            for result in rdr.records() {
+                let Ok(record) = result else {
+                    continue;
+                };
+                let Some(name) = record.get(0).map(str::trim) else {
+                    continue;
+                };
+                let Some(syntax_raw) = record.get(1).map(str::trim) else {
+                    continue;
+                };
+                if name.is_empty() || syntax_raw.is_empty() {
+                    continue;
+                }
+                if let Ok(rule) = parse_dc_syntax(syntax_raw) {
+                    resolver.add_named_type(name.to_string(), rule.pattern);
                 }
             }
         }

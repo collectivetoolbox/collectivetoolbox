@@ -27,9 +27,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, FramedIdentifier, FramedLiteral,
-    MatchMode, ParsedDocument, ParsedElement, Quantifier, SyntaxAction,
-    SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, MatchMode, ParsedDocument,
+    ParsedElement, Quantifier, SyntaxAction, SyntaxDiagnostic, SyntaxElement,
+    SyntaxPattern, SyntaxTerm,
 };
 use super::framing::{
     DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,

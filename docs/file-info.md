@@ -6,7 +6,7 @@
 - **Data Migration to `@chain(...)` & `@base(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
 - **Basic Multi-Signal Format Detection & Extension Chains:** Initial version completed (`ctb_formats_utilities::detection`)
 - **Initial Data Cleanup (Math/Line Endings/Calendar):** Completed (2026-09-17)
-- **Grammar & Evaluation Engine:** Data definitions complete; strict parser/evaluator pending
+- **Grammar & Evaluation Engine:** Completed (strict/permissive parser, bounded recursive matcher, framing validation, and runtime stubs)
 - **Declarative Detection Rule Dataset & Abstract Source Trait:** Pending
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
@@ -38,12 +38,12 @@
 ### Phase 4: Syntax Framing, Grammar & Safe Evaluator
 - [x] **Syntactic Roles Specification:** Define distinct named-type roles for `string`, `identifier`, `value`, and `statement` in named-type definitions.
 - [x] **Framing & Escaping Rules:** Document literal delimiter syntax (`260 <header> <payload> 261`) with escape character `255` protecting terminators and inner escapes.
-- [ ] **Strict Grammar Matcher:** Upgrade syntax matcher from token placeholder consumption to full, namespace-safe, bounded recursive rule expansion.
-- [ ] **Strict Framing Validation:** Reject truncated structures or dangling escapes instead of falling back to warning recovery during execution validation.
-- [ ] **Non-Evaluating Parser & Safe Evaluator:** Ensure parsing, indexing, and deserialization never execute quoted payloads; implement explicit execution contexts.
-- [ ] **Bit-for-Bit Representation Preservation:** Preserve original escaped spellings separately where round-trip verbatim reconstruction is required.
-- [ ] **Extended Grammar Constructs:** Formalize explicit syntax for routine arguments, list/map element framing, and nested executable blocks before inclusion in `statement` / `value`.
-- [ ] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
+- [x] **Strict Grammar Matcher:** Upgrade syntax matcher from token placeholder consumption to full, namespace-safe, bounded recursive rule expansion.
+- [x] **Strict Framing Validation:** Reject truncated structures or dangling escapes instead of falling back to warning recovery during execution validation.
+- [x] **Non-Evaluating Parser & Safe Evaluator:** Ensure parsing, indexing, and deserialization never execute quoted payloads; implement explicit execution contexts.
+- [x] **Bit-for-Bit Representation Preservation:** Preserve original escaped spellings separately where round-trip verbatim reconstruction is required.
+- [x] **Extended Grammar Constructs:** Formalize explicit syntax for routine arguments, list/map element framing, and nested executable blocks before inclusion in `statement` / `value`.
+- [x] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
 
 ### Phase 5: Declarative File Type Detection Engine
 - [x] **Basic Multi-Signal Detection:** Initial implementation combining magic byte matching (`MAGIC_REGISTRY`), extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).

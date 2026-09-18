@@ -255,7 +255,7 @@ fn match_term_single(
         } => {
             // Script classification check: [script:<name>]
             if name == "script" {
-                if let (Some(sub), Some(ref resolver)) = (subtype, &context.resolver) {
+                if let (Some(sub), Some(resolver)) = (subtype, &context.resolver) {
                     if resolver.matches_script(sub, first) {
                         if let Some(var) = capture_var {
                             context
@@ -290,6 +290,16 @@ fn match_term_single(
                     }
                     return MatchOutcome::Mismatch;
                 }
+                if context.resolver.is_none() {
+                    if let Some(var) = capture_var {
+                        context
+                            .captured_vars
+                            .entry(var.clone())
+                            .or_default()
+                            .push(first);
+                    }
+                    return MatchOutcome::Matched { consumed: 1 };
+                }
                 return MatchOutcome::Mismatch;
             }
 
@@ -313,36 +323,57 @@ fn match_term_single(
                     }
                     return MatchOutcome::Mismatch;
                 }
+                if context.resolver.is_none() {
+                    if let Some(var) = capture_var {
+                        context
+                            .captured_vars
+                            .entry(var.clone())
+                            .or_default()
+                            .push(first);
+                    }
+                    return MatchOutcome::Matched { consumed: 1 };
+                }
                 return MatchOutcome::Mismatch;
             }
 
             // Recursive expansion for registered named types
             if let Some(ref resolver) = context.resolver.clone() {
-                if context.depth < context.max_depth {
-                    let frame_key = format!("named:{name}");
-                    if !context.call_stack.contains(&frame_key) {
-                        if let Some(pattern) = resolver.resolve_named_type(name) {
-                            context.call_stack.push(frame_key);
-                            context.depth = context.depth.saturating_add(1);
-                            let outcome = match_pattern(stream, pattern, context);
-                            context.depth = context.depth.saturating_sub(1);
-                            context.call_stack.pop();
-                            if outcome.is_matched() {
-                                let consumed = outcome.consumed_tokens();
-                                if let Some(var) = capture_var {
-                                    if let Some(slice) = stream.get(..consumed) {
-                                        context
-                                            .captured_vars
-                                            .entry(var.clone())
-                                            .or_default()
-                                            .extend_from_slice(slice);
-                                    }
-                                }
-                                return outcome;
+                if context.depth >= context.max_depth {
+                    context.has_errors = true;
+                    context.diagnostics.push(SyntaxDiagnostic {
+                        message: format!(
+                            "Syntax expansion depth limit reached ({}) for named construct [{name}]",
+                            context.max_depth
+                        ),
+                        token_offset: 0,
+                        is_error: true,
+                    });
+                    return MatchOutcome::Mismatch;
+                }
+                let frame_key = format!("named:{name}");
+                if context.call_stack.contains(&frame_key) {
+                    return MatchOutcome::Mismatch;
+                }
+                if let Some(pattern) = resolver.resolve_named_type(name) {
+                    context.call_stack.push(frame_key);
+                    context.depth = context.depth.saturating_add(1);
+                    let outcome = match_pattern(stream, pattern, context);
+                    context.depth = context.depth.saturating_sub(1);
+                    context.call_stack.pop();
+                    if outcome.is_matched() {
+                        let consumed = outcome.consumed_tokens();
+                        if let Some(var) = capture_var {
+                            if let Some(slice) = stream.get(..consumed) {
+                                context
+                                    .captured_vars
+                                    .entry(var.clone())
+                                    .or_default()
+                                    .extend_from_slice(slice);
                             }
-                            return MatchOutcome::Mismatch;
                         }
+                        return outcome;
                     }
+                    return MatchOutcome::Mismatch;
                 }
             }
 
