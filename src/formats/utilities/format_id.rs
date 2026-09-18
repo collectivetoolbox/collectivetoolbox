@@ -22,7 +22,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Something like "`HtmlDceutils` & Html & Utf8 & `Lang_En_Us`" would more thoroughly describe a document format.
 
 use crate::detection::FormatCategory;
-#[expect(
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
@@ -30,6 +30,7 @@ use crate::detection::FormatCategory;
 use ctb_utilities::*;
 
 /// Unified format identifier for compression, archives, documents, images, and encodings.
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FormatId {
     // Single-stream compression formats
@@ -157,6 +158,7 @@ pub enum FormatId {
     HtmlLegacyCdceSnippet,
 
     // Programming Languages (can have different source text encodings)
+    ActionScript,
     AppleScript,
     JavaScript,
     TypeScript,
@@ -210,6 +212,8 @@ pub enum FormatId {
     Tar,
     Zip,
     CtbAssetBundle,
+    AppleSingle,
+    AppleDouble,
 
     // Document / Image / Data formats
     Html,
@@ -373,7 +377,11 @@ impl FormatId {
             | Self::Zstd
             | Self::Lzo => FormatCategory::Compression,
 
-            Self::Tar | Self::Zip => FormatCategory::Archive,
+            Self::Tar
+            | Self::Zip
+            | Self::CtbAssetBundle
+            | Self::AppleSingle
+            | Self::AppleDouble => FormatCategory::Archive,
 
             Self::Html
             | Self::Json
@@ -383,6 +391,143 @@ impl FormatId {
             | Self::Perl => FormatCategory::Document,
 
             _ => FormatCategory::Other,
+        }
+    }
+
+    /// Looks up a `FormatId` variant from its identifier name.
+    #[must_use]
+    pub fn from_ident(ident: &str) -> Option<Self> {
+        let trimmed = ident.trim();
+        // Case-insensitive ASCII lookup
+        match trimmed.to_ascii_lowercase().as_str() {
+            "brotli" => Some(Self::Brotli),
+            "gzip" => Some(Self::Gzip),
+            "deflate" => Some(Self::Deflate),
+            "zlib" => Some(Self::Zlib),
+            "bzip2" => Some(Self::Bzip2),
+            "bzip" => Some(Self::Bzip),
+            "scocompress" | "sco_compress" => Some(Self::ScoCompress),
+            "compresslzw" | "compress_lzw" => Some(Self::CompressLzw),
+            "compresslzw2" | "compress_lzw2" => Some(Self::CompressLzw2),
+            "compresslzw1" | "compress_lzw1" => Some(Self::CompressLzw1),
+            "compresslzw16" | "compress_lzw16" => Some(Self::CompressLzw16),
+            "pack" => Some(Self::Pack),
+            "oldpack" | "old_pack" => Some(Self::OldPack),
+            "compact" => Some(Self::Compact),
+            "lz4" => Some(Self::Lz4),
+            "lzma" => Some(Self::Lzma),
+            "lzma2" => Some(Self::Lzma2),
+            "lzip" => Some(Self::Lzip),
+            "xz" => Some(Self::Xz),
+            "zstd" => Some(Self::Zstd),
+            "lzo" => Some(Self::Lzo),
+
+            "tar" => Some(Self::Tar),
+            "zip" => Some(Self::Zip),
+            "ctbassetbundle" | "ctb_asset_bundle" => Some(Self::CtbAssetBundle),
+            "applesingle" | "apple_single" => Some(Self::AppleSingle),
+            "appledouble" | "apple_double" => Some(Self::AppleDouble),
+
+            "html" => Some(Self::Html),
+            "htmlfragment" | "html_fragment" => Some(Self::HtmlFragment),
+            "pdf" => Some(Self::Pdf),
+            "markdown" => Some(Self::Markdown),
+            "troff" => Some(Self::Troff),
+            "csv" => Some(Self::Csv),
+            "tsv" => Some(Self::Tsv),
+            "json" => Some(Self::Json),
+            "xml" => Some(Self::Xml),
+            "warc" => Some(Self::Warc),
+            "pan" => Some(Self::Pan),
+            "sqlite" => Some(Self::Sqlite),
+            "pem" => Some(Self::Pem),
+            "elf" => Some(Self::Elf),
+            "pe" => Some(Self::Pe),
+            "macho" | "mach_o" | "mach-o" => Some(Self::MachO),
+            "debianpackage" | "debian_package" => Some(Self::DebianPackage),
+            "lnk" => Some(Self::Lnk),
+            "torrent" => Some(Self::Torrent),
+            "actionscript" | "action_script" => Some(Self::ActionScript),
+            "applescript" => Some(Self::AppleScript),
+            "javascript" => Some(Self::JavaScript),
+            "typescript" => Some(Self::TypeScript),
+            "rust" => Some(Self::Rust),
+            "c" => Some(Self::C),
+            "cpp" => Some(Self::Cpp),
+            "perl" => Some(Self::Perl),
+            "sh" => Some(Self::Sh),
+            "bash" => Some(Self::Bash),
+            "utf8" => Some(Self::Utf8),
+            "ascii" => Some(Self::Ascii),
+            "unknown" => Some(Self::Unknown),
+            _ => None,
+        }
+    }
+
+    /// Returns the canonical Rust identifier string for this format.
+    #[must_use]
+    pub const fn ident(&self) -> &'static str {
+        match self {
+            Self::Brotli => "Brotli",
+            Self::Gzip => "Gzip",
+            Self::Deflate => "Deflate",
+            Self::Zlib => "Zlib",
+            Self::Bzip2 => "Bzip2",
+            Self::Bzip => "Bzip",
+            Self::ScoCompress => "ScoCompress",
+            Self::CompressLzw => "CompressLzw",
+            Self::CompressLzw2 => "CompressLzw2",
+            Self::CompressLzw1 => "CompressLzw1",
+            Self::CompressLzw16 => "CompressLzw16",
+            Self::Pack => "Pack",
+            Self::OldPack => "OldPack",
+            Self::Compact => "Compact",
+            Self::Lz4 => "Lz4",
+            Self::Lzma => "Lzma",
+            Self::Lzma2 => "Lzma2",
+            Self::Lzip => "Lzip",
+            Self::Xz => "Xz",
+            Self::Zstd => "Zstd",
+            Self::Lzo => "Lzo",
+
+            Self::Tar => "Tar",
+            Self::Zip => "Zip",
+            Self::CtbAssetBundle => "CtbAssetBundle",
+            Self::AppleSingle => "AppleSingle",
+            Self::AppleDouble => "AppleDouble",
+
+            Self::Html => "Html",
+            Self::HtmlFragment => "HtmlFragment",
+            Self::Pdf => "Pdf",
+            Self::Markdown => "Markdown",
+            Self::Troff => "Troff",
+            Self::Csv => "Csv",
+            Self::Tsv => "Tsv",
+            Self::Json => "Json",
+            Self::Xml => "Xml",
+            Self::Warc => "Warc",
+            Self::Pan => "Pan",
+            Self::Sqlite => "Sqlite",
+            Self::Pem => "Pem",
+            Self::Elf => "Elf",
+            Self::Pe => "Pe",
+            Self::MachO => "MachO",
+            Self::DebianPackage => "DebianPackage",
+            Self::Lnk => "Lnk",
+            Self::Torrent => "Torrent",
+            Self::ActionScript => "ActionScript",
+            Self::AppleScript => "AppleScript",
+            Self::JavaScript => "JavaScript",
+            Self::TypeScript => "TypeScript",
+            Self::Rust => "Rust",
+            Self::C => "C",
+            Self::Cpp => "Cpp",
+            Self::Perl => "Perl",
+            Self::Sh => "Sh",
+            Self::Bash => "Bash",
+            Self::Utf8 => "Utf8",
+            Self::Ascii => "Ascii",
+            _ => "Unknown",
         }
     }
 }

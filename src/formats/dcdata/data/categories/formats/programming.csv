@@ -35,3 +35,4 @@ Import/export/tests support columns meaning:
 2228563,339,JqJaq,jq programming language as implemented by jaq,programming,@base(f338),,,,,,,,,,,
 2228566,342,StageL2,StageL 2,programming,@base(f133),.sl,,,,,,,,,,
 2228567,343,StageL2Intermediate,Normalized StageL 2,programming,@base(f342),.sli,,,,,,,,,,
+2228767,543,ActionScript,ActionScript,programming,,.as,,,,,,,,,,

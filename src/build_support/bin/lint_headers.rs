@@ -28,7 +28,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use ctb_build_support::license_consts::{
     AGPL_3_0_ONLY_COPYRIGHT_BLOCK, AGPL_COPYRIGHT_BLOCK, DEFAULT_AGPL_HEADER,
-    HASH_AGPL_HEADER, PAN_MIT_HEADER, SCHEME_GPL_HEADER,
+    HASH_AGPL_HEADER, HASH_BSD_DARWIN_HEADER, PAN_MIT_HEADER,
+    SCHEME_GPL_HEADER,
 };
 
 #[derive(Debug)]
@@ -286,6 +287,7 @@ enum HeaderKind {
 struct ParsedHeader {
     kind: HeaderKind,
     header_end_line: usize,
+    has_darwin_header: bool,
 }
 
 /// Normalize line endings to LF.
@@ -328,6 +330,7 @@ fn parse_allow_non_agpl_header(lines: &[&str]) -> Option<ParsedHeader> {
             return Some(ParsedHeader {
                 kind: HeaderKind::AllowNonAgpl,
                 header_end_line: check_idx.saturating_add(1),
+                has_darwin_header: false,
             });
         }
     }
@@ -403,6 +406,7 @@ fn parse_derived_third_party_header(
     Ok(Some(ParsedHeader {
         kind: HeaderKind::DerivedThirdParty,
         header_end_line: idx,
+        has_darwin_header: false,
     }))
 }
 
@@ -426,6 +430,7 @@ fn parse_license_header(
             return Ok(ParsedHeader {
                 kind: HeaderKind::PanMit,
                 header_end_line: line_count,
+                has_darwin_header: false,
             });
         }
         return Err("File in src/formats/pan/ does not have expected PAN MIT license header".to_string());
@@ -437,18 +442,58 @@ fn parse_license_header(
         return Ok(ParsedHeader {
             kind: HeaderKind::DefaultAgpl,
             header_end_line: line_count,
+            has_darwin_header: false,
         });
     }
 
     let lines: Vec<&str> = normalized.lines().collect();
 
+    let (darwin_prefix_lines, has_darwin_header) =
+        if normalized.starts_with(HASH_BSD_DARWIN_HEADER) {
+            let count = HASH_BSD_DARWIN_HEADER.lines().count();
+            let mut idx = count;
+            while let Some(line) = lines.get(idx) {
+                if line.trim().is_empty() {
+                    idx = idx.saturating_add(1);
+                } else {
+                    break;
+                }
+            }
+            (idx, true)
+        } else {
+            (0, false)
+        };
+
+    let remaining_lines = lines.get(darwin_prefix_lines..).unwrap_or_default();
+
+    if has_darwin_header {
+        let default_agpl_lines: Vec<&str> =
+            DEFAULT_AGPL_HEADER.lines().collect();
+        if remaining_lines.starts_with(&default_agpl_lines) {
+            return Ok(ParsedHeader {
+                kind: HeaderKind::DefaultAgpl,
+                header_end_line: darwin_prefix_lines
+                    .saturating_add(default_agpl_lines.len()),
+                has_darwin_header,
+            });
+        }
+    }
+
     // Case 3: Allow non-AGPL directive following SPDX lines
-    if let Some(header) = parse_allow_non_agpl_header(&lines) {
+    if let Some(mut header) = parse_allow_non_agpl_header(remaining_lines) {
+        header.header_end_line =
+            darwin_prefix_lines.saturating_add(header.header_end_line);
+        header.has_darwin_header = has_darwin_header;
         return Ok(header);
     }
 
     // Case 4: Derived Third-Party Header
-    if let Some(header) = parse_derived_third_party_header(&lines, file_path)? {
+    if let Some(mut header) =
+        parse_derived_third_party_header(remaining_lines, file_path)?
+    {
+        header.header_end_line =
+            darwin_prefix_lines.saturating_add(header.header_end_line);
+        header.has_darwin_header = has_darwin_header;
         return Ok(header);
     }
 
@@ -471,7 +516,9 @@ fn check_module_docblock(
 
     // For third-party derived files, allow additional unstructured licensing comments
     // (e.g. `// Header comment from original ...` or `/* ... */`) before the module docblock.
-    if matches!(header_info.kind, HeaderKind::DerivedThirdParty) {
+    if matches!(header_info.kind, HeaderKind::DerivedThirdParty)
+        || header_info.has_darwin_header
+    {
         let mut in_block_comment = false;
         while let Some(line) = lines.get(idx) {
             let trimmed = line.trim();

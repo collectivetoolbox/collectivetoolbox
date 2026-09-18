@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Collective Toolbox Format Signatures
+# Format: libmagic (BSD-2-Clause compatible format)
+
+# Gzip
+0	string		\037\213	gzip compressed data
+!:mime	application/gzip
+!:ext	gz
+
+# Bzip2
+0	string		BZh		bzip2 compressed data
+!:mime	application/x-bzip2
+!:ext	bz2
+
+# Zip
+0	string		PK\003\004	Zip archive data
+!:mime	application/zip
+!:ext	zip
+
+# Collective Toolbox Asset Bundle
+0	string		CTBASSET	Collective Toolbox Asset Bundle
+!:mime	application/x-ctb-asset-bundle
+!:ext	rsrc/ctb
+
+# Panorama Database
+0	string		PAN\ 		Panorama Database
+!:mime	application/x-panorama
+!:ext	pan
+
+# AppleSingle / AppleDouble
+0	belong		0x00051600	AppleSingle encoded Macintosh file
+!:mime	application/x-apple-single
+!:ext	as
+>4	belong		0x00020000	\b, version 2.0
+>4	belong		0x00010000	\b, version 1.0
+
+0	belong		0x00051607	AppleDouble encoded Macintosh file
+!:mime	application/x-apple-double
+>4	belong		0x00020000	\b, version 2.0
+>4	belong		0x00010000	\b, version 1.0
+
+# Document Character Stream
+0	string		\xef\xbf\xbd\xef\xbf\xbd	Document Character Stream
+!:mime	application/x-dc-stream
+!:ext	dct/dcs

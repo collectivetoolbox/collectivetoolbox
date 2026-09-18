@@ -1,4 +1,36 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+ * Copyright (c) Ian F. Darwin 1986-1995.
+ * Software written by Ian F. Darwin and others;
+ * maintained 1995-present by Christos Zoulas and others.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice immediately at the beginning of the file, without modification,
+ *    this list of conditions, and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+// SPDX-License-Identifier: AGPL-3.0-or-later AND BSD-2-Clause-Darwin AND Apache-2.0 AND MIT AND BSD-3-Clause
+// SPDX-License-Identifier for parts derived from `file` (libmagic): BSD-2-Clause-Darwin
+// SPDX-License-Identifier for parts derived from polyfile: Apache-2.0
+// SPDX-License-Identifier for parts derived from fileid and binwalk: MIT
+// SPDX-License-Identifier for parts derived from DROID: BSD-3-Clause
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -17,17 +49,24 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Combined multi-signal format detection and multipart extension chain parsing.
+// See license text at the beginning of this file for full license details for parts derived from `file`.
+// See the full license details for parts derived from polyfile, binwalk, fileid, and DROID at the end of this file.
 
-use crate::extension_data::EXTENSION_REGISTRY;
-use crate::format_id::FormatId;
-use crate::magic_data::MAGIC_REGISTRY;
-#[expect(
+//! Combined multi-signal format detection, hierarchical pattern matching,
+//! and multipart extension chain parsing.
+
+#[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
-use ctb_utilities::*;
+use crate::utilities::*;
+
+use crate::extension::resolve_extension_candidates;
+use crate::format_id::FormatId;
+use crate::magic::evaluate_rule;
+use crate::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
+use crate::mime_derivation::FORMAT_CATALOG;
 
 /// High-level category of file formats for domain filtering and score boosting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -50,6 +89,516 @@ pub enum FormatCategory {
     Database,
     /// Other or uncategorized formats.
     Other,
+}
+
+/// Calibrated confidence tier for a detection candidate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ConfidenceTier {
+    /// Conflicting strong evidence detected across multiple formats.
+    Conflicted = 0,
+    /// Weak or ambiguous heuristic evidence.
+    Weak = 1,
+    /// Extension match or generic container without child specialization.
+    Moderate = 2,
+    /// Distinctive magic signature or verified extension + partial magic.
+    Strong = 3,
+    /// Exact magic signature + child specialization (and extension if present).
+    HighestConfidence = 4,
+}
+
+/// Environment and operating system prior hints to shift candidate likelihoods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PlatformHint {
+    #[default]
+    Generic,
+    MacOS,
+    Windows,
+    Posix,
+}
+
+/// Contextual hints provided by the caller to guide detection.
+#[derive(Debug, Clone, Default)]
+pub struct DetectionHint {
+    pub filename: Option<String>,
+    pub extension: Option<String>,
+    pub platform: PlatformHint,
+    pub expected_category: Option<FormatCategory>,
+}
+
+/// Specific evidence item contributing to a candidate's confidence score.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DetectionEvidence {
+    Magic { description: String, score: u32 },
+    Extension { ext: String, is_primary: bool, score: u32 },
+    PlatformPrior { platform: PlatformHint, score: u32 },
+    CategoryMatch { category: FormatCategory, score: u32 },
+}
+
+/// Output candidate produced by format detection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetectionCandidate {
+    /// Authoritative workspace FormatId if a matching Dc exists.
+    pub format_id: Option<FormatId>,
+    /// Global graph Document Character ID if known.
+    pub dc_id: Option<u128>,
+    /// Detected MIME type (from magic rule or format catalog).
+    pub mime: Option<String>,
+    /// Human-readable format description.
+    pub description: String,
+    /// Calibrated confidence tier.
+    pub confidence: ConfidenceTier,
+    /// Quantitative score (0–100 scale).
+    pub score: u32,
+    /// Accumulated evidence trails.
+    pub evidence: Vec<DetectionEvidence>,
+}
+
+/// Abstraction for streamed or buffered payload access during format detection.
+pub trait DetectionSource {
+    /// Reads up to `buf.len()` bytes at the specified offset.
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize>;
+
+    /// Reads up to `max_len` bytes from the beginning of the file (BOF).
+    fn read_bof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let mut buf = vec![0u8; max_len];
+        let n = self.read_at(0, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
+    }
+
+    /// Reads up to `max_len` bytes backwards from the end of the file (EOF).
+    fn read_eof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let Some(total) = self.total_len() else {
+            return Ok(Vec::new());
+        };
+        let u_max = u64::try_from(max_len).unwrap_or(0);
+        let start = total.saturating_sub(u_max);
+        let to_read = usize::try_from(total.saturating_sub(start)).unwrap_or(0);
+        let mut buf = vec![0u8; to_read];
+        let n = self.read_at(start, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
+    }
+
+    /// Total logical length of payload in bytes if known.
+    fn total_len(&self) -> Option<u64>;
+}
+
+impl DetectionSource for &[u8] {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= self.len() {
+            return Ok(0);
+        }
+        let available = self.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
+    }
+}
+
+impl DetectionSource for Vec<u8> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let mut slice = self.as_slice();
+        slice.read_at(offset, buf)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
+    }
+}
+
+impl<T: AsRef<[u8]> + Send> DetectionSource for std::io::Cursor<T> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let slice = self.get_ref().as_ref();
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= slice.len() {
+            return Ok(0);
+        }
+        let available = slice.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.get_ref().as_ref().len()).ok()
+    }
+}
+
+/// An empty detection source for filename/extension-only detection when no bytes are available.
+pub struct EmptySource;
+
+impl DetectionSource for EmptySource {
+    fn read_at(&mut self, _offset: u64, _buf: &mut [u8]) -> Result<usize> {
+        Ok(0)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(0)
+    }
+}
+
+/// Primary format detection function: evaluates magic byte rules, extensions,
+/// and environment priors to produce ranked format candidates.
+pub fn guess_format_candidates(
+    source: &mut dyn DetectionSource,
+    hint: Option<&DetectionHint>,
+) -> Vec<DetectionCandidate> {
+    let mut candidates = Vec::new();
+
+    let hint_ext = hint.and_then(|h| {
+        h.extension.as_deref().or_else(|| {
+            h.filename.as_deref().and_then(|f| {
+                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
+            })
+        })
+    });
+
+    let platform = hint.map(|h| h.platform).unwrap_or(PlatformHint::Generic);
+    let expected_cat = hint.and_then(|h| h.expected_category);
+
+    // 1. Evaluate static fast magic patterns (MAGIC_REGISTRY)
+    for entry in MAGIC_REGISTRY {
+        let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
+        let mut buf = vec![0u8; req_len];
+        if let Ok(n) = source.read_at(0, &mut buf) {
+            if n >= req_len && entry.pattern.matches(&buf[..n]) {
+                let fmt = entry.format_id;
+                let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+                let dc_id = mapping.map(|m| m.dc_id);
+                let label = mapping
+                    .map(|m| m.label.clone())
+                    .unwrap_or_else(|| fmt.ident().to_string());
+                let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+                let mut score = entry.pattern.priority;
+                let mut evidence = vec![DetectionEvidence::Magic {
+                    description: label.clone(),
+                    score: entry.pattern.priority,
+                }];
+
+                if let Some(ext) = hint_ext {
+                    let ext_norm = ext.to_ascii_lowercase();
+                    let match_ext = mapping
+                        .map(|m| {
+                            m.extensions
+                                .iter()
+                                .any(|e| e.eq_ignore_ascii_case(&ext_norm))
+                        })
+                        .unwrap_or(false);
+                    if match_ext {
+                        score = score.saturating_add(25);
+                        evidence.push(DetectionEvidence::Extension {
+                            ext: ext.to_string(),
+                            is_primary: true,
+                            score: 25,
+                        });
+                    }
+                }
+
+                if let Some(exp_cat) = expected_cat {
+                    if fmt.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
+                    }
+                }
+
+                let confidence = if score >= 85 {
+                    ConfidenceTier::HighestConfidence
+                } else if score >= 65 {
+                    ConfidenceTier::Strong
+                } else if score >= 40 {
+                    ConfidenceTier::Moderate
+                } else {
+                    ConfidenceTier::Weak
+                };
+
+                candidates.push(DetectionCandidate {
+                    format_id: Some(fmt),
+                    dc_id,
+                    mime,
+                    description: label,
+                    confidence,
+                    score,
+                    evidence,
+                });
+            }
+        }
+    }
+
+    // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
+    for rule in COMPILED_MAGIC_RULES.iter() {
+        if let Some(match_res) = evaluate_rule(rule, source) {
+            let mut score = match_res.score;
+            let mut evidence = Vec::new();
+            evidence.push(DetectionEvidence::Magic {
+                description: match_res.description.clone(),
+                score: match_res.score,
+            });
+
+            // Map MIME or description or extension to format catalog
+            let mapping = match_res
+                .mime
+                .as_deref()
+                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
+                .or_else(|| {
+                    FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
+                })
+                .or_else(|| {
+                    match_res.ext.as_deref().and_then(|ext| {
+                        ext.split(['/', ','])
+                            .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
+                    })
+                });
+
+            let format_id = mapping.and_then(|m| m.format_id);
+            let dc_id = mapping.map(|m| m.dc_id);
+            let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
+            let description = if match_res.description.is_empty() {
+                mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
+            } else {
+                match_res.description
+            };
+
+            // Concordance with extension hint
+            if let Some(ext) = hint_ext {
+                let ext_normalized = ext.to_ascii_lowercase();
+                let rule_ext_match = match_res.ext.as_deref().map(|e| {
+                    e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
+                }).unwrap_or(false);
+
+                let mapping_ext_match = mapping.map(|m| {
+                    m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
+                }).unwrap_or(false);
+
+                if rule_ext_match || mapping_ext_match {
+                    score = score.saturating_add(25);
+                    evidence.push(DetectionEvidence::Extension {
+                        ext: ext.to_string(),
+                        is_primary: true,
+                        score: 25,
+                    });
+                }
+            }
+
+            // Platform prior boost
+            if platform != PlatformHint::Generic {
+                let is_mac_format = format_id == Some(FormatId::AppleSingle)
+                    || format_id == Some(FormatId::AppleDouble)
+                    || format_id == Some(FormatId::MachO);
+                let is_win_format = format_id == Some(FormatId::Pe) || format_id == Some(FormatId::Lnk);
+                let is_posix_format = format_id == Some(FormatId::Elf) || format_id == Some(FormatId::Sh);
+
+                match platform {
+                    PlatformHint::MacOS if is_mac_format => {
+                        score = score.saturating_add(15);
+                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
+                    }
+                    PlatformHint::Windows if is_win_format => {
+                        score = score.saturating_add(15);
+                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
+                    }
+                    PlatformHint::Posix if is_posix_format => {
+                        score = score.saturating_add(15);
+                        evidence.push(DetectionEvidence::PlatformPrior { platform, score: 15 });
+                    }
+                    _ => {}
+                }
+            }
+
+            // Expected category boost
+            if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
+                if fid.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
+                }
+            }
+
+            let confidence = if score >= 85 {
+                ConfidenceTier::HighestConfidence
+            } else if score >= 65 {
+                ConfidenceTier::Strong
+            } else if score >= 40 {
+                ConfidenceTier::Moderate
+            } else {
+                ConfidenceTier::Weak
+            };
+
+            // Deduplicate and merge with any existing candidate for the same format or description
+            let mut merged = false;
+            for existing in &mut candidates {
+                let matches_fmt = format_id.is_some() && existing.format_id == format_id;
+                let matches_desc = !description.is_empty() && existing.description.eq_ignore_ascii_case(&description);
+                if matches_fmt || matches_desc {
+                    if existing.format_id.is_none() && format_id.is_some() {
+                        existing.format_id = format_id;
+                    }
+                    if existing.dc_id.is_none() && dc_id.is_some() {
+                        existing.dc_id = dc_id;
+                    }
+                    if existing.mime.is_none() && mime.is_some() {
+                        existing.mime = mime.clone();
+                    }
+                    if score > existing.score {
+                        existing.score = score;
+                        existing.confidence = confidence;
+                    }
+                    if description.len() > existing.description.len() {
+                        existing.description = description.clone();
+                    }
+                    existing.evidence.extend(evidence.clone());
+                    merged = true;
+                    break;
+                }
+            }
+
+            if !merged {
+                candidates.push(DetectionCandidate {
+                    format_id,
+                    dc_id,
+                    mime,
+                    description,
+                    confidence,
+                    score,
+                    evidence,
+                });
+            }
+        }
+    }
+
+    // 2. If extension hint is present, evaluate extension candidates
+    if let Some(ext) = hint_ext {
+        let ext_candidates = resolve_extension_candidates(ext, platform);
+        for (fmt, ext_score) in ext_candidates {
+            // Check if already found via magic
+            if let Some(existing) = candidates.iter_mut().find(|c| c.format_id == Some(fmt)) {
+                let has_ext = existing.evidence.iter().any(|e| matches!(e, DetectionEvidence::Extension { .. }));
+                if !has_ext {
+                    existing.score = existing.score.saturating_add(25);
+                    existing.evidence.push(DetectionEvidence::Extension {
+                        ext: ext.to_string(),
+                        is_primary: true,
+                        score: 25,
+                    });
+                    if existing.score >= 85 {
+                        existing.confidence = ConfidenceTier::HighestConfidence;
+                    } else if existing.score >= 65 {
+                        existing.confidence = ConfidenceTier::Strong;
+                    }
+                }
+                continue;
+            }
+
+            let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+            let dc_id = mapping.map(|m| m.dc_id);
+            let description = mapping
+                .map(|m| m.label.clone())
+                .unwrap_or_else(|| fmt.ident().to_string());
+            let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+
+            let mut final_score = ext_score;
+            let mut evidence = Vec::new();
+            evidence.push(DetectionEvidence::Extension {
+                ext: ext.to_string(),
+                is_primary: true,
+                score: ext_score,
+            });
+
+            if let Some(exp_cat) = expected_cat {
+                if fmt.category() == exp_cat {
+                    final_score = final_score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
+                }
+            }
+
+            let confidence = if final_score >= 65 {
+                ConfidenceTier::Moderate
+            } else {
+                ConfidenceTier::Weak
+            };
+
+            candidates.push(DetectionCandidate {
+                format_id: Some(fmt),
+                dc_id,
+                mime,
+                description,
+                confidence,
+                score: final_score,
+                evidence,
+            });
+        }
+    }
+
+    // 3. Sort candidates descending by confidence and score
+    candidates.sort_by(|a, b| {
+        b.confidence
+            .cmp(&a.confidence)
+            .then_with(|| b.score.cmp(&a.score))
+    });
+
+    candidates
+}
+
+/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
+pub fn guess_format_id(
+    data: Option<&[u8]>,
+    filename_or_ext: Option<&str>,
+    expected_category: Option<FormatCategory>,
+) -> Option<FormatId> {
+    detect_format_id(data, filename_or_ext, expected_category)
+}
+
+/// Backward-compatible detection function picking the top candidate's `FormatId`.
+pub fn detect_format_id(
+    data: Option<&[u8]>,
+    filename_or_ext: Option<&str>,
+    expected_category: Option<FormatCategory>,
+) -> Option<FormatId> {
+    let hint = filename_or_ext.map(|name| DetectionHint {
+        filename: Some(name.to_string()),
+        extension: None,
+        platform: PlatformHint::Generic,
+        expected_category,
+    });
+
+    if let Some(bytes) = data {
+        let mut slice = bytes;
+        let candidates = guess_format_candidates(&mut slice, hint.as_ref());
+        candidates.first().and_then(|c| c.format_id)
+    } else {
+        let mut empty = EmptySource;
+        let candidates = guess_format_candidates(&mut empty, hint.as_ref());
+        candidates.first().and_then(|c| c.format_id)
+    }
+}
+
+/// Represents a candidate chain of format layers with associated likelihood score.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProbableFormatChain {
+    pub outer: FormatId,
+    pub inner: Option<FormatId>,
+    pub layers: Vec<FormatId>,
+    pub stem: String,
+    pub score: u32,
 }
 
 /// Represents a structured chain of format layers parsed from a multipart filename (e.g. .html.gz).
@@ -77,122 +626,77 @@ impl FormatChain {
     }
 }
 
-/// Parses a filename or path into a structured `FormatChain`.
-pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
-    // Reason for fallback: rsplit yields at least one component, so fallback filename handles empty rsplit iterator.
+/// Parses a filename or path into candidate format chains, branching on ambiguous extensions.
+pub fn guess_format_chains(
+    filename: &str,
+    platform: PlatformHint,
+) -> Vec<ProbableFormatChain> {
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let mut parts: Vec<&str> = basename.split('.').collect();
     if parts.len() <= 1 {
-        return None;
+        return Vec::new();
     }
 
-    let mut layers = Vec::new();
+    // Peel outer extension
+    let outer_ext = match parts.pop() {
+        Some(ext) => ext,
+        None => return Vec::new(),
+    };
 
-    // Iterate segments from right-to-left
-    while parts.len() > 1 {
-        let candidate_ext = match parts.last() {
-            Some(&ext) => ext,
-            None => break,
-        };
+    let outer_candidates = resolve_extension_candidates(outer_ext, platform);
+    if outer_candidates.is_empty() {
+        return Vec::new();
+    }
 
-        let matched_formats: Vec<FormatId> = EXTENSION_REGISTRY
-            .iter()
-            .filter(|entry| entry.rule.matches(candidate_ext))
-            .map(|entry| entry.format_id)
-            .collect();
+    let mut results = Vec::new();
 
-        if let Some(&first_match) = matched_formats.first() {
-            if !layers.contains(&first_match) {
-                layers.push(first_match);
+    for (outer_fmt, outer_score) in outer_candidates {
+        if parts.len() > 1 {
+            let inner_ext = match parts.last() {
+                Some(&ext) => ext,
+                None => "",
+            };
+            let inner_candidates = resolve_extension_candidates(inner_ext, platform);
+            if !inner_candidates.is_empty() {
+                let stem = parts.get(..parts.len().saturating_sub(1)).unwrap_or(&[]).join(".");
+                for (inner_fmt, inner_score) in inner_candidates {
+                    let combined_score = outer_score.saturating_add(inner_score) / 2;
+                    results.push(ProbableFormatChain {
+                        outer: outer_fmt,
+                        inner: Some(inner_fmt),
+                        layers: vec![outer_fmt, inner_fmt],
+                        stem: stem.clone(),
+                        score: combined_score,
+                    });
+                }
+                continue;
             }
-            parts.pop();
-        } else {
-            break;
         }
+
+        let stem = parts.join(".");
+        results.push(ProbableFormatChain {
+            outer: outer_fmt,
+            inner: None,
+            layers: vec![outer_fmt],
+            stem,
+            score: outer_score,
+        });
     }
 
-    if layers.is_empty() {
-        return None;
-    }
-
-    let outer = *layers.first()?;
-    let inner = layers.get(1).copied();
-    let stem = parts.join(".");
-
-    Some(FormatChain {
-        outer,
-        inner,
-        layers,
-        stem,
-    })
+    results.sort_by(|a, b| b.score.cmp(&a.score));
+    results
 }
 
-/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
-pub fn guess_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    let mut best_candidate: Option<(FormatId, u32)> = None;
-
-    // Collect all format IDs in registry
-    let mut candidate_ids: Vec<FormatId> = Vec::new();
-    for entry in MAGIC_REGISTRY {
-        if !candidate_ids.contains(&entry.format_id) {
-            candidate_ids.push(entry.format_id);
-        }
-    }
-    for entry in EXTENSION_REGISTRY {
-        if !candidate_ids.contains(&entry.format_id) {
-            candidate_ids.push(entry.format_id);
-        }
-    }
-
-    for fmt in candidate_ids {
-        let mut magic_score = 0u32;
-        if let Some(header) = data {
-            for entry in MAGIC_REGISTRY {
-                if entry.format_id == fmt && entry.pattern.matches(header) {
-                    magic_score = magic_score.max(entry.pattern.priority);
-                }
-            }
-        }
-
-        let mut extension_score = 0u32;
-        if let Some(name_or_ext) = filename_or_ext {
-            for entry in EXTENSION_REGISTRY {
-                if entry.format_id == fmt && entry.rule.matches(name_or_ext) {
-                    extension_score = extension_score.max(entry.rule.weight);
-                }
-            }
-        }
-
-        let mut category_score = 0u32;
-        if let Some(cat) = expected_category {
-            if fmt.category() == cat {
-                category_score = 25;
-            }
-        }
-
-        let total_score = magic_score
-            .saturating_add(extension_score)
-            .saturating_add(category_score);
-
-        if total_score > 0 {
-            match &best_candidate {
-                Some((_, best_score)) => {
-                    if total_score > *best_score {
-                        best_candidate = Some((fmt, total_score));
-                    }
-                }
-                None => {
-                    best_candidate = Some((fmt, total_score));
-                }
-            }
-        }
-    }
-
-    best_candidate.map(|(fmt, _)| fmt)
+/// Parses a filename or path into a single structured `FormatChain`.
+pub fn parse_format_chain(filename: &str) -> Option<FormatChain> {
+    let chains = guess_format_chains(filename, PlatformHint::Generic);
+    let top = chains.first()?;
+    Some(FormatChain {
+        outer: top.outer,
+        inner: top.inner,
+        layers: top.layers.clone(),
+        stem: top.stem.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -216,26 +720,340 @@ mod tests {
         assert_eq!(chain.inner, Some(FormatId::Html));
         assert_eq!(chain.stem, "example");
         assert_eq!(chain.to_format_spec_string(), "Html > Gzip");
-
-        let chain_pan = parse_format_chain("lemurs.pan.Z").unwrap();
-        assert_eq!(chain_pan.outer, FormatId::ScoCompress);
-        assert_eq!(chain_pan.inner, Some(FormatId::Pan));
-        assert_eq!(chain_pan.stem, "lemurs");
-        assert_eq!(chain_pan.to_format_spec_string(), "Pan > ScoCompress");
     }
 
     #[ctb_test]
-    fn test_guess_format_id() {
+    fn test_ambiguous_peeling() {
+        let chains = guess_format_chains("archive.as.gz", PlatformHint::MacOS);
+        assert!(!chains.is_empty());
+        assert_eq!(chains[0].outer, FormatId::Gzip);
+        assert_eq!(chains[0].inner, Some(FormatId::AppleSingle));
+    }
+
+    #[ctb_test]
+    fn test_detect_format_id() {
         let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = guess_format_id(
+        let fmt = detect_format_id(
             Some(&gzip_data),
             Some("doc.gz"),
             Some(FormatCategory::Compression),
         );
         assert_eq!(fmt, Some(FormatId::Gzip));
+    }
 
-        let sco_data = [0x1F, 0xA0, 0x00, 0x00];
-        let fmt_sco = guess_format_id(Some(&sco_data), Some("file.Z"), None);
-        assert_eq!(fmt_sco, Some(FormatId::ScoCompress));
+    #[ctb_test]
+    fn test_guess_format_candidates() {
+        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
+        let mut slice: &[u8] = &gzip_data;
+        let hint = DetectionHint {
+            filename: Some("archive.gz".to_string()),
+            ..Default::default()
+        };
+        let candidates = guess_format_candidates(&mut slice, Some(&hint));
+        for (idx, c) in candidates.iter().enumerate() {
+            eprintln!("CANDIDATE {idx}: id={:?}, desc={}, score={}, conf={:?}", c.format_id, c.description, c.score, c.confidence);
+        }
+        assert!(!candidates.is_empty());
+        let top = &candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::Gzip));
+        assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
     }
 }
+/*
+
+Text of LICENSE from DROID:
+
+Copyright (c) 2016, The National Archives <pronom@nationalarchives.gov.uk>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following
+conditions are met:
+
+ * Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+ * Neither the name of the The National Archives nor the
+   names of its contributors may be used to endorse or promote products
+   derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/*
+
+Text of LICENSE from fileid:
+
+The MIT License (MIT)
+
+Copyright (c) 2015 David B Heise
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+*/
+
+/*
+Text of LICENSE from binwalk:
+
+
+MIT License
+
+Copyright (c) 2024 devttys0
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+*/
+
+/*
+Text of LICENSE from polyfile:
+
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+*/

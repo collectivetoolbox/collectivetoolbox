@@ -549,3 +549,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228764,f540,Row-major / QuickDraw tuple axis ordering [v h],0,BN,,!Cx,Formats:math,"@ident(""OrderVH"")",Vertical / row axis first horizontal / column axis second [v h] (or [row col]). V = distance down from the top edge of the coordinate plane. H = distance right from the left edge of the coordinate plane.,,,,,,,,,
 2228765,f541,3D Cartesian tuple axis ordering [x y z],0,BN,,!Cx,Formats:math,"@ident(""OrderXYZ"")",Standard 3D axis ordering [x y z].,,,,,,,,,
 2228766,f542,ISO 8859-1,0,BN,,!Cx,Formats:encoding,"@ident(""Iso88591""), @base(f4)",,,,,,,,,,
+2228767,f543,ActionScript,0,BN,,!Cx,Formats:programming,"@ident(""ActionScript"")",,.as,,,,,,,,
