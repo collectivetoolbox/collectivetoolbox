@@ -23,7 +23,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! TODO: A number of these are unimplemented.
 //! TODO: How will this interact with subprocesses? If things are checking the CLI directly, it won't work (a subprocess should still be considered to be running as GUI or CLI for instance even if it's not actually running those itself).
 
-#[allow(clippy::wildcard_imports)]
+#[expect(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 
 use std::cell::RefCell;

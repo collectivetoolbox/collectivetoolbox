@@ -170,6 +170,7 @@ pub fn parse_aliases_or_base_column(
                         if prev_ch.is_whitespace() {
                             let snippet_start = byte_idx.saturating_sub(10);
                             let snippet_end = byte_idx.saturating_add(1).min(raw.len());
+                            // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
                             let snippet = raw.get(snippet_start..snippet_end).unwrap_or(",");
                             report.add_error(
                                 file_path,
@@ -213,6 +214,7 @@ pub fn parse_aliases_or_base_column(
                         );
                     } else if next_ch != ' ' {
                         let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                        // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
                         let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
                         report.add_error(
                             file_path,
@@ -226,6 +228,7 @@ pub fn parse_aliases_or_base_column(
                         if let Some(&(_, after_space_ch)) = chars.get(next_next_i) {
                             if after_space_ch.is_whitespace() {
                                 let snippet_end = byte_idx.saturating_add(15).min(raw.len());
+                                // Reason for fallback: slice byte range on raw input string defaults to "," placeholder if sliced mid-char
                                 let snippet = raw.get(byte_idx..snippet_end).unwrap_or(",");
                                 report.add_error(
                                     file_path,
@@ -591,6 +594,7 @@ fn process_column_item(
         parsed.syntax_raw = Some(item_trimmed.to_string());
     } else if let Some(rest) = item_trimmed.strip_prefix('>') {
         if !rest.starts_with('<') && rest.starts_with(char::is_whitespace) {
+            // Reason for fallback: cross-reference target token after whitespace defaults to empty string
             let token = rest.split_whitespace().next().unwrap_or("");
             report.add_error(
                 file_path,
@@ -605,6 +609,7 @@ fn process_column_item(
         parsed.cross_references.push(item_trimmed.to_string());
     } else if item_trimmed.starts_with('<') {
         if let Some((tag_raw, payload)) = item_trimmed.split_once('>') {
+            // Reason for fallback: starts_with('<') confirmed above, strip '<' prefix to extract tag name
             let tag_name = tag_raw.strip_prefix('<').unwrap_or(tag_raw);
             let tag_full = format!("{tag_raw}>");
             if tag_name.is_empty() {
@@ -645,6 +650,7 @@ fn process_column_item(
                 }
             }
             if payload.starts_with(char::is_whitespace) {
+                // Reason for fallback: payload with trailing whitespace and no token defaults to empty string
                 let first_token = payload
                     .split(|c: char| c.is_whitespace() || c == ',')
                     .find(|s| !s.is_empty())
@@ -750,6 +756,16 @@ fn validate_base_shorthand_expr(
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

@@ -378,6 +378,7 @@ impl JournalWriter {
 
     /// Records a caveat or operational warning directly into the state journal and descriptor.
     pub fn record_warning(&mut self, code: &str, message: &str) -> Result<()> {
+        // Reason for fallback: pre-epoch system clock failure defaults warning timestamp to 0
         let now_sec = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .ok()

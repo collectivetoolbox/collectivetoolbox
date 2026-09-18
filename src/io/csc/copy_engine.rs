@@ -88,6 +88,7 @@ fn handle_item_error(
     journal: &mut JournalWriter,
     stats: &mut CopyStats,
 ) -> Result<Option<PathBuf>> {
+    // Reason for fallback: pre-epoch system clock failure defaults error timestamp to 0
     let now_sec = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .ok()

@@ -70,9 +70,9 @@ mod tests {
         let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
-        ensure!(finfo1.label.index == 0);
-        ensure!(finfo1.label.classic_color == "Black");
-        ensure!(finfo1.label.osx_color == "None");
+        ensure!(finfo1.label.index() == 0);
+        ensure!(finfo1.label.classic_color() == "Black");
+        ensure!(finfo1.label.osx_color() == "None");
         ensure!(finfo1.flags.has_been_inited);
 
         let ts1 = archive1.timestamps.as_ref().context("missing timestamps")?;
@@ -106,9 +106,9 @@ mod tests {
         let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
-        ensure!(finfo2.label.index == 2);
-        ensure!(finfo2.label.classic_color == "Green");
-        ensure!(finfo2.label.osx_color == "Green");
+        ensure!(finfo2.label.index() == 2);
+        ensure!(finfo2.label.classic_color() == "Green");
+        ensure!(finfo2.label.osx_color() == "Green");
 
         let ts2 = archive2.timestamps.as_ref().context("missing timestamps")?;
         ensure!(ts2.birthtime_sec == Some(1_789_356_860));
@@ -130,7 +130,7 @@ mod tests {
         let finfo1 = archive1.finder_info.as_ref().context("missing finder_info")?;
         ensure!(finfo1.file_type == "TEXT");
         ensure!(finfo1.file_creator == "ttxt");
-        ensure!(finfo1.label.index == 0);
+        ensure!(finfo1.label.index() == 0);
 
         let data2 = get_apple_single_double_data("fixtures/AppleDouble/Alongside/test file green2/._test file green2")
             .context("Alongside ._test file green2 missing")?;
@@ -143,8 +143,8 @@ mod tests {
         let finfo2 = archive2.finder_info.as_ref().context("missing finder_info")?;
         ensure!(finfo2.file_type == "TEXT");
         ensure!(finfo2.file_creator == "ttxt");
-        ensure!(finfo2.label.index == 2);
-        ensure!(finfo2.label.classic_color == "Green");
+        ensure!(finfo2.label.index() == 2);
+        ensure!(finfo2.label.classic_color() == "Green");
         ensure!(finfo2.location == (88, 220));
 
         // Test pretty JSON export
@@ -152,7 +152,7 @@ mod tests {
         ensure!(pretty.contains("\"format\": \"AppleDouble\""));
         let val = archive2.to_json_value()?;
         ensure!(val["format"] == "AppleDouble");
-        ensure!(val["finder_info"]["label"]["classic_color"] == "Green");
+        ensure!(val["finder_info"]["label"] == "Project1");
 
         Ok(())
     }
@@ -173,10 +173,10 @@ mod tests {
         let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
         ensure!(finfo.file_type == "BINA");
         ensure!(finfo.file_creator == "SITx");
-        ensure!(finfo.label.index == 1);
-        ensure!(finfo.label.classic_name == "Project 2");
-        ensure!(finfo.label.classic_color == "Brown");
-        ensure!(finfo.label.osx_color == "Gray");
+        ensure!(finfo.label.index() == 1);
+        ensure!(finfo.label.classic_name() == "Project 2");
+        ensure!(finfo.label.classic_color() == "Brown");
+        ensure!(finfo.label.osx_color() == "Gray");
         ensure!(finfo.location == (448, 129));
 
         Ok(())

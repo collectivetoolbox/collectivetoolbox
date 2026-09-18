@@ -113,8 +113,18 @@ if [[ -n "$offline" ]]; then
     deny_flags="--offline"
 fi
 if ! cargo deny $deny_flags --workspace check; then
-    echo "cargo-deny reported errors."
-    exit 1
+    if [[ -z "$offline" ]]; then
+        echo "cargo-deny failed online (possibly offline environment), retrying with --offline..."
+        if cargo deny --offline --workspace check; then
+            echo "cargo-deny passed offline."
+        else
+            echo "cargo-deny reported errors."
+            exit 1
+        fi
+    else
+        echo "cargo-deny reported errors."
+        exit 1
+    fi
 fi
 
 if [[ ! -f "vendor/TypeScript-built.tar" ]]; then

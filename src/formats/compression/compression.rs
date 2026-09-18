@@ -371,6 +371,7 @@ impl CompressionFormat {
             Some(FormatCategory::Compression),
         )
         .and_then(Self::from_format_id)
+        .or_else(|| filename_or_ext.and_then(Self::from_extension))
     }
     /// Returns true if this compression format is implemented natively in this repository,
     /// rather than being provided by an external crate.

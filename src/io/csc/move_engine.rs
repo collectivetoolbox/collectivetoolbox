@@ -302,6 +302,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_mv_same_filesystem() {
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
         let src = temp.path().join("mv_src");
         let dest = temp.path().join("mv_dest");
@@ -343,6 +344,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_mv_directory_tree() {
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().expect("create tempdir");
         let src_dir = temp.path().join("mv_dir_src");
         let dest_dir = temp.path().join("mv_dir_dest");
@@ -410,6 +412,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_mv_contents_fallback() {
+        let _fs_lock = ctb_io::file::FS_CACHE_TEST_MUTEX.lock().unwrap();
         let temp = tempdir().unwrap();
         let source = temp.path().join("source");
         let destination = temp.path().join("destination");

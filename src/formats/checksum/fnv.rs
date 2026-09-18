@@ -63,7 +63,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_fnv1a_reexport() {
         assert_eq!(fnv1a64(b"foobar"), 0x8594_4171_f739_67e8);
-        assert_eq!(fnv1a32(b"foobar"), 0xbf9a_e36b);
+        assert_eq!(fnv1a32(b"foobar"), 0xbf9c_f968);
         assert_eq!(fnv1a64_hex(b"foobar"), "85944171f73967e8");
     }
 }

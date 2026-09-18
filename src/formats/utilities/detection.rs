@@ -231,8 +231,10 @@ pub trait DetectionSource {
         let Some(total) = self.total_len() else {
             return Ok(Vec::new());
         };
+        // Reason for fallback: max_len conversion to u64 defaults to 0 on conversion overflow
         let u_max = u64::try_from(max_len).unwrap_or(0);
         let start = total.saturating_sub(u_max);
+        // Reason for fallback: remaining byte count conversion to usize defaults to 0 on 32-bit overflow
         let to_read = usize::try_from(total.saturating_sub(start)).unwrap_or(0);
         let mut buf = vec![0u8; to_read];
         let n = self.read_at(start, &mut buf)?;
@@ -252,6 +254,7 @@ impl DetectionSource for &[u8] {
         if start >= self.len() {
             return Ok(0);
         }
+        // Reason for fallback: start offset beyond slice bounds returns empty slice
         let available = self.get(start..).unwrap_or(&[]);
         let n = buf.len().min(available.len());
         if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
@@ -287,6 +290,7 @@ impl<T: AsRef<[u8]> + Send> DetectionSource for std::io::Cursor<T> {
         if start >= slice.len() {
             return Ok(0);
         }
+        // Reason for fallback: start offset beyond cursor slice bounds returns empty slice
         let available = slice.get(start..).unwrap_or(&[]);
         let n = buf.len().min(available.len());
         if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
@@ -344,6 +348,7 @@ pub fn guess_format_candidates(
                 let fmt = entry.format_id;
                 let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
                 let dc_id = mapping.map(|m| m.dc_id);
+                // Reason for fallback: unmapped format in static registry uses its Rust identifier as label
                 let label = mapping
                     .map(|m| m.label.clone())
                     .unwrap_or_else(|| fmt.ident().to_string());
@@ -356,6 +361,7 @@ pub fn guess_format_candidates(
 
                 if let Some(ext) = hint_ext {
                     let ext_norm = ext.to_ascii_lowercase();
+                    // Reason for fallback: format without extension metadata defaults to false for concordance
                     let match_ext = mapping
                         .map(|m| {
                             m.extensions
@@ -434,6 +440,7 @@ pub fn guess_format_candidates(
             let format_id = mapping.and_then(|m| m.format_id);
             let dc_id = mapping.map(|m| m.dc_id);
             let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
+            // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
             let description = if match_res.description.is_empty() {
                 mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
             } else {
@@ -443,10 +450,12 @@ pub fn guess_format_candidates(
             // Concordance with extension hint
             if let Some(ext) = hint_ext {
                 let ext_normalized = ext.to_ascii_lowercase();
+                // Reason for fallback: rule without extension declaration evaluates to false for concordance
                 let rule_ext_match = match_res.ext.as_deref().map(|e| {
                     e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
                 }).unwrap_or(false);
 
+                // Reason for fallback: unmapped format evaluates to false for extension concordance
                 let mapping_ext_match = mapping.map(|m| {
                     m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
                 }).unwrap_or(false);
@@ -569,6 +578,7 @@ pub fn guess_format_candidates(
 
             let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
             let dc_id = mapping.map(|m| m.dc_id);
+            // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
             let description = mapping
                 .map(|m| m.label.clone())
                 .unwrap_or_else(|| fmt.ident().to_string());
@@ -639,15 +649,25 @@ pub fn detect_format_id(
         expected_category,
     });
 
-    if let Some(bytes) = data {
+    let candidates = if let Some(bytes) = data {
         let mut slice = bytes;
-        let candidates = guess_format_candidates(&mut slice, hint.as_ref());
-        candidates.first().and_then(|c| c.format_id)
+        guess_format_candidates(&mut slice, hint.as_ref())
     } else {
         let mut empty = EmptySource;
-        let candidates = guess_format_candidates(&mut empty, hint.as_ref());
-        candidates.first().and_then(|c| c.format_id)
+        guess_format_candidates(&mut empty, hint.as_ref())
+    };
+
+    if let Some(cat) = expected_category {
+        if let Some(fmt) = candidates
+            .iter()
+            .filter_map(|c| c.format_id)
+            .find(|fmt| fmt.category() == cat)
+        {
+            return Some(fmt);
+        }
     }
+
+    candidates.into_iter().find_map(|c| c.format_id)
 }
 
 /// Represents a candidate chain of format layers with associated likelihood score.
@@ -690,6 +710,7 @@ pub fn guess_format_chains(
     filename: &str,
     platform: Option<FormatId>,
 ) -> Vec<ProbableFormatChain> {
+    // Reason for fallback: filename without path separators uses full input filename as basename
     let basename = filename.rsplit(['/', '\\']).next().unwrap_or(filename);
     let mut parts: Vec<&str> = basename.split('.').collect();
     if parts.len() <= 1 {
@@ -717,6 +738,7 @@ pub fn guess_format_chains(
             };
             let inner_candidates = resolve_extension_candidates(inner_ext, platform);
             if !inner_candidates.is_empty() {
+                // Reason for fallback: single-component filename without stem defaults to empty prefix slice
                 let stem = parts.get(..parts.len().saturating_sub(1)).unwrap_or(&[]).join(".");
                 for (inner_fmt, inner_score) in inner_candidates {
                     let combined_score = outer_score.saturating_add(inner_score) / 2;
@@ -813,6 +835,23 @@ mod tests {
         let top = &candidates[0];
         assert_eq!(top.format_id, Some(FormatId::Gzip));
         assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
+    }
+
+    #[ctb_test]
+    fn test_detect_brotli() {
+        let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
+        let mut slice: &[u8] = &brotli_data;
+        let hint = DetectionHint {
+            filename: Some("/tmp/system_in.br".to_string()),
+            expected_category: Some(FormatCategory::Compression),
+            ..Default::default()
+        };
+        let fmt = detect_format_id(
+            Some(&brotli_data),
+            Some("/tmp/system_in.br"),
+            Some(FormatCategory::Compression),
+        );
+        assert_eq!(fmt, Some(FormatId::Brotli));
     }
 }
 /*

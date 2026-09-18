@@ -160,6 +160,7 @@ impl FileMetadataJson {
                         None
                     }
                 })
+                // Reason for fallback: missing original filename in metadata defaults destination leaf to "file"
                 .unwrap_or_else(|| std::ffi::OsString::from("file"));
             target.push(orig_name);
         }

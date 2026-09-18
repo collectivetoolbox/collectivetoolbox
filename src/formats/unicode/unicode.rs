@@ -360,6 +360,7 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
 
         let combining = ccc_map.get32(cp).to_icu4c_value();
 
+        // Reason for fallback: unassigned or non-block code points default to general "Unicode" script categorization
         let script = data::find_block(cp)
             .unwrap_or("Unicode")
             .to_string();

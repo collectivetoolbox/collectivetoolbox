@@ -192,8 +192,8 @@ pub fn generate_workspace_ipc_methods(output_root: &Path) -> Result<()> {
     // without surprising missing-file errors when DTOs are introduced later.
     let mut out = String::new();
     push_generated(&mut out, "workspace");
-    out.push_str("#[allow(unused_imports)]\nuse std::collections::BTreeMap;\n");
-    out.push_str("#[allow(unused_imports)]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
+    out.push_str("#[allow(unused_imports, reason = \"Generated DTO imports may not be needed by all services\")]\nuse std::collections::BTreeMap;\n");
+    out.push_str("#[allow(unused_imports, reason = \"Generated DTO imports may not be needed by all services\")]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
 
     let mut sorted: Vec<ExtractedDto> = all_extracted_dtos
         .into_iter()
@@ -811,8 +811,8 @@ fn write_service_dtos_fragment(
 ) -> Result<()> {
     let mut out = String::new();
     push_generated(&mut out, service);
-    out.push_str("#[allow(unused_imports)]\nuse std::collections::BTreeMap;\n");
-    out.push_str("#[allow(unused_imports)]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
+    out.push_str("#[allow(unused_imports, reason = \"Generated DTO imports may not be needed by all services\")]\nuse std::collections::BTreeMap;\n");
+    out.push_str("#[allow(unused_imports, reason = \"Generated DTO imports may not be needed by all services\")]\nuse std::net::{Ipv4Addr, Ipv6Addr};\n\n");
 
     let mut sorted = dtos.to_vec();
     sorted.sort_by_key(dto_type_ident);

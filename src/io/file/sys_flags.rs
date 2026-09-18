@@ -1351,6 +1351,7 @@ fn apply_file_flags_native(
                     }
 
                     // 3. Individual bit-by-bit retry for any remaining differing bits
+                    // Reason for fallback: initial flags query failure defaults starting bitmask to 0 for incremental retry
                     let init_mask = current
                         .as_ref()
                         .and_then(|r| u32::try_from(r.raw_value).ok())

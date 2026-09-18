@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_fnv1a32_known_vectors() {
         assert_eq!(fnv1a32(b"a"), 0xe40c_292c);
-        assert_eq!(fnv1a32(b"foobar"), 0xbf9a_e36b);
+        assert_eq!(fnv1a32(b"foobar"), 0xbf9c_f968);
     }
 
     #[test]

@@ -235,22 +235,17 @@ fn decode_recursive(
         depth <= MAX_FORMAT_EXPR_DEPTH,
         "Dc token stream nesting exceeds maximum depth limit of {MAX_FORMAT_EXPR_DEPTH}"
     );
-    ensure!(
-        *pos < tokens.len(),
-        "Unexpected end of Dc token stream: missing operand"
-    );
-
-    let token = &tokens[*pos];
+    let Some(token) = tokens.get(*pos) else {
+        bail!("Unexpected end of Dc token stream: missing operand");
+    };
     *pos = pos.saturating_add(1);
 
     match token {
         DcToken::Dc(DcShorthand::Short(298)) => {
             // Group start: next token must be operator
-            ensure!(
-                *pos < tokens.len(),
-                "Unexpected end of stream after group start '298': expected operator"
-            );
-            let op_token = &tokens[*pos];
+            let Some(op_token) = tokens.get(*pos) else {
+                bail!("Unexpected end of stream after group start '298': expected operator");
+            };
             *pos = pos.saturating_add(1);
 
             let op = match op_token {
@@ -273,11 +268,9 @@ fn decode_recursive(
                     let left = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
                     let right = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
 
-                    ensure!(
-                        *pos < tokens.len(),
-                        "Unclosed Dc associativity group: expected terminating '299'"
-                    );
-                    let closing = &tokens[*pos];
+                    let Some(closing) = tokens.get(*pos) else {
+                        bail!("Unclosed Dc associativity group: expected terminating '299'");
+                    };
                     *pos = pos.saturating_add(1);
                     ensure!(
                         is_closing_token(closing),
@@ -298,9 +291,11 @@ fn decode_recursive(
                 FormatOp::Union | FormatOp::Intersection => {
                     let mut children = Vec::new();
                     while *pos < tokens.len() {
-                        if is_closing_token(&tokens[*pos]) {
-                            *pos = pos.saturating_add(1);
-                            break;
+                        if let Some(tok) = tokens.get(*pos) {
+                            if is_closing_token(tok) {
+                                *pos = pos.saturating_add(1);
+                                break;
+                            }
                         }
                         let child = decode_recursive(
                             tokens,
@@ -326,7 +321,9 @@ fn decode_recursive(
         DcToken::Dc(DcShorthand::Short(op_id))
             if FormatOp::from_dc_id(*op_id).is_some() =>
         {
-            let op = FormatOp::from_dc_id(*op_id).expect("Guaranteed by guard");
+            let Some(op) = FormatOp::from_dc_id(*op_id) else {
+                bail!("Invalid operator in Dc group: '{op_id}'");
+            };
             match op {
                 FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform => {
                     let left = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
@@ -339,11 +336,12 @@ fn decode_recursive(
 
                     // If not inside an enclosing variable-arity operator, flexibly consume optional
                     // closing 299 delimiter if present
-                    if !in_variable_arity
-                        && *pos < tokens.len()
-                        && is_closing_token(&tokens[*pos])
-                    {
-                        *pos = pos.saturating_add(1);
+                    if !in_variable_arity {
+                        if let Some(tok) = tokens.get(*pos) {
+                            if is_closing_token(tok) {
+                                *pos = pos.saturating_add(1);
+                            }
+                        }
                     }
 
                     Ok(match op {
@@ -360,9 +358,11 @@ fn decode_recursive(
                 FormatOp::Union | FormatOp::Intersection => {
                     let mut children = Vec::new();
                     while *pos < tokens.len() {
-                        if is_closing_token(&tokens[*pos]) {
-                            *pos = pos.saturating_add(1);
-                            break;
+                        if let Some(tok) = tokens.get(*pos) {
+                            if is_closing_token(tok) {
+                                *pos = pos.saturating_add(1);
+                                break;
+                            }
                         }
                         let child = decode_recursive(
                             tokens,

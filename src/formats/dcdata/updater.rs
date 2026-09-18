@@ -546,6 +546,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                     let (_, rows) = read_csv_file(&path)?;
                     for row in rows {
                         if !is_empty_row(&row) {
+                            // Reason for fallback: cells beyond the row length default to empty string
                             let get = |idx: usize| -> String {
                                 row.get(idx).cloned().unwrap_or_default()
                             };
@@ -631,6 +632,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -673,6 +675,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                     }
                                 }
                             }
+                            // Reason for fallback: cells beyond the row length default to empty string
                             let get = |idx: usize| -> String {
                                 row.get(idx).cloned().unwrap_or_default()
                             };
@@ -710,6 +713,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
                 .unwrap_or(u128::MAX);
+            // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
             let id_b = b
                 .first()
                 .and_then(|s| s.trim().parse::<u128>().ok())
@@ -731,7 +735,9 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
             for row in rows {
                 if let Some(dc_cell) = row.first() {
                     if let Ok(cp) = parse_unicode_shorthand(dc_cell) {
+                        // Reason for fallback: optional aliases column defaults to empty string if row is short
                         let aliases = row.get(8).cloned().unwrap_or_default();
+                        // Reason for fallback: optional description column defaults to empty string if row is short
                         let desc = row.get(9).cloned().unwrap_or_default();
                         unicode_clarifications.insert(cp, (aliases, desc));
                     }
@@ -812,10 +818,12 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
     combined_rows.extend(all_format_rows);
 
     combined_rows.sort_by(|a, b| {
+        // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
         let id_a = a
             .first()
             .and_then(|s| s.trim().parse::<u128>().ok())
             .unwrap_or(u128::MAX);
+        // Reason for fallback: rows with missing or unparseable IDs sort to the end of the merged table
         let id_b = b
             .first()
             .and_then(|s| s.trim().parse::<u128>().ok())
@@ -976,6 +984,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                         if is_empty_row(&row) {
                             continue;
                         }
+                        // Reason for fallback: cells beyond the row length default to empty string
                         let get = |idx: usize| -> String {
                             row.get(idx).cloned().unwrap_or_default()
                         };
@@ -992,6 +1001,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                         let short_id = if let Ok(s_id) = parse_format_shorthand(&get(1)) {
                             s_id
                         } else if let Ok(dc_id) = get(0).parse::<u128>() {
+                            // Reason for fallback: out-of-range short format id conversion defaults to 0 placeholder
                             usize::try_from(dc_id.saturating_sub(FORMAT_REGION_START)).unwrap_or(0)
                         } else {
                             0
@@ -1000,6 +1010,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                         let dc_id = if let Ok(dc) = get(0).parse::<u128>() {
                             dc
                         } else {
+                            // Reason for fallback: short format id conversion to u128 defaults to 0 on conversion failure
                             FORMAT_REGION_START.saturating_add(u128::try_from(short_id).unwrap_or(0))
                         };
 

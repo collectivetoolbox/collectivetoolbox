@@ -757,27 +757,22 @@ impl DcMst {
         let mut buf = [0u8; 64 * 1024];
         let mut remaining = size;
         while remaining > 0 {
-            #[allow(
-                clippy::expect_used,
-                reason = "65536 is a constant that always fits into u64"
-            )]
-            let buf_cap = u64::try_from(buf.len()).expect("65536 fits into u64");
+            let buf_cap = u64::try_from(buf.len()).context("65536 fits into u64")?;
             let to_read_u64 = remaining.min(buf_cap);
-            #[allow(
-                clippy::expect_used,
-                reason = "to_read_u64 is at most 65536, which fits in usize on all supported platforms (>=16-bit)"
-            )]
-            let to_read = usize::try_from(to_read_u64).expect("at most 65536 bytes fits in usize");
-            let n = reader.read(&mut buf[..to_read])?;
+            let to_read = usize::try_from(to_read_u64)
+                .context("at most 65536 bytes fits in usize")?;
+            let Some(buf_slice) = buf.get_mut(..to_read) else {
+                bail!("Buffer slice out of range");
+            };
+            let n = reader.read(buf_slice)?;
             if n == 0 {
                 bail!("Unexpected EOF reading binary payload from stream: expected {remaining} more bytes");
             }
-            self.inner.extend_from_slice(&buf[..n]);
-            #[allow(
-                clippy::expect_used,
-                reason = "n is at most 65536, which fits in u64"
-            )]
-            let n_u64 = u64::try_from(n).expect("n fits in u64");
+            let Some(read_slice) = buf.get(..n) else {
+                bail!("Read slice out of range");
+            };
+            self.inner.extend_from_slice(read_slice);
+            let n_u64 = u64::try_from(n).context("n fits in u64")?;
             remaining = remaining.saturating_sub(n_u64);
         }
         Ok(())
@@ -805,27 +800,22 @@ impl DcMst {
         let mut buf = [0u8; 64 * 1024];
         let mut remaining = size;
         while remaining > 0 {
-            #[allow(
-                clippy::expect_used,
-                reason = "65536 is a constant that always fits into u64"
-            )]
-            let buf_cap = u64::try_from(buf.len()).expect("65536 fits into u64");
+            let buf_cap = u64::try_from(buf.len()).context("65536 fits into u64")?;
             let to_read_u64 = remaining.min(buf_cap);
-            #[allow(
-                clippy::expect_used,
-                reason = "to_read_u64 is at most 65536, which fits in usize on all supported platforms (>=16-bit)"
-            )]
-            let to_read = usize::try_from(to_read_u64).expect("at most 65536 bytes fits in usize");
-            let n = reader.read(&mut buf[..to_read])?;
+            let to_read = usize::try_from(to_read_u64)
+                .context("at most 65536 bytes fits in usize")?;
+            let Some(buf_slice) = buf.get_mut(..to_read) else {
+                bail!("Buffer slice out of range");
+            };
+            let n = reader.read(buf_slice)?;
             if n == 0 {
                 bail!("Unexpected EOF writing binary payload to stream: expected {remaining} more bytes");
             }
-            writer.write_all(&buf[..n])?;
-            #[allow(
-                clippy::expect_used,
-                reason = "n is at most 65536, which fits in u64"
-            )]
-            let n_u64 = u64::try_from(n).expect("n fits in u64");
+            let Some(read_slice) = buf.get(..n) else {
+                bail!("Read slice out of range");
+            };
+            writer.write_all(read_slice)?;
+            let n_u64 = u64::try_from(n).context("n fits in u64")?;
             remaining = remaining.saturating_sub(n_u64);
         }
         Ok(())

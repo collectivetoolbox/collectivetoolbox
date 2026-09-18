@@ -89,6 +89,7 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     };
 
     let named_types_bytes_opt = crate::get_dc_data_file("README-named-types.csv");
+    // Reason for fallback: optional named types file defaults to empty set if not present
     let known_named_types = named_types_bytes_opt
         .as_ref()
         .map(|b| extract_named_type_names(b))
@@ -216,6 +217,7 @@ pub fn validate_all_data_tables_from_repo(
     let named_types_path =
         repo_root.join("src/formats/dcdata/data/README-named-types.csv");
     let named_types_bytes_opt = std::fs::read(&named_types_path).ok();
+    // Reason for fallback: optional named types file defaults to empty set if not present on disk
     let known_named_types = named_types_bytes_opt
         .as_ref()
         .map(|b| extract_named_type_names(b))
@@ -325,7 +327,9 @@ pub fn validate_decompositions_table(
             continue;
         }
 
+        // Reason for fallback: row bounds checked above (len >= 2), extract trimmed decomposition tag
         let tag = row.get(0).map_or("", |s| s.trim());
+        // Reason for fallback: row bounds checked above (len >= 2), extract trimmed description string
         let desc = row.get(1).map_or("", |s| s.trim());
 
         if tag.is_empty() {
@@ -674,6 +678,7 @@ pub fn validate_dc_category_file(
                 Err(err) => {
                     let err_msg = err.to_string();
                     if err_msg.contains("exceeds maximum") {
+                        // Reason for fallback: starts_with('u') confirmed above, strip 'u' prefix for error message
                         let hex_part = dc_str.strip_prefix('u').unwrap_or("");
                         report.add_error(
                             file_path,
@@ -836,10 +841,13 @@ pub fn validate_dc_category_file(
             )]
             let cp = u32::try_from(dc_id).expect("dc_id fits in u32 for unicode chars");
             let cc = ctb_formats_unicode::combining_class(cp);
+            // Reason for fallback: unassigned Unicode codepoints default to Boundary Neutral bidi class
             let bc = validate_bidi_class(ctb_formats_unicode::bidi_class_code(cp))
                 .unwrap_or(BidiClass::BN);
+            // Reason for fallback: unassigned Unicode codepoints default to NonUnicodeControl general category
             let gc = validate_general_category(ctb_formats_unicode::general_category_code(cp))
                 .unwrap_or(GeneralCategory::NonUnicodeControl);
+            // Reason for fallback: unassigned Unicode codepoints default to Common script
             let sc = ctb_formats_unicode::find_block(cp)
                 .unwrap_or("Common")
                 .to_string();
@@ -1311,6 +1319,7 @@ where
             };
 
             let default_named_types = HashSet::new();
+            // Reason for fallback: optional named types registry defaults to empty set when omitted
             let named_types = known_named_types.unwrap_or(&default_named_types);
 
             validate_dc_syntax(

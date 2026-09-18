@@ -182,18 +182,14 @@ pub fn parse_format_expr(input: &str) -> Result<FormatExpr> {
     ensure!(!trimmed.is_empty(), "Empty format specification expression");
 
     let expr_str = if let Some(stripped) = trimmed.strip_prefix("@chain(") {
-        ensure!(
-            stripped.ends_with(')'),
-            "Malformed '@chain(...)': missing closing parenthesis"
-        );
-        let inner = &stripped[..stripped.len().saturating_sub(1)];
+        let Some(inner) = stripped.strip_suffix(')') else {
+            bail!("Malformed '@chain(...)': missing closing parenthesis");
+        };
         inner.trim()
     } else if let Some(stripped) = trimmed.strip_prefix("@(") {
-        ensure!(
-            stripped.ends_with(')'),
-            "Malformed '@(...)': missing closing parenthesis"
-        );
-        let inner = &stripped[..stripped.len().saturating_sub(1)];
+        let Some(inner) = stripped.strip_suffix(')') else {
+            bail!("Malformed '@(...)': missing closing parenthesis");
+        };
         inner.trim()
     } else {
         trimmed
@@ -303,7 +299,9 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
 
     let mut idx = 0usize;
     while idx < tokens.len() {
-        let token = &tokens[idx];
+        let Some(token) = tokens.get(idx) else {
+            break;
+        };
         match &token.kind {
             TokenKind::LParen => {
                 let start_idx = idx;
@@ -311,14 +309,16 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                 idx = idx.saturating_add(1);
 
                 while idx < tokens.len() && paren_depth > 0 {
-                    match &tokens[idx].kind {
-                        TokenKind::LParen => {
-                            paren_depth = paren_depth.saturating_add(1);
+                    if let Some(t) = tokens.get(idx) {
+                        match &t.kind {
+                            TokenKind::LParen => {
+                                paren_depth = paren_depth.saturating_add(1);
+                            }
+                            TokenKind::RParen => {
+                                paren_depth = paren_depth.saturating_sub(1);
+                            }
+                            _ => {}
                         }
-                        TokenKind::RParen => {
-                            paren_depth = paren_depth.saturating_sub(1);
-                        }
-                        _ => {}
                     }
                     idx = idx.saturating_add(1);
                 }
@@ -328,7 +328,10 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                     "Unclosed opening parenthesis '(' in format specification"
                 );
 
-                let inner_tokens = &tokens[start_idx.saturating_add(1)..idx.saturating_sub(1)];
+                let inner_range = start_idx.saturating_add(1)..idx.saturating_sub(1);
+                let Some(inner_tokens) = tokens.get(inner_range) else {
+                    bail!("Failed to slice inner parenthesized tokens");
+                };
                 let sub_expr = parse_scope(inner_tokens, current_depth.saturating_add(1))?;
                 items.push(sub_expr);
             }

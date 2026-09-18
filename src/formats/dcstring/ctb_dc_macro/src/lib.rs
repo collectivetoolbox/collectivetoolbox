@@ -569,7 +569,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 let mut construct_flag_fields = Vec::new();
 
                 for field in fields {
-                    let field_ident = field.ident.as_ref().unwrap();
+                    let Some(field_ident) = field.ident.as_ref() else {
+                        return Err(syn::Error::new(field.span(), "Expected named field in flag struct"));
+                    };
                     let attr = parse_field_attrs(field)?;
                     if attr.skip {
                         construct_flag_fields.push(quote! {
@@ -665,7 +667,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
             let mut construct_fields = Vec::new();
 
             for field in fields {
-                let field_ident = field.ident.as_ref().unwrap();
+                let Some(field_ident) = field.ident.as_ref() else {
+                    return Err(syn::Error::new(field.span(), "Expected named field"));
+                };
                 let field_ty = &field.ty;
                 let attr = parse_field_attrs(field)?;
 
@@ -676,8 +680,12 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                     continue;
                 }
 
-                let id_opt = attr.tag.or(attr.nested.first().copied()).or(attr.begin);
-                let id = id_opt.unwrap();
+                let Some(id) = attr.tag.or(attr.nested.first().copied()).or(attr.begin) else {
+                    return Err(syn::Error::new(
+                        field.span(),
+                        format!("Field `{field_ident}` requires a Dc tag, nested, or begin attribute"),
+                    ));
+                };
                 if attr.nested.is_empty() {
                     if !seen_ids.insert(id) {
                         return Err(syn::Error::new(
@@ -1286,7 +1294,13 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                                     format!("Variant `{variant_ident}` with `binary` attribute must have exactly one unnamed field"),
                                 ));
                             }
-                            let ty = &unnamed.unnamed.first().unwrap().ty;
+                            let Some(first_field) = unnamed.unnamed.first() else {
+                                return Err(syn::Error::new(
+                                    variant.span(),
+                                    format!("Variant `{variant_ident}` with `binary` attribute must have exactly one unnamed field"),
+                                ));
+                            };
+                            let ty = &first_field.ty;
                             encode_variants.push(quote! {
                                 Self::#variant_ident(f0) => {
                                     mst.push_char(#crate_root::DcChar::from_u128(#tag_id));
@@ -1334,7 +1348,9 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                         let mut decode_fields = Vec::new();
 
                         for f in &named.named {
-                            let f_ident = f.ident.as_ref().unwrap();
+                            let Some(f_ident) = f.ident.as_ref() else {
+                                return Err(syn::Error::new(f.span(), "Expected named field"));
+                            };
                             field_names.push(f_ident);
                             let f_ty = &f.ty;
                             let attr = parse_field_attrs(f)?;

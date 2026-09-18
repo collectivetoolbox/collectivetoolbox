@@ -570,29 +570,31 @@ fn parse_trailing_quantifier(chars: &[char], idx: usize) -> (Quantifier, usize) 
                     end = end.saturating_add(1);
                 }
                 if end < chars.len() {
-                    let content: String = chars[start..end].iter().collect();
-                    let trimmed = content.trim();
-                    let parsed = if let Some((min_s, max_s)) =
-                        trimmed.split_once("..").or_else(|| trimmed.split_once(','))
-                    {
-                        // Reason for fallback: omitted min in range defaults to 0
-                        let min = min_s.trim().parse::<usize>().unwrap_or(0);
-                        let max = if max_s.trim().is_empty() {
-                            None
+                    if let Some(sub) = chars.get(start..end) {
+                        let content: String = sub.iter().collect();
+                        let trimmed = content.trim();
+                        let parsed = if let Some((min_s, max_s)) =
+                            trimmed.split_once("..").or_else(|| trimmed.split_once(','))
+                        {
+                            // Reason for fallback: omitted min in range defaults to 0
+                            let min = min_s.trim().parse::<usize>().unwrap_or(0);
+                            let max = if max_s.trim().is_empty() {
+                                None
+                            } else {
+                                max_s.trim().parse::<usize>().ok()
+                            };
+                            Some(Quantifier::Range { min, max })
+                        } else if let Ok(n) = trimmed.parse::<usize>() {
+                            Some(Quantifier::Range {
+                                min: n,
+                                max: Some(n),
+                            })
                         } else {
-                            max_s.trim().parse::<usize>().ok()
+                            None
                         };
-                        Some(Quantifier::Range { min, max })
-                    } else if let Ok(n) = trimmed.parse::<usize>() {
-                        Some(Quantifier::Range {
-                            min: n,
-                            max: Some(n),
-                        })
-                    } else {
-                        None
-                    };
-                    if let Some(q) = parsed {
-                        return (q, end.saturating_add(1));
+                        if let Some(q) = parsed {
+                            return (q, end.saturating_add(1));
+                        }
                     }
                 }
                 (Quantifier::ExactOne, idx)

@@ -244,6 +244,7 @@ pub fn evaluate_rule<S: DetectionSource + ?Sized>(
         return None;
     }
 
+    // Reason for fallback: intermediate magic rule nodes may omit descriptions and act purely as branching tests
     let mut description = rule.description.clone().unwrap_or_default();
     let mut mime = rule.mime.clone();
     let mut ext = rule.ext.clone();

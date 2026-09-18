@@ -110,7 +110,9 @@ impl DcChar {
     ///   embedded via Dc 308: `[308, 6, 199, ...digits..., 7]`.
     #[must_use]
     pub fn to_short_vec(self) -> Vec<u32> {
+        // Reason for fallback: DC_ESCAPE is canonically Dc 255 which maps to short id 255
         let escape = crate::dc::DC_ESCAPE.to_short().unwrap_or(255);
+        // Reason for fallback: DC_LONG_DC is canonically Dc 308 which maps to short id 308
         let long_dc = crate::dc::DC_LONG_DC.to_short().unwrap_or(308);
 
         if self == crate::dc::DC_LONG_DC {

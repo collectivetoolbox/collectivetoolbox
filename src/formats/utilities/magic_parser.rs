@@ -349,6 +349,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
     // Parse type and optional mask
     let (base_type, mask_str) = if let Some(idx) = type_str.find('&') {
         let (t, m) = type_str.split_at(idx);
+        // Reason for fallback: '&' was located via find('&'), so strip_prefix('&') yields mask string
         (t, Some(m.strip_prefix('&').unwrap_or("")))
     } else {
         (type_str, None)
@@ -371,7 +372,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U8 { value: val, op, mask }
             }
         }
-        "leshort" | "short" | "ushort" => {
+        "leshort" | "short" | "ushort" | "uleshort" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u16::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -382,7 +383,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U16Le { value: val, op, mask }
             }
         }
-        "beshort" => {
+        "beshort" | "ubeshort" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u16::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -393,7 +394,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U16Be { value: val, op, mask }
             }
         }
-        "lelong" | "long" | "ulong" => {
+        "lelong" | "long" | "ulong" | "ulelong" | "lequad" | "ulequad" | "quad" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -404,7 +405,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U32Le { value: val, op, mask }
             }
         }
-        "belong" => {
+        "belong" | "ubelong" | "bequad" | "ubequad" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -463,7 +464,9 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
                 continue;
             }
             let parts: Vec<&str> = directive.splitn(2, char::is_whitespace).collect();
+            // Reason for fallback: directive without whitespace has empty value and defaults to empty name
             let name = parts.first().copied().unwrap_or("");
+            // Reason for fallback: directive without a value parameter defaults to empty string
             let val = parts.get(1).copied().unwrap_or("").trim();
 
             if let Some(target) = stack.last_mut() {
@@ -518,6 +521,10 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
                 }
                 stack.push(new_rule);
             } else {
+                if stack.is_empty() {
+                    // Orphaned continuation line with no active parent root rule; ignore
+                    continue;
+                }
                 // Pop stack until parent level is level - 1
                 while stack.len() > level {
                     let popped = match stack.pop() {

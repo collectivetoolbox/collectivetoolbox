@@ -172,6 +172,7 @@ impl FormatCatalog {
                     .split(',')
                     .map(|s| {
                         let trimmed = s.trim().trim_matches('"');
+                        // Reason for fallback: extensions without a leading dot are already bare extensions
                         trimmed.strip_prefix('.').unwrap_or(trimmed).to_string()
                     })
                     .filter(|s| !s.is_empty())
