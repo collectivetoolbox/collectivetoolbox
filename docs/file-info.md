@@ -110,10 +110,13 @@ The following is a design proposal, not an implemented schema or DSL.
    proof of a valid decomposition. `<equiv>`, `<approx>`, and `<semantic>` do not
    substitute for subtype, axis, origin, or conversion relationships.
 4. **Composition:** Use an expression tree of type references and operations.
-   Migrate legacy `Chain (=)` entries individually once this representation is
-   defined. Do not reinterpret every `&` in the overloaded base column as an
-   executable pipeline; `Utf8_Base64` (f110), for example, describes nested
-   representations, not two independent constraints on the same bytes.
+   Persisted chains accept numeric Dc references and explicitly registered stable
+   named types only; aliases, Rust identifiers, and nicknames are never resolved
+   implicitly. Migrate legacy `Chain (=)` entries individually once this
+   representation is defined. Do not reinterpret every `&` in the overloaded
+   base column as an executable pipeline; `Utf8_Base64` (f110), for example,
+   describes nested representations, not two independent constraints on the same
+   bytes.
 5. **Metadata and evidence:** Preferred extension, preferred nickname, aliases,
    MIME/UTI identifiers, creator/type codes, timestamp resolution, and detection
    rules are separate predicates. Missing metadata is unknown or inapplicable,
@@ -144,11 +147,13 @@ Use distinct operators for distinct operations:
 | `A ! B` | 303 | Reinterpret A's unchanged representation as B |
 | `(A)` | 298 / 299 | Explicit grouping |
 
-`>`/`!`/`:` bind more tightly than `&` and `|`, with left-to-right association. Association must not be automatic when mixing `&` or `|` with the other operators - explicit grouping is required for an expression like `A & (B : C)`; it should not be inferred by precedence.
-Parentheses can override this; the canonical printer should show
-mixed-operation grouping. Thus `directory > tar > bz2` means `(directory >
-tar) > bz2`, while `pan > (json & utf8)` applies both constraints to the
-output.
+`>`/`!`/`:` bind more tightly than `&` and `|`, with left-to-right association.
+Association must not be automatic when mixing `&` or `|` with the other
+operators - explicit grouping is required for an expression like `A & (B : C)`;
+it should not be inferred by precedence. Parentheses can override this; the
+canonical printer should show mixed-operation grouping. Thus `directory > tar >
+bz2` means `(directory > tar) > bz2`, while `pan > (json & utf8)` applies both
+constraints to the output.
 
 Neither `&` nor `|` takes precedence over the other. Parentheses are required
 whenever `&` or `|` could have interpretations in different grouping ways (such
@@ -156,16 +161,27 @@ as mixing `&` and `|` without grouping, e.g., `A & B | C` vs `(A & B) | C` or
 `A & (B | C)`). Ambiguous expressions without explicit parenthesization must be
 rejected.
 
-The spelling `directory` is schematic until it is explicitly bound to a
-suitable descriptor; the existing file-kind Dc 359 must not be confused with
+The spelling `directory` in examples is schematic until it is explicitly bound to
+a suitable descriptor; the existing file-kind Dc 359 must not be confused with
 format f359 (BaseAlphabet).
 
-Atoms should allow unambiguous ID references (`f542` for format-local IDs and
-`@2228766` for global IDs) as well as registered nicknames. Nicknames such as
-`iso8859-1` need hyphens; resolve them through data and reject ambiguous aliases.
-Not every graph node is a type: validate the referenced node's role. IDs provide
-a spelling even when a format has no nickname. A Rust identifier is not
-automatically a CLI nickname.
+Persisted chains accept numeric Dc references (as defined in README.shorthand.md) and explicitly registered stable named types only.
+Labels, Rust identifiers, nicknames, and other aliases are never resolved
+implicitly. There is currently no stability guarantee for keyword references or
+other human-readable identifiers for Dcs; accepting aliases or attempting to
+make them prematurely stable is error-prone, risking either invalidating
+persisted expressions on changes or permanently baking in suboptimal names.
+This keeps permanent naming commitments infrequent and deliberate. Using the
+existing named-type registry is reasonable, provided it distinguishes a named
+type definition from a name bound to one specific Dc; those are not
+automatically interchangeable.
+
+A named type must be valid in the operand’s context. Existing names such as
+`number` and `string` describe broad types, not necessarily concrete encodings
+or conversion targets. Tools may display current human-readable labels alongside
+numeric references without making those labels part of the expression. Not every
+graph node is a type: validate the referenced node's role. Numeric IDs provide
+an unambiguous spelling even when a format has no registered named type.
 
 The `|` operator designates Dc 516 (Type intersection, expressing alternative
 constraints where any of multiple types satisfy the description). It is not
