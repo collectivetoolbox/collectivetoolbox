@@ -1,3 +1,89 @@
+# File Information & Format Architecture: Master Checklist
+
+## Implementation Progress Snapshot
+- **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
+- **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
+- **Data Migration to `@chain(...)` & `@base(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
+- **Basic Multi-Signal Format Detection & Extension Chains:** Initial version completed (`ctb_formats_utilities::detection`)
+- **Initial Data Cleanup (Math/Line Endings/Calendar):** Completed (2026-09-17)
+- **Grammar & Evaluation Engine:** Data definitions complete; strict parser/evaluator pending
+- **Declarative Detection Rule Dataset & Abstract Source Trait:** Pending
+- **Graph Triples & Relation Predicates:** Pending
+- **Lossless Archive Format Model:** Pending
+- **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
+
+---
+
+### Phase 1: Format Identity, Ontological Boundaries & Data Cleanup
+- [x] **Global Graph Identity Authority:** Establish global graph ID as authoritative (short Dcs offset 1114112, format-local offset 2228224; e.g., `f542` = `l2228766`).
+- [x] **Preserve Existing Dc Identities:** Ensure existing Dc numbers retain their semantic identity without reassignments or destructive merges.
+- [x] **Clean Up Math Dimension Equivalences:** Remove false `<equiv>` claims between fixed-dimensional (`Point1D`) and variable-dimensional formats.
+- [x] **Relocate Math Origin/Axis/Ordering Metadata:** Move invalid concatenated `<semantic>` decompositions into descriptive metadata pending graph predicates.
+- [x] **Line Convention Disambiguation:** Differentiate terminated-line vs. separated-line identities across character encodings (ASCII, EBCDIC NEL) without silent heuristic conflation.
+- [x] **Calendar Identity Boundary:** Preserve Dc 9 strictly as the Gregorian calendar identifier without merging or assuming equivalence with other calendar concepts.
+
+### Phase 2: Format Specification DSL & Dc Token Stream
+- [x] **Recursive AST Design:** Implement `FormatExpr` AST supporting `TypeRef`, `NamedType`, `Union` (`&`, Dc 300), `Intersection` (`|`, Dc 516), `Transform` (`:`, Dc 301), `Convert` (`>`, Dc 302), and `Reinterpret` (`!`, Dc 303) in `src/formats/dcdata/format_spec/ast.rs`.
+- [x] **Format Expression Parser:** Implement recursive descent parser supporting infix notation, prefix Polish notation, explicit grouping, and `@chain(...)` wrapping in `parser.rs`.
+- [x] **Semantic Validator:** Enforce AST depth limit (32), node count limit (256), valid Dc ranges, and registered transformation target restrictions in `validator.rs`.
+- [x] **Expression Formatter:** Format AST into standard readable infix strings in `formatter.rs`.
+- [x] **Bidirectional Dc Token Stream:** Implement prefix Polish notation encoder/decoder with tail-position optimization and delimiter `299` disambiguation in `dc_stream.rs`.
+
+### Phase 3: CSV Format Data Migration
+- [x] **Unified Column Specification Parser:** Add unified parsing for column 6 (formats) and column 9 (characters) supporting `@chain(...)` and `@base(...)` directives (`src/formats/dcdata/column_spec.rs`).
+- [x] **Disallow Ambiguous Bare Identifiers:** Reject bare format references in format CSVs to ensure unambiguous expression parsing.
+- [x] **CSV Data Migration:** Convert existing `Chain (=)` and base entries to valid `@chain(...)` and `@base(...)` directives across format CSV files (`src/formats/dcdata/data/`).
+- [x] **Format Details Integration:** Expose validated `format_spec: Option<FormatExpr>` on `FormatDetails` and `DcDef`.
+
+### Phase 4: Syntax Framing, Grammar & Safe Evaluator
+- [x] **Syntactic Roles Specification:** Define distinct named-type roles for `string`, `identifier`, `value`, and `statement` in named-type definitions.
+- [x] **Framing & Escaping Rules:** Document literal delimiter syntax (`260 <header> <payload> 261`) with escape character `255` protecting terminators and inner escapes.
+- [ ] **Strict Grammar Matcher:** Upgrade syntax matcher from token placeholder consumption to full, namespace-safe, bounded recursive rule expansion.
+- [ ] **Strict Framing Validation:** Reject truncated structures or dangling escapes instead of falling back to warning recovery during execution validation.
+- [ ] **Non-Evaluating Parser & Safe Evaluator:** Ensure parsing, indexing, and deserialization never execute quoted payloads; implement explicit execution contexts.
+- [ ] **Bit-for-Bit Representation Preservation:** Preserve original escaped spellings separately where round-trip verbatim reconstruction is required.
+- [ ] **Extended Grammar Constructs:** Formalize explicit syntax for routine arguments, list/map element framing, and nested executable blocks before inclusion in `statement` / `value`.
+- [ ] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
+
+### Phase 5: Declarative File Type Detection Engine
+- [x] **Basic Multi-Signal Detection:** Initial implementation combining magic byte matching (`MAGIC_REGISTRY`), extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
+- [x] **Multipart Extension Chain Parsing:** Parse layered extensions (e.g., `.html.gz`, `.pan.Z`) into structured `FormatChain` (`outer`, `inner`, `layers`, `stem`) and format spec chains (`Html > Gzip`).
+- [ ] **Abstract Source Interface (`Source` trait):**
+  - [ ] Implement read-only abstraction covering in-memory byte slices, filesystem paths, and archive member streams.
+  - [ ] Support bounded range reads, size reporting when known, and raw metadata access.
+  - [ ] Implement bounded immediate-child lookup for directory packages (e.g., macOS `.app`) with strict depth/budget limits (no arbitrary tree traversal or symlink following).
+  - [ ] Explicitly distinguish between insufficient data / budget exhaustion and negative matches.
+- [ ] **Declarative Detection Rules Dataset:**
+  - [ ] Create a versioned external dataset of detection rules keyed by format IDs (libmagic-style declarative rules).
+  - [ ] Support byte matches, arbitrary offset ranges, bitmasks, string patterns, and bounded structural probes.
+  - [ ] Multi-candidate detection returning candidates ranked with explicit evidence and confidence semantics (distinguishing heuristic hints from conclusive magic).
+
+### Phase 6: Parameterized Formats & Comprehensive Format Catalog
+- [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
+- [ ] **EITE Number Base Catalog:** Inventory and register all supported EITE number bases, alphabets, digit orderings, case rules, and padding conventions in the format dataset.
+- [ ] **Line-Ending Formats Inventory:** Comprehensively specify terminated vs. separated conventions across line-ending formats (CRLF, LF, CR, NEL).
+- [ ] **Parameterized Equivalence Migration:** Replace temporary `[number:'...']` syntax placeholders in `f371`–`f375` `<equiv>` entries with parameter bindings.
+
+### Phase 7: Semantic Graph Triples & Relation Predicates
+- [ ] **Relation Instance Model:** Represent semantic graph relations with dedicated node IDs carrying `(subject, predicate, object)` fields plus qualified statement attachments.
+- [ ] **Predicate Allocation:** Formally define and allocate Dcs for relation predicates (axes, origins, component ordering, subtypes, conversions) once domains and cardinality are fixed.
+- [ ] **Migrate Math Metadata from Prose:** Convert interim math coordinate/vector metadata from descriptions into structured graph relation statements.
+- [ ] **Split Overloaded Base/Chain/Syntax:** Fully separate subtype inheritance, conversion pipelines, and payload byte layouts into distinct graph edges.
+- [ ] **Dc Document Triple Indexing:** Build pipeline to compile the Dc CSV dataset into native Dc semantic triple documents, retaining CSVs solely for bootstrapping/regeneration.
+
+### Phase 8: Lossless Archive & Container Representation
+- [ ] **Lossless Archive Data Model:** Design a Dc document schema capable of losslessly representing archive contents (tar/zip containers).
+- [ ] **Preserve Low-Level Metadata:** Retain raw byte paths, nanosecond timestamp precision, sparse extents, permission bits, alternate data streams, and unrecognized header fields.
+- [ ] **Reconstruction vs. Round-Trip:** Distinguish logical content extraction from bit-for-bit archive reconstruction (header padding, duplicate entries, compression parameters).
+- [ ] **Archive Detection without Unpacking:** Ensure container classification and package detection operate via bounded header inspection without full archive extraction.
+
+### Phase 9: Metadata, CLI Nicknames & Public API
+- [ ] **Format Nicknames Registry:** Define authoritative CLI nicknames and preferred UI display nicknames.
+- [ ] **Extension & MIME Registry Integration:** Consolidate preferred extension lists, MIME types, Apple UTIs, and creator codes into the unified format lookup service.
+- [ ] **Public Formats API:** Provide a clean, idiomatic formats query API for CLI tools and GUI components (in-memory, no filesystem requirement).
+
+---
+
 This repository currently has some support in formats/utilities for information about files and file formats. It uses data from the Dc database (which is in effect Unicode extended with additional characters, most of which serve to represent semantic data - Dcs are meant as an implementation-independent encoding for documents and semantic data).
 
 The current formats/utilities implementation is not maintainable or robust, so I would like to rework it.
