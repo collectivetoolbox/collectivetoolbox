@@ -30,11 +30,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! - **Short Dc integer**: `#[dc(401)]` or `#[dc(begin = 490, end = 491)]`.
 //!   Maps to `SHORT_DC_REGION_START + N` (global ID range `1_114_112..=2_228_223`).
-//! - **Format Dc shorthand**: `#[dc(f315)]` or `#[dc(F315)]`.
+//! - **Format Dc shorthand**: `#[dc(f315)]`.
 //!   Maps to `FORMAT_REGION_START + N` (global ID range `2_228_224..=3_342_335`).
-//! - **Long Dc shorthand**: `#[dc(l1114513)]` or `#[dc(L1114513)]`.
+//! - **Long Dc shorthand**: `#[dc(l1114513)]`.
 //!   Maps directly to the specified global `u128` Dc identifier.
-//! - **Unicode shorthand**: `#[dc(u01a3)]` or `#[dc(U01a3)]`.
+//! - **Unicode shorthand**: `#[dc(u01a3)]`.
 //!   Maps to `UNICODE_REGION_START + hex_val` (global ID range `0..=1_114_111`).
 //! - **String literals**: `#[dc("f315")]`, `#[dc("401")]`, etc.
 //!
@@ -97,6 +97,7 @@ use syn::{
 use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_START, SHORT_DC_REGION_START, UNICODE_REGION_START,
 };
+use ctb_storage_minimal::shorthand::DcShorthand;
 
 const MAX_SHORT_DC: u32 = 1_114_111;
 
@@ -150,67 +151,11 @@ fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
 }
 
 fn parse_shorthand_str(s: &str, span: Span) -> syn::Result<u128> {
-    let s = s.trim();
-    if s.is_empty() {
-        return Err(syn::Error::new(span, "Empty Dc shorthand"));
-    }
-    let first = s.chars().next().unwrap();
-    if first == 'f' || first == 'F' {
-        let num_str = &s[1..];
-        let val: u32 = num_str.parse().map_err(|e| {
-            syn::Error::new(span, format!("Invalid format Dc '{s}': {e}"))
-        })?;
-        if val > MAX_SHORT_DC {
-            return Err(syn::Error::new(
-                span,
-                format!("Format Dc {val} exceeds maximum {MAX_SHORT_DC}"),
-            ));
-        }
-        Ok(FORMAT_REGION_START.saturating_add(u128::from(val)))
-    } else if first == 'l' || first == 'L' {
-        let num_str = &s[1..];
-        let val: u128 = if let Some(hex) = num_str.strip_prefix("0x").or_else(|| num_str.strip_prefix("0X")) {
-            u128::from_str_radix(hex, 16).map_err(|e| {
-                syn::Error::new(span, format!("Invalid hex long Dc '{s}': {e}"))
-            })?
-        } else {
-            num_str.parse().map_err(|e| {
-                syn::Error::new(span, format!("Invalid long Dc '{s}': {e}"))
-            })?
-        };
-        Ok(val)
-    } else if first == 'u' || first == 'U' {
-        // Reason for fallback: The '+' in U+XXXX notation is optional for Unicode escapes.
-        let hex_str = s[1..].strip_prefix('+').unwrap_or(&s[1..]);
-        let val = u32::from_str_radix(hex_str, 16).map_err(|e| {
-            syn::Error::new(span, format!("Invalid Unicode Dc '{s}': {e}"))
-        })?;
-        if val > 0x10_FFFF {
-            return Err(syn::Error::new(
-                span,
-                format!("Unicode codepoint 0x{val:X} exceeds maximum 0x10FFFF"),
-            ));
-        }
-        Ok(UNICODE_REGION_START.saturating_add(u128::from(val)))
-    } else if s.chars().all(|c| c.is_ascii_digit()) {
-        let val: u32 = s.parse().map_err(|e| {
-            syn::Error::new(span, format!("Invalid short Dc '{s}': {e}"))
-        })?;
-        if val > MAX_SHORT_DC {
-            return Err(syn::Error::new(
-                span,
-                format!("Short Dc {val} exceeds maximum {MAX_SHORT_DC}"),
-            ));
-        }
-        Ok(SHORT_DC_REGION_START.saturating_add(u128::from(val)))
-    } else {
-        Err(syn::Error::new(
-            span,
-            format!(
-                "Unrecognized Dc shorthand '{s}'. Expected integer (short Dc), f... (format Dc), l... (long Dc), or u... (Unicode codepoint)"
-            ),
-        ))
-    }
+    let shorthand = DcShorthand::parse(s)
+        .map_err(|e| syn::Error::new(span, format!("Invalid Dc shorthand '{s}': {e}")))?;
+    shorthand
+        .to_global_id()
+        .map_err(|e| syn::Error::new(span, format!("Unsupported Dc shorthand '{s}': {e}")))
 }
 
 fn parse_dc_expr(expr: &Expr) -> syn::Result<u128> {

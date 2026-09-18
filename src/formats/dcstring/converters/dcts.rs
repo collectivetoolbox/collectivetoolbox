@@ -40,8 +40,9 @@ use ctb_formats_utf_8e_128::decode_utf_8e_128;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_END,
-    SHORT_DC_REGION_START, UNICODE_REGION_END, dc_to_gid, format_to_gid,
+    SHORT_DC_REGION_START, UNICODE_REGION_END,
 };
+use ctb_storage_minimal::shorthand::DcShorthand;
 
 use super::dctext::{
     DcList, dcarray_to_dclist, dclist_to_dcarray, dcutf_to_dclist,
@@ -89,100 +90,38 @@ pub fn dcts_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>> {
                                 continue;
                             }
 
-                            // 1) Local node: @L<number>@
-                            if let Some(num_str) = token_str.strip_prefix('L') {
-                                if let Ok(int_val) =
-                                    num_str.parse::<malachite::Integer>()
-                                {
-                                    match integer_to_dc_number_global(&int_val) {
-                                        Ok(dc_num_gids) => {
-                                            dc_string.push(DcChar(1_114_408u128));
-                                            for gid in dc_num_gids {
-                                                dc_string.push(DcChar(gid));
+                            if let Ok(shorthand) = DcShorthand::parse(token_str) {
+                                match shorthand {
+                                    DcShorthand::Local(int_val) => {
+                                        let malachite_val = malachite::Integer::from(int_val);
+                                        match integer_to_dc_number_global(&malachite_val) {
+                                            Ok(dc_num_gids) => {
+                                                dc_string.push(DcChar(1_114_408u128));
+                                                for gid in dc_num_gids {
+                                                    dc_string.push(DcChar(gid));
+                                                }
+                                                i = i
+                                                    .saturating_add(2)
+                                                    .saturating_add(end_rel);
+                                                continue;
                                             }
+                                            Err(e) => {
+                                                log.warn(&format!(
+                                                    "Failed to encode Dc number for local node @{token_str}@: {e}"
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    other => {
+                                        if let Ok(gid) = other.to_global_id() {
+                                            dc_string.push(DcChar(gid));
                                             i = i
                                                 .saturating_add(2)
                                                 .saturating_add(end_rel);
                                             continue;
                                         }
-                                        Err(e) => {
-                                            log.warn(&format!(
-                                                "Failed to encode Dc number for local node @{token_str}@: {e}"
-                                            ));
-                                        }
                                     }
-                                } else {
-                                    log.warn(&format!(
-                                        "Invalid local reference token @{token_str}@ in Dcts"
-                                    ));
                                 }
-                            }
-                            // 2) Long Dc: @l<number>@
-                            else if let Some(num_str) = token_str.strip_prefix('l') {
-                                if let Ok(dcid) = num_str.parse::<u128>() {
-                                    dc_string.push(DcChar(dcid));
-                                    i = i
-                                        .saturating_add(2)
-                                        .saturating_add(end_rel);
-                                    continue;
-                                } else {
-                                    log.warn(&format!(
-                                        "Invalid long Dc token @{token_str}@ in Dcts"
-                                    ));
-                                }
-                            }
-                            // 3) Unicode codepoint hex: @u123a@
-                            else if let Some(hex_str) = token_str.strip_prefix('u') {
-                                if let Ok(cp) = u32::from_str_radix(hex_str, 16) {
-                                    if u128::from(cp) <= UNICODE_REGION_END {
-                                        dc_string.push(DcChar(u128::from(cp)));
-                                        i = i
-                                            .saturating_add(2)
-                                            .saturating_add(end_rel);
-                                        continue;
-                                    }
-                                    log.warn(&format!(
-                                        "Unicode codepoint @{token_str}@ exceeds 0x10FFFF maximum"
-                                    ));
-                                } else {
-                                    log.warn(&format!(
-                                        "Invalid hex Unicode codepoint token @{token_str}@ in Dcts"
-                                    ));
-                                }
-                            }
-                            // 4) Format: @f123@
-                            else if let Some(fmt_str) = token_str.strip_prefix('f') {
-                                if let Ok(fmt_id) = fmt_str.parse::<u64>() {
-                                    let gid = format_to_gid(fmt_id);
-                                    if gid <= FORMAT_REGION_END {
-                                        dc_string.push(DcChar(gid));
-                                        i = i
-                                            .saturating_add(2)
-                                            .saturating_add(end_rel);
-                                        continue;
-                                    }
-                                    log.warn(&format!(
-                                        "Format ID @{token_str}@ exceeds format region bounds ({FORMAT_REGION_START}..={FORMAT_REGION_END})"
-                                    ));
-                                } else {
-                                    log.warn(&format!(
-                                        "Invalid format token @{token_str}@ in Dcts"
-                                    ));
-                                }
-                            }
-                            // 5) Short Dc by default: @123@
-                            else if let Ok(short_id) = token_str.parse::<u64>() {
-                                let gid = dc_to_gid(short_id);
-                                if gid > SHORT_DC_REGION_END {
-                                    log.warn(&format!(
-                                        "Short Dc ID @{token_str}@ exceeds short Dc region bounds ({SHORT_DC_REGION_START}..={SHORT_DC_REGION_END})"
-                                    ));
-                                }
-                                dc_string.push(DcChar(gid));
-                                i = i
-                                    .saturating_add(2)
-                                    .saturating_add(end_rel);
-                                continue;
                             } else {
                                 log.warn(&format!(
                                     "Unrecognized token @{token_str}@ in Dcts"

@@ -43,6 +43,7 @@ use crate::syntax::{
     CharTarget, parse_dc_syntax, parse_target_token, validate_dc_syntax,
 };
 use crate::{FORMATS_CATEGORIES_DIR, get_dc_categories_dir};
+use ctb_storage_minimal::shorthand::parse_unicode_shorthand;
 
 /// Runs comprehensive validation across all repository data tables strictly in memory
 /// using the embedded directory asset bundles.
@@ -969,15 +970,13 @@ pub fn validate_dc_category_file(
         }
 
         let is_generated_csv = file_path.ends_with(".generated.csv");
-        let (dc_id, is_unicode_char) = if let Some(hex_part) = dc_str.strip_prefix('u') {
-            // Strictly u<hex> format: 1..=6 lowercase hex digits
-            if (1..=6).contains(&hex_part.len())
-                && hex_part.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
-            {
-                if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
-                    if cp <= 0x10_FFFF {
-                        (u128::from(cp), true)
-                    } else {
+        let (dc_id, is_unicode_char) = if dc_str.starts_with('u') {
+            match parse_unicode_shorthand(&dc_str) {
+                Ok(cp) => (u128::from(cp), true),
+                Err(err) => {
+                    let err_msg = err.to_string();
+                    if err_msg.contains("exceeds maximum") {
+                        let hex_part = dc_str.strip_prefix('u').unwrap_or("");
                         report.add_error(
                             file_path,
                             Some(line_no),
@@ -985,27 +984,28 @@ pub fn validate_dc_category_file(
                             format!("Unicode codepoint 'u{hex_part}' exceeds maximum Unicode 0x10FFFF"),
                             Some("Ensure codepoint is within 0x0..=0x10FFFF"),
                         );
-                        continue;
+                    } else if dc_str
+                        .strip_prefix('u')
+                        .is_some_and(|h| !h.is_empty() && h.chars().all(|c| c.is_ascii_hexdigit()))
+                    {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Dc"),
+                            format!("Invalid hex in Unicode reference: '{dc_str}'"),
+                            Some("Must be 'u' followed by valid lowercase hex"),
+                        );
+                    } else {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some("Dc"),
+                            format!("Invalid Unicode notation '{dc_str}': must be 'u' followed by 1..=6 lowercase hex digits (e.g. u0020, u0b)"),
+                            Some("Only lowercase u<hex> is permitted for Unicode characters in category tables"),
+                        );
                     }
-                } else {
-                    report.add_error(
-                        file_path,
-                        Some(line_no),
-                        Some("Dc"),
-                        format!("Invalid hex in Unicode reference: '{dc_str}'"),
-                        Some("Must be 'u' followed by valid lowercase hex"),
-                    );
                     continue;
                 }
-            } else {
-                report.add_error(
-                    file_path,
-                    Some(line_no),
-                    Some("Dc"),
-                    format!("Invalid Unicode notation '{dc_str}': must be 'u' followed by 1..=6 lowercase hex digits (e.g. u0020, u0b)"),
-                    Some("Only lowercase u<hex> is permitted for Unicode characters in category tables"),
-                );
-                continue;
             }
         } else if let Ok(v) = dc_str.parse::<u128>() {
             if v <= 1_114_111 {
@@ -1038,7 +1038,7 @@ pub fn validate_dc_category_file(
         let short_id = if is_unicode_char {
             if short_str.is_empty()
                 || short_str.starts_with("308")
-                || short_str.starts_with('u')
+                || parse_unicode_shorthand(&short_str).is_ok()
             {
                 None
             } else {
@@ -2522,7 +2522,7 @@ mod tests {
             &mut report,
         );
         assert!(report.has_errors());
-        assert!(report.format_report().contains("uppercase 'F' prefix is not accepted"));
+        assert!(report.format_report().contains("Invalid Short format ID integer: 'F0'"));
     }
 
     #[crate::ctb_test]

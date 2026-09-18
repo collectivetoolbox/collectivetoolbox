@@ -35,6 +35,9 @@ use std::path::{Path, PathBuf};
 pub use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_START, SHORT_DC_REGION_START,
 };
+pub use ctb_storage_minimal::shorthand::{
+    parse_format_shorthand, parse_unicode_shorthand,
+};
 
 /// Summary statistics for category table ID assignment and synchronization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -561,20 +564,15 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                                 clean_label.to_string()
                             };
 
-                            let short_cell = if let Some(rest) = get(1).strip_prefix('f') {
-                                if let Ok(s_id) = rest.parse::<u32>() {
+                            let short_cell =
+                                if let Ok(s_id) = parse_format_shorthand(&get(1)) {
+                                    format!("f{s_id}")
+                                } else if let Ok(dc_id) = get(0).parse::<u128>() {
+                                    let s_id = dc_id.saturating_sub(FORMAT_REGION_START);
                                     format!("f{s_id}")
                                 } else {
                                     get(1)
-                                }
-                            } else if let Ok(s_id) = get(1).parse::<u32>() {
-                                format!("f{s_id}")
-                            } else if let Ok(dc_id) = get(0).parse::<u128>() {
-                                let s_id = dc_id.saturating_sub(FORMAT_REGION_START);
-                                format!("f{s_id}")
-                            } else {
-                                get(1)
-                            };
+                                };
 
                             let unified_row = vec![
                                 get(0),                 // Dc
@@ -648,12 +646,10 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
                     for mut row in rows {
                         if !is_empty_row(&row) {
                             if let Some(dc_cell) = row.first_mut() {
-                                if let Some(hex_part) = dc_cell.strip_prefix('u') {
-                                    if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
-                                        *dc_cell = cp.to_string();
-                                        if let Some(short_cell) = row.get_mut(1) {
-                                            short_cell.clear();
-                                        }
+                                if let Ok(cp) = parse_unicode_shorthand(dc_cell) {
+                                    *dc_cell = cp.to_string();
+                                    if let Some(short_cell) = row.get_mut(1) {
+                                        short_cell.clear();
                                     }
                                 }
                             }
@@ -717,12 +713,10 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
         if let Ok((_, rows)) = read_csv_file(&clar_path) {
             for row in rows {
                 if let Some(dc_cell) = row.first() {
-                    if let Some(hex_part) = dc_cell.strip_prefix('u') {
-                        if let Ok(cp) = u32::from_str_radix(hex_part, 16) {
-                            let aliases = row.get(8).cloned().unwrap_or_default();
-                            let desc = row.get(9).cloned().unwrap_or_default();
-                            unicode_clarifications.insert(cp, (aliases, desc));
-                        }
+                    if let Ok(cp) = parse_unicode_shorthand(dc_cell) {
+                        let aliases = row.get(8).cloned().unwrap_or_default();
+                        let desc = row.get(9).cloned().unwrap_or_default();
+                        unicode_clarifications.insert(cp, (aliases, desc));
                     }
                 }
             }

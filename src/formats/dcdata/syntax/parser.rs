@@ -32,48 +32,22 @@ use super::ast::{
 };
 use anyhow::{Context, Result, bail, ensure};
 
-/// Parses a target token strictly according to canonical formatting rules:
+/// Parses a target token strictly according to canonical shorthand formatting rules:
 /// - Format ID: `f<digits>` (e.g. `f80`)
 /// - Unicode codepoint: `u<lowercase-hex>` with 1..=6 hex digits (e.g. `u0020`, `u12ab`)
 /// - Short Dc ID: `<digits>` (e.g. `246`, `0`)
 pub fn parse_target_token(token: &str) -> Option<CharTarget> {
-    let s = token.trim();
-    if s.is_empty() {
-        return None;
-    }
-
-    // Format target: f<digits>
-    if let Some(rest) = s.strip_prefix('f') {
-        if !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()) {
-            if let Ok(fmt_id) = rest.parse::<usize>() {
-                return Some(CharTarget::Format(fmt_id));
-            }
+    match ctb_storage_minimal::shorthand::DcShorthand::parse(token).ok()? {
+        ctb_storage_minimal::shorthand::DcShorthand::Short(id) => Some(CharTarget::Dc(id)),
+        ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id) => {
+            Some(CharTarget::Format(fmt_id))
         }
-        return None;
-    }
-
-    // Unicode target: u<lowercase-hex> (strictly 1..=6 lowercase hex characters)
-    if let Some(rest) = s.strip_prefix('u') {
-        if (1..=6).contains(&rest.len())
-            && rest.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
-        {
-            if let Ok(cp) = u32::from_str_radix(rest, 16) {
-                if cp <= 0x0010_FFFF {
-                    return Some(CharTarget::Unicode(cp));
-                }
-            }
+        ctb_storage_minimal::shorthand::DcShorthand::Unicode(cp) => {
+            Some(CharTarget::Unicode(cp))
         }
-        return None;
+        ctb_storage_minimal::shorthand::DcShorthand::Long(_)
+        | ctb_storage_minimal::shorthand::DcShorthand::Local(_) => None,
     }
-
-    // Short Dc ID: decimal digits only
-    if s.chars().all(|c| c.is_ascii_digit()) {
-        if let Ok(dc_id) = s.parse::<u32>() {
-            return Some(CharTarget::Dc(dc_id));
-        }
-    }
-
-    None
 }
 
 /// Parses an action invocation string like `lang.assign($ident, $val)`.

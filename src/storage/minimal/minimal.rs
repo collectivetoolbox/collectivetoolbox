@@ -28,7 +28,10 @@ pub(crate) use ctb_utilities::*;
 use include_dir::{Dir, include_dir};
 
 pub mod global_graph_layout;
+pub mod shorthand;
 pub mod xkb;
+
+pub use shorthand::*;
 
 static STORAGE_MINIMAL_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 

@@ -42,6 +42,12 @@ pub mod syntax;
 pub mod updater;
 pub mod validation;
 
+pub use ctb_storage_minimal::shorthand;
+pub use ctb_storage_minimal::shorthand::{
+    DcShorthand, is_valid_shorthand, parse_format_shorthand,
+    parse_unicode_shorthand,
+};
+
 pub use dc_char::DcChar;
 pub use dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,

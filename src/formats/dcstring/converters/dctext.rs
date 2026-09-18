@@ -81,45 +81,35 @@ pub fn dctext_to_dcstring(document: &[u8]) -> Result<ConversionOutput<DcString>>
                     if let Some(token_bytes) = rest.get(..end_rel) {
                         if let Ok(token_str) = std::str::from_utf8(token_bytes)
                         {
-                            let mut dcid_str = token_str;
-                            let mut is_l = false;
-
-                            if dcid_str.is_empty() {
-                                dcid_str = "64"; // @@ token represents @ (codepoint 64)
-                            }
-                            if let Some(stripped) = dcid_str.strip_prefix('L') {
-                                is_l = true;
-                                dcid_str = stripped;
+                            if token_str.is_empty() {
+                                // @@ token represents @ (codepoint 64)
+                                dc_string.push(DcChar(64u128));
+                                i = i.saturating_add(2);
+                                continue;
                             }
 
-                            if is_l {
-                                if let Ok(int_val) =
-                                    dcid_str.parse::<malachite::Integer>()
-                                {
-                                    match integer_to_dc_number_global(&int_val)
-                                    {
-                                        Ok(dc_num_gids) => {
-                                            dc_string.push(DcChar(1_114_408u128));
-                                            for gid in dc_num_gids {
-                                                dc_string.push(DcChar(gid));
-                                            }
-                                            i = i
-                                                .saturating_add(2)
-                                                .saturating_add(end_rel);
-                                            continue;
+                            if let Ok(ctb_storage_minimal::shorthand::DcShorthand::Local(int_val)) =
+                                ctb_storage_minimal::shorthand::DcShorthand::parse(token_str)
+                            {
+                                let malachite_val = malachite::Integer::from(int_val);
+                                match integer_to_dc_number_global(&malachite_val) {
+                                    Ok(dc_num_gids) => {
+                                        dc_string.push(DcChar(1_114_408u128));
+                                        for gid in dc_num_gids {
+                                            dc_string.push(DcChar(gid));
                                         }
-                                        Err(e) => {
-                                            log.warn(&format!(
-                                                "Failed to encode Dc number for @{token_str}@: {e}"
-                                            ));
-                                        }
+                                        i = i
+                                            .saturating_add(2)
+                                            .saturating_add(end_rel);
+                                        continue;
                                     }
-                                } else {
-                                    log.warn(&format!(
-                                        "Invalid local reference token @{token_str}@ in DcText"
-                                    ));
+                                    Err(e) => {
+                                        log.warn(&format!(
+                                            "Failed to encode Dc number for local node @{token_str}@: {e}"
+                                        ));
+                                    }
                                 }
-                            } else if let Ok(dcid) = dcid_str.parse::<u128>() {
+                            } else if let Ok(dcid) = token_str.parse::<u128>() {
                                 dc_string.push(DcChar(dcid));
                                 i = i.saturating_add(2).saturating_add(end_rel);
                                 continue;
