@@ -27,8 +27,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, FramedIdentifier, FramedLiteral,
+    MatchMode, ParsedDocument, ParsedElement, Quantifier, SyntaxAction,
+    SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
+};
+use super::framing::{
+    DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,
+    scan_literal_frame,
 };
 use anyhow::{Context, Result, bail, ensure};
 
@@ -646,4 +651,220 @@ pub fn parse_dc_syntax(raw: &str) -> Result<DcSyntaxRule> {
         action: action_opt,
         raw: raw.trim().to_string(),
     })
+}
+
+const DC_PARAM_BEGIN: u32 = 258;
+const DC_PARAM_END: u32 = 259;
+const DC_REF_NAMED: u32 = 276;
+const DC_INVOCATION: u32 = 279;
+
+/// Parses a character token stream into a structured, non-evaluating
+/// document representation.
+///
+/// Under `MatchMode::Permissive`, mangled or broken structures are preserved
+/// as `ParsedElement::RawTokens` and diagnostics are logged without aborting
+/// parsing. Under `MatchMode::Strict`, framing violations cause immediate
+/// return with `has_errors: true`.
+#[must_use]
+pub fn parse_document_tokens(stream: &[u32], mode: MatchMode) -> ParsedDocument {
+    let mut elements = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut offset = 0usize;
+
+    while offset < stream.len() {
+        let remaining = match stream.get(offset..) {
+            Some(s) => s,
+            None => break,
+        };
+        let Some(&first) = remaining.first() else {
+            break;
+        };
+
+        // Framed literal (Dc 260 ... Dc 261)
+        if first == DC_LITERAL_BEGIN {
+            if let Some((lit, consumed)) =
+                scan_literal_frame(remaining, mode, &mut diagnostics, offset)
+            {
+                elements.push(ParsedElement::Literal(lit));
+                offset = offset.saturating_add(consumed);
+                continue;
+            } else if mode == MatchMode::Strict {
+                return ParsedDocument {
+                    elements,
+                    diagnostics,
+                    has_errors: true,
+                };
+            }
+        }
+
+        // Framed identifier (Dc 270 ... Dc 271)
+        if first == DC_IDENTIFIER_BEGIN {
+            if let Some((ident, consumed)) =
+                scan_identifier_frame(remaining, mode, &mut diagnostics, offset)
+            {
+                elements.push(ParsedElement::Identifier(ident));
+                offset = offset.saturating_add(consumed);
+                continue;
+            } else if mode == MatchMode::Strict {
+                return ParsedDocument {
+                    elements,
+                    diagnostics,
+                    has_errors: true,
+                };
+            }
+        }
+
+        // Parameter frame (Dc 258 ... Dc 259)
+        if first == DC_PARAM_BEGIN {
+            let mut param_consumed = 1usize;
+            let mut inner_tokens = Vec::new();
+            let mut found_end = false;
+
+            while let Some(&tok) = remaining.get(param_consumed) {
+                param_consumed = param_consumed.saturating_add(1);
+                if tok == DC_PARAM_END {
+                    found_end = true;
+                    break;
+                }
+                inner_tokens.push(tok);
+            }
+
+            if !found_end {
+                diagnostics.push(SyntaxDiagnostic {
+                    message: "Unclosed parameter: missing terminator Dc 259"
+                        .to_string(),
+                    token_offset: offset.saturating_add(param_consumed),
+                    is_error: true,
+                });
+                if mode == MatchMode::Strict {
+                    return ParsedDocument {
+                        elements,
+                        diagnostics,
+                        has_errors: true,
+                    };
+                }
+            }
+
+            let inner_doc = parse_document_tokens(&inner_tokens, mode);
+            for mut diag in inner_doc.diagnostics {
+                diag.token_offset = diag
+                    .token_offset
+                    .saturating_add(offset)
+                    .saturating_add(1);
+                diagnostics.push(diag);
+            }
+            elements.push(ParsedElement::Parameter(inner_doc.elements));
+            offset = offset.saturating_add(param_consumed);
+            continue;
+        }
+
+        // Reference named object (Dc 276 [identifier])
+        if first == DC_REF_NAMED {
+            let after_ref = match remaining.get(1..) {
+                Some(s) => s,
+                None => &[],
+            };
+            if let Some((ident, consumed)) = scan_identifier_frame(
+                after_ref,
+                mode,
+                &mut diagnostics,
+                offset.saturating_add(1),
+            ) {
+                elements.push(ParsedElement::Reference(ident));
+                offset = offset.saturating_add(consumed).saturating_add(1);
+                continue;
+            }
+        }
+
+        // Routine invocation or built-in routine marker (e.g. Dc 256 lang.say or Dc 279)
+        if first == DC_INVOCATION || first == 256 {
+            let mut inv_consumed = 1usize;
+            let mut args = Vec::new();
+
+            let mut target_elem = ParsedElement::RawTokens(vec![first]);
+            if first == DC_INVOCATION {
+                let after_inv = match remaining.get(inv_consumed..) {
+                    Some(s) => s,
+                    None => &[],
+                };
+                if let Some((ident, consumed)) = scan_identifier_frame(
+                    after_inv,
+                    mode,
+                    &mut diagnostics,
+                    offset.saturating_add(inv_consumed),
+                ) {
+                    target_elem = ParsedElement::Identifier(ident);
+                    inv_consumed = inv_consumed.saturating_add(consumed);
+                }
+            }
+
+            loop {
+                let after_args = match remaining.get(inv_consumed..) {
+                    Some(s) => s,
+                    None => break,
+                };
+                if after_args.first() == Some(&DC_PARAM_BEGIN) {
+                    let mut p_consumed = 1usize;
+                    let mut p_tokens = Vec::new();
+                    let mut p_found_end = false;
+                    while let Some(&tok) = after_args.get(p_consumed) {
+                        p_consumed = p_consumed.saturating_add(1);
+                        if tok == DC_PARAM_END {
+                            p_found_end = true;
+                            break;
+                        }
+                        p_tokens.push(tok);
+                    }
+                    if !p_found_end {
+                        diagnostics.push(SyntaxDiagnostic {
+                            message:
+                                "Unclosed parameter in invocation: missing Dc 259"
+                                    .to_string(),
+                            token_offset: offset
+                                .saturating_add(inv_consumed)
+                                .saturating_add(p_consumed),
+                            is_error: true,
+                        });
+                    }
+                    let p_doc = parse_document_tokens(&p_tokens, mode);
+                    args.push(ParsedElement::Parameter(p_doc.elements));
+                    inv_consumed = inv_consumed.saturating_add(p_consumed);
+                } else {
+                    break;
+                }
+            }
+
+            elements.push(ParsedElement::Invocation {
+                target: Box::new(target_elem),
+                args,
+            });
+            offset = offset.saturating_add(inv_consumed);
+            continue;
+        }
+
+        // Fallback for unparsed raw token: accumulate contiguous raw tokens
+        let mut raw_chunk = vec![first];
+        offset = offset.saturating_add(1);
+        while let Some(&tok) = stream.get(offset) {
+            if tok == DC_LITERAL_BEGIN
+                || tok == DC_IDENTIFIER_BEGIN
+                || tok == DC_PARAM_BEGIN
+                || tok == DC_REF_NAMED
+                || tok == DC_INVOCATION
+                || tok == 256
+            {
+                break;
+            }
+            raw_chunk.push(tok);
+            offset = offset.saturating_add(1);
+        }
+        elements.push(ParsedElement::RawTokens(raw_chunk));
+    }
+
+    let has_errors = diagnostics.iter().any(|d| d.is_error);
+    ParsedDocument {
+        elements,
+        diagnostics,
+        has_errors,
+    }
 }

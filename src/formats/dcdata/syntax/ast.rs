@@ -199,3 +199,82 @@ pub struct DcSyntaxRule {
     /// Original raw source representation.
     pub raw: String,
 }
+
+/// Mode governing syntax matching and framing validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum MatchMode {
+    /// Resilient "tag-soup" matching with diagnostics (standard for document
+    /// display, indexing, and runtime execution).
+    #[default]
+    Permissive,
+    /// Strict structural validation; unclosed frames or dangling escapes fail
+    /// the match (used for explicit validation and linters).
+    Strict,
+}
+
+/// Diagnostic message emitted during parsing or matching.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SyntaxDiagnostic {
+    /// Explanatory diagnostic message.
+    pub message: String,
+    /// Token stream offset where the diagnostic occurred.
+    pub token_offset: usize,
+    /// Whether this diagnostic represents a syntax/framing error.
+    pub is_error: bool,
+}
+
+/// Framed literal preserving both verbatim source tokens and decoded payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FramedLiteral {
+    /// Raw character tokens in source stream including delimiters and escapes.
+    pub raw_tokens: Vec<u32>,
+    /// Type header character tokens (between Dc 262 and Dc 263).
+    pub type_header: Vec<u32>,
+    /// Decoded unescaped payload character tokens.
+    pub decoded_payload: Vec<u32>,
+}
+
+/// Framed identifier preserving both verbatim source tokens and decoded name.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FramedIdentifier {
+    /// Raw character tokens in source stream including delimiters and escapes.
+    pub raw_tokens: Vec<u32>,
+    /// Decoded identifier name.
+    pub name: String,
+}
+
+/// Parsed syntactic element in a Document Character document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ParsedElement {
+    /// Framed literal value (Dc 260 ... Dc 261).
+    Literal(FramedLiteral),
+    /// Framed identifier (Dc 270 ... Dc 271).
+    Identifier(FramedIdentifier),
+    /// Parameter construct (Dc 258 ... Dc 259).
+    Parameter(Vec<ParsedElement>),
+    /// Assignment statement (Dc 269).
+    Assignment {
+        ident: FramedIdentifier,
+        value: Box<ParsedElement>,
+    },
+    /// Routine invocation (Dc 279 or routine marker).
+    Invocation {
+        target: Box<ParsedElement>,
+        args: Vec<ParsedElement>,
+    },
+    /// Named object reference (Dc 276).
+    Reference(FramedIdentifier),
+    /// Unparsed raw tokens preserved when broken structures are encountered.
+    RawTokens(Vec<u32>),
+}
+
+/// Structured document representation produced by the non-evaluating parser.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ParsedDocument {
+    /// Parsed elements forming the document body.
+    pub elements: Vec<ParsedElement>,
+    /// Diagnostics collected during parsing.
+    pub diagnostics: Vec<SyntaxDiagnostic>,
+    /// True if any syntax or framing errors were encountered.
+    pub has_errors: bool,
+}

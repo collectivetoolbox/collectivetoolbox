@@ -18,8 +18,8 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114371,259,End parameter,0,BN,,!Cx,EL Syntax,:258 [value] ~,Terminates the parameter begun by 258 after its complete value expression.
 1114372,260,Begin literal value,0,BN,,!Cx,EL Syntax,:~ [262:]{1} ([^261 255] | (255 (255 | [^255])))* 261,Begins a typed quoted character sequence. The payload may be empty. Dc 255 protects exactly the next Dc from syntactic interpretation: 255 261 is payload Dc 261 and 255 255 is payload Dc 255. Only an unescaped 261 terminates the literal. Decode escapes once after locating the boundary; payload characters are not implicitly evaluated or reparsed.
 1114373,261,End literal value,0,BN,,!Cx,EL Syntax,:260 [262:]{1} ([^261 255] | (255 (255 | [^255])))* ~,Terminates a literal begun by 260 unless protected by Dc 255 within its payload.
-1114374,262,Begin type definition,0,BN,,!Cx,EL Syntax,:~ [264] 263,
-1114375,263,End type definition,0,BN,,!Cx,EL Syntax,:262 [264] ~,
+1114374,262,Begin type definition,0,BN,,!Cx,EL Syntax,:~ [script:EL Types] 263,
+1114375,263,End type definition,0,BN,,!Cx,EL Syntax,:262 [script:EL Types] ~,
 1114376,264,Built-in type identifier: String,0,BN,,!Cx,EL Types,<approx>(f80),A specific case of “String” as a format (short-style format ID 80)
 1114377,265,!void lang.invoke(String),0,BN,,!Cx,EL Routines,<prefer>307,Invoke the routine with the given name
 1114378,266,void lang.block,0,BN,,!Cx,EL Routines,,Indicates a division between blocks of statements

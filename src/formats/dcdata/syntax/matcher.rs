@@ -28,10 +28,19 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use super::ast::{
-    CharTarget, DcSyntaxRule, Quantifier, SyntaxElement, SyntaxPattern,
-    SyntaxTerm,
+    CharTarget, DcSyntaxRule, MatchMode, Quantifier, SyntaxDiagnostic,
+    SyntaxElement, SyntaxPattern, SyntaxTerm,
 };
+use super::framing::{
+    DC_IDENTIFIER_BEGIN, DC_LITERAL_BEGIN, scan_identifier_frame,
+    scan_literal_frame,
+};
+use super::resolver::SyntaxRuleResolver;
 use std::collections::HashMap;
+use std::sync::Arc;
+
+/// Maximum recursion depth allowed during grammar rule expansion.
+pub const MAX_SYNTAX_EXPANSION_DEPTH: usize = 32;
 
 /// Result of evaluating a pattern match against a stream of character tokens.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,7 +71,7 @@ impl MatchOutcome {
 }
 
 /// Execution context for pattern matching, recording variable captures and diagnostics.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Clone)]
 pub struct MatchContext {
     /// The Short ID of the defining character (for resolving `~`).
     pub self_dc: Option<u32>,
@@ -70,17 +79,77 @@ pub struct MatchContext {
     pub captured_vars: HashMap<String, Vec<u32>>,
     /// Diagnostic warnings collected during resilient recovery.
     pub warnings: Vec<String>,
+    /// Mode governing matching: Permissive (tag-soup) vs Strict.
+    pub mode: MatchMode,
+    /// Detailed syntax diagnostics collected during parsing/matching.
+    pub diagnostics: Vec<SyntaxDiagnostic>,
+    /// True if any framing or syntax errors occurred.
+    pub has_errors: bool,
+    /// Current recursion depth during rule/named type expansion.
+    pub depth: usize,
+    /// Maximum recursion depth allowed.
+    pub max_depth: usize,
+    /// Call stack for cycle detection.
+    pub call_stack: Vec<String>,
+    /// Optional rule resolver for expanding rule references and named types.
+    pub resolver: Option<Arc<dyn SyntaxRuleResolver + Send + Sync>>,
+}
+
+impl Default for MatchContext {
+    fn default() -> Self {
+        Self::new(None)
+    }
+}
+
+impl std::fmt::Debug for MatchContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MatchContext")
+            .field("self_dc", &self.self_dc)
+            .field("captured_vars", &self.captured_vars)
+            .field("warnings", &self.warnings)
+            .field("mode", &self.mode)
+            .field("diagnostics", &self.diagnostics)
+            .field("has_errors", &self.has_errors)
+            .field("depth", &self.depth)
+            .field("max_depth", &self.max_depth)
+            .field("call_stack", &self.call_stack)
+            .finish()
+    }
 }
 
 impl MatchContext {
-    /// Creates a new match context for a specific defining Dc.
+    /// Creates a new match context for a specific defining Dc in Permissive mode.
     #[must_use]
     pub fn new(self_dc: Option<u32>) -> Self {
         Self {
             self_dc,
             captured_vars: HashMap::new(),
             warnings: Vec::new(),
+            mode: MatchMode::Permissive,
+            diagnostics: Vec::new(),
+            has_errors: false,
+            depth: 0,
+            max_depth: MAX_SYNTAX_EXPANSION_DEPTH,
+            call_stack: Vec::new(),
+            resolver: None,
         }
+    }
+
+    /// Sets the match mode (Strict or Permissive).
+    #[must_use]
+    pub fn with_mode(mut self, mode: MatchMode) -> Self {
+        self.mode = mode;
+        self
+    }
+
+    /// Sets the syntax rule resolver.
+    #[must_use]
+    pub fn with_resolver(
+        mut self,
+        resolver: Arc<dyn SyntaxRuleResolver + Send + Sync>,
+    ) -> Self {
+        self.resolver = Some(resolver);
+        self
     }
 }
 
@@ -179,7 +248,105 @@ fn match_term_single(
             }
         }
         SyntaxTerm::Group(group_pat) => match_pattern(stream, group_pat, context),
-        SyntaxTerm::NamedConstruct { capture_var, .. } => {
+        SyntaxTerm::NamedConstruct {
+            name,
+            subtype,
+            capture_var,
+        } => {
+            // Script classification check: [script:<name>]
+            if name == "script" {
+                if let (Some(sub), Some(ref resolver)) = (subtype, &context.resolver) {
+                    if resolver.matches_script(sub, first) {
+                        if let Some(var) = capture_var {
+                            context
+                                .captured_vars
+                                .entry(var.clone())
+                                .or_default()
+                                .push(first);
+                        }
+                        return MatchOutcome::Matched { consumed: 1 };
+                    }
+                    return MatchOutcome::Mismatch;
+                }
+            }
+
+            // Typed literal framing: [string]
+            if name == "string" {
+                if first == DC_LITERAL_BEGIN {
+                    if let Some((lit, consumed)) = scan_literal_frame(
+                        stream,
+                        context.mode,
+                        &mut context.diagnostics,
+                        0,
+                    ) {
+                        if let Some(var) = capture_var {
+                            context
+                                .captured_vars
+                                .entry(var.clone())
+                                .or_default()
+                                .extend_from_slice(&lit.raw_tokens);
+                        }
+                        return MatchOutcome::Matched { consumed };
+                    }
+                    return MatchOutcome::Mismatch;
+                }
+                return MatchOutcome::Mismatch;
+            }
+
+            // Identifier framing: [identifier]
+            if name == "identifier" {
+                if first == DC_IDENTIFIER_BEGIN {
+                    if let Some((ident, consumed)) = scan_identifier_frame(
+                        stream,
+                        context.mode,
+                        &mut context.diagnostics,
+                        0,
+                    ) {
+                        if let Some(var) = capture_var {
+                            context
+                                .captured_vars
+                                .entry(var.clone())
+                                .or_default()
+                                .extend_from_slice(&ident.raw_tokens);
+                        }
+                        return MatchOutcome::Matched { consumed };
+                    }
+                    return MatchOutcome::Mismatch;
+                }
+                return MatchOutcome::Mismatch;
+            }
+
+            // Recursive expansion for registered named types
+            if let Some(ref resolver) = context.resolver.clone() {
+                if context.depth < context.max_depth {
+                    let frame_key = format!("named:{name}");
+                    if !context.call_stack.contains(&frame_key) {
+                        if let Some(pattern) = resolver.resolve_named_type(name) {
+                            context.call_stack.push(frame_key);
+                            context.depth = context.depth.saturating_add(1);
+                            let outcome = match_pattern(stream, pattern, context);
+                            context.depth = context.depth.saturating_sub(1);
+                            context.call_stack.pop();
+                            if outcome.is_matched() {
+                                let consumed = outcome.consumed_tokens();
+                                if let Some(var) = capture_var {
+                                    if let Some(slice) = stream.get(..consumed) {
+                                        context
+                                            .captured_vars
+                                            .entry(var.clone())
+                                            .or_default()
+                                            .extend_from_slice(slice);
+                                    }
+                                }
+                                return outcome;
+                            }
+                            return MatchOutcome::Mismatch;
+                        }
+                    }
+                }
+            }
+
+            // Fallback for placeholder consumption when resolver is absent or type is unmapped
             if let Some(var) = capture_var {
                 context
                     .captured_vars
@@ -190,6 +357,33 @@ fn match_term_single(
             MatchOutcome::Matched { consumed: 1 }
         }
         SyntaxTerm::RuleRef { target } => {
+            if let Some(ref resolver) = context.resolver.clone() {
+                if context.depth >= context.max_depth {
+                    context.has_errors = true;
+                    context.diagnostics.push(SyntaxDiagnostic {
+                        message: format!(
+                            "Syntax expansion depth limit reached ({}) for rule {target}",
+                            context.max_depth
+                        ),
+                        token_offset: 0,
+                        is_error: true,
+                    });
+                    return MatchOutcome::Mismatch;
+                }
+                let frame_key = format!("rule:{target}");
+                if context.call_stack.contains(&frame_key) {
+                    return MatchOutcome::Mismatch;
+                }
+                if let Some(rule) = resolver.resolve_rule(target) {
+                    context.call_stack.push(frame_key);
+                    context.depth = context.depth.saturating_add(1);
+                    let outcome = match_pattern(stream, &rule.pattern, context);
+                    context.depth = context.depth.saturating_sub(1);
+                    context.call_stack.pop();
+                    return outcome;
+                }
+            }
+
             if target_matches_token(target, first) {
                 MatchOutcome::Matched { consumed: 1 }
             } else {
@@ -297,14 +491,23 @@ pub fn match_pattern(
                     None => &[],
                 };
 
-                // Tag-soup resilient recovery: If remaining is empty but sequence expects closing delimiter
+                // Handling end of stream
                 if remaining.is_empty() {
                     if elem.quantifier.allows_zero() {
                         continue;
                     }
+                    if context.mode == MatchMode::Strict {
+                        return MatchOutcome::Mismatch;
+                    }
                     let warning = format!(
                         "Unclosed syntax structure at end-of-stream (element index {idx} in sequence)"
                     );
+                    context.has_errors = true;
+                    context.diagnostics.push(SyntaxDiagnostic {
+                        message: warning.clone(),
+                        token_offset: total_consumed,
+                        is_error: true,
+                    });
                     context.warnings.push(warning.clone());
                     return MatchOutcome::MatchedWithRecovery {
                         consumed: total_consumed,
@@ -330,7 +533,19 @@ pub fn match_pattern(
     }
 }
 
-/// Evaluates a full `DcSyntaxRule` against a character token stream.
+/// Evaluates a full `DcSyntaxRule` against a character token stream using an
+/// explicit `MatchContext`.
+#[must_use]
+pub fn match_syntax_rule_with_context(
+    stream: &[u32],
+    rule: &DcSyntaxRule,
+    context: &mut MatchContext,
+) -> MatchOutcome {
+    match_pattern(stream, &rule.pattern, context)
+}
+
+/// Evaluates a full `DcSyntaxRule` against a character token stream in default
+/// permissive mode.
 #[must_use]
 pub fn match_syntax_rule(
     stream: &[u32],

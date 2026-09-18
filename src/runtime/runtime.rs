@@ -146,6 +146,103 @@ pub async fn test_prepend(document: String, prepend: String) -> String {
     format!("{prepend}{document}")
 }
 
+use std::collections::HashMap;
+use ctb_formats_dcstring::DcString;
+
+/// Native Document Character runtime value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RuntimeValue {
+    /// Document Character string representation without premature UTF-8
+    /// decoding.
+    DcStr(DcString),
+    /// Numeric value.
+    Number(i64),
+    /// Structured list of runtime values.
+    List(Vec<RuntimeValue>),
+    /// 0-bit unit value for statements or void routines.
+    Unit,
+    /// Unreachable value.
+    Never,
+}
+
+/// Capability privilege requested by a running document.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Privilege {
+    /// Filesystem input/output.
+    FileIo,
+    /// Network communication.
+    Network,
+    /// High-resolution timers or performance counters.
+    HighResolutionTimers,
+    /// Custom privileged operation.
+    Custom(String),
+}
+
+/// Multi-state capability permission decision.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PermissionDecision {
+    /// Deny the permission visibly to the document.
+    Deny,
+    /// Automatically return spoofed/mocked data.
+    AutoMock,
+    /// Provide a custom replacement interface with user-specified mock
+    /// methods.
+    ManualMock,
+    /// Allow the permission (gated behind warning UI when parse errors exist).
+    Allow,
+}
+
+/// Execution context for document evaluation and capability permission gating.
+#[derive(Debug, Clone, Default)]
+pub struct ExecutionContext {
+    /// Active variable bindings.
+    pub bindings: HashMap<String, RuntimeValue>,
+    /// Whether the parsed document contains syntax or framing errors.
+    pub has_errors: bool,
+    /// Count of compute steps consumed.
+    pub compute_steps: usize,
+    /// Maximum allowed compute steps before raising a budget interruption.
+    pub max_compute_steps: usize,
+}
+
+impl ExecutionContext {
+    /// Creates a new execution context with default limits.
+    #[must_use]
+    pub fn new(has_errors: bool) -> Self {
+        Self {
+            bindings: HashMap::new(),
+            has_errors,
+            compute_steps: 0,
+            max_compute_steps: 1_000_000,
+        }
+    }
+
+    /// Evaluates a permission request, strongly steering toward mocking or
+    /// denying if `has_errors` is true.
+    #[must_use]
+    pub fn request_permission(&self, _privilege: &Privilege) -> PermissionDecision {
+        if self.has_errors {
+            // Strongly steer away from Allow when document has errors
+            PermissionDecision::AutoMock
+        } else {
+            PermissionDecision::Allow
+        }
+    }
+
+    /// Increments compute step count, returning an error if compute budget is
+    /// exhausted.
+    pub fn step(&mut self) -> Result<(), anyhow::Error> {
+        self.compute_steps = self.compute_steps.saturating_add(1);
+        if self.compute_steps > self.max_compute_steps {
+            anyhow::bail!(
+                "Compute budget exhausted ({} steps); permission required to continue",
+                self.max_compute_steps
+            );
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -164,5 +261,20 @@ mod tests {
     fn can_start() {
         // Basic test that start() doesn't panic
         start(vec![1, 2, 3]);
+    }
+
+    #[crate::ctb_test]
+    fn test_permission_steering_on_document_errors() {
+        let valid_ctx = ExecutionContext::new(false);
+        assert_eq!(
+            valid_ctx.request_permission(&Privilege::FileIo),
+            PermissionDecision::Allow
+        );
+
+        let error_ctx = ExecutionContext::new(true);
+        assert_eq!(
+            error_ctx.request_permission(&Privilege::FileIo),
+            PermissionDecision::AutoMock
+        );
     }
 }

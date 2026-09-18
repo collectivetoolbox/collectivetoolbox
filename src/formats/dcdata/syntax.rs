@@ -23,16 +23,28 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! and resilient tag-soup pattern matchers for evaluating and processing DcText documents.
 
 pub mod ast;
+pub mod framing;
 pub mod matcher;
 pub mod parser;
+pub mod resolver;
 pub mod validator;
 
 pub use ast::{
-    ActionArg, CharTarget, DcSyntaxRule, Quantifier, SyntaxAction,
-    SyntaxElement, SyntaxPattern, SyntaxTerm,
+    ActionArg, CharTarget, DcSyntaxRule, FramedIdentifier, FramedLiteral,
+    MatchMode, ParsedDocument, ParsedElement, Quantifier, SyntaxAction,
+    SyntaxDiagnostic, SyntaxElement, SyntaxPattern, SyntaxTerm,
+};
+pub use framing::{
+    DC_ESCAPE, DC_IDENTIFIER_BEGIN, DC_IDENTIFIER_END, DC_LITERAL_BEGIN,
+    DC_LITERAL_END, DC_TYPE_BEGIN, DC_TYPE_END, scan_identifier_frame,
+    scan_literal_frame,
 };
 pub use matcher::{
-    MatchContext, MatchOutcome, match_pattern, match_syntax_rule,
+    MAX_SYNTAX_EXPANSION_DEPTH, MatchContext, MatchOutcome, match_pattern,
+    match_syntax_rule, match_syntax_rule_with_context,
 };
-pub use parser::{parse_dc_syntax, parse_target_token};
+pub use parser::{
+    parse_dc_syntax, parse_document_tokens, parse_target_token,
+};
+pub use resolver::{DatasetRuleResolver, SyntaxRuleResolver};
 pub use validator::validate_dc_syntax;
