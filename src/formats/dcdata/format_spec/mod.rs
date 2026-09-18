@@ -90,10 +90,7 @@ mod tests {
 
         // Verify Dc token stream encoding
         let dc_string = encode_dc_stream_string(&expr);
-        assert_eq!(
-            dc_string,
-            "298 302 298 303 298 302 f15 f542 299 f0 299 f0 299"
-        );
+        assert_eq!(dc_string, "302 303 302 f15 f542 f0 f0");
 
         // Verify Dc stream decoding
         let decoded = decode_dc_stream_string(&dc_string).unwrap();
@@ -109,6 +106,53 @@ mod tests {
         let manually_written_dc_string = "302 303 302 f15 f542 f0 f0";
         let decoded = decode_dc_stream_string(&manually_written_dc_string).unwrap();
         assert_eq!(decoded, expr);
+    }
+
+    #[crate::ctb_test]
+    fn test_variable_arity_disambiguation_and_dual_syntax() {
+        // User example: 1 & ((2 | 3 | 4) > 5)
+        let infix = "1 & ((2 | 3 | 4) > 5)";
+        let expr = parse_format_expr(infix).unwrap();
+
+        assert_eq!(
+            expr,
+            FormatExpr::Union(vec![
+                FormatExpr::Dc(DcShorthand::Short(1)),
+                FormatExpr::Convert(
+                    Box::new(FormatExpr::Intersection(vec![
+                        FormatExpr::Dc(DcShorthand::Short(2)),
+                        FormatExpr::Dc(DcShorthand::Short(3)),
+                        FormatExpr::Dc(DcShorthand::Short(4)),
+                    ])),
+                    Box::new(FormatExpr::Dc(DcShorthand::Short(5))),
+                ),
+            ])
+        );
+
+        // Verify succinct prefix encoding emits 299 only when required to disambiguate
+        let dc_string = encode_dc_stream_string(&expr);
+        assert_eq!(dc_string, "300 1 302 516 2 3 4 299 5");
+
+        // Verify decoding numeric prefix stream
+        let decoded = decode_dc_stream_string(&dc_string).unwrap();
+        assert_eq!(decoded, expr);
+
+        // Verify decoding symbolic prefix stream
+        let decoded_sym = decode_dc_stream_string("& 1 > | 2 3 4 ) 5").unwrap();
+        assert_eq!(decoded_sym, expr);
+
+        // Verify parse_format_expr supports prefix notation directly
+        let expr_from_prefix = parse_format_expr("& 1 > | 2 3 4 ) 5").unwrap();
+        assert_eq!(expr_from_prefix, expr);
+
+        // Also test variable-arity at the tail without disambiguator: 5 > (2 | 3 | 4)
+        let tail_infix = "5 > (2 | 3 | 4)";
+        let tail_expr = parse_format_expr(tail_infix).unwrap();
+        let tail_dc_string = encode_dc_stream_string(&tail_expr);
+        assert_eq!(tail_dc_string, "302 5 516 2 3 4");
+
+        let tail_from_prefix = parse_format_expr("> 5 | 2 3 4").unwrap();
+        assert_eq!(tail_from_prefix, tail_expr);
     }
 
     #[crate::ctb_test]

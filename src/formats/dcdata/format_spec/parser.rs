@@ -41,6 +41,7 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 use super::ast::{
     FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
 };
+use super::dc_stream::{DcToken, decode_dc_stream};
 
 /// Lexical token in the format specification DSL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,6 +61,29 @@ struct Token {
     kind: TokenKind,
     start: usize,
     end: usize,
+}
+
+impl Token {
+    fn to_dc_token(&self) -> Result<DcToken> {
+        match &self.kind {
+            TokenKind::Gt => Ok(DcToken::Dc(DcShorthand::Short(302))),
+            TokenKind::Bang => Ok(DcToken::Dc(DcShorthand::Short(303))),
+            TokenKind::Colon => Ok(DcToken::Dc(DcShorthand::Short(301))),
+            TokenKind::Amp => Ok(DcToken::Dc(DcShorthand::Short(300))),
+            TokenKind::Pipe => Ok(DcToken::Dc(DcShorthand::Short(516))),
+            TokenKind::LParen => Ok(DcToken::Dc(DcShorthand::Short(298))),
+            TokenKind::RParen => Ok(DcToken::Dc(DcShorthand::Short(299))),
+            TokenKind::Ident(ident) => {
+                if let Ok(shorthand) = DcShorthand::parse(ident) {
+                    Ok(DcToken::Dc(shorthand))
+                } else if is_valid_named_type_syntax(ident) {
+                    Ok(DcToken::NamedType(ident.clone()))
+                } else {
+                    bail!("Invalid format specification token '{ident}'");
+                }
+            }
+        }
+    }
 }
 
 /// Tokenizes a format specification string into lexical tokens.
@@ -146,8 +170,9 @@ fn tokenize(input: &str) -> Result<Vec<Token>> {
 
 /// Parses a format specification expression from a string slice.
 ///
-/// Accepts both bare expressions (e.g. `f15 > f542`) and expressions wrapped in
-/// `@chain(...)` directives (e.g. `@chain(((f15 > f542) ! f0) > f0)`).
+/// Accepts both infix notation (e.g. `1 & ((2 | 3 | 4) > 5)`) and prefix notation
+/// (e.g. `& 1 > | 2 3 4 ) 5` or `302 303 302 f15 f542 f0 f0`), with optional `@chain(...)`
+/// directive wrapping.
 ///
 /// # Errors
 /// Returns an error on syntax errors, ambiguous operator mixtures, exceeding
@@ -175,8 +200,73 @@ pub fn parse_format_expr(input: &str) -> Result<FormatExpr> {
     let tokens = tokenize(expr_str)?;
     ensure!(!tokens.is_empty(), "No tokens found in format specification");
 
-    let expr = parse_scope(&tokens, 0)?;
+    if is_prefix_token_stream(&tokens) {
+        if let Ok(expr) = parse_prefix_expr(&tokens) {
+            return validate_limits(expr);
+        }
+    }
 
+    match parse_scope(&tokens, 0) {
+        Ok(expr) => validate_limits(expr),
+        Err(infix_err) => {
+            if let Ok(expr) = parse_prefix_expr(&tokens) {
+                validate_limits(expr)
+            } else {
+                Err(infix_err)
+            }
+        }
+    }
+}
+
+fn is_prefix_token_stream(tokens: &[Token]) -> bool {
+    let Some(first) = tokens.first() else {
+        return false;
+    };
+    match &first.kind {
+        TokenKind::Gt
+        | TokenKind::Bang
+        | TokenKind::Colon
+        | TokenKind::Amp
+        | TokenKind::Pipe => true,
+        TokenKind::LParen => {
+            if let Some(second) = tokens.get(1) {
+                matches!(
+                    &second.kind,
+                    TokenKind::Gt
+                        | TokenKind::Bang
+                        | TokenKind::Colon
+                        | TokenKind::Amp
+                        | TokenKind::Pipe
+                ) || is_op_ident(&second.kind)
+            } else {
+                false
+            }
+        }
+        TokenKind::Ident(_) => is_op_ident(&first.kind),
+        TokenKind::RParen => false,
+    }
+}
+
+fn is_op_ident(kind: &TokenKind) -> bool {
+    if let TokenKind::Ident(s) = kind {
+        matches!(
+            s.as_str(),
+            "298" | "300" | "301" | "302" | "303" | "516"
+        )
+    } else {
+        false
+    }
+}
+
+fn parse_prefix_expr(tokens: &[Token]) -> Result<FormatExpr> {
+    let mut dc_tokens = Vec::with_capacity(tokens.len());
+    for tok in tokens {
+        dc_tokens.push(tok.to_dc_token()?);
+    }
+    decode_dc_stream(&dc_tokens)
+}
+
+fn validate_limits(expr: FormatExpr) -> Result<FormatExpr> {
     let depth = expr.depth();
     ensure!(
         depth <= MAX_FORMAT_EXPR_DEPTH,

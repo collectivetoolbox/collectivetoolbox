@@ -79,11 +79,15 @@ impl<'de> Deserialize<'de> for DcToken {
     }
 }
 
-/// Encodes a `FormatExpr` into a canonical slice of `DcToken`s.
+/// Encodes a `FormatExpr` into a canonical slice of `DcToken`s using succinct prefix notation.
+///
+/// Fixed-arity binary operators (`301`, `302`, `303`) are emitted without group delimiters.
+/// Variable-arity operators (`300` `&`, `516` `|`) emit a terminating `299` only when needed
+/// to disambiguate from subsequent operands in an enclosing expression.
 #[must_use]
 pub fn encode_dc_stream(expr: &FormatExpr) -> Vec<DcToken> {
     let mut tokens = Vec::new();
-    encode_expr_recursive(expr, &mut tokens);
+    encode_expr_recursive(expr, true, &mut tokens);
     tokens
 }
 
@@ -95,7 +99,7 @@ pub fn encode_dc_stream_string(expr: &FormatExpr) -> String {
     parts.join(" ")
 }
 
-fn encode_expr_recursive(expr: &FormatExpr, tokens: &mut Vec<DcToken>) {
+fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcToken>) {
     match expr {
         FormatExpr::Dc(shorthand) => {
             tokens.push(DcToken::Dc(*shorthand));
@@ -104,81 +108,46 @@ fn encode_expr_recursive(expr: &FormatExpr, tokens: &mut Vec<DcToken>) {
             tokens.push(DcToken::NamedType(name.clone()));
         }
         FormatExpr::Convert(left, right) => {
-            encode_binary_op(FormatOp::Convert, left, right, tokens);
+            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Convert.dc_id())));
+            encode_expr_recursive(left, false, tokens);
+            encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Transmute(left, right) => {
-            encode_binary_op(FormatOp::Transmute, left, right, tokens);
+            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Transmute.dc_id())));
+            encode_expr_recursive(left, false, tokens);
+            encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Transform(left, right) => {
-            encode_binary_op(FormatOp::Transform, left, right, tokens);
+            tokens.push(DcToken::Dc(DcShorthand::Short(FormatOp::Transform.dc_id())));
+            encode_expr_recursive(left, false, tokens);
+            encode_expr_recursive(right, is_tail, tokens);
         }
         FormatExpr::Union(children) => {
-            encode_nary_op(FormatOp::Union, children, tokens);
+            encode_variable_arity_op(FormatOp::Union, children, is_tail, tokens);
         }
         FormatExpr::Intersection(children) => {
-            encode_nary_op(FormatOp::Intersection, children, tokens);
+            encode_variable_arity_op(FormatOp::Intersection, children, is_tail, tokens);
         }
     }
 }
 
-fn encode_binary_op(
+fn encode_variable_arity_op(
     op: FormatOp,
-    left: &FormatExpr,
-    right: &FormatExpr,
+    children: &[FormatExpr],
+    is_tail: bool,
     tokens: &mut Vec<DcToken>,
 ) {
-    tokens.push(DcToken::Dc(DcShorthand::Short(298)));
-    tokens.push(DcToken::Dc(DcShorthand::Short(op.dc_id())));
-    encode_expr_recursive(left, tokens);
-    encode_expr_recursive(right, tokens);
-    tokens.push(DcToken::Dc(DcShorthand::Short(299)));
-}
-
-fn encode_nary_op(op: FormatOp, children: &[FormatExpr], tokens: &mut Vec<DcToken>) {
     if children.is_empty() {
         return;
     }
-    if children.len() == 1 {
-        if let Some(first) = children.first() {
-            encode_expr_recursive(first, tokens);
-        }
-        return;
+    tokens.push(DcToken::Dc(DcShorthand::Short(op.dc_id())));
+    let count = children.len();
+    for (idx, child) in children.iter().enumerate() {
+        let is_last = idx.saturating_add(1) == count;
+        encode_expr_recursive(child, is_tail && is_last, tokens);
     }
-
-    // Fold left-associatively: (A op B) op C
-    let mut iter = children.iter();
-    if let Some(first) = iter.next() {
-        let mut accumulated_tree = first.clone();
-        for next in iter {
-            accumulated_tree = match op {
-                FormatOp::Union => {
-                    FormatExpr::Union(vec![accumulated_tree, next.clone()])
-                }
-                FormatOp::Intersection => {
-                    FormatExpr::Intersection(vec![accumulated_tree, next.clone()])
-                }
-                _ => unreachable!("Only used for Union and Intersection"),
-            };
-        }
-
-        // Now encode the binary folded tree
-        match accumulated_tree {
-            FormatExpr::Union(sub) => {
-                if sub.len() == 2 {
-                    if let (Some(l), Some(r)) = (sub.first(), sub.get(1)) {
-                        encode_binary_op(op, l, r, tokens);
-                    }
-                }
-            }
-            FormatExpr::Intersection(sub) => {
-                if sub.len() == 2 {
-                    if let (Some(l), Some(r)) = (sub.first(), sub.get(1)) {
-                        encode_binary_op(op, l, r, tokens);
-                    }
-                }
-            }
-            other => encode_expr_recursive(&other, tokens),
-        }
+    if !is_tail {
+        tokens.push(DcToken::Dc(DcShorthand::Short(299)));
     }
 }
 
@@ -193,16 +162,38 @@ pub fn decode_dc_stream_string(input: &str) -> Result<FormatExpr> {
 }
 
 /// Parses a space-separated string of tokens into `Vec<DcToken>`.
+/// Parses a space-separated string of tokens into `Vec<DcToken>`, supporting both
+/// numeric Dc shorthands and operator symbols.
 fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
     let mut tokens = Vec::new();
     for part in input.split_whitespace() {
-        if let Ok(shorthand) = DcShorthand::parse(part) {
-            tokens.push(DcToken::Dc(shorthand));
-        } else {
-            tokens.push(DcToken::NamedType(part.to_string()));
+        match part {
+            "&" => tokens.push(DcToken::Dc(DcShorthand::Short(300))),
+            "|" => tokens.push(DcToken::Dc(DcShorthand::Short(516))),
+            ">" => tokens.push(DcToken::Dc(DcShorthand::Short(302))),
+            "!" => tokens.push(DcToken::Dc(DcShorthand::Short(303))),
+            ":" => tokens.push(DcToken::Dc(DcShorthand::Short(301))),
+            "(" => tokens.push(DcToken::Dc(DcShorthand::Short(298))),
+            ")" => tokens.push(DcToken::Dc(DcShorthand::Short(299))),
+            _ => {
+                if let Ok(shorthand) = DcShorthand::parse(part) {
+                    tokens.push(DcToken::Dc(shorthand));
+                } else {
+                    tokens.push(DcToken::NamedType(part.to_string()));
+                }
+            }
         }
     }
     Ok(tokens)
+}
+
+/// Returns true if `token` is a closing delimiter ('299' or ')').
+pub(crate) fn is_closing_token(token: &DcToken) -> bool {
+    match token {
+        DcToken::Dc(DcShorthand::Short(299)) => true,
+        DcToken::NamedType(s) if s == ")" => true,
+        _ => false,
+    }
 }
 
 /// Decodes a slice of `DcToken`s into a `FormatExpr`.
@@ -212,7 +203,7 @@ fn parse_tokens_from_str(input: &str) -> Result<Vec<DcToken>> {
 pub fn decode_dc_stream(tokens: &[DcToken]) -> Result<FormatExpr> {
     ensure!(!tokens.is_empty(), "Empty Dc token stream");
     let mut pos = 0usize;
-    let expr = decode_recursive(tokens, &mut pos, 0)?;
+    let expr = decode_recursive(tokens, &mut pos, 0, false)?;
 
     ensure!(
         pos == tokens.len(),
@@ -238,6 +229,7 @@ fn decode_recursive(
     tokens: &[DcToken],
     pos: &mut usize,
     depth: usize,
+    in_variable_arity: bool,
 ) -> Result<FormatExpr> {
     ensure!(
         depth <= MAX_FORMAT_EXPR_DEPTH,
@@ -276,96 +268,128 @@ fn decode_recursive(
                 }
             };
 
-            let left = decode_recursive(tokens, pos, depth.saturating_add(1))?;
-            let right = decode_recursive(tokens, pos, depth.saturating_add(1))?;
+            match op {
+                FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform => {
+                    let left = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
+                    let right = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
 
-            ensure!(
-                *pos < tokens.len(),
-                "Unclosed Dc associativity group: expected terminating '299'"
-            );
-            let closing = &tokens[*pos];
-            *pos = pos.saturating_add(1);
+                    ensure!(
+                        *pos < tokens.len(),
+                        "Unclosed Dc associativity group: expected terminating '299'"
+                    );
+                    let closing = &tokens[*pos];
+                    *pos = pos.saturating_add(1);
+                    ensure!(
+                        is_closing_token(closing),
+                        "Expected terminating '299' for Dc group, found '{closing}'"
+                    );
 
-            ensure!(
-                *closing == DcToken::Dc(DcShorthand::Short(299)),
-                "Expected terminating '299' for Dc group, found '{closing}'"
-            );
-
-            Ok(build_op_expr(op, left, right))
+                    Ok(match op {
+                        FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
+                        FormatOp::Transmute => {
+                            FormatExpr::Transmute(Box::new(left), Box::new(right))
+                        }
+                        FormatOp::Transform => {
+                            FormatExpr::Transform(Box::new(left), Box::new(right))
+                        }
+                        FormatOp::Union | FormatOp::Intersection => unreachable!(),
+                    })
+                }
+                FormatOp::Union | FormatOp::Intersection => {
+                    let mut children = Vec::new();
+                    while *pos < tokens.len() {
+                        if is_closing_token(&tokens[*pos]) {
+                            *pos = pos.saturating_add(1);
+                            break;
+                        }
+                        let child = decode_recursive(
+                            tokens,
+                            pos,
+                            depth.saturating_add(1),
+                            true,
+                        )?;
+                        children.push(child);
+                    }
+                    ensure!(
+                        children.len() >= 2,
+                        "Variable-arity operator requires at least 2 operands, found {}",
+                        children.len()
+                    );
+                    if op == FormatOp::Union {
+                        Ok(FormatExpr::Union(children))
+                    } else {
+                        Ok(FormatExpr::Intersection(children))
+                    }
+                }
+            }
         }
         DcToken::Dc(DcShorthand::Short(op_id))
             if FormatOp::from_dc_id(*op_id).is_some() =>
         {
             let op = FormatOp::from_dc_id(*op_id).expect("Guaranteed by guard");
-            let left = decode_recursive(tokens, pos, depth.saturating_add(1))?;
-            let right = decode_recursive(tokens, pos, depth.saturating_add(1))?;
+            match op {
+                FormatOp::Convert | FormatOp::Transmute | FormatOp::Transform => {
+                    let left = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
+                    let right = decode_recursive(
+                        tokens,
+                        pos,
+                        depth.saturating_add(1),
+                        in_variable_arity,
+                    )?;
 
-            // Flexibly consume optional closing 299 if present
-            if *pos < tokens.len()
-                && tokens[*pos] == DcToken::Dc(DcShorthand::Short(299))
-            {
-                *pos = pos.saturating_add(1);
+                    // If not inside an enclosing variable-arity operator, flexibly consume optional
+                    // closing 299 delimiter if present
+                    if !in_variable_arity
+                        && *pos < tokens.len()
+                        && is_closing_token(&tokens[*pos])
+                    {
+                        *pos = pos.saturating_add(1);
+                    }
+
+                    Ok(match op {
+                        FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
+                        FormatOp::Transmute => {
+                            FormatExpr::Transmute(Box::new(left), Box::new(right))
+                        }
+                        FormatOp::Transform => {
+                            FormatExpr::Transform(Box::new(left), Box::new(right))
+                        }
+                        FormatOp::Union | FormatOp::Intersection => unreachable!(),
+                    })
+                }
+                FormatOp::Union | FormatOp::Intersection => {
+                    let mut children = Vec::new();
+                    while *pos < tokens.len() {
+                        if is_closing_token(&tokens[*pos]) {
+                            *pos = pos.saturating_add(1);
+                            break;
+                        }
+                        let child = decode_recursive(
+                            tokens,
+                            pos,
+                            depth.saturating_add(1),
+                            true,
+                        )?;
+                        children.push(child);
+                    }
+                    ensure!(
+                        children.len() >= 2,
+                        "Variable-arity operator requires at least 2 operands, found {}",
+                        children.len()
+                    );
+                    if op == FormatOp::Union {
+                        Ok(FormatExpr::Union(children))
+                    } else {
+                        Ok(FormatExpr::Intersection(children))
+                    }
+                }
             }
-
-            Ok(build_op_expr(op, left, right))
         }
         DcToken::Dc(DcShorthand::Short(299)) => {
-            bail!("Unexpected closing group '299' without matching opening '298'");
+            bail!("Unexpected closing group '299' without matching opening operator or group");
         }
         DcToken::Dc(shorthand) => Ok(FormatExpr::Dc(*shorthand)),
         DcToken::NamedType(name) => Ok(FormatExpr::NamedType(name.clone())),
     }
 }
 
-fn build_op_expr(op: FormatOp, left: FormatExpr, right: FormatExpr) -> FormatExpr {
-    match op {
-        FormatOp::Convert => FormatExpr::Convert(Box::new(left), Box::new(right)),
-        FormatOp::Transmute => {
-            FormatExpr::Transmute(Box::new(left), Box::new(right))
-        }
-        FormatOp::Transform => {
-            FormatExpr::Transform(Box::new(left), Box::new(right))
-        }
-        FormatOp::Union => flatten_or_create_union(left, right),
-        FormatOp::Intersection => flatten_or_create_intersection(left, right),
-    }
-}
-
-fn flatten_or_create_union(left: FormatExpr, right: FormatExpr) -> FormatExpr {
-    match (left, right) {
-        (FormatExpr::Union(mut l_vec), FormatExpr::Union(r_vec)) => {
-            l_vec.extend(r_vec);
-            FormatExpr::Union(l_vec)
-        }
-        (FormatExpr::Union(mut l_vec), single) => {
-            l_vec.push(single);
-            FormatExpr::Union(l_vec)
-        }
-        (single, FormatExpr::Union(mut r_vec)) => {
-            r_vec.insert(0, single);
-            FormatExpr::Union(r_vec)
-        }
-        (l, r) => FormatExpr::Union(vec![l, r]),
-    }
-}
-
-fn flatten_or_create_intersection(
-    left: FormatExpr,
-    right: FormatExpr,
-) -> FormatExpr {
-    match (left, right) {
-        (FormatExpr::Intersection(mut l_vec), FormatExpr::Intersection(r_vec)) => {
-            l_vec.extend(r_vec);
-            FormatExpr::Intersection(l_vec)
-        }
-        (FormatExpr::Intersection(mut l_vec), single) => {
-            l_vec.push(single);
-            FormatExpr::Intersection(l_vec)
-        }
-        (single, FormatExpr::Intersection(mut r_vec)) => {
-            r_vec.insert(0, single);
-            FormatExpr::Intersection(r_vec)
-        }
-        (l, r) => FormatExpr::Intersection(vec![l, r]),
-    }
-}
