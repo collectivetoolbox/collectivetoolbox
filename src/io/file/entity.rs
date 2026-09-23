@@ -313,7 +313,7 @@ impl FileEntity {
             let lower_os = env.os.to_ascii_lowercase();
             if lower_os.contains("darwin")
                 || lower_os.contains("macos")
-                || env.looks_like_gnustep
+                || env.looks_like_gnustep()
             {
                 Some(ctb_formats_utilities::format_id::FormatId::MacOs)
             } else if lower_os.contains("windows") {
@@ -1327,7 +1327,7 @@ mod tests {
         // Environment metadata must be recorded and accessible
         let env = entity.environment().expect("environment must be recorded");
         assert!(!env.os.is_empty());
-        let _ = env.looks_like_gnustep;
+        let _ = env.looks_like_gnustep();
     }
 
     #[crate::ctb_test]

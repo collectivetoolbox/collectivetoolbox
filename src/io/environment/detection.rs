@@ -405,6 +405,16 @@ pub fn collect_all_format_ids(
         ids.push(*term);
     }
 
+    if caps.is_stdin_terminal {
+        ids.push(FormatId::IsStdinTerminal);
+    }
+    if caps.is_stdout_terminal {
+        ids.push(FormatId::IsStdoutTerminal);
+    }
+    if caps.is_stderr_terminal {
+        ids.push(FormatId::IsStderrTerminal);
+    }
+
     let mut seen = HashSet::new();
     ids.retain(|id| seen.insert(*id));
     ids
@@ -426,10 +436,251 @@ pub fn check_has_format(
     {
         return true;
     }
-    caps.display_server == format
+    if caps.display_server == format
         || caps.device_caps.contains(&format)
         || caps.render_modes.contains(&format)
         || caps.terminal_caps.contains(&format)
+    {
+        return true;
+    }
+    match format {
+        FormatId::IsStdinTerminal => caps.is_stdin_terminal,
+        FormatId::IsStdoutTerminal => caps.is_stdout_terminal,
+        FormatId::IsStderrTerminal => caps.is_stderr_terminal,
+        _ => false,
+    }
+}
+
+/// Reconstruct [`EnvironmentIdentity`] and [`EnvironmentCapabilities`] from
+/// an OS string and a slice of [`FormatId`] formats.
+#[must_use]
+pub fn reconstruct_identity_and_capabilities(
+    os_str: &str,
+    formats: &[FormatId],
+) -> (EnvironmentIdentity, EnvironmentCapabilities) {
+    let architecture = formats
+        .iter()
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                FormatId::amd64
+                    | FormatId::arm64
+                    | FormatId::x86
+                    | FormatId::arm
+                    | FormatId::i586
+                    | FormatId::sse2
+            )
+        })
+        .unwrap_or_else(detect_architecture);
+
+    let kernel = formats
+        .iter()
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                FormatId::Linux
+                    | FormatId::Wsl
+                    | FormatId::Wsl2
+                    | FormatId::Xnu
+                    | FormatId::WinNtKernel
+                    | FormatId::BsdKernel
+                    | FormatId::Mach
+                    | FormatId::Hurd
+                    | FormatId::MsDosKernel
+            )
+        })
+        .unwrap_or_else(|| match os_str {
+            "linux" => FormatId::Linux,
+            "macos" | "ios" | "watchos" | "tvos" | "visionos" => FormatId::Xnu,
+            "windows" => FormatId::WinNtKernel,
+            "freebsd" | "openbsd" | "netbsd" | "dragonfly" => FormatId::BsdKernel,
+            _ => FormatId::Linux,
+        });
+
+    let libc = formats.iter().copied().find(|f| {
+        matches!(
+            f,
+            FormatId::Gnu
+                | FormatId::MuslLibc
+                | FormatId::Darwin
+                | FormatId::BsdLibc
+                | FormatId::BionicLibc
+        )
+    });
+
+    let os = formats
+        .iter()
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                FormatId::GnuLinux
+                    | FormatId::MacOsDarwin
+                    | FormatId::Windows
+                    | FormatId::WinNt
+                    | FormatId::FreeBsd
+                    | FormatId::OpenBsd
+                    | FormatId::NetBsd
+                    | FormatId::DragonFlyBsd
+                    | FormatId::Android
+                    | FormatId::Debian
+                    | FormatId::Ubuntu
+                    | FormatId::Fedora
+                    | FormatId::Rhel
+                    | FormatId::ArchLinux
+                    | FormatId::Alpine
+                    | FormatId::NixOs
+                    | FormatId::Gentoo
+                    | FormatId::AppleIos
+                    | FormatId::WatchOs
+                    | FormatId::TvOs
+                    | FormatId::VisionOs
+            )
+        })
+        .unwrap_or(match os_str {
+            "macos" => FormatId::MacOsDarwin,
+            "windows" => FormatId::Windows,
+            "freebsd" => FormatId::FreeBsd,
+            "openbsd" => FormatId::OpenBsd,
+            "netbsd" => FormatId::NetBsd,
+            "dragonfly" => FormatId::DragonFlyBsd,
+            "ios" => FormatId::AppleIos,
+            _ => FormatId::GnuLinux,
+        });
+
+    let os_families: Vec<FormatId> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::Unix
+                    | FormatId::Windows
+                    | FormatId::MacOs
+                    | FormatId::WinClassic
+            )
+        })
+        .collect();
+
+    let userspace: Vec<FormatId> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::GnuUtilities
+                    | FormatId::BusyBoxUtilities
+                    | FormatId::GnuStep
+                    | FormatId::Win32Subsystem
+                    | FormatId::BionicUserspace
+                    | FormatId::Homebrew
+                    | FormatId::MacPorts
+                    | FormatId::Nix
+                    | FormatId::Guix
+            )
+        })
+        .collect();
+
+    let ident = EnvironmentIdentity {
+        kernel,
+        kernel_version: None,
+        libc,
+        userspace,
+        os,
+        os_families,
+        architecture,
+    };
+
+    let display_server = formats
+        .iter()
+        .copied()
+        .find(|f| {
+            matches!(
+                f,
+                FormatId::WaylandDisplay
+                    | FormatId::X11Display
+                    | FormatId::QuartzDisplay
+                    | FormatId::Win32Display
+                    | FormatId::HeadlessDisplay
+            )
+        })
+        .unwrap_or(FormatId::HeadlessDisplay);
+
+    let device_caps: Vec<FormatId> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::RasterDisplay
+                    | FormatId::VectorDisplay
+                    | FormatId::WebUi
+                    | FormatId::WebView
+                    | FormatId::BrowserVm
+                    | FormatId::V86Vm
+                    | FormatId::Pwa
+                    | FormatId::PwaMobile
+                    | FormatId::BrowserVmFullscreen
+                    | FormatId::BrowserVmMobile
+                    | FormatId::WebUiSystemBrowser
+                    | FormatId::TerminalColors1bit
+                    | FormatId::TerminalColors4bit
+                    | FormatId::TerminalColors8bit
+                    | FormatId::TerminalColors24bit
+            )
+        })
+        .collect();
+
+    let render_modes: Vec<FormatId> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::RenderModeInteractive | FormatId::RenderModeImmediate
+            )
+        })
+        .collect();
+
+    let terminal_caps: Vec<FormatId> = formats
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::Vt100
+                    | FormatId::Videoterminal
+                    | FormatId::Teleprinter
+                    | FormatId::TerminalCanEdit
+                    | FormatId::TerminalCanEditPastLines
+                    | FormatId::LineModeTerminal
+                    | FormatId::BlockModeTerminal
+                    | FormatId::TerminalMouse
+                    | FormatId::TerminalGraphics
+                    | FormatId::TerminalSixelGraphics
+                    | FormatId::TerminalIterm2Graphics
+                    | FormatId::TerminalKittyGraphics
+            )
+        })
+        .collect();
+
+    let is_stdin_terminal = formats.contains(&FormatId::IsStdinTerminal);
+    let is_stdout_terminal = formats.contains(&FormatId::IsStdoutTerminal);
+    let is_stderr_terminal = formats.contains(&FormatId::IsStderrTerminal);
+
+    let caps = EnvironmentCapabilities {
+        device_caps,
+        render_modes,
+        terminal_caps,
+        display_server,
+        is_stdin_terminal,
+        is_stdout_terminal,
+        is_stderr_terminal,
+    };
+
+    (ident, caps)
 }
 
 /// Produce a human-readable one-line summary string for an environment.

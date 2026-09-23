@@ -23,15 +23,14 @@ pub mod detection;
 pub mod encoding;
 pub mod extension;
 pub mod extension_data;
-#[path = "format_id.generated.rs"]
-pub mod format_id;
 pub mod format_info;
 pub mod magic;
 pub mod magic_data;
 pub mod magic_parser;
 pub mod mime_derivation;
 
-pub use format_id::FormatId;
+pub use ctb_utilities::format_id;
+pub use ctb_utilities::FormatId;
 pub use format_info::{FormatInfo, describe_format, get_format_info};
 pub use magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
 pub use mime_derivation::{FORMAT_CATALOG, FormatCatalog, FormatMapping};

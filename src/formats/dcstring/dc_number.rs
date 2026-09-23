@@ -269,9 +269,70 @@ pub fn u128_to_dc_number_global(val: u128) -> Result<Vec<u128>> {
     natural_to_dc_number_global(&Natural::from(val), false)
 }
 
+/// Converts an [`Integer`] into a sequence of [`DcChar`]s.
+pub fn integer_to_dc_number_chars(val: &Integer) -> Result<Vec<DcChar>> {
+    let is_negative = *val < 0;
+    let abs_val = val.unsigned_abs_ref();
+    natural_to_dc_number_chars(abs_val, is_negative)
+}
+
+/// Converts an `i128` integer into a sequence of [`DcChar`]s.
+pub fn i128_to_dc_number_chars(val: i128) -> Result<Vec<DcChar>> {
+    integer_to_dc_number_chars(&Integer::from(val))
+}
+
+/// Converts a `u128` unsigned integer into a sequence of [`DcChar`]s.
+pub fn u128_to_dc_number_chars(val: u128) -> Result<Vec<DcChar>> {
+    natural_to_dc_number_chars(&Natural::from(val), false)
+}
+
 // ---------------------------------------------------------------------------
 // Dc Number Deserialization / Reading
 // ---------------------------------------------------------------------------
+
+/// Reads a single Dc number from a reader closure yielding [`DcChar`]s.
+pub fn read_dc_number_from_reader<F>(mut next_char: F) -> Result<Integer>
+where
+    F: FnMut() -> Result<DcChar>,
+{
+    let first = next_char()?;
+    ensure!(
+        first == DC_BEGIN_NUMBER,
+        "Expected Dc 6 (Begin number), found {first:?}"
+    );
+
+    let second = next_char()?;
+    ensure!(
+        second == DC_FORMAT_199,
+        "Expected format 199 indicator after Dc 6, found {second:?}"
+    );
+
+    let mut is_negative = false;
+    let mut ch = next_char()?;
+    if ch == DC_NEGATIVE {
+        is_negative = true;
+        ch = next_char()?;
+    } else if ch == DC_POSITIVE {
+        ch = next_char()?;
+    }
+
+    let mut b64_str = String::new();
+    while ch != DC_END_NUMBER {
+        let digit = dc_base64_char_to_digit(ch)?;
+        let c = digit_to_base64_char(digit)?;
+        b64_str.push(c);
+        ch = next_char()?;
+    }
+
+    ensure!(!b64_str.is_empty(), "Dc number contains no digit characters");
+    let b64_base = Base::new(64)?;
+    let nat = parse_natural(&b64_str, b64_base).with_context(|| {
+        format!("Failed to parse Base64 number string '{b64_str}'")
+    })?;
+
+    Ok(Integer::from_sign_and_abs(!is_negative, nat))
+}
+
 
 /// Reads a single Dc number from a slice of short Document Characters (Dcs),
 /// returning the parsed [`Integer`] and the number of tokens consumed from the slice.
@@ -460,14 +521,14 @@ pub fn parse_dc_number_global(gids: &[u128]) -> Result<Integer> {
 pub fn parse_dc_number_short_i128(dcs: &[u32]) -> Result<i128> {
     let val = parse_dc_number_short(dcs)?;
     i128::try_from(&val)
-        .map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
+        .map_err(|e| anyhow!("Parsed Dc number exceeds i128 range: {e:?}"))
 }
 
 /// Parses an entire sequence of Global Graph IDs (`DcList`) as an `i128`.
 pub fn parse_dc_number_global_i128(gids: &[u128]) -> Result<i128> {
     let val = parse_dc_number_global(gids)?;
     i128::try_from(&val)
-        .map_err(|_| anyhow!("Parsed Dc number exceeds i128 range"))
+        .map_err(|e| anyhow!("Parsed Dc number exceeds i128 range: {e:?}"))
 }
 
 #[cfg(test)]
@@ -570,5 +631,29 @@ mod tests {
         let (val, consumed) = read_dc_number_global(&stream).unwrap();
         assert_eq!(val, Integer::from(42));
         assert_eq!(consumed, 4);
+    }
+
+    #[crate::ctb_test]
+    fn test_dc_number_chars_and_reader_roundtrip() {
+        let test_cases = [0i128, 1, -1, 42, -42, 64, -64, 1_000_000, -1_000_000, i128::from(i64::MAX), i128::from(i64::MIN)];
+        for &tc in &test_cases {
+            let chars = i128_to_dc_number_chars(tc).unwrap();
+            let mut it = chars.into_iter();
+            let parsed_int = read_dc_number_from_reader(|| {
+                it.next().ok_or_else(|| anyhow!("Unexpected end of stream"))
+            }).unwrap();
+            assert_eq!(i128::try_from(&parsed_int).unwrap(), tc);
+        }
+
+        let u_cases = [0u128, 1, 42, 64, 127, 255, 65535, 1_000_000, u128::from(u64::MAX), u128::MAX];
+        for &tc in &u_cases {
+            let chars = u128_to_dc_number_chars(tc).unwrap();
+            let mut it = chars.into_iter();
+            let parsed_int = read_dc_number_from_reader(|| {
+                it.next().ok_or_else(|| anyhow!("Unexpected end of stream"))
+            }).unwrap();
+            let nat = parsed_int.unsigned_abs_ref();
+            assert_eq!(u128::try_from(nat).unwrap(), tc);
+        }
     }
 }

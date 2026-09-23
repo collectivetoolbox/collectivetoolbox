@@ -68,28 +68,7 @@ use crate::magic::evaluate_rule;
 use crate::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
 use crate::mime_derivation::FORMAT_CATALOG;
 
-/// High-level category of file formats for domain filtering and score boosting.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FormatCategory {
-    /// Single-stream compression formats (Gzip, Brotli, SCO Compress -H, Pack, etc.).
-    Compression,
-    /// Multi-file archive containers (Tar, Zip, 7z, etc.).
-    Archive,
-    /// Audio files.
-    Audio,
-    /// Image files.
-    Image,
-    /// Video files.
-    Video,
-    /// Document / Text formats.
-    Document,
-    /// Executable / Binary formats.
-    Executable,
-    /// Database formats.
-    Database,
-    /// Other or uncategorized formats.
-    Other,
-}
+pub use ctb_utilities::format_id::FormatCategory;
 
 /// Calibrated confidence tier for a detection candidate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

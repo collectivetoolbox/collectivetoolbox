@@ -68,6 +68,9 @@ pub mod string;
 pub mod testing;
 pub mod ui;
 pub mod workspace_path_resolution;
+#[path = "format_id.generated.rs"]
+pub mod format_id;
+pub use format_id::FormatId;
 
 pub use crate::cli::{OutputChunk, ToolResult};
 pub use crate::math::approx_eq;

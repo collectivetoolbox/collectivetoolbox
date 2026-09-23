@@ -25,7 +25,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
 use std::collections::BTreeMap;
 #[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+#[allow(unused_imports, reason = "Generated DTO imports may not be needed by all services")]
+use crate::format_id::FormatId;
 
 #[derive(Debug, Clone, ::serde::Serialize, ::serde::Deserialize)]
 pub struct Node {

@@ -29,6 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
+use anyhow::anyhow;
 
 use std::collections::BTreeMap;
 use std::fmt::{self, Write as _};
@@ -38,8 +39,8 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BEGIN_NUMBER, DC_BOOLEAN_FALSE,
-    DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP, DC_END_NUMBER,
+    DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BOOLEAN_FALSE,
+    DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP,
     DC_EQUIVALENT_REPRESENTATIONS, DC_OPTIONAL_ABSENT,
     DC_OPTIONAL_PRESENT, DC_START_ENCAPSULATION_BINARY,
 };
@@ -357,57 +358,29 @@ impl<'a> DcMixedReader<'a> {
         Ok(s)
     }
 
-    /// Reads an integer formatted between `DC_BEGIN_NUMBER` (Dc 6) and
-    /// `DC_END_NUMBER` (Dc 7).
+    /// Reads an integer formatted as a Dc number using base 64 encapsulation Dcs.
     ///
     /// # Errors
-    /// Returns an error if delimiters are missing or parsing fails.
+    /// Returns an error if delimiters are missing, characters are invalid, or value overflows `i128`.
     pub fn read_i128(&mut self) -> Result<i128> {
-        self.expect_short_dc(6)?; // DC_BEGIN_NUMBER
-        let mut num_str = String::new();
-        loop {
-            let ch = self
-                .next_char()
-                .context("Unexpected EOF while reading number")?;
-            if ch.to_short_dc() == Some(7) {
-                // DC_END_NUMBER
-                break;
-            }
-            if let Some(c) = ch.as_char() {
-                num_str.push(c);
-            } else {
-                bail!("Unexpected character {ch:?} in number sequence");
-            }
-        }
-        num_str
-            .trim()
-            .parse::<i128>()
-            .context("Failed to parse integer from Dc number representation")
+        let int_val = crate::dc_number::read_dc_number_from_reader(|| self.next_char())?;
+        i128::try_from(&int_val).map_err(|e| anyhow!("Dc number exceeds i128 range: {e:?}"))
     }
 
-    /// Reads an unsigned 128-bit integer.
+    /// Reads an unsigned 128-bit integer formatted as a Dc number using base 64 encapsulation Dcs.
+    ///
+    /// # Errors
+    /// Returns an error if delimiters are missing, number is negative, or value overflows `u128`.
     pub fn read_u128(&mut self) -> Result<u128> {
-        self.expect_short_dc(6)?; // DC_BEGIN_NUMBER
-        let mut num_str = String::new();
-        loop {
-            let ch = self
-                .next_char()
-                .context("Unexpected EOF while reading number")?;
-            if ch.to_short_dc() == Some(7) {
-                // DC_END_NUMBER
-                break;
-            }
-            if let Some(c) = ch.as_char() {
-                num_str.push(c);
-            } else {
-                bail!("Unexpected character {ch:?} in number sequence");
-            }
-        }
-        num_str
-            .trim()
-            .parse::<u128>()
-            .context("Failed to parse unsigned integer from Dc number representation")
+        let int_val = crate::dc_number::read_dc_number_from_reader(|| self.next_char())?;
+        ensure!(
+            int_val >= 0,
+            "Expected non-negative integer for u128, found negative"
+        );
+        let nat = int_val.unsigned_abs_ref();
+        u128::try_from(nat).map_err(|e| anyhow!("Dc number exceeds u128 range: {e:?}"))
     }
+
 
     /// Reads an unsigned 64-bit integer.
     pub fn read_u64(&mut self) -> Result<u64> {
@@ -499,9 +472,12 @@ macro_rules! impl_dc_mixed_integer_signed {
         $(
             impl DcMixedEncode for $t {
                 fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-                    mst.push_char(DC_BEGIN_NUMBER);
-                    mst.push_str(&self.to_string());
-                    mst.push_char(DC_END_NUMBER);
+                    let val_i128 = i128::try_from(*self)
+                        .map_err(|e| anyhow!("Failed to convert integer to i128: {e}"))?;
+                    let chars = crate::dc_number::i128_to_dc_number_chars(val_i128)?;
+                    for ch in chars {
+                        mst.push_char(ch);
+                    }
                     Ok(())
                 }
             }
@@ -521,9 +497,12 @@ macro_rules! impl_dc_mixed_integer_unsigned {
         $(
             impl DcMixedEncode for $t {
                 fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
-                    mst.push_char(DC_BEGIN_NUMBER);
-                    mst.push_str(&self.to_string());
-                    mst.push_char(DC_END_NUMBER);
+                    let val_u128 = u128::try_from(*self)
+                        .map_err(|e| anyhow!("Failed to convert integer to u128: {e}"))?;
+                    let chars = crate::dc_number::u128_to_dc_number_chars(val_u128)?;
+                    for ch in chars {
+                        mst.push_char(ch);
+                    }
                     Ok(())
                 }
             }

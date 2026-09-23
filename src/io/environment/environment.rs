@@ -454,40 +454,40 @@ pub fn env_cache_reset() {
 
 /// Is running on Unix-ish OS?
 pub fn is_unix() -> bool {
-    capture_quick_arc().is_unix
+    capture_quick_arc().is_unix()
 }
 
 /// Is running on Linux?
 pub fn is_linux() -> bool {
-    capture_quick_arc().is_linux
+    capture_quick_arc().is_linux()
 }
 
 /// Is running on Windows?
 pub fn is_windows() -> bool {
-    capture_quick_arc().is_windows
+    capture_quick_arc().is_windows()
 }
 
 /// Is running on macOS (not classic)?
 pub fn is_mac_os_10_or_newer() -> bool {
-    capture_quick_arc().is_mac_os_10_or_newer
+    capture_quick_arc().is_mac_os_10_or_newer()
 }
 /// There does not seem to be a separate iPadOS value for env::consts::OS.
 pub fn is_apple_ios() -> bool {
-    capture_quick_arc().is_apple_ios
+    capture_quick_arc().is_apple_ios()
 }
 pub fn is_watchos() -> bool {
-    capture_quick_arc().is_watchos
+    capture_quick_arc().is_watchos()
 }
 pub fn is_tvos() -> bool {
-    capture_quick_arc().is_tvos
+    capture_quick_arc().is_tvos()
 }
 pub fn is_visionos() -> bool {
-    capture_quick_arc().is_visionos
+    capture_quick_arc().is_visionos()
 }
 
 /// Is running on Darwin family OS?
 pub fn is_darwin() -> bool {
-    capture_quick_arc().is_darwin
+    capture_quick_arc().is_darwin()
 }
 
 /// Does it look like it's running in a GNUstep environment? A guess, not
@@ -524,27 +524,27 @@ pub fn looks_like_nextstep_or_openstep() -> bool {
 
 /// Is this a BSD of some sort, not including Darwin?
 pub fn is_bsd() -> bool {
-    capture_quick_arc().is_bsd
+    capture_quick_arc().is_bsd()
 }
 
 /// Is running on OpenBSD?
 pub fn is_openbsd() -> bool {
-    capture_quick_arc().is_openbsd
+    capture_quick_arc().is_openbsd()
 }
 
 /// Is running on DragonFly BSD?
 pub fn is_dragonfly() -> bool {
-    capture_quick_arc().is_dragonfly
+    capture_quick_arc().is_dragonfly()
 }
 
 /// Is running on FreeBSD?
 pub fn is_freebsd() -> bool {
-    capture_quick_arc().is_freebsd
+    capture_quick_arc().is_freebsd()
 }
 
 /// Is running on NetBSD?
 pub fn is_netbsd() -> bool {
-    capture_quick_arc().is_netbsd
+    capture_quick_arc().is_netbsd()
 }
 
 
@@ -575,24 +575,24 @@ pub fn is_webui_in_webview() -> bool {
 /// Output mode may be browser VM, native window, HTML frames to a browser,
 /// headless, etc.
 pub fn is_gui() -> bool {
-    capture_quick_arc().is_gui
+    capture_quick_arc().is_gui()
 }
 
 /// Is the workspace running with its CLI interface (TTY or videoterminal)?
 pub fn is_cli() -> bool {
-    capture_quick_arc().is_cli
+    capture_quick_arc().is_cli()
 }
 
 /// Is the workspace running in a TTY (text-mode, but can't backspace or
 /// edit/clear previous lines)?
 pub fn is_cli_tty() -> bool {
-    capture_quick_arc().is_cli_tty
+    capture_quick_arc().is_cli_tty()
 }
 
 /// Is the workspace running as a videoterminal/videoterminal emulator
 /// (text-mode, but able to edit past lines)?
 pub fn is_cli_videoterminal() -> bool {
-    capture_quick_arc().is_cli_videoterminal
+    capture_quick_arc().is_cli_videoterminal()
 }
 
 /// Check if the active execution environment has a specific [`FormatId`].
@@ -646,6 +646,7 @@ pub fn is_branded_build() -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[serde(default)]
 #[dc(begin = 340, end = 341)]
+#[allow(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
 pub struct EnvDescription {
     #[dc(short = 342)]
     pub os: String,
@@ -653,104 +654,44 @@ pub struct EnvDescription {
     pub usize_width: u8,
     #[dc(short = 343)]
     pub ctb_version: String,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_cli_lightweight: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_workspace: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_workspace_main_process: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_service_subprocess: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_browser_vm: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_browser_vm_fullscreen: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_browser_vm_mobile: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_v86: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_pwa: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_pwa_mobile: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_unix: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_linux: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_windows: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_mac_os_10_or_newer: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_apple_ios: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_watchos: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_tvos: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_visionos: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_darwin: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub looks_like_gnustep: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub looks_like_nextstep_or_openstep: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_bsd: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_openbsd: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_dragonfly: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_freebsd: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_netbsd: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_public_website: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_official_public_website: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_local: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_webui: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_webui_in_system_browser: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_webui_in_webview: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_gui: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_cli: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_cli_tty: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_cli_videoterminal: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_release_build: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_debug_build: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_cargo_target_binary: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_in_test: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_branded_build: bool,
-    #[dc(skip, reason = "Runtime boolean flag has no assigned Dc definition")]
-    pub is_official_signed_build: bool,
-    #[dc(short = 346)]
-    pub local_ipv4: Option<Ipv4Addr>,
-    #[dc(skip, reason = "Local IPv6 address does not have a dedicated Dc definition")]
-    pub local_ipv6: Option<Ipv6Addr>,
-    #[dc(skip, reason = "Public IPv4 address does not have a dedicated Dc definition")]
-    pub public_ipv4: Option<Ipv4Addr>,
-    #[dc(skip, reason = "Public IPv6 address does not have a dedicated Dc definition")]
-    pub public_ipv6: Option<Ipv6Addr>,
-    #[dc(short = 347)]
-    pub system_time_resolution_nanos: Option<u128>,
-    #[dc(skip, reason = "Server clock offset not defined in Dc specification")]
-    pub server_system_time_offset_nanos: Option<i128>,
     #[dc(short = 345)]
     pub cwd: Option<String>,
+    #[dc(short = 346)]
+    pub local_ips: Vec<IpAddr>,
+    #[dc(short = 398)]
+    pub public_ips: Vec<IpAddr>,
+    #[dc(short = 347)]
+    pub system_time_resolution_nanos: Option<u128>,
+    #[dc(short = 519)]
+    pub server_system_time_offset_nanos: Option<i128>,
+    #[dc(short = 520)]
+    pub is_release_build: bool,
+    #[dc(short = 521)]
+    pub is_debug_build: bool,
+    #[dc(short = 522)]
+    pub is_cargo_target_binary: bool,
+    #[dc(short = 523)]
+    pub is_in_test: bool,
+    #[dc(short = 524)]
+    pub is_branded_build: bool,
+    #[dc(short = 525)]
+    pub is_official_signed_build: bool,
+    #[dc(short = 526)]
+    pub is_cli_lightweight: bool,
+    #[dc(short = 527)]
+    pub is_workspace: bool,
+    #[dc(short = 528)]
+    pub is_workspace_main_process: bool,
+    #[dc(short = 529)]
+    pub is_service_subprocess: bool,
+    #[dc(short = 530)]
+    pub is_official_public_website: bool,
+    #[dc(short = 531)]
+    pub is_public_website: bool,
+    #[dc(short = 532)]
+    pub is_local: bool,
+    #[dc(flatten)]
+    pub additional_support: Vec<FormatId>,
 
     #[serde(flatten, default)]
     #[dc(skip, reason = "Serde JSON overflow map not serialized in DcMixed")]
@@ -758,6 +699,42 @@ pub struct EnvDescription {
 }
 
 impl EnvDescription {
+    /// First local IPv4 address if present in `local_ips`.
+    #[must_use]
+    pub fn local_ipv4(&self) -> Option<Ipv4Addr> {
+        self.local_ips.iter().find_map(|ip| match ip {
+            IpAddr::V4(v4) => Some(*v4),
+            IpAddr::V6(_) => None,
+        })
+    }
+
+    /// First local IPv6 address if present in `local_ips`.
+    #[must_use]
+    pub fn local_ipv6(&self) -> Option<Ipv6Addr> {
+        self.local_ips.iter().find_map(|ip| match ip {
+            IpAddr::V6(v6) => Some(*v6),
+            IpAddr::V4(_) => None,
+        })
+    }
+
+    /// First public IPv4 address if present in `public_ips`.
+    #[must_use]
+    pub fn public_ipv4(&self) -> Option<Ipv4Addr> {
+        self.public_ips.iter().find_map(|ip| match ip {
+            IpAddr::V4(v4) => Some(*v4),
+            IpAddr::V6(_) => None,
+        })
+    }
+
+    /// First public IPv6 address if present in `public_ips`.
+    #[must_use]
+    pub fn public_ipv6(&self) -> Option<Ipv6Addr> {
+        self.public_ips.iter().find_map(|ip| match ip {
+            IpAddr::V6(v6) => Some(*v6),
+            IpAddr::V4(_) => None,
+        })
+    }
+
     /// Capture a quick snapshot of the current execution environment, omitting
     /// slow or network-dependent queries unless already cached.
     ///
@@ -766,101 +743,62 @@ impl EnvDescription {
     pub(crate) fn capture_quick() -> Self {
         let ident = detect_identity();
         let caps = detect_capabilities();
+        let additional_support = detection::collect_all_format_ids(&ident, &caps);
 
-        let is_unix = ident.os_families.contains(&FormatId::Unix) || ident.os == FormatId::Unix;
-        let is_linux = ident.kernel == FormatId::Linux
-            || ident.kernel == FormatId::Wsl
-            || ident.kernel == FormatId::Wsl2;
-        let is_windows = ident.os_families.contains(&FormatId::Windows)
-            || ident.os == FormatId::Windows
-            || ident.os == FormatId::WinNt;
-        let is_mac_os_10_or_newer = ident.os == FormatId::MacOsDarwin;
-        let is_apple_ios = ident.os == FormatId::AppleIos;
-        let is_tvos = ident.os == FormatId::TvOs;
-        let is_watchos = ident.os == FormatId::WatchOs;
-        let is_visionos = ident.os == FormatId::VisionOs;
-        let is_darwin = ident.libc == Some(FormatId::Darwin)
-            || ident.os_families.contains(&FormatId::MacOs);
-        let is_bsd = ident.libc == Some(FormatId::BsdLibc)
-            || ident.kernel == FormatId::BsdKernel;
-        let is_openbsd = ident.os == FormatId::OpenBsd;
-        let is_dragonfly = ident.os == FormatId::DragonFlyBsd;
-        let is_freebsd = ident.os == FormatId::FreeBsd;
-        let is_netbsd = ident.os == FormatId::NetBsd;
-        let is_gui = caps.device_caps.contains(&FormatId::RasterDisplay)
-            && caps.display_server != FormatId::HeadlessDisplay;
-        let is_cli = caps.is_stdout_terminal;
-        let is_cli_tty = caps.terminal_caps.contains(&FormatId::Teleprinter)
-            || caps.terminal_caps.contains(&FormatId::LineModeTerminal);
-        let is_cli_videoterminal = caps.terminal_caps.contains(&FormatId::Videoterminal);
-        let is_webui = is_webui();
+        let mut local_ips = Vec::new();
+        if let Some(v4) = CACHED_LOCAL_IPV4
+            .read()
+            .ok()
+            .and_then(|l| *l)
+            .or_else(|| local_ipv4().ok())
+        {
+            local_ips.push(IpAddr::V4(v4));
+        }
+        if let Some(v6) = CACHED_LOCAL_IPV6
+            .read()
+            .ok()
+            .and_then(|l| *l)
+            .or_else(|| local_ipv6().ok())
+        {
+            local_ips.push(IpAddr::V6(v6));
+        }
+
+        let mut public_ips = Vec::new();
+        if let Some(v4) = CACHED_PUBLIC_IPV4.read().ok().and_then(|l| *l) {
+            public_ips.push(IpAddr::V4(v4));
+        }
+        if let Some(v6) = CACHED_PUBLIC_IPV6.read().ok().and_then(|l| *l) {
+            public_ips.push(IpAddr::V6(v6));
+        }
 
         Self {
             os: os(),
             usize_width: usize(),
             ctb_version: ctb_version().to_string(),
-            is_cli_lightweight: is_cli_lightweight(),
-            is_workspace: is_workspace(),
-            is_workspace_main_process: is_workspace_main_process(),
-            is_service_subprocess: is_service_subprocess(),
-            is_browser_vm: is_browser_vm(),
-            is_browser_vm_fullscreen: is_browser_vm_fullscreen(),
-            is_browser_vm_mobile: is_browser_vm_mobile(),
-            is_v86: is_v86(),
-            is_pwa: is_pwa(),
-            is_pwa_mobile: is_pwa_mobile(),
-            is_unix,
-            is_linux,
-            is_windows,
-            is_mac_os_10_or_newer,
-            is_apple_ios,
-            is_tvos,
-            is_watchos,
-            is_visionos,
-            is_darwin,
-            looks_like_gnustep: looks_like_gnustep(),
-            looks_like_nextstep_or_openstep: looks_like_nextstep_or_openstep(),
-            is_bsd,
-            is_openbsd,
-            is_dragonfly,
-            is_freebsd,
-            is_netbsd,
-            is_public_website: is_public_website(),
-            is_official_public_website: is_official_public_website(),
-            is_local: is_local(),
-            is_webui,
-            is_webui_in_system_browser: is_webui_in_system_browser(),
-            is_webui_in_webview: is_webui_in_webview(),
-            is_gui,
-            is_cli,
-            is_cli_tty,
-            is_cli_videoterminal,
+            cwd: std::env::current_dir()
+                .ok()
+                .map(|p| p.to_string_lossy().into_owned()),
+            local_ips,
+            public_ips,
+            system_time_resolution_nanos: unix_system_time_resolution().ok(),
+            server_system_time_offset_nanos: CACHED_SERVER_TIME_OFFSET_NANOS
+                .read()
+                .ok()
+                .and_then(|l| *l),
             is_release_build: is_release_build(),
             is_debug_build: is_debug_build(),
             is_cargo_target_binary: is_cargo_target_binary(),
             is_in_test: is_in_test(),
             is_branded_build: is_branded_build(),
             is_official_signed_build: is_official_signed_build(),
-            local_ipv4: CACHED_LOCAL_IPV4
-                .read()
-                .ok()
-                .and_then(|l| *l)
-                .or_else(|| local_ipv4().ok()),
-            local_ipv6: CACHED_LOCAL_IPV6
-                .read()
-                .ok()
-                .and_then(|l| *l)
-                .or_else(|| local_ipv6().ok()),
-            public_ipv4: CACHED_PUBLIC_IPV4.read().ok().and_then(|l| *l),
-            public_ipv6: CACHED_PUBLIC_IPV6.read().ok().and_then(|l| *l),
-            system_time_resolution_nanos: unix_system_time_resolution().ok(),
-            server_system_time_offset_nanos: CACHED_SERVER_TIME_OFFSET_NANOS
-                .read()
-                .ok()
-                .and_then(|l| *l),
-            cwd: std::env::current_dir()
-                .ok()
-                .map(|p| p.to_string_lossy().into_owned()),
+            is_cli_lightweight: is_cli_lightweight(),
+            is_workspace: is_workspace(),
+            is_workspace_main_process: is_workspace_main_process(),
+            is_service_subprocess: is_service_subprocess(),
+            is_official_public_website: is_official_public_website(),
+            is_public_website: is_public_website(),
+            is_local: is_local(),
+            additional_support,
             extra: BTreeMap::new(),
         }
     }
@@ -868,30 +806,34 @@ impl EnvDescription {
     /// Return the structured OS, kernel, libc, and architecture identity.
     #[must_use]
     pub fn identity(&self) -> EnvironmentIdentity {
-        detect_identity()
+        let (ident, _) = detection::reconstruct_identity_and_capabilities(
+            &self.os,
+            &self.additional_support,
+        );
+        ident
     }
 
     /// Return the active display, terminal, and renderer capabilities.
     #[must_use]
     pub fn capabilities(&self) -> EnvironmentCapabilities {
-        detect_capabilities()
+        let (_, caps) = detection::reconstruct_identity_and_capabilities(
+            &self.os,
+            &self.additional_support,
+        );
+        caps
     }
 
     /// Returns all [`FormatId`] elements that apply to this environment
     /// (identity, capabilities, and families).
     #[must_use]
     pub fn all_format_ids(&self) -> Vec<FormatId> {
-        let ident = self.identity();
-        let caps = self.capabilities();
-        detection::collect_all_format_ids(&ident, &caps)
+        self.additional_support.clone()
     }
 
     /// Check if this environment has a specific [`FormatId`] capability or identity.
     #[must_use]
     pub fn has_format(&self, format: FormatId) -> bool {
-        let ident = self.identity();
-        let caps = self.capabilities();
-        detection::check_has_format(&ident, &caps, format)
+        self.additional_support.contains(&format)
     }
 
     /// Check if this environment is compatible with a given target OS format.
@@ -915,6 +857,161 @@ impl EnvDescription {
         detection::format_environment_summary(&ident, &caps)
     }
 
+    // --- Derivable boolean methods ---
+
+    #[must_use]
+    pub fn is_unix(&self) -> bool {
+        self.has_format(FormatId::Unix)
+    }
+
+    #[must_use]
+    pub fn is_linux(&self) -> bool {
+        self.has_format(FormatId::Linux)
+            || self.has_format(FormatId::Wsl)
+            || self.has_format(FormatId::Wsl2)
+    }
+
+    #[must_use]
+    pub fn is_windows(&self) -> bool {
+        self.has_format(FormatId::Windows)
+            || self.has_format(FormatId::WinNt)
+    }
+
+    #[must_use]
+    pub fn is_mac_os_10_or_newer(&self) -> bool {
+        self.has_format(FormatId::MacOsDarwin)
+    }
+
+    #[must_use]
+    pub fn is_apple_ios(&self) -> bool {
+        self.has_format(FormatId::AppleIos)
+    }
+
+    #[must_use]
+    pub fn is_watchos(&self) -> bool {
+        self.has_format(FormatId::WatchOs)
+    }
+
+    #[must_use]
+    pub fn is_tvos(&self) -> bool {
+        self.has_format(FormatId::TvOs)
+    }
+
+    #[must_use]
+    pub fn is_visionos(&self) -> bool {
+        self.has_format(FormatId::VisionOs)
+    }
+
+    #[must_use]
+    pub fn is_darwin(&self) -> bool {
+        self.has_format(FormatId::Darwin)
+            || self.has_format(FormatId::MacOs)
+    }
+
+    #[must_use]
+    pub fn looks_like_gnustep(&self) -> bool {
+        self.has_format(FormatId::GnuStep)
+    }
+
+    #[must_use]
+    pub fn looks_like_nextstep_or_openstep(&self) -> bool {
+        self.has_format(FormatId::NextStep)
+    }
+
+    #[must_use]
+    pub fn is_bsd(&self) -> bool {
+        self.has_format(FormatId::BsdLibc)
+            || self.has_format(FormatId::BsdKernel)
+    }
+
+    #[must_use]
+    pub fn is_openbsd(&self) -> bool {
+        self.has_format(FormatId::OpenBsd)
+    }
+
+    #[must_use]
+    pub fn is_dragonfly(&self) -> bool {
+        self.has_format(FormatId::DragonFlyBsd)
+    }
+
+    #[must_use]
+    pub fn is_freebsd(&self) -> bool {
+        self.has_format(FormatId::FreeBsd)
+    }
+
+    #[must_use]
+    pub fn is_netbsd(&self) -> bool {
+        self.has_format(FormatId::NetBsd)
+    }
+
+    #[must_use]
+    pub fn is_browser_vm(&self) -> bool {
+        self.has_format(FormatId::BrowserVm)
+    }
+
+    #[must_use]
+    pub fn is_browser_vm_fullscreen(&self) -> bool {
+        self.has_format(FormatId::BrowserVmFullscreen)
+    }
+
+    #[must_use]
+    pub fn is_browser_vm_mobile(&self) -> bool {
+        self.has_format(FormatId::BrowserVmMobile)
+    }
+
+    #[must_use]
+    pub fn is_v86(&self) -> bool {
+        self.has_format(FormatId::V86Vm)
+    }
+
+    #[must_use]
+    pub fn is_pwa(&self) -> bool {
+        self.has_format(FormatId::Pwa)
+    }
+
+    #[must_use]
+    pub fn is_pwa_mobile(&self) -> bool {
+        self.has_format(FormatId::PwaMobile)
+    }
+
+    #[must_use]
+    pub fn is_webui(&self) -> bool {
+        self.has_format(FormatId::WebUi)
+    }
+
+    #[must_use]
+    pub fn is_webui_in_system_browser(&self) -> bool {
+        self.has_format(FormatId::WebUiSystemBrowser)
+    }
+
+    #[must_use]
+    pub fn is_webui_in_webview(&self) -> bool {
+        self.has_format(FormatId::WebView)
+    }
+
+    #[must_use]
+    pub fn is_gui(&self) -> bool {
+        let caps = self.capabilities();
+        caps.device_caps.contains(&FormatId::RasterDisplay)
+            && caps.display_server != FormatId::HeadlessDisplay
+    }
+
+    #[must_use]
+    pub fn is_cli(&self) -> bool {
+        self.has_format(FormatId::IsStdoutTerminal)
+    }
+
+    #[must_use]
+    pub fn is_cli_tty(&self) -> bool {
+        self.has_format(FormatId::Teleprinter)
+            || self.has_format(FormatId::LineModeTerminal)
+    }
+
+    #[must_use]
+    pub fn is_cli_videoterminal(&self) -> bool {
+        self.has_format(FormatId::Videoterminal)
+    }
+
     /// Capture a full snapshot of the current execution environment, including
     /// network discovery for public IP and server time offset.
     ///
@@ -922,8 +1019,14 @@ impl EnvDescription {
     /// prefer [`crate::environment::capture`].
     pub(crate) fn capture() -> Self {
         let mut desc = Self::capture_quick();
-        desc.public_ipv4 = cached_public_ipv4().ok();
-        desc.public_ipv6 = cached_public_ipv6().ok();
+        let mut public_ips = Vec::new();
+        if let Ok(v4) = cached_public_ipv4() {
+            public_ips.push(IpAddr::V4(v4));
+        }
+        if let Ok(v6) = cached_public_ipv6() {
+            public_ips.push(IpAddr::V6(v6));
+        }
+        desc.public_ips = public_ips;
         desc.server_system_time_offset_nanos =
             cached_server_system_time_offset_nanos().ok();
         desc
@@ -1173,30 +1276,24 @@ mod tests {
         let desc = EnvDescription::capture();
         assert_eq!(desc.os, os());
         assert_eq!(desc.usize_width, usize());
-        assert_eq!(desc.is_linux, is_linux());
+        assert_eq!(desc.is_linux(), is_linux());
 
         // Test capture_quick
         let quick = EnvDescription::capture_quick();
         assert_eq!(quick.os, os());
         assert_eq!(quick.usize_width, usize());
-        assert!(quick.public_ipv4.is_none());
-        assert!(quick.public_ipv6.is_none());
         assert!(quick.server_system_time_offset_nanos.is_none());
         assert!(quick.system_time_resolution_nanos.is_some());
 
         // Test JSON serialization
         let json = desc.to_json().expect("failed to serialize EnvDescription");
-        if !desc.is_windows {
-            assert!(json.contains("\"is_windows\":false"));
-        }
-        if desc.is_linux {
-            assert!(json.contains("\"is_linux\":true"));
-        }
 
         // Test roundtrip
         let deserialized = EnvDescription::from_json(&json)
             .expect("failed to deserialize EnvDescription");
         assert_eq!(desc, deserialized);
+        assert_eq!(deserialized.is_linux(), desc.is_linux());
+        assert_eq!(deserialized.is_windows(), desc.is_windows());
 
         // Test semver parsing helper
         let semver = desc.ctb_version_semver();
@@ -1376,10 +1473,37 @@ mod tests {
             os: "linux".to_string(),
             usize_width: 64,
             ctb_version: "0.1.49".to_string(),
-            local_ipv4: Some(std::net::Ipv4Addr::new(127, 0, 0, 1)),
-            system_time_resolution_nanos: Some(1),
             cwd: Some("/workspace".to_string()),
-            ..Default::default()
+            local_ips: vec![
+                IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)),
+                IpAddr::V6(std::net::Ipv6Addr::LOCALHOST),
+            ],
+            public_ips: vec![
+                IpAddr::V4(std::net::Ipv4Addr::new(8, 8, 8, 8)),
+                IpAddr::V6(std::net::Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888)),
+            ],
+            system_time_resolution_nanos: Some(1),
+            server_system_time_offset_nanos: Some(-1000),
+            is_release_build: true,
+            is_debug_build: false,
+            is_cargo_target_binary: true,
+            is_in_test: true,
+            is_branded_build: true,
+            is_official_signed_build: false,
+            is_cli_lightweight: false,
+            is_workspace: true,
+            is_workspace_main_process: true,
+            is_service_subprocess: false,
+            is_official_public_website: false,
+            is_public_website: false,
+            is_local: true,
+            additional_support: vec![
+                FormatId::GnuLinux,
+                FormatId::Linux,
+                FormatId::amd64,
+                FormatId::Unix,
+            ],
+            extra: BTreeMap::new(),
         };
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
         Ok(())
@@ -1453,12 +1577,12 @@ mod tests {
         let ident = desc.identity();
         let caps = desc.capabilities();
 
-        assert_eq!(desc.is_gui, is_gui());
-        assert_eq!(desc.is_linux, is_linux());
-        assert_eq!(desc.is_windows, is_windows());
-        assert_eq!(desc.is_unix, is_unix());
-        assert_eq!(desc.is_darwin, is_darwin());
-        assert_eq!(desc.is_bsd, is_bsd());
+        assert_eq!(desc.is_gui(), is_gui());
+        assert_eq!(desc.is_linux(), is_linux());
+        assert_eq!(desc.is_windows(), is_windows());
+        assert_eq!(desc.is_unix(), is_unix());
+        assert_eq!(desc.is_darwin(), is_darwin());
+        assert_eq!(desc.is_bsd(), is_bsd());
         assert_eq!(
             desc.has_format(FormatId::RasterDisplay),
             caps.device_caps.contains(&FormatId::RasterDisplay)
