@@ -31,10 +31,11 @@ use std::env;
 use std::io::IsTerminal;
 use std::path::Path;
 
-use ctb_formats_utilities::format_id::FormatId;
+use ctb_formats_utilities::format_id::{FormatCategory, FormatId};
+use serde::{Deserialize, Serialize};
 
 /// Operating system, kernel, libc, userspace, and architecture identity.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EnvironmentIdentity {
     /// Authoritative kernel format (e.g. `FormatId::Linux`,
     /// `FormatId::Xnu`, `FormatId::WinNtKernel`, `FormatId::Wsl2`).
@@ -62,7 +63,7 @@ impl Default for EnvironmentIdentity {
 }
 
 /// Display, terminal, and interactive rendering capabilities.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EnvironmentCapabilities {
     /// Active device capabilities (e.g. `[FormatId::RasterDisplay,
     /// FormatId::Videoterminal, FormatId::WebUi]`).
@@ -267,6 +268,9 @@ pub fn detect_identity() -> EnvironmentIdentity {
     if env::var_os("WINDIR").is_some() || env::var_os("SYSTEMROOT").is_some() {
         detected.push(FormatId::Win32Subsystem);
     }
+    // Note: Detecting a package manager on the host system indicates its presence in
+    // the environment, but does not guarantee that ctoolbox itself was installed
+    // using that package manager.
     if env::var_os("HOMEBREW_PREFIX").is_some()
         || Path::new("/opt/homebrew").exists()
         || Path::new("/usr/local/Homebrew").exists()
@@ -375,17 +379,11 @@ pub fn detect_identity() -> EnvironmentIdentity {
         .copied()
         .filter(|f| {
             matches!(
-                f,
-                FormatId::GnuUtilities
-                    | FormatId::BusyBoxUtilities
-                    | FormatId::GnuStep
-                    | FormatId::NextStep
-                    | FormatId::Win32Subsystem
-                    | FormatId::BionicUserspace
-                    | FormatId::Homebrew
-                    | FormatId::MacPorts
-                    | FormatId::Nix
-                    | FormatId::Guix
+                f.category(),
+                FormatCategory::Userspace
+                    | FormatCategory::UserspaceUtilities
+                    | FormatCategory::UserspaceLibraries
+                    | FormatCategory::Packagemgr
             )
         })
         .collect();
@@ -579,180 +577,143 @@ pub fn check_has_format(
     }
 }
 
-/// Reconstruct [`EnvironmentIdentity`] and [`EnvironmentCapabilities`] from
-/// an OS string and a slice of [`FormatId`] formats.
-#[expect(
-    clippy::too_many_lines,
-    reason = "Comprehensive environment reconstruction across multiple format categories"
-)]
+/// Decode [`EnvironmentIdentity`] and [`EnvironmentCapabilities`] from
+/// a slice of [`FormatId`] formats and an optional kernel version string,
+/// classifying each format by its declarative [`FormatCategory`].
 #[must_use]
-pub fn reconstruct_identity_and_capabilities(
-    os_str: &str,
+pub fn decode_environment_from_formats(
     formats: &[FormatId],
+    kernel_version: Option<String>,
 ) -> (EnvironmentIdentity, EnvironmentCapabilities) {
-    let architecture = formats
-        .iter()
-        .copied()
-        .find(|f| f.category() == FormatCategory::Arch)
-        .unwrap_or_else(detect_architecture);
+    let mut kernel: Option<FormatId> = None;
+    let mut libc: Option<FormatId> = None;
+    let mut architecture: Option<FormatId> = None;
+    let mut primary_os: Option<FormatId> = None;
+    let mut os_families = Vec::new();
+    let mut userspace = Vec::new();
+    let mut display_server: Option<FormatId> = None;
+    let mut device_caps = Vec::new();
+    let mut terminal_caps = Vec::new();
+    let mut render_modes = Vec::new();
+    let mut is_stdin_terminal = false;
+    let mut is_stdout_terminal = false;
+    let mut is_stderr_terminal = false;
 
-    let kernel = formats
-        .iter()
-        .copied()
-        .find(|f| f.category() == FormatCategory::Kernel)
-        .unwrap_or(match os_str {
-            "macos" | "ios" | "watchos" | "tvos" | "visionos" => FormatId::Xnu,
-            "windows" => FormatId::WinNtKernel,
-            "freebsd" | "openbsd" | "netbsd" | "dragonfly" => FormatId::BsdKernel,
-            _ => FormatId::Linux,
-        });
-
-    let libc = formats
-        .iter()
-        .copied()
-        .find(|f| f.category() == FormatCategory::Libc);
-
-    let os = formats
-        .iter()
-        .copied()
-        .find(|f| f.category() == FormatCategory::Os)
-        .unwrap_or(match os_str {
-            "macos" => FormatId::MacOsDarwin,
-            "windows" => FormatId::Windows,
-            "freebsd" => FormatId::FreeBsd,
-            "openbsd" => FormatId::OpenBsd,
-            "netbsd" => FormatId::NetBsd,
-            "dragonfly" => FormatId::DragonFlyBsd,
-            "ios" => FormatId::AppleIos,
-            _ => FormatId::GnuLinux,
-        });
-
-    let os_families: Vec<FormatId> = formats
-        .iter()
-        .copied()
-        .filter(|f| {
-            matches!(
-                f,
-                FormatId::Unix
-                    | FormatId::Windows
-                    | FormatId::MacOs
-                    | FormatId::WinClassic
-            )
-        })
-        .collect();
-
-    let userspace: Vec<FormatId> = formats
-        .iter()
-        .copied()
-        .filter(|f| {
-            matches!(
-                f,
-                FormatId::GnuUtilities
-                    | FormatId::BusyBoxUtilities
-                    | FormatId::GnuStep
-                    | FormatId::NextStep
-                    | FormatId::Win32Subsystem
-                    | FormatId::BionicUserspace
-                    | FormatId::Homebrew
-                    | FormatId::MacPorts
-                    | FormatId::Nix
-                    | FormatId::Guix
-            )
-        })
-        .collect();
+    for &f in formats {
+        match f.category() {
+            FormatCategory::Kernel => {
+                if let Some(prev) = kernel {
+                    warn_fmt!(
+                        "Duplicate kernel format {} in environment snapshot, keeping previous {}",
+                        f.ident(),
+                        prev.ident()
+                    );
+                } else {
+                    kernel = Some(f);
+                }
+            }
+            FormatCategory::Libc => {
+                if let Some(prev) = libc {
+                    warn_fmt!(
+                        "Duplicate libc format {} in environment snapshot, keeping previous {}",
+                        f.ident(),
+                        prev.ident()
+                    );
+                } else {
+                    libc = Some(f);
+                }
+            }
+            FormatCategory::Arch => {
+                if let Some(prev) = architecture {
+                    warn_fmt!(
+                        "Duplicate architecture format {} in environment snapshot, keeping previous {}",
+                        f.ident(),
+                        prev.ident()
+                    );
+                } else {
+                    architecture = Some(f);
+                }
+            }
+            FormatCategory::DisplaySystem => {
+                if let Some(prev) = display_server {
+                    warn_fmt!(
+                        "Duplicate display system format {} in environment snapshot, keeping previous {}",
+                        f.ident(),
+                        prev.ident()
+                    );
+                } else {
+                    display_server = Some(f);
+                }
+            }
+            FormatCategory::Os => {
+                if matches!(
+                    f,
+                    FormatId::Unix
+                        | FormatId::Windows
+                        | FormatId::MacOs
+                        | FormatId::WinClassic
+                ) {
+                    if !os_families.contains(&f) {
+                        os_families.push(f);
+                    }
+                }
+                if primary_os.is_none()
+                    && !matches!(f, FormatId::Unix | FormatId::WinClassic)
+                {
+                    primary_os = Some(f);
+                } else if primary_os.is_none() {
+                    primary_os = Some(f);
+                } else if !os_families.contains(&f) {
+                    os_families.push(f);
+                }
+            }
+            FormatCategory::Userspace
+            | FormatCategory::UserspaceUtilities
+            | FormatCategory::UserspaceLibraries
+            | FormatCategory::Packagemgr => {
+                if !userspace.contains(&f) {
+                    userspace.push(f);
+                }
+            }
+            FormatCategory::Videoterminal => {
+                if !terminal_caps.contains(&f) {
+                    terminal_caps.push(f);
+                }
+            }
+            FormatCategory::DeviceCaps => match f {
+                FormatId::IsStdinTerminal => is_stdin_terminal = true,
+                FormatId::IsStdoutTerminal => is_stdout_terminal = true,
+                FormatId::IsStderrTerminal => is_stderr_terminal = true,
+                FormatId::RenderModeInteractive | FormatId::RenderModeImmediate => {
+                    if !render_modes.contains(&f) {
+                        render_modes.push(f);
+                    }
+                }
+                _ => {
+                    if !device_caps.contains(&f) {
+                        device_caps.push(f);
+                    }
+                }
+            },
+            _ => {}
+        }
+    }
 
     let ident = EnvironmentIdentity {
-        kernel,
-        kernel_version: None,
+        kernel: kernel.unwrap_or(FormatId::Linux),
+        kernel_version,
         libc,
         userspace,
-        os,
+        os: primary_os.unwrap_or(FormatId::GnuLinux),
         os_families,
-        architecture,
+        architecture: architecture.unwrap_or(FormatId::amd64),
     };
-
-    let display_server = formats
-        .iter()
-        .copied()
-        .find(|f| {
-            matches!(
-                f,
-                FormatId::WaylandDisplay
-                    | FormatId::X11Display
-                    | FormatId::QuartzDisplay
-                    | FormatId::Win32Display
-                    | FormatId::HeadlessDisplay
-            )
-        })
-        .unwrap_or(FormatId::HeadlessDisplay);
-
-    let device_caps: Vec<FormatId> = formats
-        .iter()
-        .copied()
-        .filter(|f| {
-            matches!(
-                f,
-                FormatId::RasterDisplay
-                    | FormatId::VectorDisplay
-                    | FormatId::WebUi
-                    | FormatId::WebView
-                    | FormatId::BrowserVm
-                    | FormatId::V86Vm
-                    | FormatId::Pwa
-                    | FormatId::PwaMobile
-                    | FormatId::BrowserVmFullscreen
-                    | FormatId::BrowserVmMobile
-                    | FormatId::WebUiSystemBrowser
-                    | FormatId::TerminalColors1bit
-                    | FormatId::TerminalColors4bit
-                    | FormatId::TerminalColors8bit
-                    | FormatId::TerminalColors24bit
-            )
-        })
-        .collect();
-
-    let render_modes: Vec<FormatId> = formats
-        .iter()
-        .copied()
-        .filter(|f| {
-            matches!(
-                f,
-                FormatId::RenderModeInteractive | FormatId::RenderModeImmediate
-            )
-        })
-        .collect();
-
-    let terminal_caps: Vec<FormatId> = formats
-        .iter()
-        .copied()
-        .filter(|f| {
-            matches!(
-                f,
-                FormatId::Vt100
-                    | FormatId::Videoterminal
-                    | FormatId::Teleprinter
-                    | FormatId::TerminalCanEdit
-                    | FormatId::TerminalCanEditPastLines
-                    | FormatId::LineModeTerminal
-                    | FormatId::BlockModeTerminal
-                    | FormatId::TerminalMouse
-                    | FormatId::TerminalGraphics
-                    | FormatId::TerminalSixelGraphics
-                    | FormatId::TerminalIterm2Graphics
-                    | FormatId::TerminalKittyGraphics
-            )
-        })
-        .collect();
-
-    let is_stdin_terminal = formats.contains(&FormatId::IsStdinTerminal);
-    let is_stdout_terminal = formats.contains(&FormatId::IsStdoutTerminal);
-    let is_stderr_terminal = formats.contains(&FormatId::IsStderrTerminal);
 
     let caps = EnvironmentCapabilities {
         device_caps,
         render_modes,
         terminal_caps,
-        display_server,
+        display_server: display_server.unwrap_or(FormatId::HeadlessDisplay),
         is_stdin_terminal,
         is_stdout_terminal,
         is_stderr_terminal,
@@ -767,18 +728,7 @@ pub fn format_environment_summary(
     ident: &EnvironmentIdentity,
     caps: &EnvironmentCapabilities,
 ) -> String {
-    let os_name = match ident.os {
-        FormatId::GnuLinux => "GNU/Linux",
-        FormatId::MacOsDarwin => "macOS",
-        FormatId::Windows => "Windows",
-        FormatId::WinNt => "Windows NT",
-        FormatId::FreeBsd => "FreeBSD",
-        FormatId::OpenBsd => "OpenBSD",
-        FormatId::NetBsd => "NetBSD",
-        FormatId::DragonFlyBsd => "DragonFly BSD",
-        FormatId::NextStep => "NeXTSTEP / OPENSTEP",
-        _ => ident.os.ident(),
-    };
+    let os_name = ident.os.title().unwrap_or_else(|| ident.os.ident());
 
     let kernel_str = if let Some(ver) = &ident.kernel_version {
         format!("{} {}", ident.kernel.ident(), ver)

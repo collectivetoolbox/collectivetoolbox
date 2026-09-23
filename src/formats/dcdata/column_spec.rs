@@ -76,6 +76,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub nicknames: Vec<String>,
     /// OS associations extracted from `@os(...)` containing format shorthands.
     pub os_associations: Vec<String>,
+    /// Canonical title / true name extracted from `@title(...)`.
+    pub title: Option<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -599,13 +601,53 @@ fn process_column_item(
                     Some("Ensure '@os(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@title(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    if unescaped.trim().is_empty() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Empty '@title()' in '{item_trimmed}'"),
+                            Some("Provide a non-empty title string inside '@title(\"... \")'"),
+                        );
+                    } else if parsed.title.is_some() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Duplicate '@title()' directive in '{item_trimmed}'"),
+                            Some("Only one @title directive is permitted per entry"),
+                        );
+                    } else {
+                        parsed.title = Some(unescaped);
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@title(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@title(\"... \")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@title(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@title(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', and '@os(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', and '@title(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -954,5 +996,44 @@ mod tests {
         );
         assert!(err_report.has_errors());
         assert!(err_report.format_report().contains("Invalid format shorthand 'macos' in '@os(...)'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_title_directive() {
+        let mut report = ValidationReport::default();
+        let parsed = parse_aliases_or_base_column(
+            r#"@title("GNU/Linux"), @implies(f390)"#,
+            "test_format.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(!report.has_errors(), "Errors: {}", report.format_report());
+        assert_eq!(parsed.title.as_deref(), Some("GNU/Linux"));
+        assert_eq!(parsed.implies, vec!["f390"]);
+
+        // Test empty title
+        let mut err_report = ValidationReport::default();
+        let _ = parse_aliases_or_base_column(
+            r#"@title("")"#,
+            "test_format.csv",
+            1,
+            &mut err_report,
+            true,
+        );
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("Empty '@title()'"));
+
+        // Test duplicate title
+        let mut dup_report = ValidationReport::default();
+        let _ = parse_aliases_or_base_column(
+            r#"@title("First"), @title("Second")"#,
+            "test_format.csv",
+            1,
+            &mut dup_report,
+            true,
+        );
+        assert!(dup_report.has_errors());
+        assert!(dup_report.format_report().contains("Duplicate '@title()'"));
     }
 }

@@ -865,6 +865,9 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     if let Some(ident) = parsed.rust_ident {
         parts.push(format!("@ident(\"{}\")", escape_directive_string(&ident)));
     }
+    if let Some(title) = parsed.title {
+        parts.push(format!("@title(\"{}\")", escape_directive_string(&title)));
+    }
     for nick in parsed.nicknames {
         parts.push(format!("@nick(\"{}\")", escape_directive_string(&nick)));
     }
@@ -979,6 +982,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
         label: String,
         category: String,
         nicknames: Vec<String>,
+        title: Option<String>,
     }
 
     let mut records: Vec<FormatRowData> = Vec::new();
@@ -1050,6 +1054,15 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                                 .collect()
                         };
 
+                        let raw_base = get(5);
+                        let title = if raw_base.is_empty() {
+                            None
+                        } else {
+                            let mut report = crate::report::ValidationReport::new();
+                            let parsed = crate::column_spec::parse_aliases_or_base_column(&raw_base, file_name, 0, &mut report, true);
+                            parsed.title
+                        };
+
                         records.push(FormatRowData {
                             dc_id,
                             short_id,
@@ -1057,6 +1070,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                             label,
                             category,
                             nicknames,
+                            title,
                         });
                     }
                 }
@@ -1172,6 +1186,20 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     if !seen_idents.contains("Unknown") {
         out.push_str("            Self::Unknown => \"Unknown\",\n");
     }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Returns the canonical human-readable title (\"true name\") for this format if defined.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn title(&self) -> Option<&'static str> {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        if let Some(t) = &r.title {
+            let escaped = t.replace('\\', "\\\\").replace('"', "\\\"");
+            out.push_str(&format!("            Self::{} => Some(\"{}\"),\n", r.ident, escaped));
+        }
+    }
+    out.push_str("            _ => None,\n");
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 

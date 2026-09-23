@@ -41,6 +41,7 @@ pub enum FormatCategory {
     Database,
     Date,
     DeviceCaps,
+    DisplaySystem,
     Document,
     Duration,
     Encoding,
@@ -1165,15 +1166,15 @@ pub enum FormatId {
     Iso88591,
     /// ActionScript (Short 543, Category: programming)
     ActionScript,
-    /// X11 window system (Short 544, Category: device_caps)
+    /// X11 window system (Short 544, Category: display_system)
     X11Display,
-    /// Wayland display protocol (Short 545, Category: device_caps)
+    /// Wayland display protocol (Short 545, Category: display_system)
     WaylandDisplay,
-    /// Quartz compositor (Short 546, Category: device_caps)
+    /// Quartz compositor (Short 546, Category: display_system)
     QuartzDisplay,
-    /// Windows desktop windowing (Short 547, Category: device_caps)
+    /// Windows desktop windowing (Short 547, Category: display_system)
     Win32Display,
-    /// Headless display (no display server) (Short 548, Category: device_caps)
+    /// Headless display (no display server) (Short 548, Category: display_system)
     HeadlessDisplay,
     /// Raster display is able to display monochrome graphics (Short 549, Category: device_caps)
     RasterColors1bit,
@@ -1442,11 +1443,6 @@ impl FormatId {
             | Self::BrowserVm
             | Self::V86Vm
             | Self::Pwa
-            | Self::X11Display
-            | Self::WaylandDisplay
-            | Self::QuartzDisplay
-            | Self::Win32Display
-            | Self::HeadlessDisplay
             | Self::RasterColors1bit
             | Self::RasterColors24bit
             | Self::TerminalColors1bit
@@ -1464,6 +1460,11 @@ impl FormatId {
             | Self::BrowserVmFullscreen
             | Self::BrowserVmMobile
             | Self::WebUiSystemBrowser => FormatCategory::DeviceCaps,
+            Self::X11Display
+            | Self::WaylandDisplay
+            | Self::QuartzDisplay
+            | Self::Win32Display
+            | Self::HeadlessDisplay => FormatCategory::DisplaySystem,
             Self::DcIntegerList
             | Self::Html
             | Self::Sems
@@ -3101,6 +3102,32 @@ impl FormatId {
             Self::BrowserVmFullscreen => "BrowserVmFullscreen",
             Self::BrowserVmMobile => "BrowserVmMobile",
             Self::WebUiSystemBrowser => "WebUiSystemBrowser",
+        }
+    }
+
+    /// Returns the canonical human-readable title ("true name") for this format if defined.
+    #[must_use]
+    pub const fn title(&self) -> Option<&'static str> {
+        match self {
+            Self::GnuLinux => Some("GNU/Linux"),
+            Self::Android => Some("Android"),
+            Self::MsDosKernel => Some("MS-DOS"),
+            Self::Windows => Some("Windows"),
+            Self::WinClassic => Some("Windows (Classic)"),
+            Self::WinNt => Some("Windows NT"),
+            Self::MacOs => Some("Mac OS"),
+            Self::MacOsDarwin => Some("macOS"),
+            Self::FreeBsd => Some("FreeBSD"),
+            Self::OpenBsd => Some("OpenBSD"),
+            Self::NetBsd => Some("NetBSD"),
+            Self::DragonFlyBsd => Some("DragonFly BSD"),
+            Self::Unix => Some("Unix"),
+            Self::AppleIos => Some("iOS"),
+            Self::WatchOs => Some("watchOS"),
+            Self::TvOs => Some("tvOS"),
+            Self::VisionOs => Some("visionOS"),
+            Self::NextStep => Some("NeXTSTEP / OPENSTEP"),
+            _ => None,
         }
     }
 
@@ -6637,15 +6664,15 @@ pub const DC_ORDER_XYZ: DcChar = DcChar::from_format(541);
 pub const DC_ISO88591: DcChar = DcChar::from_format(542);
 /// DcChar constant for Format `ActionScript` (Short f543, Category: programming): ActionScript
 pub const DC_ACTION_SCRIPT: DcChar = DcChar::from_format(543);
-/// DcChar constant for Format `X11Display` (Short f544, Category: device_caps): X11 window system
+/// DcChar constant for Format `X11Display` (Short f544, Category: display_system): X11 window system
 pub const DC_X11_DISPLAY: DcChar = DcChar::from_format(544);
-/// DcChar constant for Format `WaylandDisplay` (Short f545, Category: device_caps): Wayland display protocol
+/// DcChar constant for Format `WaylandDisplay` (Short f545, Category: display_system): Wayland display protocol
 pub const DC_WAYLAND_DISPLAY: DcChar = DcChar::from_format(545);
-/// DcChar constant for Format `QuartzDisplay` (Short f546, Category: device_caps): Quartz compositor
+/// DcChar constant for Format `QuartzDisplay` (Short f546, Category: display_system): Quartz compositor
 pub const DC_QUARTZ_DISPLAY: DcChar = DcChar::from_format(546);
-/// DcChar constant for Format `Win32Display` (Short f547, Category: device_caps): Windows desktop windowing
+/// DcChar constant for Format `Win32Display` (Short f547, Category: display_system): Windows desktop windowing
 pub const DC_WIN32_DISPLAY: DcChar = DcChar::from_format(547);
-/// DcChar constant for Format `HeadlessDisplay` (Short f548, Category: device_caps): Headless display (no display server)
+/// DcChar constant for Format `HeadlessDisplay` (Short f548, Category: display_system): Headless display (no display server)
 pub const DC_HEADLESS_DISPLAY: DcChar = DcChar::from_format(548);
 /// DcChar constant for Format `RasterColors1bit` (Short f549, Category: device_caps): Raster display is able to display monochrome graphics
 pub const DC_RASTER_COLORS1BIT: DcChar = DcChar::from_format(549);

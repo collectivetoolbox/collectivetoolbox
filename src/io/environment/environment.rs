@@ -695,6 +695,8 @@ pub struct EnvDescription {
     pub is_public_website: bool,
     #[dc(short = 532)]
     pub is_local: bool,
+    #[dc(short = 533)]
+    pub kernel_version: Option<String>,
     #[dc(flatten)]
     pub additional_support: Vec<FormatId>,
 
@@ -803,6 +805,7 @@ impl EnvDescription {
             is_official_public_website: is_official_public_website(),
             is_public_website: is_public_website(),
             is_local: is_local(),
+            kernel_version: ident.kernel_version,
             additional_support,
             extra: BTreeMap::new(),
         }
@@ -811,9 +814,9 @@ impl EnvDescription {
     /// Return the structured OS, kernel, libc, and architecture identity.
     #[must_use]
     pub fn identity(&self) -> EnvironmentIdentity {
-        let (ident, _) = detection::reconstruct_identity_and_capabilities(
-            &self.os,
+        let (ident, _) = detection::decode_environment_from_formats(
             &self.additional_support,
+            self.kernel_version.clone(),
         );
         ident
     }
@@ -821,9 +824,9 @@ impl EnvDescription {
     /// Return the active display, terminal, and renderer capabilities.
     #[must_use]
     pub fn capabilities(&self) -> EnvironmentCapabilities {
-        let (_, caps) = detection::reconstruct_identity_and_capabilities(
-            &self.os,
+        let (_, caps) = detection::decode_environment_from_formats(
             &self.additional_support,
+            self.kernel_version.clone(),
         );
         caps
     }
@@ -1549,6 +1552,7 @@ mod tests {
             is_official_public_website: false,
             is_public_website: false,
             is_local: true,
+            kernel_version: Some("6.12.11-amd64".to_string()),
             additional_support: vec![
                 FormatId::GnuLinux,
                 FormatId::Linux,

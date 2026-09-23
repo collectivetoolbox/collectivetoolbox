@@ -436,6 +436,7 @@ pub fn validate_formats_category_file(
             } else {
                 Some(variant_types)
             },
+            title: parsed.title.clone(),
         };
 
         let aliases: Vec<String> = if nicknames.is_empty() {
@@ -457,6 +458,7 @@ pub fn validate_formats_category_file(
             } else {
                 Some(clean_ident.to_string())
             },
+            title: parsed.title,
             name: clean_label.to_string(),
             category: formatted_category,
             combining_class: 0,

@@ -1146,6 +1146,7 @@ pub fn validate_dc_category_file(
                     export_support: None,
                     tests: None,
                     variant_types: None,
+                    title: parsed_col.title.clone(),
                 }),
             )
         } else {
@@ -1156,6 +1157,7 @@ pub fn validate_dc_category_file(
             dc_id,
             short_id,
             ident: parsed_col.rust_ident,
+            title: parsed_col.title,
             name,
             category: row_category,
             combining_class,

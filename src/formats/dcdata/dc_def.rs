@@ -60,6 +60,8 @@ pub struct FormatDetails {
     pub tests: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub variant_types: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
 }
 
 /// Unified Document Character definition for characters and formats.
@@ -71,6 +73,8 @@ pub struct DcDefn {
     pub short_id: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ident: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
     pub name: String,
     pub category: String,
 

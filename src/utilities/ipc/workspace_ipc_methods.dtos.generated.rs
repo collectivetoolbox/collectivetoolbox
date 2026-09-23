@@ -57,6 +57,7 @@ pub struct EnvDescription {
     pub is_official_public_website: bool,
     pub is_public_website: bool,
     pub is_local: bool,
+    pub kernel_version: Option < String >,
     pub additional_support: Vec < FormatId >,
     pub extra: BTreeMap < String , serde_json :: Value >,
 }
