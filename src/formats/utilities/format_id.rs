@@ -1213,6 +1213,20 @@ pub enum FormatId {
     GnuUtilities,
     /// Bionic userspace (Short 588, Category: userspace)
     BionicUserspace,
+    /// Whether standard input is connected to interactive terminal (Short 589, Category: device_caps)
+    IsStdinTerminal,
+    /// Whether standard output is connected to interactive terminal (Short 590, Category: device_caps)
+    IsStdoutTerminal,
+    /// Whether standard error is connected to interactive terminal (Short 591, Category: device_caps)
+    IsStderrTerminal,
+    /// Terminal can make changes to the current line of output (Short 592, Category: device_caps)
+    TerminalCanEdit,
+    /// Is a videoterminal that can edit past lines, not just the current one (Short 593, Category: device_caps)
+    TerminalCanEditPastLines,
+    /// Line-at-a-time terminal (Short 594, Category: device_caps)
+    LineModeTerminal,
+    /// Screen-at-a-time terminal (Short 595, Category: device_caps)
+    BlockModeTerminal,
 }
 
 impl FormatId {
@@ -1961,6 +1975,13 @@ impl FormatId {
             "win32subsystem" | "win32_subsystem" => Some(Self::Win32Subsystem),
             "gnuutilities" | "gnu_utilities" => Some(Self::GnuUtilities),
             "bionicuserspace" | "bionic_userspace" => Some(Self::BionicUserspace),
+            "isstdinterminal" | "is_stdin_terminal" => Some(Self::IsStdinTerminal),
+            "isstdoutterminal" | "is_stdout_terminal" => Some(Self::IsStdoutTerminal),
+            "isstderrterminal" | "is_stderr_terminal" => Some(Self::IsStderrTerminal),
+            "terminalcanedit" | "terminal_can_edit" => Some(Self::TerminalCanEdit),
+            "terminalcaneditpastlines" | "terminal_can_edit_past_lines" => Some(Self::TerminalCanEditPastLines),
+            "linemodeterminal" | "line_mode_terminal" => Some(Self::LineModeTerminal),
+            "blockmodeterminal" | "block_mode_terminal" => Some(Self::BlockModeTerminal),
             _ => None,
         }
     }
@@ -2558,6 +2579,13 @@ impl FormatId {
             Self::Win32Subsystem => "Win32Subsystem",
             Self::GnuUtilities => "GnuUtilities",
             Self::BionicUserspace => "BionicUserspace",
+            Self::IsStdinTerminal => "IsStdinTerminal",
+            Self::IsStdoutTerminal => "IsStdoutTerminal",
+            Self::IsStderrTerminal => "IsStderrTerminal",
+            Self::TerminalCanEdit => "TerminalCanEdit",
+            Self::TerminalCanEditPastLines => "TerminalCanEditPastLines",
+            Self::LineModeTerminal => "LineModeTerminal",
+            Self::BlockModeTerminal => "BlockModeTerminal",
         }
     }
 
@@ -3155,6 +3183,13 @@ impl FormatId {
             "f586" | "586" => Some(Self::Win32Subsystem),
             "f587" | "587" => Some(Self::GnuUtilities),
             "f588" | "588" => Some(Self::BionicUserspace),
+            "f589" | "589" => Some(Self::IsStdinTerminal),
+            "f590" | "590" => Some(Self::IsStdoutTerminal),
+            "f591" | "591" => Some(Self::IsStderrTerminal),
+            "f592" | "592" => Some(Self::TerminalCanEdit),
+            "f593" | "593" => Some(Self::TerminalCanEditPastLines),
+            "f594" | "594" => Some(Self::LineModeTerminal),
+            "f595" | "595" => Some(Self::BlockModeTerminal),
             _ => None,
         }
     }
@@ -3752,6 +3787,13 @@ impl FormatId {
             Self::Win32Subsystem => Some(586),
             Self::GnuUtilities => Some(587),
             Self::BionicUserspace => Some(588),
+            Self::IsStdinTerminal => Some(589),
+            Self::IsStdoutTerminal => Some(590),
+            Self::IsStderrTerminal => Some(591),
+            Self::TerminalCanEdit => Some(592),
+            Self::TerminalCanEditPastLines => Some(593),
+            Self::LineModeTerminal => Some(594),
+            Self::BlockModeTerminal => Some(595),
         }
     }
 
@@ -4348,6 +4390,13 @@ impl FormatId {
             Self::Win32Subsystem => Some(2228810_u128),
             Self::GnuUtilities => Some(2228811_u128),
             Self::BionicUserspace => Some(2228812_u128),
+            Self::IsStdinTerminal => Some(2228813_u128),
+            Self::IsStdoutTerminal => Some(2228814_u128),
+            Self::IsStderrTerminal => Some(2228815_u128),
+            Self::TerminalCanEdit => Some(2228816_u128),
+            Self::TerminalCanEditPastLines => Some(2228817_u128),
+            Self::LineModeTerminal => Some(2228818_u128),
+            Self::BlockModeTerminal => Some(2228819_u128),
         }
     }
 }
