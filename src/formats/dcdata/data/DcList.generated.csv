@@ -523,3 +523,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114626,514,Key-value pair (tuple),0,BN,,!Cx,EL Syntax,:~ [^(515 | 312)]+ 312 [^(515 | 312)]+,,,,,,,,,,
 1114627,515,End key-value pair,0,BN,,!Cx,EL Syntax,,,,,,,,,,,
 1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description.",,,,,,,,,
+1114629,517,Boolean true,0,BN,,!Cx,Semantic,,,,,,,,,,,
+1114630,518,Boolean false,0,BN,,!Cx,Semantic,,,,,,,,,,,
