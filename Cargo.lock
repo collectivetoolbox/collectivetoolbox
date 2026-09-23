@@ -3425,6 +3425,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "ctb-formats-dcstring",
+ "ctb-formats-utilities",
  "ctb-utilities",
  "nix 0.30.1",
  "semver 1.0.28",

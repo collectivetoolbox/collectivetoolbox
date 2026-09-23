@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-dcstring = { path = "../../formats/dcstring" }
+ctb-formats-utilities = { path = "../../formats/utilities" }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 anyhow = "1.0"
