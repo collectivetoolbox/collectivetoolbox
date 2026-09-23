@@ -506,7 +506,8 @@ pub fn looks_like_gnustep() -> bool {
     }
     // Multiple LLMs suggest you can use these, but I couldn't confirm it and it
     // doesn't appear to be the case on my system (though I haven't tried a
-    // dedicated WindowMaker session):
+    // dedicated WindowMaker session) - I suspect they may be present when
+    // compiling GNUstep, not when running it:
     // env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
     //     || env::var_os("GNUSTEP_USER_ROOT").is_some()
     false
