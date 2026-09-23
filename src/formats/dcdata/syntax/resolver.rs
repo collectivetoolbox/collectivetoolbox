@@ -161,11 +161,16 @@ impl SyntaxRuleResolver for DatasetRuleResolver {
             return true;
         }
 
-        // Support matching by hierarchical suffix (e.g. "fileflag" matches "Semantic:fileflag",
-        // "calendar" matches "Formats:calendar")
+        let clean_target = script_name.trim_start_matches('.');
+        // Support matching by dot prefix or hierarchical suffix (e.g. "fileflag" matches ".Semantic:fileflag",
+        // "EL Types" matches ".EL Types")
         for (name, set) in &self.script_chars {
-            if let Some(suffix) = name.split(':').last() {
-                if suffix == script_name && set.contains(&token) {
+            let clean_name = name.trim_start_matches('.');
+            if clean_name == clean_target && set.contains(&token) {
+                return true;
+            }
+            if let Some(suffix) = clean_name.split(':').last() {
+                if suffix == clean_target && set.contains(&token) {
                     return true;
                 }
             }

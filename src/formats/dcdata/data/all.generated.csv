@@ -297543,7 +297543,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114312,200,Begin keyed embed fragment,0,BN,,!Cx,.Encapsulation,,"This Dc is used for embedding arbitrary keyed ID/data pairs in a document. Standard structure: Followed by base64-encoded data identifying a fragment, then Dc 202 (End keyed embed ID sequence), then by the base64-encoded fragment itself, then by Dc 201 (End keyed embed fragment).",,,,,,,,,
 1114313,201,End keyed embed fragment,0,BN,,!Cx,.Encapsulation,,See description for 200,,,,,,,,,
 1114314,202,End keyed embed ID sequence,0,BN,,!Cx,.Encapsulation,,See description for 200,,,,,,,,,
-1114315,203,Begin encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationBinary""), :~ [^204]* 204","Arbitrary binary data (base64 encoded, no semantic significance assigned to it)",,,,,,,,,
+1114315,203,Begin encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationBinary""), :~ ([127..190] | 195)* 204","Arbitrary binary data (base64 encoded, no semantic significance assigned to it)",,,,,,,,,
 1114316,204,End encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""EndEncapsulationBinary"")",See description for 203,,,,,,,,,
 1114317,205,DCE Version Selector 3.03a,0,BN,,!Cx,.DCE versions,,,,,,,,,,,
 1114318,206,!Unicode replacement character,0,ON,,So,.Miscellaneous,"@ident(""ReplacementUnavailUnicode""), <equiv>ufffd",Used to replace an incoming character whose value is unknown or unrepresentable in Unicode,,,,,,,,,

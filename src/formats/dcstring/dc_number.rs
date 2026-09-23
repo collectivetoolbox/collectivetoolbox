@@ -41,9 +41,10 @@ use anyhow::{Context, Result, anyhow, bail, ensure};
 use ctb_formats_math::base::{Base, format_natural, parse_natural};
 use malachite::{Integer, Natural};
 
+pub use ctb_formats_dcdata::DC_INTEGER;
 pub use ctb_formats_dcdata::dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,
-    DC_END_NUMBER, DC_FORMAT_199, DC_NEGATIVE, DC_POSITIVE,
+    DC_END_NUMBER, DC_NEGATIVE, DC_POSITIVE,
 };
 pub use ctb_formats_dcdata::dc_char::DcChar;
 pub use ctb_formats_dcdata::dc_number_minimal::{
@@ -189,7 +190,7 @@ pub fn natural_to_dc_number_chars(
 
     let mut result = Vec::with_capacity(b64_str.len().saturating_add(4));
     result.push(DC_BEGIN_NUMBER);
-    result.push(DC_FORMAT_199);
+    result.push(DC_INTEGER);
     if is_negative {
         result.push(DC_NEGATIVE);
     }
@@ -213,7 +214,7 @@ pub fn natural_to_dc_number_short(
     let chars = natural_to_dc_number_chars(val, is_negative)?;
     let mut out = Vec::with_capacity(chars.len());
     for ch in chars {
-        if ch == DC_FORMAT_199 {
+        if ch == DC_INTEGER {
             out.push(ch.to_format()?);
         } else {
             out.push(ch.to_short()?);
@@ -303,7 +304,7 @@ where
 
     let second = next_char()?;
     ensure!(
-        second == DC_FORMAT_199,
+        second == DC_INTEGER,
         "Expected format 199 indicator after Dc 6, found {second:?}"
     );
 
@@ -353,7 +354,7 @@ pub fn read_dc_number_short(dcs: &[u32]) -> Result<(Integer, usize)> {
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     let second_dc = DcChar::from_format(second);
     ensure!(
-        second_dc == DC_FORMAT_199,
+        second_dc == DC_INTEGER,
         "Expected format 199 indicator after Dc 6, found Dc {second}"
     );
 
@@ -427,7 +428,7 @@ pub fn read_dc_number_global(gids: &[u128]) -> Result<(Integer, usize)> {
         .ok_or_else(|| anyhow!("Unexpected end of stream after Dc 6"))?;
     let second_dc = DcChar::from_long(second);
     ensure!(
-        second_dc == DC_FORMAT_199,
+        second_dc == DC_INTEGER,
         "Expected format 199 indicator after Dc 6, found {second}"
     );
 

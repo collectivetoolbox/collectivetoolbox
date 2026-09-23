@@ -461,36 +461,13 @@ pub fn reconstruct_identity_and_capabilities(
     let architecture = formats
         .iter()
         .copied()
-        .find(|f| {
-            matches!(
-                f,
-                FormatId::amd64
-                    | FormatId::arm64
-                    | FormatId::x86
-                    | FormatId::arm
-                    | FormatId::i586
-                    | FormatId::sse2
-            )
-        })
+        .find(|f| f.category() == FormatCategory::Arch)
         .unwrap_or_else(detect_architecture);
 
     let kernel = formats
         .iter()
         .copied()
-        .find(|f| {
-            matches!(
-                f,
-                FormatId::Linux
-                    | FormatId::Wsl
-                    | FormatId::Wsl2
-                    | FormatId::Xnu
-                    | FormatId::WinNtKernel
-                    | FormatId::BsdKernel
-                    | FormatId::Mach
-                    | FormatId::Hurd
-                    | FormatId::MsDosKernel
-            )
-        })
+        .find(|f| f.category() == FormatCategory::Kernel)
         .unwrap_or_else(|| match os_str {
             "linux" => FormatId::Linux,
             "macos" | "ios" | "watchos" | "tvos" | "visionos" => FormatId::Xnu,
@@ -499,46 +476,15 @@ pub fn reconstruct_identity_and_capabilities(
             _ => FormatId::Linux,
         });
 
-    let libc = formats.iter().copied().find(|f| {
-        matches!(
-            f,
-            FormatId::Gnu
-                | FormatId::MuslLibc
-                | FormatId::Darwin
-                | FormatId::BsdLibc
-                | FormatId::BionicLibc
-        )
-    });
+    let libc = formats
+        .iter()
+        .copied()
+        .find(|f| f.category() == FormatCategory::Libc);
 
     let os = formats
         .iter()
         .copied()
-        .find(|f| {
-            matches!(
-                f,
-                FormatId::GnuLinux
-                    | FormatId::MacOsDarwin
-                    | FormatId::Windows
-                    | FormatId::WinNt
-                    | FormatId::FreeBsd
-                    | FormatId::OpenBsd
-                    | FormatId::NetBsd
-                    | FormatId::DragonFlyBsd
-                    | FormatId::Android
-                    | FormatId::Debian
-                    | FormatId::Ubuntu
-                    | FormatId::Fedora
-                    | FormatId::Rhel
-                    | FormatId::ArchLinux
-                    | FormatId::Alpine
-                    | FormatId::NixOs
-                    | FormatId::Gentoo
-                    | FormatId::AppleIos
-                    | FormatId::WatchOs
-                    | FormatId::TvOs
-                    | FormatId::VisionOs
-            )
-        })
+        .find(|f| f.category() == FormatCategory::Os)
         .unwrap_or(match os_str {
             "macos" => FormatId::MacOsDarwin,
             "windows" => FormatId::Windows,

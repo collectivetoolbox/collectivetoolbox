@@ -1691,6 +1691,7 @@ mod tests {
         let mut report = ValidationReport::new();
         let rows = validate_all_format_files_from_disk(
             &repo_root.join("src/formats/dcdata/data/categories/formats"),
+            None,
             &mut report,
         );
         ensure!(!report.has_errors(), "{}", report.format_report());
@@ -2527,7 +2528,7 @@ mod tests {
         use std::sync::Arc;
 
         let resolver = Arc::new(DatasetRuleResolver::load());
-        let rule = parse_dc_syntax(":~ [script:EL Types] 263").unwrap();
+        let rule = parse_dc_syntax(":~ [script:.EL Types] 263").unwrap();
 
         // Dc 262 defines type definition header: matches String (264), Object (275), Number (278), Routine (280), Routine name (306)
         let valid_type_dcs = [264u32, 275, 278, 280, 306];
@@ -2680,6 +2681,8 @@ mod tests {
             &known_formats,
             None,
             None,
+            None,
+            None,
             &mut report_equiv_dc,
         );
         assert!(report_equiv_dc.has_errors());
@@ -2696,6 +2699,8 @@ mod tests {
             [("test.csv", &csv_approx_dc[..])],
             "test",
             &known_formats,
+            None,
+            None,
             None,
             None,
             &mut report_approx_dc,
@@ -2716,6 +2721,8 @@ mod tests {
             &known_formats,
             None,
             None,
+            None,
+            None,
             &mut report_equiv_uni,
         );
         assert!(report_equiv_uni.has_errors());
@@ -2732,6 +2739,8 @@ mod tests {
             [("test.csv", &csv_approx_uni[..])],
             "test",
             &known_formats,
+            None,
+            None,
             None,
             None,
             &mut report_approx_uni,
@@ -2752,6 +2761,8 @@ mod tests {
             &known_formats,
             None,
             None,
+            None,
+            None,
             &mut report_allowed,
         );
         assert!(!report_allowed.has_errors());
@@ -2763,6 +2774,8 @@ mod tests {
             [("test.csv", &csv_valid[..])],
             "test",
             &known_formats,
+            None,
+            None,
             None,
             None,
             &mut report_valid,
@@ -2786,6 +2799,8 @@ mod tests {
             &known_formats,
             Some(&known_tags),
             None,
+            None,
+            None,
             &mut report,
         );
         assert!(report.has_errors());
@@ -2799,6 +2814,8 @@ mod tests {
             "test",
             &known_formats,
             Some(&known_tags),
+            None,
+            None,
             None,
             &mut report_valid,
         );

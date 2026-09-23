@@ -430,9 +430,10 @@ pub fn format_blob_preview(data: &[u8], is_dctext: bool) -> String {
 mod tests {
     use super::*;
     use ctb_formats_dcdata::dc::{
-        DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER, DC_FORMAT_199,
+        DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER,
         SHORT_DC_REGION_START,
     };
+    use ctb_formats_dcdata::DC_INTEGER;
 
     #[crate::ctb_test]
     fn test_format_blob_preview() {
@@ -585,7 +586,7 @@ mod tests {
         let original_dclist = vec![
             DC_LONG_DC.to_long(),
             DC_BEGIN_NUMBER.to_long(),
-            DC_FORMAT_199.to_long(),
+            DC_INTEGER.to_long(),
             DC_BASE64_START.to_long(),
             DC_END_NUMBER.to_long(),
         ];
