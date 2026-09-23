@@ -1,6 +1,6 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
-1114234,122,!Variant Selector 1,0,NSM,,Mn,Variant selectors,<equiv>ufe00,
-1114235,123,!Variant Selector 2,0,NSM,,Mn,Variant selectors,<equiv>ufe01,
-1114236,124,!Variant Selector 3,0,NSM,,Mn,Variant selectors,<equiv>ufe02,
-1114237,125,!Variant Selector 4,0,NSM,,Mn,Variant selectors,<equiv>ufe03,
-1114238,126,!Variant Selector 5,0,NSM,,Mn,Variant selectors,<equiv>ufe04,
+1114234,122,!Variant Selector 1,0,NSM,,Mn,.Variant selectors,<equiv>ufe00,
+1114235,123,!Variant Selector 2,0,NSM,,Mn,.Variant selectors,<equiv>ufe01,
+1114236,124,!Variant Selector 3,0,NSM,,Mn,.Variant selectors,<equiv>ufe02,
+1114237,125,!Variant Selector 4,0,NSM,,Mn,.Variant selectors,<equiv>ufe03,
+1114238,126,!Variant Selector 5,0,NSM,,Mn,.Variant selectors,<equiv>ufe04,

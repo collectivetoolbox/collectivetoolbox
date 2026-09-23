@@ -1,30 +1,30 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
-1114130,18,!Space (short Dc),0,WS,,Zs,Punctuation,"word separator, <equiv>u20","Sometimes used as a visible word separator, e.g. in Anoej"
-1114131,19,!Exclamation,0,ON,,Po,Punctuation,<equiv>u21,
-1114132,20,!Double quotation mark,0,ON,,Po,Punctuation,<equiv>u22,
-1114136,24,!Ampersand (short Dc),0,ON,,Po,Punctuation,<equiv>u26,
-1114137,25,!Apostrophe (short Dc),0,ON,,Po,Punctuation,<equiv>u27,
-1114138,26,!Left parenthesis (short Dc),0,ON,,Ps,Punctuation,"left bracket, <equiv>u28",
-1114139,27,!Right parenthesis (short Dc),0,ON,,Pe,Punctuation,"right bracket, <equiv>u29",
-1114142,30,!Comma (short Dc),0,CS,,Po,Punctuation,<equiv>u2c,
-1114143,31,!Hyphen (short Dc),0,ES,,Pd,Punctuation,"<approx>u2d, <equiv>u2010",
-1114144,32,Full stop (unambiguous),0,CS,,Po,Punctuation,"period, <approx>u2e",Not a decimal point
-1114156,44,!Colon (short Dc),0,CS,,Po,Punctuation,<equiv>u3a,
-1114157,45,!Semicolon (short Dc),0,ON,,Po,Punctuation,<equiv>u3b,
-1114161,49,!Question,0,ON,,Po,Punctuation,<equiv>u3f,
-1114188,76,!Left bracket,0,ON,,Ps,Punctuation,"left square bracket, <equiv>u5b",
-1114190,78,!Right bracket,0,ON,,Pe,Punctuation,"right square bracket, <equiv>u5d",
-1114220,108,!Left brace,0,ON,,Ps,Punctuation,"left curly bracket, <equiv>u7b",
-1114222,110,!Right brace,0,ON,,Pe,Punctuation,"right curly bracket, <equiv>u7d",
-1114229,117,!Horizontal tabulation (short Dc),0,BN,,Cc,Punctuation,"character tabulation, tab, <equiv>u09",
-1114230,118,!Ambiguous vertical tabulation,0,BN,,Cc,Punctuation,<equiv>u0b,Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )
-1114231,119,!New line,0,B,,Cc,Punctuation,"line feed, end of line, <equiv>u85","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator."
-1114232,120,!Ambiguous line feed,0,B,,Cc,Punctuation,<equiv>u0a,This is the ASCII/Unicode 10 (0x0A).
-1114233,121,!Ambiguous carriage return,0,B,,Cc,Punctuation,<equiv>u0d,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).
-1114345,233,!Hyphen-minus (short Dc),0,ES,,Pd,Punctuation,<equiv>u2d,
-1114350,238,!Full stop/decimal point,0,CS,,Po,Punctuation,<equiv>u2e,
-1114351,239,Line feed (short Dc),0,B,,Cc,Punctuation,,"This character instructs a terminal to move the cursor to the beginning of the line horizontally without advancing to the next line vertically. This character is not directly equivalent to ASCII line feed, because that is sometimes used for a combined new line and carriage return. For representing the ASCII line feed, use Dc 120."
-1114352,240,Carriage return (short Dc),0,B,,Cc,Punctuation,,"This character instructs a terminal to advance to the next line vertically without moving the cursor to the beginning of the line horizontally. This character is not directly equivalent to ASCII carriage return, because that is sometimes used for a combined new line and carriage return. For representing the ASCII carriage return, use Dc 121."
-1114369,257,Vertical tabulation (short Dc),0,BN,,Cc,Punctuation,"line tabulation, <approx>u0b",
-1114406,294,!New line within paragraph,0,WS,,Zl,Punctuation,<equiv>u2028,"This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph."
-1114407,295,!Paragraph separator (short Dc),0,B,,Zp,Punctuation,<equiv>u2029,This is the Unicode U+2029.
+1114130,18,!Space (short Dc),0,WS,,Zs,.Punctuation,"word separator, <equiv>u20","Sometimes used as a visible word separator, e.g. in Anoej"
+1114131,19,!Exclamation,0,ON,,Po,.Punctuation,<equiv>u21,
+1114132,20,!Double quotation mark,0,ON,,Po,.Punctuation,<equiv>u22,
+1114136,24,!Ampersand (short Dc),0,ON,,Po,.Punctuation,<equiv>u26,
+1114137,25,!Apostrophe (short Dc),0,ON,,Po,.Punctuation,<equiv>u27,
+1114138,26,!Left parenthesis (short Dc),0,ON,,Ps,.Punctuation,"left bracket, <equiv>u28",
+1114139,27,!Right parenthesis (short Dc),0,ON,,Pe,.Punctuation,"right bracket, <equiv>u29",
+1114142,30,!Comma (short Dc),0,CS,,Po,.Punctuation,<equiv>u2c,
+1114143,31,!Hyphen (short Dc),0,ES,,Pd,.Punctuation,"<approx>u2d, <equiv>u2010",
+1114144,32,Full stop (unambiguous),0,CS,,Po,.Punctuation,"period, <approx>u2e",Not a decimal point
+1114156,44,!Colon (short Dc),0,CS,,Po,.Punctuation,<equiv>u3a,
+1114157,45,!Semicolon (short Dc),0,ON,,Po,.Punctuation,<equiv>u3b,
+1114161,49,!Question,0,ON,,Po,.Punctuation,<equiv>u3f,
+1114188,76,!Left bracket,0,ON,,Ps,.Punctuation,"left square bracket, <equiv>u5b",
+1114190,78,!Right bracket,0,ON,,Pe,.Punctuation,"right square bracket, <equiv>u5d",
+1114220,108,!Left brace,0,ON,,Ps,.Punctuation,"left curly bracket, <equiv>u7b",
+1114222,110,!Right brace,0,ON,,Pe,.Punctuation,"right curly bracket, <equiv>u7d",
+1114229,117,!Horizontal tabulation (short Dc),0,BN,,Cc,.Punctuation,"character tabulation, tab, <equiv>u09",
+1114230,118,!Ambiguous vertical tabulation,0,BN,,Cc,.Punctuation,<equiv>u0b,Also used as a line separator by Microsoft Word and Powerpoint which use it to contrast with the character used as a paragraph separator (sources: http://stackoverflow.com/questions/3380538/what-is-a-vertical-tab http://unicode.org/reports/tr13/tr13-9.html )
+1114231,119,!New line,0,B,,Cc,.Punctuation,"line feed, end of line, <equiv>u85","This is the Unicode U+0085. May semantically indicate a new paragraph. To indicate unambiguously a new line without a new paragraph, use 295 New line within paragraph. To indicate unambiguously a new paragraph, use 294 Paragraph separator."
+1114232,120,!Ambiguous line feed,0,B,,Cc,.Punctuation,<equiv>u0a,This is the ASCII/Unicode 10 (0x0A).
+1114233,121,!Ambiguous carriage return,0,B,,Cc,.Punctuation,<equiv>u0d,This is the ASCII/Unicode 13 (0x0D). Used as a paragraph separator by Microsoft Word and Powerpoint (source: https://web.archive.org/web/20080325092316/http://support.microsoft.com/kb/59096).
+1114345,233,!Hyphen-minus (short Dc),0,ES,,Pd,.Punctuation,<equiv>u2d,
+1114350,238,!Full stop/decimal point,0,CS,,Po,.Punctuation,<equiv>u2e,
+1114351,239,Line feed (short Dc),0,B,,Cc,.Punctuation,,"This character instructs a terminal to move the cursor to the beginning of the line horizontally without advancing to the next line vertically. This character is not directly equivalent to ASCII line feed, because that is sometimes used for a combined new line and carriage return. For representing the ASCII line feed, use Dc 120."
+1114352,240,Carriage return (short Dc),0,B,,Cc,.Punctuation,,"This character instructs a terminal to advance to the next line vertically without moving the cursor to the beginning of the line horizontally. This character is not directly equivalent to ASCII carriage return, because that is sometimes used for a combined new line and carriage return. For representing the ASCII carriage return, use Dc 121."
+1114369,257,Vertical tabulation (short Dc),0,BN,,Cc,.Punctuation,"line tabulation, <approx>u0b",
+1114406,294,!New line within paragraph,0,WS,,Zl,.Punctuation,<equiv>u2028,"This is the Unicode U+2028. It refers to a non-paragraph-separator newline, usually within a paragraph."
+1114407,295,!Paragraph separator (short Dc),0,B,,Zp,.Punctuation,<equiv>u2029,This is the Unicode U+2029.

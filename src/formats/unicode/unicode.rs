@@ -267,6 +267,10 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
     let bidi_map = icu_properties::CodePointMapData::<BidiClass>::new();
     let ccc_map =
         icu_properties::CodePointMapData::<CanonicalCombiningClass>::new();
+    let script_map =
+        icu_properties::CodePointMapData::<icu_properties::props::Script>::new();
+    let script_names =
+        icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
 
     // Assert that compiled ICU Unicode properties match the inlined Unicode 17.0 tables
     let sample_17_cp = 0x088F; // ARABIC LETTER NOON WITH RING ABOVE, added in Unicode 17.0
@@ -360,9 +364,11 @@ pub fn get_assigned_unicode_records() -> Vec<UnicodeCharRecord> {
 
         let combining = ccc_map.get32(cp).to_icu4c_value();
 
-        // Reason for fallback: unassigned or non-block code points default to general "Unicode" script categorization
-        let script = data::find_block(cp)
-            .unwrap_or("Unicode")
+        let script_val = script_map.get32(cp);
+        // Reason for fallback: unassigned or non-block code points default to general "Common" script categorization
+        let script = script_names
+            .get(script_val)
+            .unwrap_or("Common")
             .to_string();
 
         let mut alias_parts = Vec::new();

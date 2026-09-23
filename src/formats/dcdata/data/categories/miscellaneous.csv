@@ -1,7 +1,7 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
-1114318,206,!Unicode replacement character,0,ON,,So,Miscellaneous,<equiv>ufffd,Used to replace an incoming character whose value is unknown or unrepresentable in Unicode
-1114319,207,Replacement character for unavailable Dc,0,ON,,So,Miscellaneous,<approx>ufffd,Used to replace an incoming character whose value is not mapped to a Dc (document component)
-1114367,255,Ignore following Dc,0,BN,,!Cx,Miscellaneous,,Indicates that the next character should be ignored.
-1114408,296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,Miscellaneous,:~ [number],
-1114409,297,Next number is a Dc-equivalent reference to a global node to which this local node was moved.,0,BN,,!Cx,Miscellaneous,:~ [number],
-1114420,308,Next number is a long (global graph) Dc,0,BN,,!Cx,Miscellaneous,:~ [number],"Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back."
+1114318,206,!Unicode replacement character,0,ON,,So,.Miscellaneous,"@ident(""ReplacementUnavailUnicode""), <equiv>ufffd",Used to replace an incoming character whose value is unknown or unrepresentable in Unicode
+1114319,207,Replacement character for unavailable Dc,0,ON,,So,.Miscellaneous,"@ident(""ReplacementUnavailDc""), <approx>ufffd",Used to replace an incoming character whose value is not mapped to a Dc (document component)
+1114367,255,Ignore following Dc,0,BN,,!Cx,.Miscellaneous,"@ident(""Escape"")",Indicates that the next character should be ignored.
+1114408,296,Next number is a Dc-equivalent reference to a local node/document,0,BN,,!Cx,.Miscellaneous,:~ [number],
+1114409,297,Next number is a Dc-equivalent reference to a global node to which this local node was moved.,0,BN,,!Cx,.Miscellaneous,:~ [number],
+1114420,308,Next number is a long (global graph) Dc,0,BN,,!Cx,.Miscellaneous,"@ident(""LongDc""), :~ [number]","Used to embed Dcs with short numbers greater than 1,114,111 (the largest, in practice, that EITE would be able to support without needing changes to pack32, I think) into short Dc range. If encountered as a long Dc, it must be escaped with 255 before converting to short Dc, or else it would be lost (if followed by a Dc number) when converting back."

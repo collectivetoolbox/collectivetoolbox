@@ -63,6 +63,7 @@ pub mod circular_dep_base64;
 pub mod circular_dep_unicode;
 pub mod cli;
 pub mod csv_tools;
+pub mod dc_char;
 pub mod shared_memory;
 pub mod string;
 pub mod testing;
@@ -71,6 +72,7 @@ pub mod workspace_path_resolution;
 #[path = "format_id.generated.rs"]
 pub mod format_id;
 pub use format_id::FormatId;
+pub use dc_char::DcChar;
 
 pub use crate::cli::{OutputChunk, ToolResult};
 pub use crate::math::approx_eq;

@@ -1,221 +1,221 @@
 Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos., :=Dc syntax",Description
-1114114,2,Begin separator,0,BN,,!Cx,Semantic,,Begin a DCE separator string.
-1114115,3,End separator,0,BN,,!Cx,Semantic,,End a DCE separator string.
-1114116,4,Range,0,BN,,!Cx,Semantic,,The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
-1114117,5,Record summation,0,BN,,!Cx,Semantic,,Used to denote the union of two records. See the wiki for more information.
-1114118,6,Begin number,0,BN,,!Cx,Semantic,,Begin a DCE number.
-1114119,7,End number,0,BN,,!Cx,Semantic,,End a DCE number.
-1114120,8,Unknown value,0,BN,,!Cx,Semantic,,Substitution character for an unknown value.
+1114114,2,Begin separator,0,BN,,!Cx,.Semantic,,Begin a DCE separator string.
+1114115,3,End separator,0,BN,,!Cx,.Semantic,,End a DCE separator string.
+1114116,4,Range,0,BN,,!Cx,.Semantic,,The DCE range character. Used to represent ranges in DCE. See the wiki for more information.
+1114117,5,Record summation,0,BN,,!Cx,.Semantic,,Used to denote the union of two records. See the wiki for more information.
+1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber"")",Begin a DCE number.
+1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber"")",End a DCE number.
+1114120,8,Unknown value,0,BN,,!Cx,.Semantic,,Substitution character for an unknown value.
 1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Formats:calendar,,Internal DCE calendar identifier for the Gregorian calendar.
-1114122,10,Positive,0,BN,,!Cx,Semantic,,Positive value (syntactical representation — This is not the + character)
-1114123,11,Negative,0,BN,,!Cx,Semantic,,Negative (syntactical representation — This is not the − character)
-1114226,114,Begin unbounded content,0,BN,,!Cx,Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"
-1114227,115,End unbounded content,0,BN,,!Cx,Semantic,,
-1114347,235,Begin document,0,BN,,!Cx,Semantic,,Beginning of a document
-1114348,236,End document,0,BN,,!Cx,Semantic,,
-1114410,298,Begin associativity group,0,BN,,!Cx,Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
-1114411,299,End associativity group,0,BN,,!Cx,Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
-1114412,300,Type union,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
-1114413,301,Type transformation,0,BN,,!Cx,Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
-1114414,302,Type conversion,0,BN,,!Cx,Semantic,:~ [type] [type],Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
-1114415,303,Type transmutation,0,BN,,!Cx,Semantic,:~ [type] [type],Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
-1114429,317,Begin file,0,BN,,!Cx,Semantic,:~ [^318]+ 318,Begins a universal file representation record.
-1114430,318,End file,0,BN,,!Cx,Semantic,,Terminates a universal file representation record.
-1114431,319,Begin file identity,0,BN,,!Cx,Semantic,:~ [^320]+ 320,Begins a file identity descriptor.
-1114432,320,End file identity,0,BN,,!Cx,Semantic,,Terminates a file identity descriptor.
-1114433,321,Begin file metadata,0,BN,,!Cx,Semantic,:~ [^322]+ 322,Begins a file metadata record.
-1114434,322,End file metadata,0,BN,,!Cx,Semantic,,Terminates a file metadata record.
-1114435,323,Begin file stream,0,BN,,!Cx,Semantic,:~ [^324]+ 324,Begins an attached or alternate data stream record.
-1114436,324,End file stream,0,BN,,!Cx,Semantic,,Terminates an attached or alternate data stream record.
-1114437,325,Begin file kind description,0,BN,,!Cx,Semantic,:~ [^326]+ 326,Begins a description of the kind of a file. Note that this is different from the data format of a file.
-1114438,326,End file kind description,0,BN,,!Cx,Semantic,,Terminates a file kind description.
-1114439,327,File system node identifier,0,BN,,!Cx,Semantic,:~ [number],Filesystem inode number or equivalent unique node ID.
-1114440,328,Storage device identifier,0,BN,,!Cx,Semantic,:~ [number],Filesystem device ID on which the file resides.
-1114441,329,File modification timestamp,0,BN,,!Cx,Semantic,:~ [date],Modification timestamp of a file in nanoseconds since Unix epoch.
-1114442,330,File access timestamp,0,BN,,!Cx,Semantic,:~ [date],Access timestamp of a file in nanoseconds since Unix epoch.
-1114443,331,File creation timestamp,0,BN,,!Cx,Semantic,:~ [date],Creation or birth timestamp of a file in nanoseconds since Unix epoch.
-1114444,332,File status change timestamp,0,BN,,!Cx,Semantic,:~ [date],Metadata status change timestamp of a file in nanoseconds since Unix epoch.
-1114445,333,File permissions mode,0,BN,,!Cx,Semantic,:~ [number],POSIX permissions mode flags.
-1114446,334,File owner user identifier,0,BN,,!Cx,Semantic,:~ [number],User ID of the file owner.
-1114447,335,File owner group identifier,0,BN,,!Cx,Semantic,:~ [number],Group ID of the file group.
-1114448,336,File payload size,0,BN,,!Cx,Semantic,:~ [number],Logical size of the primary file payload in bytes.
-1114449,337,File primary path,0,BN,,!Cx,Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
-1114450,338,File stream name,0,BN,,!Cx,Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
-1114451,339,File target link path,0,BN,,!Cx,Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
-1114452,340,Begin execution environment description,0,BN,,!Cx,Semantic,:~ [number] [^341]* 341,Begins an execution environment snapshot.
-1114453,341,End execution environment description,0,BN,,!Cx,Semantic,,Terminates an execution environment snapshot.
-1114454,342,Operating system description,0,BN,,!Cx,Semantic,:~ [formats:os],Host operating system description.
-1114455,343,Collective Toolbox build version,0,BN,,!Cx,Semantic,:~ [string],Toolbox software build version string.
-1114456,344,Architecture pointer bit width description,0,BN,,!Cx,Semantic,:~ [number],Description of a pointer bit width of architecture.
-1114457,345,Working directory path,0,BN,,!Cx,Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
-1114458,346,Host local network IP address,0,BN,,!Cx,Semantic,:~ 511 [f226:],Local network IP address of an execution environment host.
-1114459,347,System clock resolution nanoseconds,0,BN,,!Cx,Semantic,:~ [number],System time resolution in nanoseconds.
-1114460,348,Ambiguous values,0,BN,,!Cx,Semantic,:~ [list],Indicates that any of the values in the list may be the case.
-1114461,349,Begin file origin description,0,BN,,!Cx,Semantic,:~ [^350]+ 350,Begins a file origin descriptor.
-1114462,350,End file origin description,0,BN,,!Cx,Semantic,,Terminates a file origin descriptor.
-1114463,351,File origin: filesystem source,0,BN,,!Cx,Semantic,,Indicates origin is a local filesystem entry.
-1114464,352,File origin: archive container,0,BN,,!Cx,Semantic,,Indicates origin is an archive container entry.
-1114465,353,File origin: remote resource,0,BN,,!Cx,Semantic,,Indicates origin is a remote network resource.
-1114466,354,File origin: synthetic source,0,BN,,!Cx,Semantic,,Indicates origin is a synthetic in-memory file.
-1114467,355,File hardlink reference count,0,BN,,!Cx,Semantic,:~ [number],Link count of file on source filesystem.
-1114468,356,File hardlink group identifier,0,BN,,!Cx,Semantic,:~ [number],Hardlink grouping identifier.
-1114469,357,File enclosing path,0,BN,,!Cx,Semantic,:~ [filepath],Enclosing directory path from which relative path was resolved.
-1114470,358,File kind: regular,0,BN,,!Cx,Semantic,,Identifies a regular file entity.
-1114471,359,File kind: directory,0,BN,,!Cx,Semantic,,Identifies a directory file entity.
-1114472,360,File kind: symbolic link,0,BN,,!Cx,Semantic,,Identifies a symbolic link entity.
-1114473,361,File kind: hardlink,0,BN,,!Cx,Semantic,,Identifies a hardlink entity.
-1114474,362,File kind: named pipe/FIFO,0,BN,,!Cx,Semantic,,Identifies a named pipe FIFO entity.
-1114475,363,File kind: character device,0,BN,,!Cx,Semantic,,Identifies a character device node entity.
-1114476,364,File kind: block device,0,BN,,!Cx,Semantic,,Identifies a block device node entity.
-1114477,365,File kind: socket,0,BN,,!Cx,Semantic,,Identifies a UNIX domain socket entity.
-1114478,366,File kind: door descriptor,0,BN,,!Cx,Semantic,,Identifies a door descriptor entity.
-1114479,367,File kind: bundle,0,BN,,!Cx,Semantic,,Identifies a composite application or document bundle.
-1114480,368,File payload checksum,0,BN,,!Cx,Semantic,:~ [checksum],Cryptographic digest hash of file payload.
-1114481,369,File sparse allocation flag,0,BN,,!Cx,Semantic,,Flag indicating sparse hole allocation.
-1114482,370,File device node number,0,BN,,!Cx,Semantic,:~ [number:Natural0],Encoded device node identifier (dev_t / rdev).
-1114483,371,File bundle type format,0,BN,,!Cx,Semantic,:~ [asciilatinletterdigit:1..16],Application bundle type format identifier.
-1114484,372,Begin file extents descriptor,0,BN,,!Cx,Semantic,:~ [^373]+ 373,Begins a list of sparse and data extents.
-1114485,373,End file extents descriptor,0,BN,,!Cx,Semantic,,Terminates a list of sparse and data extents.
-1114486,374,File data extent,0,BN,,!Cx,Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a data extent region.
-1114487,375,File sparse hole extent,0,BN,,!Cx,Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a sparse hole extent region.
-1114488,376,Extent byte offset,0,BN,,!Cx,Semantic,:~ [number:Natural0],Byte offset where an extent starts.
-1114489,377,Extent byte length,0,BN,,!Cx,Semantic,:~ [number:Natural0],Byte length of an extent.
-1114490,378,Timestamp clock resolution,0,BN,,!Cx,Semantic,:~ [datemagnitude],Clock resolution in nanoseconds.
-1114491,379,Stream kind: extended attribute,0,BN,,!Cx,Semantic,,Identifies a standard extended attribute stream.
-1114492,380,Stream kind: macOS resource fork,0,BN,,!Cx,Semantic,,Identifies a macOS resource fork stream.
-1114493,381,Stream kind: NTFS alternate stream,0,BN,,!Cx,Semantic,,Identifies an NTFS alternate data stream.
-1114494,382,Stream kind: POSIX ACL access,0,BN,,!Cx,Semantic,,Identifies a POSIX ACL access stream.
-1114495,383,Stream kind: POSIX ACL default,0,BN,,!Cx,Semantic,,Identifies a POSIX default ACL stream.
-1114496,384,Stream kind: security label,0,BN,,!Cx,Semantic,,Identifies a security label stream.
-1114497,385,Stream data,0,BN,,!Cx,Semantic,:~ [data],In-memory payload bytes of an attached stream.
-1114498,386,File filesystem type string,0,BN,,!Cx,Semantic,:~ [string],Originating filesystem type string.
-1114499,387,File inspection timestamp,0,BN,,!Cx,Semantic,:~ [date],Timestamp documenting when file was inspected.
-1114500,388,Begin file flags description,0,BN,,!Cx,Semantic,:~ [list:Semantic:fileflag] [^389]+ 389,Begins a collection of semantic file flags attached to a file.
-1114501,389,End file flags description,0,BN,,!Cx,Semantic,,Terminates a collection of semantic file flags attached to a file.
-1114502,390,Begin time moment description,0,BN,,!Cx,Semantic,:~ [formats:date] [^391]+ 391,Begins a time moment description.
-1114503,391,End time moment description,0,BN,,!Cx,Semantic,,Terminates a time moment description.
-1114504,392,File data,0,BN,,!Cx,Semantic,:~ [data],File contents
-1114505,393,Begin date magnitude description,0,BN,,!Cx,Semantic,:~ [formats:duration] [^394]+ 394,A positive date duration
-1114506,394,End date magnitude description,0,BN,,!Cx,Semantic,,
-1114507,395,Begin date duration description,0,BN,,!Cx,Semantic,:~ [formats:duration] [^396]+ 396,
-1114508,396,End date duration description,0,BN,,!Cx,Semantic,,
-1114509,397,Equivalent representations,0,BN,,!Cx,Semantic,:~ [list],Indicates that all values within the list have the same underlying meaning.
-1114510,398,Host public network IP address,0,BN,,!Cx,Semantic,:~ 511 [f226:],Public or remote network IP address of an execution environment host.
-1114511,399,File backup timestamp,0,BN,,!Cx,Semantic,:~ [date],Backup timestamp of a file.
-1114512,400,File comment,0,BN,,!Cx,Semantic,:~ [string],File comment string.
-1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.
-1114514,402,End Mac OS file metadata description,0,BN,,!Cx,Semantic,,Terminates a preserved Mac OS Finder and archive metadata record.
-1114515,403,Mac OS Finder file type,0,BN,,!Cx,Semantic,:~ ([asciiprintable:4] | [data]),Four-character Mac OS Finder file type code.
-1114516,404,Mac OS Finder file creator,0,BN,,!Cx,Semantic,:~ ([asciiprintable:4] | [data]),Four-character Mac OS Finder file creator code.
-1114517,405,Mac OS Finder label color,0,BN,,!Cx,Semantic,:~ [number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489),Mac OS Finder label color code.
-1114518,406,Mac OS Finder flags,0,BN,,!Cx,Semantic,:~ [number:Natural0] | (388 [^389]+ 389),Mac OS Finder flags.
-1114519,407,Mac OS Finder icon location,0,BN,,!Cx,Semantic,:~ 511 [f523:],Mac OS Finder icon coordinates in QuickDraw grid.
-1114520,408,Mac OS Finder window folder identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Mac OS Finder window folder identifier.
-1114521,409,File flag: nodump,0,BN,,!Cx,Semantic:fileflag,nodump,Do not include file in backups.
-1114522,410,File flag: user immutable,0,BN,,!Cx,Semantic:fileflag,uchg,User immutable.
-1114523,411,File flag: user append,0,BN,,!Cx,Semantic:fileflag,uappnd,User append-only.
-1114524,412,File flag: opaque,0,BN,,!Cx,Semantic:fileflag,opaque,Directory opaque to union mounts.
-1114525,413,File flag: hidden,0,BN,,!Cx,Semantic:fileflag,hidden,Hidden in GUI or Finder.
-1114526,414,File flag: archived,0,BN,,!Cx,Semantic:fileflag,arch,System archived flag.
-1114527,415,File flag: system immutable,0,BN,,!Cx,Semantic:fileflag,schg,Superuser immutable.
-1114528,416,File flag: system append,0,BN,,!Cx,Semantic:fileflag,sappnd,Superuser append-only.
-1114529,417,File flag: system no unlink,0,BN,,!Cx,Semantic:fileflag,sunlnk,Superuser cannot unlink or rename.
-1114530,418,File flag: user no unlink,0,BN,,!Cx,Semantic:fileflag,uunlnk,User cannot unlink or rename.
-1114531,419,File flag: system,0,BN,,!Cx,Semantic:fileflag,system,Windows/DOS system file attribute.
-1114532,420,File flag: sparse,0,BN,,!Cx,Semantic:fileflag,sparse,Windows/DOS sparse file attribute.
-1114533,421,File flag: offline,0,BN,,!Cx,Semantic:fileflag,offline,Windows/CIFS offline storage attribute.
-1114534,422,File flag: read only,0,BN,,!Cx,Semantic:fileflag,readonly,Read-only attribute.
-1114535,423,File flag: reparse,0,BN,,!Cx,Semantic:fileflag,reparse,Reparse point attribute.
-1114536,424,File flag: snapshot,0,BN,,!Cx,Semantic:fileflag,snapshot,Snapshot file attribute.
-1114537,425,File flag: user archive,0,BN,,!Cx,Semantic:fileflag,uarch,User archived flag.
-1114538,426,File flag: user no cache,0,BN,,!Cx,Semantic:fileflag,unocache,User do not cache file data.
-1114539,427,File flag: user no history,0,BN,,!Cx,Semantic:fileflag,unohistory,User do not retain history or snapshots.
-1114540,428,File flag: user cache,0,BN,,!Cx,Semantic:fileflag,ucache,User enable data swapcache.
-1114541,429,File flag: user xlink,0,BN,,!Cx,Semantic:fileflag,uxlink,User cross-link hardlink boundary.
-1114542,430,File flag: system no history,0,BN,,!Cx,Semantic:fileflag,snohistory,Superuser do not retain history or snapshots.
-1114543,431,File flag: system no cache,0,BN,,!Cx,Semantic:fileflag,snocache,Superuser disable data swapcache.
-1114544,432,File flag: system xlink,0,BN,,!Cx,Semantic:fileflag,sxlink,Superuser cross-link hardlink boundary.
-1114545,433,File flag: compressed,0,BN,,!Cx,Semantic:fileflag,compressed,Compressed file attribute.
-1114546,434,File flag: tracked,0,BN,,!Cx,Semantic:fileflag,tracked,Document tracking active.
-1114547,435,File flag: data vault,0,BN,,!Cx,Semantic:fileflag,datavault,System integrity data vault.
-1114548,436,File flag: restricted,0,BN,,!Cx,Semantic:fileflag,restricted,System integrity restricted.
-1114549,437,File flag: firmlink,0,BN,,!Cx,Semantic:fileflag,firmlink,APFS firmlink.
-1114550,438,File flag: dataless,0,BN,,!Cx,Semantic:fileflag,dataless,APFS dataless file.
-1114551,439,File flag: system log,0,BN,,!Cx,Semantic:fileflag,slog,NetBSD WAPBL log file inode.
-1114552,440,File flag: snapshot invalid,0,BN,,!Cx,Semantic:fileflag,snapinval,NetBSD invalid snapshot inode.
-1114553,441,File flag: secure removal,0,BN,,!Cx,Semantic:fileflag,secrm,Secure deletion.
-1114554,442,File flag: undelete,0,BN,,!Cx,Semantic:fileflag,unrm,Undelete.
-1114555,443,File flag: sync,0,BN,,!Cx,Semantic:fileflag,sync,Synchronous file updates.
-1114556,444,File flag: no atime,0,BN,,!Cx,Semantic:fileflag,noatime,Do not update access time.
-1114557,445,File flag: dirty,0,BN,,!Cx,Semantic:fileflag,dirty,Dirty compressed file.
-1114558,446,File flag: compressed blocks,0,BN,,!Cx,Semantic:fileflag,comprblk,Compressed cluster or blocks.
-1114559,447,File flag: no compress,0,BN,,!Cx,Semantic:fileflag,nocomp,Do not compress.
-1114560,448,File flag: encrypted,0,BN,,!Cx,Semantic:fileflag,encrypt,Encrypted file.
-1114561,449,File flag: indexed directory,0,BN,,!Cx,Semantic:fileflag,index,Hash-indexed directory.
-1114562,450,File flag: btree,0,BN,,!Cx,Semantic:fileflag,btree,Btree format directory.
-1114563,451,File flag: imagic,0,BN,,!Cx,Semantic:fileflag,imagic,AFS magic directory inode.
-1114564,452,File flag: journal data,0,BN,,!Cx,Semantic:fileflag,journal,Journal file data.
-1114565,453,File flag: no tail,0,BN,,!Cx,Semantic:fileflag,notail,Do not merge tail.
-1114566,454,File flag: dir sync,0,BN,,!Cx,Semantic:fileflag,dirsync,Synchronous directory updates.
-1114567,455,File flag: top dir,0,BN,,!Cx,Semantic:fileflag,topdir,Top of directory hierarchy.
-1114568,456,File flag: huge file,0,BN,,!Cx,Semantic:fileflag,hugefile,Huge file format.
-1114569,457,File flag: extent,0,BN,,!Cx,Semantic:fileflag,extent,Extents format.
-1114570,458,File flag: verity,0,BN,,!Cx,Semantic:fileflag,verity,fs-verity enabled.
-1114571,459,File flag: ea inode,0,BN,,!Cx,Semantic:fileflag,eainode,Large extended attribute inode.
-1114572,460,File flag: eof blocks,0,BN,,!Cx,Semantic:fileflag,eofblocks,Blocks allocated beyond EOF.
-1114573,461,File flag: no cow,0,BN,,!Cx,Semantic:fileflag,nocow,Do not copy-on-write.
-1114574,462,File flag: dax,0,BN,,!Cx,Semantic:fileflag,dax,Direct access DAX mode.
-1114575,463,File flag: inline data,0,BN,,!Cx,Semantic:fileflag,inlinedata,Inode contains inline data.
-1114576,464,File flag: project inherit,0,BN,,!Cx,Semantic:fileflag,projinherit,Project inheritance.
-1114577,465,File flag: casefold,0,BN,,!Cx,Semantic:fileflag,casefold,Directory casefolding.
-1114578,466,File flag: reserved for ext2,0,BN,,!Cx,Semantic:fileflag,reservedforext2,Reserved flag for ext2/ext4.
-1114579,467,Maybe value,0,BN,,!Cx,Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
-1114594,482,Mac OS Finder label: none,0,BN,,!Cx,Semantic,,Finder label index 0.
-1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
-1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,Semantic,<ambiguous>469 476,"Finder label index 2, Green."
-1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
-1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,Semantic,<ambiguous>471 478,"Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
-1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
-1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,Semantic,<ambiguous>473 480,"Finder label index 6, Red."
-1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,Semantic,<ambiguous>474 481,"Finder label index 7, Orange."
-1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,Semantic,:~ [^491]+ 491,Begins an extended Mac OS Finder information record (FXInfo).
-1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,Semantic,,Terminates an extended Mac OS Finder information record (FXInfo).
-1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.
-1114605,493,Mac OS extended Finder script code,0,BN,,!Cx,Semantic,:~ [number:Integer],Script system text encoding code in extended Finder info.
-1114606,494,Mac OS extended Finder comment identifier,0,BN,,!Cx,Semantic,:~ [number:Integer],Comment resource ID in extended Finder info.
-1114607,495,Mac OS extended Finder put away folder identifier,0,BN,,!Cx,Semantic,:~ [number:Natural0],Directory ID for desktop put away in extended Finder info.
-1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.
-1114609,497,File flag: custom badge,0,BN,,!Cx,Semantic:fileflag,custombadge,Mac OS object has custom badge.
-1114610,498,File flag: routing info,0,BN,,!Cx,Semantic:fileflag,routinginfo,Mac OS object has routing info.
-1114611,499,File flag: on desk,0,BN,,!Cx,Semantic:fileflag,ondesk,Mac OS object resides on desktop.
-1114612,500,File flag: shared application,0,BN,,!Cx,Semantic:fileflag,sharedapp,Mac OS application is multi-user shared.
-1114613,501,File flag: no inits,0,BN,,!Cx,Semantic:fileflag,noinits,Mac OS file contains no INIT resource.
-1114614,502,File flag: initialized,0,BN,,!Cx,Semantic:fileflag,inited,Mac OS Finder has initialized bundle resources.
-1114615,503,File flag: custom icon,0,BN,,!Cx,Semantic:fileflag,customicon,Mac OS object has custom icon resource.
-1114616,504,File flag: stationery,0,BN,,!Cx,Semantic:fileflag,stationery,Mac OS file is stationery or template.
-1114617,505,File flag: name locked,0,BN,,!Cx,Semantic:fileflag,namelocked,Mac OS object name cannot be edited.
-1114618,506,File flag: has bundle,0,BN,,!Cx,Semantic:fileflag,hasbundle,Mac OS application has bundle resource.
-1114619,507,File flag: invisible,0,BN,,!Cx,Semantic:fileflag,invisible,Mac OS Finder invisible flag.
-1114620,508,File flag: alias,0,BN,,!Cx,Semantic:fileflag,alias,Mac OS object is an alias file.
-1114621,509,File flag: extended flags invalid,0,BN,,!Cx,Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
-1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.
-1114623,511,Begin Dc representation of format,0,BN,,!Cx,Semantic,:~ [format] [^512]+ [512],E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
-1114624,512,End Dc representation of format,0,BN,,!Cx,Semantic,,
-1114625,513,File path delimiter,0,BN,,!Cx,Semantic,,
-1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
-1114629,517,Boolean true,0,BN,,!Cx,Semantic,,
-1114630,518,Boolean false,0,BN,,!Cx,Semantic,,
-1114631,519,Server system clock offset nanoseconds,0,BN,,!Cx,Semantic,:~ [number:Integer],Difference between server time and system time in nanoseconds.
-1114632,520,Execution environment is an application built with release configuration,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is built in release mode with optimizations.
-1114633,521,Execution environment is an application built with debug configuration,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is built in debug mode with debug assertions enabled.
-1114634,522,Execution environment binary is running directly from cargo target directory,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is executing directly from the cargo build target directory.
-1114635,523,Execution environment is running under test runner harness,0,BN,,!Cx,Semantic,:~ [boolean],Application is executing inside a test runner harness.
-1114636,524,Execution environment is an officially branded Collective Toolbox build,0,BN,,!Cx,Semantic,:~ [boolean],Application build includes official Collective Toolbox branding assets.
-1114637,525,Execution environment is an officially signed Collective Toolbox build,0,BN,,!Cx,Semantic,:~ [boolean],Application build is cryptographically verified as an official Collective Toolbox release.
-1114638,526,Execution environment process role is lightweight CLI,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as a lightweight CLI invocation without booting workspace.
-1114639,527,Execution environment process role is workspace supervisor,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as the root workspace supervisor.
-1114640,528,Execution environment process role is workspace main process,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as the main workspace process.
-1114641,529,Execution environment process role is service subprocess,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as a workspace child service process over IPC.
-1114642,530,Execution environment is running as an official Collective Toolbox public website deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is deployed as an official Collective Toolbox public website.
-1114643,531,Execution environment is running as a public website deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is deployed as a public website.
-1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is executing on a local machine.
+1114122,10,Positive,0,BN,,!Cx,.Semantic,"@ident(""Positive"")",Positive value (syntactical representation — This is not the + character)
+1114123,11,Negative,0,BN,,!Cx,.Semantic,"@ident(""Negative"")",Negative (syntactical representation — This is not the − character)
+1114226,114,Begin unbounded content,0,BN,,!Cx,.Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"
+1114227,115,End unbounded content,0,BN,,!Cx,.Semantic,,
+1114347,235,Begin document,0,BN,,!Cx,.Semantic,,Beginning of a document
+1114348,236,End document,0,BN,,!Cx,.Semantic,,
+1114410,298,Begin associativity group,0,BN,,!Cx,.Semantic,,Equivalent to an opening parenthesis in many languages or in arithmetic expressions.
+1114411,299,End associativity group,0,BN,,!Cx,.Semantic,,Equivalent to a closing parenthesis in many languages or in arithmetic expressions.
+1114412,300,Type union,0,BN,,!Cx,.Semantic,:~ (([type] [type]) | [list:type]),"Indicates that one or more types are all applicable to the same data. This is a conjunction of constraints (a union of descriptions); it does not mean either type as an alternative. For that, see Dc 516 “Type intersection”."
+1114413,301,Type transformation,0,BN,,!Cx,.Semantic,:~ [type] [type:transformation],Describes a transformation operation as part of a type description. The first operand is the input type; the second identifies the transformation. Only transformation formats would make sense for the second operand. Describing an operation does not itself execute it.
+1114414,302,Type conversion,0,BN,,!Cx,.Semantic,:~ [type] [type],Describes a conversion operation from the first operand's type to the second operand's type. Conversion may change the representation and may be lossy. Describing an operation does not itself execute it.
+1114415,303,Type transmutation,0,BN,,!Cx,.Semantic,:~ [type] [type],Describes reinterpreting a representation of the first operand's type as the second operand's type without converting the representation. Describing an operation does not itself execute it.
+1114429,317,Begin file,0,BN,,!Cx,.Semantic,:~ [^318]+ 318,Begins a universal file representation record.
+1114430,318,End file,0,BN,,!Cx,.Semantic,,Terminates a universal file representation record.
+1114431,319,Begin file identity,0,BN,,!Cx,.Semantic,:~ [^320]+ 320,Begins a file identity descriptor.
+1114432,320,End file identity,0,BN,,!Cx,.Semantic,,Terminates a file identity descriptor.
+1114433,321,Begin file metadata,0,BN,,!Cx,.Semantic,:~ [^322]+ 322,Begins a file metadata record.
+1114434,322,End file metadata,0,BN,,!Cx,.Semantic,,Terminates a file metadata record.
+1114435,323,Begin file stream,0,BN,,!Cx,.Semantic,:~ [^324]+ 324,Begins an attached or alternate data stream record.
+1114436,324,End file stream,0,BN,,!Cx,.Semantic,,Terminates an attached or alternate data stream record.
+1114437,325,Begin file kind description,0,BN,,!Cx,.Semantic,:~ [^326]+ 326,Begins a description of the kind of a file. Note that this is different from the data format of a file.
+1114438,326,End file kind description,0,BN,,!Cx,.Semantic,,Terminates a file kind description.
+1114439,327,File system node identifier,0,BN,,!Cx,.Semantic,:~ [number],Filesystem inode number or equivalent unique node ID.
+1114440,328,Storage device identifier,0,BN,,!Cx,.Semantic,:~ [number],Filesystem device ID on which the file resides.
+1114441,329,File modification timestamp,0,BN,,!Cx,.Semantic,:~ [date],Modification timestamp of a file in nanoseconds since Unix epoch.
+1114442,330,File access timestamp,0,BN,,!Cx,.Semantic,:~ [date],Access timestamp of a file in nanoseconds since Unix epoch.
+1114443,331,File creation timestamp,0,BN,,!Cx,.Semantic,:~ [date],Creation or birth timestamp of a file in nanoseconds since Unix epoch.
+1114444,332,File status change timestamp,0,BN,,!Cx,.Semantic,:~ [date],Metadata status change timestamp of a file in nanoseconds since Unix epoch.
+1114445,333,File permissions mode,0,BN,,!Cx,.Semantic,:~ [number],POSIX permissions mode flags.
+1114446,334,File owner user identifier,0,BN,,!Cx,.Semantic,:~ [number],User ID of the file owner.
+1114447,335,File owner group identifier,0,BN,,!Cx,.Semantic,:~ [number],Group ID of the file group.
+1114448,336,File payload size,0,BN,,!Cx,.Semantic,:~ [number],Logical size of the primary file payload in bytes.
+1114449,337,File primary path,0,BN,,!Cx,.Semantic,:~ [filepath],Primary relative or canonical path of a file entity.
+1114450,338,File stream name,0,BN,,!Cx,.Semantic,:~ ([string] | [data]),Name or identifier of an alternate data stream or fork.
+1114451,339,File target link path,0,BN,,!Cx,.Semantic,:~ [filepath],Target destination path for a symbolic or hard link.
+1114452,340,Begin execution environment description,0,BN,,!Cx,.Semantic,:~ [number] [^341]* 341,Begins an execution environment snapshot.
+1114453,341,End execution environment description,0,BN,,!Cx,.Semantic,,Terminates an execution environment snapshot.
+1114454,342,Operating system description,0,BN,,!Cx,.Semantic,:~ [formats:os],Host operating system description.
+1114455,343,Collective Toolbox build version,0,BN,,!Cx,.Semantic,:~ [string],Toolbox software build version string.
+1114456,344,Architecture pointer bit width description,0,BN,,!Cx,.Semantic,:~ [number],Description of a pointer bit width of architecture.
+1114457,345,Working directory path,0,BN,,!Cx,.Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
+1114458,346,Host local network IP address,0,BN,,!Cx,.Semantic,:~ 511 [f226:],Local network IP address of an execution environment host.
+1114459,347,System clock resolution nanoseconds,0,BN,,!Cx,.Semantic,:~ [number],System time resolution in nanoseconds.
+1114460,348,Ambiguous values,0,BN,,!Cx,.Semantic,:~ [list],Indicates that any of the values in the list may be the case.
+1114461,349,Begin file origin description,0,BN,,!Cx,.Semantic,:~ [^350]+ 350,Begins a file origin descriptor.
+1114462,350,End file origin description,0,BN,,!Cx,.Semantic,,Terminates a file origin descriptor.
+1114463,351,File origin: filesystem source,0,BN,,!Cx,.Semantic,,Indicates origin is a local filesystem entry.
+1114464,352,File origin: archive container,0,BN,,!Cx,.Semantic,,Indicates origin is an archive container entry.
+1114465,353,File origin: remote resource,0,BN,,!Cx,.Semantic,,Indicates origin is a remote network resource.
+1114466,354,File origin: synthetic source,0,BN,,!Cx,.Semantic,,Indicates origin is a synthetic in-memory file.
+1114467,355,File hardlink reference count,0,BN,,!Cx,.Semantic,:~ [number],Link count of file on source filesystem.
+1114468,356,File hardlink group identifier,0,BN,,!Cx,.Semantic,:~ [number],Hardlink grouping identifier.
+1114469,357,File enclosing path,0,BN,,!Cx,.Semantic,:~ [filepath],Enclosing directory path from which relative path was resolved.
+1114470,358,File kind: regular,0,BN,,!Cx,.Semantic,,Identifies a regular file entity.
+1114471,359,File kind: directory,0,BN,,!Cx,.Semantic,,Identifies a directory file entity.
+1114472,360,File kind: symbolic link,0,BN,,!Cx,.Semantic,,Identifies a symbolic link entity.
+1114473,361,File kind: hardlink,0,BN,,!Cx,.Semantic,,Identifies a hardlink entity.
+1114474,362,File kind: named pipe/FIFO,0,BN,,!Cx,.Semantic,,Identifies a named pipe FIFO entity.
+1114475,363,File kind: character device,0,BN,,!Cx,.Semantic,,Identifies a character device node entity.
+1114476,364,File kind: block device,0,BN,,!Cx,.Semantic,,Identifies a block device node entity.
+1114477,365,File kind: socket,0,BN,,!Cx,.Semantic,,Identifies a UNIX domain socket entity.
+1114478,366,File kind: door descriptor,0,BN,,!Cx,.Semantic,,Identifies a door descriptor entity.
+1114479,367,File kind: bundle,0,BN,,!Cx,.Semantic,,Identifies a composite application or document bundle.
+1114480,368,File payload checksum,0,BN,,!Cx,.Semantic,:~ [checksum],Cryptographic digest hash of file payload.
+1114481,369,File sparse allocation flag,0,BN,,!Cx,.Semantic,,Flag indicating sparse hole allocation.
+1114482,370,File device node number,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Encoded device node identifier (dev_t / rdev).
+1114483,371,File bundle type format,0,BN,,!Cx,.Semantic,:~ [asciilatinletterdigit:1..16],Application bundle type format identifier.
+1114484,372,Begin file extents descriptor,0,BN,,!Cx,.Semantic,:~ [^373]+ 373,Begins a list of sparse and data extents.
+1114485,373,End file extents descriptor,0,BN,,!Cx,.Semantic,,Terminates a list of sparse and data extents.
+1114486,374,File data extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a data extent region.
+1114487,375,File sparse hole extent,0,BN,,!Cx,.Semantic,:~ 376 [number:Natural0] 377 [number:Natural0],Identifies a sparse hole extent region.
+1114488,376,Extent byte offset,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte offset where an extent starts.
+1114489,377,Extent byte length,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Byte length of an extent.
+1114490,378,Timestamp clock resolution,0,BN,,!Cx,.Semantic,:~ [datemagnitude],Clock resolution in nanoseconds.
+1114491,379,Stream kind: extended attribute,0,BN,,!Cx,.Semantic,,Identifies a standard extended attribute stream.
+1114492,380,Stream kind: macOS resource fork,0,BN,,!Cx,.Semantic,,Identifies a macOS resource fork stream.
+1114493,381,Stream kind: NTFS alternate stream,0,BN,,!Cx,.Semantic,,Identifies an NTFS alternate data stream.
+1114494,382,Stream kind: POSIX ACL access,0,BN,,!Cx,.Semantic,,Identifies a POSIX ACL access stream.
+1114495,383,Stream kind: POSIX ACL default,0,BN,,!Cx,.Semantic,,Identifies a POSIX default ACL stream.
+1114496,384,Stream kind: security label,0,BN,,!Cx,.Semantic,,Identifies a security label stream.
+1114497,385,Stream data,0,BN,,!Cx,.Semantic,:~ [data],In-memory payload bytes of an attached stream.
+1114498,386,File filesystem type string,0,BN,,!Cx,.Semantic,:~ [string],Originating filesystem type string.
+1114499,387,File inspection timestamp,0,BN,,!Cx,.Semantic,:~ [date],Timestamp documenting when file was inspected.
+1114500,388,Begin file flags description,0,BN,,!Cx,.Semantic,:~ [list:Semantic:fileflag] [^389]+ 389,Begins a collection of semantic file flags attached to a file.
+1114501,389,End file flags description,0,BN,,!Cx,.Semantic,,Terminates a collection of semantic file flags attached to a file.
+1114502,390,Begin time moment description,0,BN,,!Cx,.Semantic,:~ [formats:date] [^391]+ 391,Begins a time moment description.
+1114503,391,End time moment description,0,BN,,!Cx,.Semantic,,Terminates a time moment description.
+1114504,392,File data,0,BN,,!Cx,.Semantic,:~ [data],File contents
+1114505,393,Begin date magnitude description,0,BN,,!Cx,.Semantic,:~ [formats:duration] [^394]+ 394,A positive date duration
+1114506,394,End date magnitude description,0,BN,,!Cx,.Semantic,,
+1114507,395,Begin date duration description,0,BN,,!Cx,.Semantic,:~ [formats:duration] [^396]+ 396,
+1114508,396,End date duration description,0,BN,,!Cx,.Semantic,,
+1114509,397,Equivalent representations,0,BN,,!Cx,.Semantic,"@ident(""EquivalentRepresentations""), :~ [list]",Indicates that all values within the list have the same underlying meaning.
+1114510,398,Host public network IP address,0,BN,,!Cx,.Semantic,:~ 511 [f226:],Public or remote network IP address of an execution environment host.
+1114511,399,File backup timestamp,0,BN,,!Cx,.Semantic,:~ [date],Backup timestamp of a file.
+1114512,400,File comment,0,BN,,!Cx,.Semantic,:~ [string],File comment string.
+1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,.Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.
+1114514,402,End Mac OS file metadata description,0,BN,,!Cx,.Semantic,,Terminates a preserved Mac OS Finder and archive metadata record.
+1114515,403,Mac OS Finder file type,0,BN,,!Cx,.Semantic,:~ ([asciiprintable:4] | [data]),Four-character Mac OS Finder file type code.
+1114516,404,Mac OS Finder file creator,0,BN,,!Cx,.Semantic,:~ ([asciiprintable:4] | [data]),Four-character Mac OS Finder file creator code.
+1114517,405,Mac OS Finder label color,0,BN,,!Cx,.Semantic,:~ [number:Natural0&<8] | (482 | 483 | 484 | 485 | 486 | 487 | 488 | 489),Mac OS Finder label color code.
+1114518,406,Mac OS Finder flags,0,BN,,!Cx,.Semantic,:~ [number:Natural0] | (388 [^389]+ 389),Mac OS Finder flags.
+1114519,407,Mac OS Finder icon location,0,BN,,!Cx,.Semantic,:~ 511 [f523:],Mac OS Finder icon coordinates in QuickDraw grid.
+1114520,408,Mac OS Finder window folder identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Mac OS Finder window folder identifier.
+1114521,409,File flag: nodump,0,BN,,!Cx,.Semantic:fileflag,nodump,Do not include file in backups.
+1114522,410,File flag: user immutable,0,BN,,!Cx,.Semantic:fileflag,uchg,User immutable.
+1114523,411,File flag: user append,0,BN,,!Cx,.Semantic:fileflag,uappnd,User append-only.
+1114524,412,File flag: opaque,0,BN,,!Cx,.Semantic:fileflag,opaque,Directory opaque to union mounts.
+1114525,413,File flag: hidden,0,BN,,!Cx,.Semantic:fileflag,hidden,Hidden in GUI or Finder.
+1114526,414,File flag: archived,0,BN,,!Cx,.Semantic:fileflag,arch,System archived flag.
+1114527,415,File flag: system immutable,0,BN,,!Cx,.Semantic:fileflag,schg,Superuser immutable.
+1114528,416,File flag: system append,0,BN,,!Cx,.Semantic:fileflag,sappnd,Superuser append-only.
+1114529,417,File flag: system no unlink,0,BN,,!Cx,.Semantic:fileflag,sunlnk,Superuser cannot unlink or rename.
+1114530,418,File flag: user no unlink,0,BN,,!Cx,.Semantic:fileflag,uunlnk,User cannot unlink or rename.
+1114531,419,File flag: system,0,BN,,!Cx,.Semantic:fileflag,system,Windows/DOS system file attribute.
+1114532,420,File flag: sparse,0,BN,,!Cx,.Semantic:fileflag,sparse,Windows/DOS sparse file attribute.
+1114533,421,File flag: offline,0,BN,,!Cx,.Semantic:fileflag,offline,Windows/CIFS offline storage attribute.
+1114534,422,File flag: read only,0,BN,,!Cx,.Semantic:fileflag,readonly,Read-only attribute.
+1114535,423,File flag: reparse,0,BN,,!Cx,.Semantic:fileflag,reparse,Reparse point attribute.
+1114536,424,File flag: snapshot,0,BN,,!Cx,.Semantic:fileflag,snapshot,Snapshot file attribute.
+1114537,425,File flag: user archive,0,BN,,!Cx,.Semantic:fileflag,uarch,User archived flag.
+1114538,426,File flag: user no cache,0,BN,,!Cx,.Semantic:fileflag,unocache,User do not cache file data.
+1114539,427,File flag: user no history,0,BN,,!Cx,.Semantic:fileflag,unohistory,User do not retain history or snapshots.
+1114540,428,File flag: user cache,0,BN,,!Cx,.Semantic:fileflag,ucache,User enable data swapcache.
+1114541,429,File flag: user xlink,0,BN,,!Cx,.Semantic:fileflag,uxlink,User cross-link hardlink boundary.
+1114542,430,File flag: system no history,0,BN,,!Cx,.Semantic:fileflag,snohistory,Superuser do not retain history or snapshots.
+1114543,431,File flag: system no cache,0,BN,,!Cx,.Semantic:fileflag,snocache,Superuser disable data swapcache.
+1114544,432,File flag: system xlink,0,BN,,!Cx,.Semantic:fileflag,sxlink,Superuser cross-link hardlink boundary.
+1114545,433,File flag: compressed,0,BN,,!Cx,.Semantic:fileflag,compressed,Compressed file attribute.
+1114546,434,File flag: tracked,0,BN,,!Cx,.Semantic:fileflag,tracked,Document tracking active.
+1114547,435,File flag: data vault,0,BN,,!Cx,.Semantic:fileflag,datavault,System integrity data vault.
+1114548,436,File flag: restricted,0,BN,,!Cx,.Semantic:fileflag,restricted,System integrity restricted.
+1114549,437,File flag: firmlink,0,BN,,!Cx,.Semantic:fileflag,firmlink,APFS firmlink.
+1114550,438,File flag: dataless,0,BN,,!Cx,.Semantic:fileflag,dataless,APFS dataless file.
+1114551,439,File flag: system log,0,BN,,!Cx,.Semantic:fileflag,slog,NetBSD WAPBL log file inode.
+1114552,440,File flag: snapshot invalid,0,BN,,!Cx,.Semantic:fileflag,snapinval,NetBSD invalid snapshot inode.
+1114553,441,File flag: secure removal,0,BN,,!Cx,.Semantic:fileflag,secrm,Secure deletion.
+1114554,442,File flag: undelete,0,BN,,!Cx,.Semantic:fileflag,unrm,Undelete.
+1114555,443,File flag: sync,0,BN,,!Cx,.Semantic:fileflag,sync,Synchronous file updates.
+1114556,444,File flag: no atime,0,BN,,!Cx,.Semantic:fileflag,noatime,Do not update access time.
+1114557,445,File flag: dirty,0,BN,,!Cx,.Semantic:fileflag,dirty,Dirty compressed file.
+1114558,446,File flag: compressed blocks,0,BN,,!Cx,.Semantic:fileflag,comprblk,Compressed cluster or blocks.
+1114559,447,File flag: no compress,0,BN,,!Cx,.Semantic:fileflag,nocomp,Do not compress.
+1114560,448,File flag: encrypted,0,BN,,!Cx,.Semantic:fileflag,encrypt,Encrypted file.
+1114561,449,File flag: indexed directory,0,BN,,!Cx,.Semantic:fileflag,index,Hash-indexed directory.
+1114562,450,File flag: btree,0,BN,,!Cx,.Semantic:fileflag,btree,Btree format directory.
+1114563,451,File flag: imagic,0,BN,,!Cx,.Semantic:fileflag,imagic,AFS magic directory inode.
+1114564,452,File flag: journal data,0,BN,,!Cx,.Semantic:fileflag,journal,Journal file data.
+1114565,453,File flag: no tail,0,BN,,!Cx,.Semantic:fileflag,notail,Do not merge tail.
+1114566,454,File flag: dir sync,0,BN,,!Cx,.Semantic:fileflag,dirsync,Synchronous directory updates.
+1114567,455,File flag: top dir,0,BN,,!Cx,.Semantic:fileflag,topdir,Top of directory hierarchy.
+1114568,456,File flag: huge file,0,BN,,!Cx,.Semantic:fileflag,hugefile,Huge file format.
+1114569,457,File flag: extent,0,BN,,!Cx,.Semantic:fileflag,extent,Extents format.
+1114570,458,File flag: verity,0,BN,,!Cx,.Semantic:fileflag,verity,fs-verity enabled.
+1114571,459,File flag: ea inode,0,BN,,!Cx,.Semantic:fileflag,eainode,Large extended attribute inode.
+1114572,460,File flag: eof blocks,0,BN,,!Cx,.Semantic:fileflag,eofblocks,Blocks allocated beyond EOF.
+1114573,461,File flag: no cow,0,BN,,!Cx,.Semantic:fileflag,nocow,Do not copy-on-write.
+1114574,462,File flag: dax,0,BN,,!Cx,.Semantic:fileflag,dax,Direct access DAX mode.
+1114575,463,File flag: inline data,0,BN,,!Cx,.Semantic:fileflag,inlinedata,Inode contains inline data.
+1114576,464,File flag: project inherit,0,BN,,!Cx,.Semantic:fileflag,projinherit,Project inheritance.
+1114577,465,File flag: casefold,0,BN,,!Cx,.Semantic:fileflag,casefold,Directory casefolding.
+1114578,466,File flag: reserved for ext2,0,BN,,!Cx,.Semantic:fileflag,reservedforext2,Reserved flag for ext2/ext4.
+1114579,467,Maybe value,0,BN,,!Cx,.Semantic,:~ [string],"Indicates that a value may be the case, but maybe not."
+1114594,482,Mac OS Finder label: none,0,BN,,!Cx,.Semantic,,Finder label index 0.
+1114595,483,"Mac OS Finder label 1: (default: ""Project 2"")",0,BN,,!Cx,.Semantic,<ambiguous>468 475,"Finder label index 1, Brown in Classic Mac OS and Gray in macOS."
+1114596,484,"Mac OS Finder label 2: (default: ""Project 1"")",0,BN,,!Cx,.Semantic,<ambiguous>469 476,"Finder label index 2, Green."
+1114597,485,"Mac OS Finder label 3: (default: ""Personal"")",0,BN,,!Cx,.Semantic,<ambiguous>470 477,"Finder label index 3, Blue in Classic Mac OS and Purple in macOS."
+1114598,486,"Mac OS Finder label 4: (default: ""Cool"")",0,BN,,!Cx,.Semantic,<ambiguous>471 478,"Finder label index 4, Cyan in Classic Mac OS and Blue in macOS."
+1114599,487,"Mac OS Finder label 5: (default: ""In Progress"")",0,BN,,!Cx,.Semantic,<ambiguous>472 479,"Finder label index 5, Pink in Classic Mac OS and Yellow in macOS."
+1114600,488,"Mac OS Finder label 6: (default: ""Hot"")",0,BN,,!Cx,.Semantic,<ambiguous>473 480,"Finder label index 6, Red."
+1114601,489,"Mac OS Finder label 7: (default: ""Essential"")",0,BN,,!Cx,.Semantic,<ambiguous>474 481,"Finder label index 7, Orange."
+1114602,490,Begin Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,:~ [^491]+ 491,Begins an extended Mac OS Finder information record (FXInfo).
+1114603,491,End Mac OS extended Finder info description,0,BN,,!Cx,.Semantic,,Terminates an extended Mac OS Finder information record (FXInfo).
+1114604,492,Mac OS extended Finder icon identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Custom icon resource ID in extended Finder info.
+1114605,493,Mac OS extended Finder script code,0,BN,,!Cx,.Semantic,:~ [number:Integer],Script system text encoding code in extended Finder info.
+1114606,494,Mac OS extended Finder comment identifier,0,BN,,!Cx,.Semantic,:~ [number:Integer],Comment resource ID in extended Finder info.
+1114607,495,Mac OS extended Finder put away folder identifier,0,BN,,!Cx,.Semantic,:~ [number:Natural0],Directory ID for desktop put away in extended Finder info.
+1114608,496,Mac OS AppleSingle real file name,0,BN,,!Cx,.Semantic,:~ [filename],Original real file name preserved in AppleSingle or AppleDouble archive.
+1114609,497,File flag: custom badge,0,BN,,!Cx,.Semantic:fileflag,custombadge,Mac OS object has custom badge.
+1114610,498,File flag: routing info,0,BN,,!Cx,.Semantic:fileflag,routinginfo,Mac OS object has routing info.
+1114611,499,File flag: on desk,0,BN,,!Cx,.Semantic:fileflag,ondesk,Mac OS object resides on desktop.
+1114612,500,File flag: shared application,0,BN,,!Cx,.Semantic:fileflag,sharedapp,Mac OS application is multi-user shared.
+1114613,501,File flag: no inits,0,BN,,!Cx,.Semantic:fileflag,noinits,Mac OS file contains no INIT resource.
+1114614,502,File flag: initialized,0,BN,,!Cx,.Semantic:fileflag,inited,Mac OS Finder has initialized bundle resources.
+1114615,503,File flag: custom icon,0,BN,,!Cx,.Semantic:fileflag,customicon,Mac OS object has custom icon resource.
+1114616,504,File flag: stationery,0,BN,,!Cx,.Semantic:fileflag,stationery,Mac OS file is stationery or template.
+1114617,505,File flag: name locked,0,BN,,!Cx,.Semantic:fileflag,namelocked,Mac OS object name cannot be edited.
+1114618,506,File flag: has bundle,0,BN,,!Cx,.Semantic:fileflag,hasbundle,Mac OS application has bundle resource.
+1114619,507,File flag: invisible,0,BN,,!Cx,.Semantic:fileflag,invisible,Mac OS Finder invisible flag.
+1114620,508,File flag: alias,0,BN,,!Cx,.Semantic:fileflag,alias,Mac OS object is an alias file.
+1114621,509,File flag: extended flags invalid,0,BN,,!Cx,.Semantic:fileflag,xflaginvalid,Mac OS extended Finder flags are invalid.
+1114622,510,Mac OS Finder folder window bounds,0,BN,,!Cx,.Semantic,:~ 511 [f524:],Mac OS Finder folder window bounds rectangle coordinates.
+1114623,511,Begin Dc representation of format,0,BN,,!Cx,.Semantic,:~ [format] [^512]+ [512],E.g. “Here’s a Dc representation of an IPv4 address using the syntax associated with that format Dc”
+1114624,512,End Dc representation of format,0,BN,,!Cx,.Semantic,,
+1114625,513,File path delimiter,0,BN,,!Cx,.Semantic,,
+1114628,516,Type intersection,0,BN,,!Cx,.Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
+1114629,517,Boolean true,0,BN,,!Cx,.Semantic,"@ident(""BooleanTrue"")",
+1114630,518,Boolean false,0,BN,,!Cx,.Semantic,"@ident(""BooleanFalse"")",
+1114631,519,Server system clock offset nanoseconds,0,BN,,!Cx,.Semantic,:~ [number:Integer],Difference between server time and system time in nanoseconds.
+1114632,520,Execution environment is an application built with release configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in release mode with optimizations.
+1114633,521,Execution environment is an application built with debug configuration,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is built in debug mode with debug assertions enabled.
+1114634,522,Execution environment binary is running directly from cargo target directory,0,BN,,!Cx,.Semantic,:~ [boolean],Application binary is executing directly from the cargo build target directory.
+1114635,523,Execution environment is running under test runner harness,0,BN,,!Cx,.Semantic,:~ [boolean],Application is executing inside a test runner harness.
+1114636,524,Execution environment is an officially branded Collective Toolbox build,0,BN,,!Cx,.Semantic,:~ [boolean],Application build includes official Collective Toolbox branding assets.
+1114637,525,Execution environment is an officially signed Collective Toolbox build,0,BN,,!Cx,.Semantic,:~ [boolean],Application build is cryptographically verified as an official Collective Toolbox release.
+1114638,526,Execution environment process role is lightweight CLI,0,BN,,!Cx,.Semantic,:~ [boolean],Process is executing as a lightweight CLI invocation without booting workspace.
+1114639,527,Execution environment process role is workspace supervisor,0,BN,,!Cx,.Semantic,:~ [boolean],Process is executing as the root workspace supervisor.
+1114640,528,Execution environment process role is workspace main process,0,BN,,!Cx,.Semantic,:~ [boolean],Process is executing as the main workspace process.
+1114641,529,Execution environment process role is service subprocess,0,BN,,!Cx,.Semantic,:~ [boolean],Process is executing as a workspace child service process over IPC.
+1114642,530,Execution environment is running as an official Collective Toolbox public website deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is deployed as an official Collective Toolbox public website.
+1114643,531,Execution environment is running as a public website deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is deployed as a public website.
+1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is executing on a local machine.

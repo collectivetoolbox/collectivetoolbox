@@ -14,7 +14,7 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228450,226,IpAddr,IP address,identifier,,,,,,,,,,,,
+2228450,226,IpAddr,IP address,identifier,:(f490 | f491),,,,,,,,,,,
 2228451,227,Uri,URI (Uniform Resource Identifier),identifier,,,,,,,,,,,,
 2228452,228,FileName,File name,identifier,:([string] | [data]),,,,,,,,,,,
 2228453,229,FilePath,File path,identifier,:[list:([filename] | 513)],,,,,,,,,,,
