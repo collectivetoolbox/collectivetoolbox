@@ -203,5 +203,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114624,512,End Dc representation of format,0,BN,,!Cx,Semantic,,
 1114625,513,File path delimiter,0,BN,,!Cx,Semantic,,
 1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
-,,Boolean true,0,BN,,!Cx,Semantic,,
-,,Boolean false,,,,,,,
+1114629,517,Boolean true,0,BN,,!Cx,Semantic,,
+1114630,518,Boolean false,0,BN,,!Cx,Semantic,,

@@ -20,3 +20,4 @@ filepath,:511 [f229:],
 ipaddr,:511 [f490:],
 statement,:([value] | 269:),One expression in statement position: a value expression or an assignment. This is not an arbitrary unframed character sequence. Additional routine forms require explicit operand boundaries before inclusion.
 value,:([string] | 276: | 279:),One value expression: a quoted literal or an explicit object reference or routine invocation. Matching this syntax does not evaluate it; literal payloads are never implicitly reparsed as expressions.
+boolean,:(517 | 518),
