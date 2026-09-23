@@ -1218,7 +1218,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        let trimmed = shorthand.trim();\n");
     out.push_str("        match trimmed {\n");
     for r in &records {
-        out.push_str(&format!("            \"f{}\" => Some(Self::{}),\n", r.short_id, r.short_id, r.ident));
+        out.push_str(&format!("            \"f{}\" => Some(Self::{}),\n", r.short_id, r.ident));
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
@@ -1259,6 +1259,8 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
 /// # Errors
 /// Returns an error if directory resolution, generation, or writing fails.
 pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
+    // FIXME: This should use the right path, not guess a bunch of random ones.
+    // FIXME: The file without ".generated" in the name needs to be exorcised. It's back from the dead.
     let candidates = [
         ("src/formats/dcdata/data/categories/formats", "src/formats/utilities/format_id.rs"),
         ("formats/dcdata/data/categories/formats", "formats/utilities/format_id.rs"),

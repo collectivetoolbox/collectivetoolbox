@@ -41,6 +41,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use ctb_utilities::pc_settings::{PcSettingU16Key, get_u16_setting};
 
+pub mod detection;
+pub use detection::{
+    EnvironmentCapabilities, EnvironmentIdentity, detect_architecture, detect_capabilities,
+    detect_display_server, detect_identity,
+};
+pub use ctb_formats_utilities::format_id::FormatId;
+
 pub use ctb_utilities::environment::{
     ProcessRole, ctb_version, ctb_version_semver, get_process_role, is_cargo_target_binary,
     is_debug_build, is_official_public_website, is_official_signed_build, is_public_website,
@@ -447,42 +454,40 @@ pub fn env_cache_reset() {
 
 /// Is running on Unix-ish OS?
 pub fn is_unix() -> bool {
-    cfg!(unix)
-    // Or alternatively?
-    // env::consts::FAMILY == "unix"
+    capture_quick_arc().is_unix
 }
 
 /// Is running on Linux?
 pub fn is_linux() -> bool {
-    env::consts::OS == "linux"
+    capture_quick_arc().is_linux
 }
 
 /// Is running on Windows?
 pub fn is_windows() -> bool {
-    env::consts::OS == "windows"
+    capture_quick_arc().is_windows
 }
 
 /// Is running on macOS (not classic)?
 pub fn is_mac_os_10_or_newer() -> bool {
-    env::consts::OS == "macos"
+    capture_quick_arc().is_mac_os_10_or_newer
 }
 /// There does not seem to be a separate iPadOS value for env::consts::OS.
 pub fn is_apple_ios() -> bool {
-    env::consts::OS == "ios"
+    capture_quick_arc().is_apple_ios
 }
 pub fn is_watchos() -> bool {
-    env::consts::OS == "watchos"
+    capture_quick_arc().is_watchos
 }
 pub fn is_tvos() -> bool {
-    env::consts::OS == "tvos"
+    capture_quick_arc().is_tvos
 }
 pub fn is_visionos() -> bool {
-    env::consts::OS == "visionos"
+    capture_quick_arc().is_visionos
 }
 
 /// Is running on Darwin family OS?
 pub fn is_darwin() -> bool {
-    is_mac_os_10_or_newer() || is_apple_ios() || is_watchos() || is_tvos() || is_visionos()
+    capture_quick_arc().is_darwin
 }
 
 /// Does it look like it's running in a GNUstep environment? A guess, not
@@ -525,27 +530,27 @@ pub fn looks_like_nextstep_or_openstep() -> bool {
 
 /// Is this a BSD of some sort, not including Darwin?
 pub fn is_bsd() -> bool {
-    is_openbsd() || is_dragonfly() || is_freebsd() || is_netbsd()
+    capture_quick_arc().is_bsd
 }
 
 /// Is running on OpenBSD?
 pub fn is_openbsd() -> bool {
-    env::consts::OS == "openbsd"
+    capture_quick_arc().is_openbsd
 }
 
 /// Is running on DragonFly BSD?
 pub fn is_dragonfly() -> bool {
-    env::consts::OS == "dragonfly"
+    capture_quick_arc().is_dragonfly
 }
 
 /// Is running on FreeBSD?
 pub fn is_freebsd() -> bool {
-    env::consts::OS == "freebsd"
+    capture_quick_arc().is_freebsd
 }
 
 /// Is running on NetBSD?
 pub fn is_netbsd() -> bool {
-    env::consts::OS == "netbsd"
+    capture_quick_arc().is_netbsd
 }
 
 
@@ -556,10 +561,6 @@ pub fn is_local() -> bool {
 
 /// Is the workspace running with the prototype web UI? (Page-oriented, not
 /// frame-oriented).
-///
-/// FIXME: This implementation is currently wacky - if the ports are set for the
-/// web UI, it'll serve it, but there should be some way to pass on the CLI that
-/// a different workspace interface is desired.
 pub fn is_webui() -> bool {
     get_u16_setting(PcSettingU16Key::FixedHttpPort).is_some()
         || get_u16_setting(PcSettingU16Key::FixedHttpsPort).is_some()
@@ -580,24 +581,49 @@ pub fn is_webui_in_webview() -> bool {
 /// Output mode may be browser VM, native window, HTML frames to a browser,
 /// headless, etc.
 pub fn is_gui() -> bool {
-    false
+    capture_quick_arc().is_gui
 }
 
 /// Is the workspace running with its CLI interface (TTY or videoterminal)?
 pub fn is_cli() -> bool {
-    false
+    capture_quick_arc().is_cli
 }
 
 /// Is the workspace running in a TTY (text-mode, but can't backspace or
 /// edit/clear previous lines)?
 pub fn is_cli_tty() -> bool {
-    false
+    capture_quick_arc().is_cli_tty
 }
 
 /// Is the workspace running as a videoterminal/videoterminal emulator
 /// (text-mode, but able to edit past lines)?
 pub fn is_cli_videoterminal() -> bool {
-    false
+    capture_quick_arc().is_cli_videoterminal
+}
+
+/// Check if the active execution environment has a specific [`FormatId`].
+pub fn has_format(format: FormatId) -> bool {
+    capture_quick_arc().has_format(format)
+}
+
+/// Return all [`FormatId`] elements representing the active environment.
+pub fn all_format_ids() -> Vec<FormatId> {
+    capture_quick_arc().all_format_ids()
+}
+
+/// Return the structured OS and platform identity for the active environment.
+pub fn identity() -> EnvironmentIdentity {
+    capture_quick_arc().identity()
+}
+
+/// Return the display, terminal, and renderer capabilities for the active environment.
+pub fn capabilities() -> EnvironmentCapabilities {
+    capture_quick_arc().capabilities()
+}
+
+/// Return a human-readable summary of the active environment.
+pub fn summary() -> String {
+    capture_quick_arc().summary()
 }
 
 pub fn is_release_build() -> bool {
@@ -744,6 +770,37 @@ impl EnvDescription {
     /// NOTE: Direct use of `EnvDescription::capture_quick()` is discouraged;
     /// prefer [`crate::environment::capture_quick`].
     pub(crate) fn capture_quick() -> Self {
+        let ident = detect_identity();
+        let caps = detect_capabilities();
+
+        let is_unix = ident.os_families.contains(&FormatId::Unix) || ident.os == FormatId::Unix;
+        let is_linux = ident.kernel == FormatId::Linux
+            || ident.kernel == FormatId::Wsl
+            || ident.kernel == FormatId::Wsl2;
+        let is_windows = ident.os_families.contains(&FormatId::Windows)
+            || ident.os == FormatId::Windows
+            || ident.os == FormatId::WinNt;
+        let is_mac_os_10_or_newer = ident.os == FormatId::MacOsDarwin;
+        let is_apple_ios = ident.os == FormatId::AppleIos;
+        let is_tvos = ident.os == FormatId::TvOs;
+        let is_watchos = ident.os == FormatId::WatchOs;
+        let is_visionos = ident.os == FormatId::VisionOs;
+        let is_darwin = ident.libc == Some(FormatId::Darwin)
+            || ident.os_families.contains(&FormatId::MacOs);
+        let is_bsd = ident.libc == Some(FormatId::BsdLibc)
+            || ident.kernel == FormatId::BsdKernel;
+        let is_openbsd = ident.os == FormatId::OpenBsd;
+        let is_dragonfly = ident.os == FormatId::DragonFlyBsd;
+        let is_freebsd = ident.os == FormatId::FreeBsd;
+        let is_netbsd = ident.os == FormatId::NetBsd;
+        let is_gui = caps.device_caps.contains(&FormatId::RasterDisplay)
+            && caps.display_server != FormatId::HeadlessDisplay;
+        let is_cli = caps.is_stdout_terminal;
+        let is_cli_tty = caps.terminal_caps.contains(&FormatId::Teleprinter)
+            || caps.terminal_caps.contains(&FormatId::LineModeTerminal);
+        let is_cli_videoterminal = caps.terminal_caps.contains(&FormatId::Videoterminal);
+        let is_webui = is_webui();
+
         Self {
             os: os(),
             usize_width: usize(),
@@ -758,32 +815,32 @@ impl EnvDescription {
             is_v86: is_v86(),
             is_pwa: is_pwa(),
             is_pwa_mobile: is_pwa_mobile(),
-            is_unix: is_unix(),
-            is_linux: is_linux(),
-            is_windows: is_windows(),
-            is_mac_os_10_or_newer: is_mac_os_10_or_newer(),
-            is_apple_ios: is_apple_ios(),
-            is_tvos: is_tvos(),
-            is_watchos: is_watchos(),
-            is_visionos: is_visionos(),
-            is_darwin: is_darwin(),
+            is_unix,
+            is_linux,
+            is_windows,
+            is_mac_os_10_or_newer,
+            is_apple_ios,
+            is_tvos,
+            is_watchos,
+            is_visionos,
+            is_darwin,
             looks_like_gnustep: looks_like_gnustep(),
             looks_like_nextstep_or_openstep: looks_like_nextstep_or_openstep(),
-            is_bsd: is_bsd(),
-            is_openbsd: is_openbsd(),
-            is_dragonfly: is_dragonfly(),
-            is_freebsd: is_freebsd(),
-            is_netbsd: is_netbsd(),
+            is_bsd,
+            is_openbsd,
+            is_dragonfly,
+            is_freebsd,
+            is_netbsd,
             is_public_website: is_public_website(),
             is_official_public_website: is_official_public_website(),
             is_local: is_local(),
-            is_webui: is_webui(),
+            is_webui,
             is_webui_in_system_browser: is_webui_in_system_browser(),
             is_webui_in_webview: is_webui_in_webview(),
-            is_gui: is_gui(),
-            is_cli: is_cli(),
-            is_cli_tty: is_cli_tty(),
-            is_cli_videoterminal: is_cli_videoterminal(),
+            is_gui,
+            is_cli,
+            is_cli_tty,
+            is_cli_videoterminal,
             is_release_build: is_release_build(),
             is_debug_build: is_debug_build(),
             is_cargo_target_binary: is_cargo_target_binary(),
@@ -812,6 +869,56 @@ impl EnvDescription {
                 .map(|p| p.to_string_lossy().into_owned()),
             extra: BTreeMap::new(),
         }
+    }
+
+    /// Return the structured OS, kernel, libc, and architecture identity.
+    #[must_use]
+    pub fn identity(&self) -> EnvironmentIdentity {
+        detect_identity()
+    }
+
+    /// Return the active display, terminal, and renderer capabilities.
+    #[must_use]
+    pub fn capabilities(&self) -> EnvironmentCapabilities {
+        detect_capabilities()
+    }
+
+    /// Returns all [`FormatId`] elements that apply to this environment
+    /// (identity, capabilities, and families).
+    #[must_use]
+    pub fn all_format_ids(&self) -> Vec<FormatId> {
+        let ident = self.identity();
+        let caps = self.capabilities();
+        detection::collect_all_format_ids(&ident, &caps)
+    }
+
+    /// Check if this environment has a specific [`FormatId`] capability or identity.
+    #[must_use]
+    pub fn has_format(&self, format: FormatId) -> bool {
+        let ident = self.identity();
+        let caps = self.capabilities();
+        detection::check_has_format(&ident, &caps, format)
+    }
+
+    /// Check if this environment is compatible with a given target OS format.
+    #[must_use]
+    pub fn is_os_compatible(&self, target_os: FormatId) -> bool {
+        let ident = self.identity();
+        if ident.os == target_os
+            || ident.os_families.contains(&target_os)
+            || ident.kernel == target_os
+        {
+            return true;
+        }
+        ctb_formats_utilities::detection::is_os_match(ident.os, target_os)
+    }
+
+    /// Produce a human-readable one-line summary string for this environment.
+    #[must_use]
+    pub fn summary(&self) -> String {
+        let ident = self.identity();
+        let caps = self.capabilities();
+        detection::format_environment_summary(&ident, &caps)
     }
 
     /// Capture a full snapshot of the current execution environment, including
@@ -1283,6 +1390,93 @@ mod tests {
         ctb_formats_dcstring::assert_dc_roundtrip(&env)?;
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_environment_identity_and_capabilities() {
+        let ident = identity();
+        let caps = capabilities();
+        let formats = all_format_ids();
+
+        assert!(!formats.is_empty());
+        assert!(formats.contains(&ident.os));
+        assert!(formats.contains(&ident.kernel));
+        assert!(formats.contains(&ident.architecture));
+
+        for family in &ident.os_families {
+            assert!(formats.contains(family));
+        }
+        for u in &ident.userspace {
+            assert!(formats.contains(u));
+        }
+        if let Some(libc) = ident.libc {
+            assert!(formats.contains(&libc));
+        }
+
+        if is_linux() {
+            assert!(has_format(FormatId::Linux));
+            assert!(has_format(FormatId::Unix));
+            assert!(!has_format(FormatId::Windows));
+            assert!(!has_format(FormatId::WinNtKernel));
+            assert!(!has_format(FormatId::MacOsDarwin));
+        }
+
+        if is_windows() {
+            assert!(has_format(FormatId::Windows));
+            assert!(has_format(FormatId::WinNtKernel));
+            assert!(!has_format(FormatId::Linux));
+            assert!(!has_format(FormatId::MacOsDarwin));
+        }
+
+        if is_darwin() {
+            assert!(has_format(FormatId::Darwin));
+            assert!(has_format(FormatId::Unix));
+            assert!(has_format(FormatId::MacOsDarwin));
+            assert!(!has_format(FormatId::Linux));
+            assert!(!has_format(FormatId::Windows));
+        }
+
+        // Capabilities consistency
+        assert!(formats.contains(&caps.display_server));
+        for cap in &caps.device_caps {
+            assert!(formats.contains(cap));
+        }
+        for mode in &caps.render_modes {
+            assert!(formats.contains(mode));
+        }
+        for term_cap in &caps.terminal_caps {
+            assert!(formats.contains(term_cap));
+        }
+
+        // Summary string format test
+        let sum = summary();
+        assert!(!sum.is_empty());
+        assert!(sum.contains('(') && sum.contains(')'));
+    }
+
+    #[crate::ctb_test]
+    fn test_capture_quick_uses_detection() {
+        let desc = EnvDescription::capture_quick();
+        let ident = desc.identity();
+        let caps = desc.capabilities();
+
+        assert_eq!(desc.is_gui, is_gui());
+        assert_eq!(desc.is_linux, is_linux());
+        assert_eq!(desc.is_windows, is_windows());
+        assert_eq!(desc.is_unix, is_unix());
+        assert_eq!(desc.is_darwin, is_darwin());
+        assert_eq!(desc.is_bsd, is_bsd());
+        assert_eq!(
+            desc.has_format(FormatId::RasterDisplay),
+            caps.device_caps.contains(&FormatId::RasterDisplay)
+        );
+        assert_eq!(
+            desc.has_format(FormatId::RenderModeInteractive),
+            caps.render_modes.contains(&FormatId::RenderModeInteractive)
+        );
+        assert!(desc.is_os_compatible(ident.os));
+        assert!(desc.is_os_compatible(ident.kernel));
+    }
 }
+
 
 
