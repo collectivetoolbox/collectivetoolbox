@@ -2811,6 +2811,7 @@ name = "ctb-formats-dcdata"
 version = "0.0.0"
 dependencies = [
  "csv",
+ "ctb-build-support",
  "ctb-formats-unicode",
  "ctb-formats-utf-8e-128",
  "ctb-storage-minimal",

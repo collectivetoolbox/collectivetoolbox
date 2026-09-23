@@ -30,7 +30,7 @@ use crate::utilities::*;
 use anyhow::{Context, Result, bail};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub use ctb_storage_minimal::global_graph_layout::{
     FORMAT_REGION_START, SHORT_DC_REGION_START,
@@ -106,53 +106,7 @@ pub fn is_empty_row(row: &[String]) -> bool {
     row.iter().all(|cell| cell.trim().is_empty())
 }
 
-/// Discovers the root directory of the ctoolbox repository.
-pub fn find_repository_root() -> Result<PathBuf> {
-    if let Ok(manifest_dir) = std::env::var("CARGO_MANIFEST_DIR") {
-        let manifest_path = PathBuf::from(manifest_dir);
-        if manifest_path.join("Cargo.toml").is_file() {
-            let mut cur = manifest_path.as_path();
-            while let Some(parent) = cur.parent() {
-                if parent.join("Cargo.toml").is_file()
-                    && parent.join("src").join("formats").is_dir()
-                {
-                    return Ok(parent.to_path_buf());
-                }
-                cur = parent;
-            }
-        }
-    }
-
-    let mut cur =
-        std::env::current_dir().context("Failed to get current dir")?;
-    loop {
-        if cur.join("Cargo.toml").is_file()
-            && cur.join("src").join("formats").is_dir()
-        {
-            return Ok(cur);
-        }
-        let Some(parent) = cur.parent() else {
-            break;
-        };
-        cur = parent.to_path_buf();
-    }
-
-    bail!("Could not locate repository root containing src/formats/")
-}
-
-/// Discovers the root directory of the ctoolbox repository starting from a path.
-pub fn find_repository_root_from(start: &Path) -> Result<PathBuf> {
-    let mut cur = Some(start);
-    while let Some(dir) = cur {
-        if dir.join("Cargo.toml").is_file()
-            && dir.join("src").join("formats").is_dir()
-        {
-            return Ok(dir.to_path_buf());
-        }
-        cur = dir.parent();
-    }
-    find_repository_root()
-}
+pub use ctb_build_support::{find_repository_root, find_repository_root_from};
 
 /// Reads a CSV file returning the header row and data rows.
 pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
@@ -1292,15 +1246,6 @@ pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
         .join("formats")
         .join("utilities")
         .join("format_id.generated.rs");
-
-    let stale_file = repo_root
-        .join("src")
-        .join("formats")
-        .join("utilities")
-        .join("format_id.rs");
-    if stale_file.is_file() {
-        let _ = fs::remove_file(&stale_file);
-    }
 
     let code = generate_format_id_code(&formats_dir)?;
     write_if_changed(&target_file, &code)
