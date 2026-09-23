@@ -651,7 +651,7 @@ pub fn is_branded_build() -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
 #[serde(default)]
 #[dc(begin = 340, end = 341)]
-#[allow(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
+#[expect(clippy::struct_excessive_bools, reason = "Execution environment runtime flags are distinct individual attributes")]
 pub struct EnvDescription {
     #[dc(short = 342)]
     pub os: String,
@@ -848,13 +848,17 @@ impl EnvDescription {
     #[must_use]
     pub fn is_os_compatible(&self, target_os: FormatId) -> bool {
         let ident = self.identity();
-        if ident.os == target_os
+        if ident.os == Some(target_os)
             || ident.os_families.contains(&target_os)
-            || ident.kernel == target_os
+            || ident.kernel == Some(target_os)
         {
             return true;
         }
-        ctb_formats_utilities::detection::is_os_match(ident.os, target_os)
+        if let Some(os) = ident.os {
+            ctb_formats_utilities::detection::is_os_match(os, target_os)
+        } else {
+            false
+        }
     }
 
     /// Produce a human-readable one-line summary string for this environment.
@@ -1001,7 +1005,7 @@ impl EnvDescription {
     pub fn is_gui(&self) -> bool {
         let caps = self.capabilities();
         caps.device_caps.contains(&FormatId::RasterDisplay)
-            && caps.display_server != FormatId::HeadlessDisplay
+            && !matches!(caps.display_server, None | Some(FormatId::HeadlessDisplay))
     }
 
     #[must_use]
@@ -1461,10 +1465,13 @@ mod tests {
         }
     }
 
+    static ENV_TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_looks_like_gnustep() {
-        // SAFETY: Test runs in controlled single-threaded test harness or restores variable
+        let _lock = ENV_TEST_MUTEX.lock().unwrap();
+        // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
             env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
         }
@@ -1478,8 +1485,9 @@ mod tests {
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_looks_like_nextstep_or_openstep() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap();
         let original_path = env::var("PATH").ok();
-        // SAFETY: Test runs in controlled single-threaded test harness or restores variable
+        // SAFETY: Test runs with mutex lock and restores variable
         unsafe {
             env::set_var("PATH", "/usr/bin:/NextApps");
         }
@@ -1497,16 +1505,19 @@ mod tests {
     #[crate::ctb_test]
     #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
     fn test_detect_identity_gnustep_and_nextstep() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap();
         let original_path = env::var("PATH").ok();
         let original_term = env::var("TERM_PROGRAM").ok();
-        // SAFETY: Test runs in controlled single-threaded test harness and restores variables
+        // SAFETY: Test runs with mutex lock and restores variables
         unsafe {
             env::set_var("PATH", "/usr/bin:/NextApps");
             env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
         }
         let ident = detect_identity();
         assert!(ident.userspace.contains(&FormatId::GnuStep));
-        assert!(ident.userspace.contains(&FormatId::NextStep));
+        // Nextstep/openstep is an OS, so it does not appear in userspace:
+        assert!(!ident.userspace.contains(&FormatId::NextStep));
+        assert!(looks_like_nextstep_or_openstep());
         // SAFETY: Test restores environment variables
         unsafe {
             if let Some(orig) = original_path {
@@ -1572,9 +1583,15 @@ mod tests {
         let formats = all_format_ids();
 
         assert!(!formats.is_empty());
-        assert!(formats.contains(&ident.os));
-        assert!(formats.contains(&ident.kernel));
-        assert!(formats.contains(&ident.architecture));
+        if let Some(os) = ident.os {
+            assert!(formats.contains(&os));
+        }
+        if let Some(kernel) = ident.kernel {
+            assert!(formats.contains(&kernel));
+        }
+        if let Some(arch) = ident.architecture {
+            assert!(formats.contains(&arch));
+        }
 
         for family in &ident.os_families {
             assert!(formats.contains(family));
@@ -1610,7 +1627,9 @@ mod tests {
         }
 
         // Capabilities consistency
-        assert!(formats.contains(&caps.display_server));
+        if let Some(ds) = caps.display_server {
+            assert!(formats.contains(&ds));
+        }
         for cap in &caps.device_caps {
             assert!(formats.contains(cap));
         }
@@ -1624,7 +1643,7 @@ mod tests {
         // Summary string format test
         let sum = summary();
         assert!(!sum.is_empty());
-        assert!(sum.contains('(') && sum.contains(')'));
+        assert!(sum.contains('[') && sum.contains(']'));
     }
 
     #[crate::ctb_test]
@@ -1647,8 +1666,26 @@ mod tests {
             desc.has_format(FormatId::RenderModeInteractive),
             caps.render_modes.contains(&FormatId::RenderModeInteractive)
         );
-        assert!(desc.is_os_compatible(ident.os));
-        assert!(desc.is_os_compatible(ident.kernel));
+        if let Some(os) = ident.os {
+            assert!(desc.is_os_compatible(os));
+        }
+        if let Some(kernel) = ident.kernel {
+            assert!(desc.is_os_compatible(kernel));
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_decode_environment_unconfirmed() {
+        let (ident, caps) = detection::decode_environment_from_formats(&[], None);
+        assert_eq!(ident.os, None);
+        assert_eq!(ident.kernel, None);
+        assert_eq!(ident.libc, None);
+        assert_eq!(ident.architecture, None);
+        assert!(ident.userspace.is_empty());
+        assert!(ident.os_families.is_empty());
+        assert_eq!(caps.display_server, None);
+        let summary = detection::format_environment_summary(&ident, &caps);
+        assert_eq!(summary, "Unknown OS [Headless]");
     }
 }
 

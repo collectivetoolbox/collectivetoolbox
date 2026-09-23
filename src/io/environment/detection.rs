@@ -37,9 +37,9 @@ use serde::{Deserialize, Serialize};
 /// Operating system, kernel, libc, userspace, and architecture identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EnvironmentIdentity {
-    /// Authoritative kernel format (e.g. `FormatId::Linux`,
+    /// Authoritative kernel format if detected (e.g. `FormatId::Linux`,
     /// `FormatId::Xnu`, `FormatId::WinNtKernel`, `FormatId::Wsl2`).
-    pub kernel: FormatId,
+    pub kernel: Option<FormatId>,
     /// Kernel release / version string if available (e.g. "6.12.11-amd64").
     pub kernel_version: Option<String>,
     /// Authoritative C standard library if detected (e.g. `FormatId::Gnu`,
@@ -47,13 +47,14 @@ pub struct EnvironmentIdentity {
     pub libc: Option<FormatId>,
     /// Active userspace environments, utilities, and subsystems.
     pub userspace: Vec<FormatId>,
-    /// Primary operating system format (e.g. `FormatId::GnuLinux`,
+    /// Primary operating system format if detected (e.g. `FormatId::GnuLinux`,
     /// `FormatId::MacOsDarwin`, `FormatId::Windows`).
-    pub os: FormatId,
+    pub os: Option<FormatId>,
     /// Operating system family ancestor formats (e.g. `[FormatId::Unix]`).
     pub os_families: Vec<FormatId>,
-    /// Machine architecture format (e.g. `FormatId::amd64`, `FormatId::arm64`).
-    pub architecture: FormatId,
+    /// Machine architecture format if detected (e.g. `FormatId::amd64`,
+    /// `FormatId::arm64`).
+    pub architecture: Option<FormatId>,
 }
 
 impl Default for EnvironmentIdentity {
@@ -77,7 +78,7 @@ pub struct EnvironmentCapabilities {
     /// Active display server protocol if any (e.g. `FormatId::WaylandDisplay`,
     /// `FormatId::X11Display`, `FormatId::QuartzDisplay`,
     /// `FormatId::Win32Display`, or `FormatId::HeadlessDisplay`).
-    pub display_server: FormatId,
+    pub display_server: Option<FormatId>,
     /// Standard input is connected to an interactive terminal.
     pub is_stdin_terminal: bool,
     /// Standard output is connected to an interactive terminal.
@@ -94,17 +95,17 @@ impl Default for EnvironmentCapabilities {
 
 /// Detect the target machine architecture as an authoritative [`FormatId`].
 #[must_use]
-pub fn detect_architecture() -> FormatId {
+pub fn detect_architecture() -> Option<FormatId> {
     if cfg!(target_arch = "x86_64") {
-        FormatId::amd64
+        Some(FormatId::amd64)
     } else if cfg!(target_arch = "aarch64") {
-        FormatId::arm64
+        Some(FormatId::arm64)
     } else if cfg!(target_arch = "x86") {
-        FormatId::x86
+        Some(FormatId::x86)
     } else if cfg!(target_arch = "arm") {
-        FormatId::arm
+        Some(FormatId::arm)
     } else {
-        FormatId::amd64
+        None
     }
 }
 
@@ -145,113 +146,48 @@ pub fn detect_identity() -> EnvironmentIdentity {
 
     // 1. Architecture detection
     let architecture = detect_architecture();
-    detected.push(architecture);
+    if let Some(arch) = architecture {
+        detected.push(arch);
+    }
 
     // 2. Kernel & OS probing
     let kernel_version = probe_linux_procfs(&mut detected);
 
-    if cfg!(target_os = "linux") {
-        detected.push(FormatId::Linux);
-        detected.push(FormatId::Unix);
-        if cfg!(target_os = "android") {
-            detected.push(FormatId::Android);
-        } else {
-            detected.push(FormatId::GnuLinux);
-        }
+    if cfg!(target_os = "android") {
+        detected.push(FormatId::Android);
+    } else if cfg!(target_os = "linux") {
+        detected.push(FormatId::GnuLinux);
     } else if cfg!(target_os = "macos") {
         detected.push(FormatId::MacOsDarwin);
-        detected.push(FormatId::MacOs);
-        detected.push(FormatId::Xnu);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Darwin);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "ios") {
         detected.push(FormatId::AppleIos);
-        detected.push(FormatId::Xnu);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Darwin);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "watchos") {
         detected.push(FormatId::WatchOs);
-        detected.push(FormatId::Xnu);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Darwin);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "tvos") {
         detected.push(FormatId::TvOs);
-        detected.push(FormatId::Xnu);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Darwin);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "visionos") {
         detected.push(FormatId::VisionOs);
-        detected.push(FormatId::Xnu);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Darwin);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "windows") {
-        detected.push(FormatId::Windows);
         detected.push(FormatId::WinNt);
-        detected.push(FormatId::WinNtKernel);
-        detected.push(FormatId::Win32Subsystem);
     } else if cfg!(target_os = "freebsd") {
         detected.push(FormatId::FreeBsd);
-        detected.push(FormatId::BsdKernel);
-        detected.push(FormatId::BsdLibc);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "openbsd") {
         detected.push(FormatId::OpenBsd);
-        detected.push(FormatId::BsdKernel);
-        detected.push(FormatId::BsdLibc);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "netbsd") {
         detected.push(FormatId::NetBsd);
-        detected.push(FormatId::BsdKernel);
-        detected.push(FormatId::BsdLibc);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "dragonfly") {
         detected.push(FormatId::DragonFlyBsd);
-        detected.push(FormatId::BsdKernel);
-        detected.push(FormatId::BsdLibc);
-        detected.push(FormatId::Unix);
     } else if cfg!(target_os = "hurd") || Path::new("/servers/socket").exists() {
         detected.push(FormatId::Hurd);
-        detected.push(FormatId::GnuMach);
-        detected.push(FormatId::Mach);
-        detected.push(FormatId::Gnu);
-        detected.push(FormatId::GnuUtilities);
-        detected.push(FormatId::Unix);
+    } else if super::looks_like_nextstep_or_openstep() {
+        detected.push(FormatId::NextStep);
     } else if cfg!(unix) {
         detected.push(FormatId::Unix);
     }
 
-    // 3. Libc detection
+    // 3. Libc overrides (when distinct from OS default implied libc)
     if cfg!(target_env = "musl") {
         detected.push(FormatId::MuslLibc);
-    } else if cfg!(target_env = "gnu") {
-        detected.push(FormatId::Gnu);
-        detected.push(FormatId::GnuUtilities);
-    } else if cfg!(target_os = "android") {
-        detected.push(FormatId::BionicLibc);
-        detected.push(FormatId::BionicUserspace);
-    } else if cfg!(any(
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "watchos",
-        target_os = "tvos",
-        target_os = "visionos"
-    )) {
-        detected.push(FormatId::Darwin);
-    } else if cfg!(any(
-        target_os = "freebsd",
-        target_os = "openbsd",
-        target_os = "netbsd",
-        target_os = "dragonfly"
-    )) {
-        detected.push(FormatId::BsdLibc);
-    } else if cfg!(target_os = "linux") {
-        detected.push(FormatId::Gnu);
-        detected.push(FormatId::GnuUtilities);
     }
 
     // 4. Userspace environments, subsystems, and package managers
@@ -288,35 +224,42 @@ pub fn detect_identity() -> EnvironmentIdentity {
         detected.push(FormatId::Guix);
     }
 
+    // Expand implied formats from declarative @implies(...) directives
+    let initial = detected.clone();
+    for id in initial {
+        for &implied in id.implies() {
+            detected.push(implied);
+        }
+    }
+
     // Deduplicate detected formats
     let mut seen = HashSet::new();
     detected.retain(|id| seen.insert(*id));
 
     // Derive EnvironmentIdentity from detected formats
     let kernel = if detected.contains(&FormatId::Wsl2) {
-        FormatId::Wsl2
+        Some(FormatId::Wsl2)
     } else if detected.contains(&FormatId::Wsl) {
-        FormatId::Wsl
+        Some(FormatId::Wsl)
     } else if detected.contains(&FormatId::Linux) {
-        FormatId::Linux
+        Some(FormatId::Linux)
     } else if detected.contains(&FormatId::Xnu) {
-        FormatId::Xnu
+        Some(FormatId::Xnu)
     } else if detected.contains(&FormatId::WinNtKernel) {
-        FormatId::WinNtKernel
+        Some(FormatId::WinNtKernel)
     } else if detected.contains(&FormatId::BsdKernel) {
-        FormatId::BsdKernel
+        Some(FormatId::BsdKernel)
     } else if detected.contains(&FormatId::Hurd) {
-        FormatId::Hurd
+        Some(FormatId::Hurd)
     } else if detected.contains(&FormatId::GnuMach) {
-        FormatId::GnuMach
+        Some(FormatId::GnuMach)
     } else if detected.contains(&FormatId::Mach) {
-        FormatId::Mach
+        Some(FormatId::Mach)
     } else {
         detected
             .iter()
             .copied()
             .find(|f| f.category() == FormatCategory::Kernel)
-            .unwrap_or(FormatId::Linux)
     };
 
     let libc = detected
@@ -325,39 +268,47 @@ pub fn detect_identity() -> EnvironmentIdentity {
         .find(|f| f.category() == FormatCategory::Libc);
 
     let os = if detected.contains(&FormatId::MacOsDarwin) {
-        FormatId::MacOsDarwin
+        Some(FormatId::MacOsDarwin)
     } else if detected.contains(&FormatId::AppleIos) {
-        FormatId::AppleIos
+        Some(FormatId::AppleIos)
     } else if detected.contains(&FormatId::WatchOs) {
-        FormatId::WatchOs
+        Some(FormatId::WatchOs)
     } else if detected.contains(&FormatId::TvOs) {
-        FormatId::TvOs
+        Some(FormatId::TvOs)
     } else if detected.contains(&FormatId::VisionOs) {
-        FormatId::VisionOs
+        Some(FormatId::VisionOs)
     } else if detected.contains(&FormatId::WinNt) {
-        FormatId::WinNt
+        Some(FormatId::WinNt)
     } else if detected.contains(&FormatId::Windows) {
-        FormatId::Windows
+        Some(FormatId::Windows)
     } else if detected.contains(&FormatId::FreeBsd) {
-        FormatId::FreeBsd
+        Some(FormatId::FreeBsd)
     } else if detected.contains(&FormatId::OpenBsd) {
-        FormatId::OpenBsd
+        Some(FormatId::OpenBsd)
     } else if detected.contains(&FormatId::NetBsd) {
-        FormatId::NetBsd
+        Some(FormatId::NetBsd)
     } else if detected.contains(&FormatId::DragonFlyBsd) {
-        FormatId::DragonFlyBsd
+        Some(FormatId::DragonFlyBsd)
     } else if detected.contains(&FormatId::Android) {
-        FormatId::Android
+        Some(FormatId::Android)
     } else if detected.contains(&FormatId::GnuLinux) || detected.contains(&FormatId::Linux) {
-        FormatId::GnuLinux
+        Some(FormatId::GnuLinux)
     } else if detected.contains(&FormatId::NextStep) {
-        FormatId::NextStep
+        Some(FormatId::NextStep)
     } else {
         detected
             .iter()
             .copied()
-            .find(|f| f.category() == FormatCategory::Os)
-            .unwrap_or(FormatId::Unix)
+            .find(|f| {
+                f.category() == FormatCategory::Os
+                    && !matches!(
+                        f,
+                        FormatId::Unix
+                            | FormatId::Windows
+                            | FormatId::MacOs
+                            | FormatId::WinClassic
+                    )
+            })
     };
 
     let os_families: Vec<FormatId> = detected
@@ -401,17 +352,17 @@ pub fn detect_identity() -> EnvironmentIdentity {
 
 /// Detect the active display protocol and windowing context.
 #[must_use]
-pub fn detect_display_server() -> FormatId {
+pub fn detect_display_server() -> Option<FormatId> {
     if env::var_os("WAYLAND_DISPLAY").is_some() {
-        FormatId::WaylandDisplay
+        Some(FormatId::WaylandDisplay)
     } else if env::var_os("DISPLAY").is_some() {
-        FormatId::X11Display
+        Some(FormatId::X11Display)
     } else if cfg!(target_os = "macos") && env::var_os("SSH_CONNECTION").is_none() {
-        FormatId::QuartzDisplay
+        Some(FormatId::QuartzDisplay)
     } else if cfg!(target_os = "windows") {
-        FormatId::Win32Display
+        Some(FormatId::Win32Display)
     } else {
-        FormatId::HeadlessDisplay
+        Some(FormatId::HeadlessDisplay)
     }
 }
 
@@ -425,7 +376,7 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
     let display_server = detect_display_server();
 
     let mut device_caps = Vec::new();
-    if display_server != FormatId::HeadlessDisplay {
+    if !matches!(display_server, None | Some(FormatId::HeadlessDisplay)) {
         device_caps.push(FormatId::RasterDisplay);
         device_caps.push(FormatId::RasterColors24bit);
     }
@@ -445,6 +396,7 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
     }
 
     if is_stdout_terminal {
+        // Reason for fallback: unset TERM defaults to empty string baseline
         let term = env::var("TERM").unwrap_or_default();
         if term == "dumb" {
             device_caps.push(FormatId::Teleprinter);
@@ -454,11 +406,14 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
         } else {
             device_caps.push(FormatId::Videoterminal);
             terminal_caps.push(FormatId::Videoterminal);
+            // FIXME: It should check terminfo (with bundled database), not guess.
             terminal_caps.push(FormatId::Vt100);
             terminal_caps.push(FormatId::TerminalCanEdit);
             terminal_caps.push(FormatId::TerminalCanEditPastLines);
+            // FIXME: Mouse support is not standard ability of most terminals. It should be detected if possible or user-configured.
             terminal_caps.push(FormatId::TerminalMouse);
 
+            // Reason for fallback: unset COLORTERM defaults to empty string baseline
             let colorterm = env::var("COLORTERM")
                 .unwrap_or_default()
                 .to_ascii_lowercase();
@@ -473,6 +428,7 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
             if env::var_os("KITTY_WINDOW_ID").is_some() || term == "xterm-kitty" {
                 terminal_caps.push(FormatId::TerminalKittyGraphics);
             }
+            // Reason for fallback: unset TERM_PROGRAM defaults to empty string baseline
             let term_prog = env::var("TERM_PROGRAM").unwrap_or_default();
             if term_prog == "iTerm.app" || term_prog == "WezTerm" {
                 terminal_caps.push(FormatId::TerminalIterm2Graphics);
@@ -507,20 +463,28 @@ pub fn collect_all_format_ids(
     caps: &EnvironmentCapabilities,
 ) -> Vec<FormatId> {
     let mut ids = Vec::new();
-    ids.push(ident.kernel);
+    if let Some(kernel) = ident.kernel {
+        ids.push(kernel);
+    }
     if let Some(libc) = ident.libc {
         ids.push(libc);
     }
     for u in &ident.userspace {
         ids.push(*u);
     }
-    ids.push(ident.os);
+    if let Some(os) = ident.os {
+        ids.push(os);
+    }
     for fam in &ident.os_families {
         ids.push(*fam);
     }
-    ids.push(ident.architecture);
+    if let Some(arch) = ident.architecture {
+        ids.push(arch);
+    }
 
-    ids.push(caps.display_server);
+    if let Some(ds) = caps.display_server {
+        ids.push(ds);
+    }
     for cap in &caps.device_caps {
         ids.push(*cap);
     }
@@ -553,16 +517,16 @@ pub fn check_has_format(
     caps: &EnvironmentCapabilities,
     format: FormatId,
 ) -> bool {
-    if ident.kernel == format
+    if ident.kernel == Some(format)
         || ident.libc == Some(format)
         || ident.userspace.contains(&format)
-        || ident.os == format
+        || ident.os == Some(format)
         || ident.os_families.contains(&format)
-        || ident.architecture == format
+        || ident.architecture == Some(format)
     {
         return true;
     }
-    if caps.display_server == format
+    if caps.display_server == Some(format)
         || caps.device_caps.contains(&format)
         || caps.render_modes.contains(&format)
         || caps.terminal_caps.contains(&format)
@@ -580,6 +544,10 @@ pub fn check_has_format(
 /// Decode [`EnvironmentIdentity`] and [`EnvironmentCapabilities`] from
 /// a slice of [`FormatId`] formats and an optional kernel version string,
 /// classifying each format by its declarative [`FormatCategory`].
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive environment decoding across multiple format categories"
+)]
 #[must_use]
 pub fn decode_environment_from_formats(
     formats: &[FormatId],
@@ -599,7 +567,17 @@ pub fn decode_environment_from_formats(
     let mut is_stdout_terminal = false;
     let mut is_stderr_terminal = false;
 
+    // Expand implied formats from declarative @implies(...) directives
+    let mut expanded = formats.to_vec();
     for &f in formats {
+        for &imp in f.implies() {
+            if !expanded.contains(&imp) {
+                expanded.push(imp);
+            }
+        }
+    }
+
+    for &f in &expanded {
         match f.category() {
             FormatCategory::Kernel => {
                 if let Some(prev) = kernel {
@@ -656,11 +634,6 @@ pub fn decode_environment_from_formats(
                     if !os_families.contains(&f) {
                         os_families.push(f);
                     }
-                }
-                if primary_os.is_none()
-                    && !matches!(f, FormatId::Unix | FormatId::WinClassic)
-                {
-                    primary_os = Some(f);
                 } else if primary_os.is_none() {
                     primary_os = Some(f);
                 } else if !os_families.contains(&f) {
@@ -700,20 +673,20 @@ pub fn decode_environment_from_formats(
     }
 
     let ident = EnvironmentIdentity {
-        kernel: kernel.unwrap_or(FormatId::Linux),
+        kernel,
         kernel_version,
         libc,
         userspace,
-        os: primary_os.unwrap_or(FormatId::GnuLinux),
+        os: primary_os,
         os_families,
-        architecture: architecture.unwrap_or(FormatId::amd64),
+        architecture,
     };
 
     let caps = EnvironmentCapabilities {
         device_caps,
         render_modes,
         terminal_caps,
-        display_server: display_server.unwrap_or(FormatId::HeadlessDisplay),
+        display_server,
         is_stdin_terminal,
         is_stdout_terminal,
         is_stderr_terminal,
@@ -728,25 +701,43 @@ pub fn format_environment_summary(
     ident: &EnvironmentIdentity,
     caps: &EnvironmentCapabilities,
 ) -> String {
-    let os_name = ident.os.title().unwrap_or_else(|| ident.os.ident());
-
-    let kernel_str = if let Some(ver) = &ident.kernel_version {
-        format!("{} {}", ident.kernel.ident(), ver)
+    let os_name = if let Some(os) = ident.os {
+        // Reason for fallback: formats without custom display title fall back to canonical ident
+        os.title().unwrap_or_else(|| os.ident())
     } else {
-        ident.kernel.ident().to_string()
+        "Unknown OS"
     };
 
-    let libc_str = if let Some(libc) = ident.libc {
-        format!(" / {}", libc.ident())
-    } else {
+    let mut parts = Vec::new();
+    if let Some(kernel) = ident.kernel {
+        if let Some(ver) = &ident.kernel_version {
+            parts.push(format!("{} {}", kernel.ident(), ver));
+        } else {
+            parts.push(kernel.ident().to_string());
+        }
+    } else if let Some(ver) = &ident.kernel_version {
+        parts.push(ver.clone());
+    }
+
+    if let Some(libc) = ident.libc {
+        parts.push(format!("/ {}", libc.ident()));
+    }
+
+    if let Some(arch) = ident.architecture {
+        parts.push(arch.ident().to_string());
+    }
+
+    let identity_details = if parts.is_empty() {
         String::new()
+    } else {
+        format!(" ({})", parts.join(" "))
     };
-
-    let arch_str = ident.architecture.ident();
 
     let mut cap_tags = Vec::new();
-    if caps.display_server != FormatId::HeadlessDisplay {
-        cap_tags.push(caps.display_server.ident());
+    if let Some(ds) = caps.display_server {
+        if ds != FormatId::HeadlessDisplay {
+            cap_tags.push(ds.ident());
+        }
     }
     if caps.device_caps.contains(&FormatId::RasterDisplay) {
         cap_tags.push("RasterDisplay");
@@ -766,5 +757,5 @@ pub fn format_environment_summary(
         cap_tags.join(" + ")
     };
 
-    format!("{os_name} ({kernel_str}{libc_str} {arch_str}) [{caps_summary}]")
+    format!("{os_name}{identity_details} [{caps_summary}]")
 }

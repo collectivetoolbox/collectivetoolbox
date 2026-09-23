@@ -983,6 +983,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
         category: String,
         nicknames: Vec<String>,
         title: Option<String>,
+        implies_shorts: Vec<usize>,
     }
 
     let mut records: Vec<FormatRowData> = Vec::new();
@@ -1055,12 +1056,27 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                         };
 
                         let raw_base = get(5);
-                        let title = if raw_base.is_empty() {
-                            None
+                        let (title, implies_shorts) = if raw_base.is_empty() {
+                            (None, Vec::new())
                         } else {
                             let mut report = crate::report::ValidationReport::new();
                             let parsed = crate::column_spec::parse_aliases_or_base_column(&raw_base, file_name, 0, &mut report, true);
-                            parsed.title
+                            let mut shorts = Vec::new();
+                            for expr in &parsed.implies {
+                                for conj in expr.split('&') {
+                                    let trimmed = conj.trim().trim_start_matches('(').trim_end_matches(')');
+                                    if !trimmed.contains('|') {
+                                        if let Some(num_str) = trimmed.strip_prefix('f') {
+                                            if let Ok(id) = num_str.parse::<usize>() {
+                                                if !shorts.contains(&id) {
+                                                    shorts.push(id);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            (parsed.title, shorts)
                         };
 
                         records.push(FormatRowData {
@@ -1071,6 +1087,7 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
                             category,
                             nicknames,
                             title,
+                            implies_shorts,
                         });
                     }
                 }
@@ -1203,6 +1220,64 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
+    let short_to_ident: HashMap<usize, String> = records
+        .iter()
+        .map(|r| (r.short_id, r.ident.clone()))
+        .collect();
+    let direct_implies: HashMap<usize, Vec<usize>> = records
+        .iter()
+        .map(|r| (r.short_id, r.implies_shorts.clone()))
+        .collect();
+
+    let mut transitive_implies: HashMap<usize, Vec<String>> = HashMap::new();
+    for r in &records {
+        let mut seen = HashSet::new();
+        let mut queue = r.implies_shorts.clone();
+        let mut implied_idents = Vec::new();
+        while let Some(short_id) = queue.pop() {
+            if short_id != r.short_id && seen.insert(short_id) {
+                if let Some(ident) = short_to_ident.get(&short_id) {
+                    implied_idents.push(ident.clone());
+                }
+                if let Some(next_shorts) = direct_implies.get(&short_id) {
+                    for &next in next_shorts {
+                        if !seen.contains(&next) {
+                            queue.push(next);
+                        }
+                    }
+                }
+            }
+        }
+        implied_idents.sort();
+        implied_idents.dedup();
+        if !implied_idents.is_empty() {
+            transitive_implies.insert(r.short_id, implied_idents);
+        }
+    }
+
+    out.push_str("    /// Returns the slice of formats directly and transitively implied by this format,\n");
+    out.push_str("    /// as declared by `@implies(...)` directives in format tables.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn implies(&self) -> &'static [Self] {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        if let Some(implied) = transitive_implies.get(&r.short_id) {
+            if !implied.is_empty() {
+                out.push_str(&format!("            Self::{} => &[", r.ident));
+                for (i, id) in implied.iter().enumerate() {
+                    if i > 0 {
+                        out.push_str(", ");
+                    }
+                    out.push_str(&format!("Self::{id}"));
+                }
+                out.push_str("],\n");
+            }
+        }
+    }
+    out.push_str("            _ => &[],\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
     out.push_str("    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n");
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn shorthand(&self) -> &'static str {\n");
@@ -1308,8 +1383,9 @@ pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
 /// Extracts the ident annotation from an aliases / annotations string, if present.
 fn extract_ident_annotation(s: &str) -> Option<String> {
     if let Some(pos) = s.find("@ident(") {
-        let rest = &s[pos.saturating_add(7)..];
+        let rest = s.get(pos.saturating_add(7)..)?;
         if let Some(end) = rest.find(')') {
+            // Reason for fallback: slice boundary failure defaults to empty string
             let inner = rest.get(..end).unwrap_or("").trim().trim_matches('"');
             if !inner.is_empty() {
                 return Some(inner.to_string());
@@ -1356,6 +1432,7 @@ pub fn generate_dc_code(categories_dir: &Path) -> Result<String> {
                         if is_empty_row(&row) {
                             continue;
                         }
+                        // Reason for fallback: absent or out-of-range cells default to empty string
                         let get = |idx: usize| -> String {
                             row.get(idx).cloned().unwrap_or_default()
                         };
