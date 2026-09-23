@@ -825,13 +825,13 @@ pub enum FormatId {
     Hurd,
     /// XNU (X is Not Unix) (Short 394, Category: kernel)
     Xnu,
-    /// GNU userland (Short 395, Category: userland)
+    /// GNU libc (Short 395, Category: libc)
     Gnu,
-    /// Darwin userland (Short 396, Category: userland)
+    /// Darwin libc (Short 396, Category: libc)
     Darwin,
-    /// BSD userland family (Short 397, Category: userland)
-    BsdUserland,
-    /// GNU/Linux Linux kernel with GNU userland (Short 398, Category: os)
+    /// BSD libc family (Short 397, Category: libc)
+    BsdLibc,
+    /// GNU/Linux Linux kernel with GNU libc and utilities (Short 398, Category: os)
     GnuLinux,
     /// Android (Short 399, Category: os)
     Android,
@@ -1029,7 +1029,7 @@ pub enum FormatId {
     TvOs,
     /// Apple visionOS (Short 496, Category: os)
     VisionOs,
-    /// GNUstep environment (Short 497, Category: userland)
+    /// GNUstep environment (Short 497, Category: userspace)
     GnuStep,
     /// NeXTSTEP / OPENSTEP environment (Short 498, Category: os)
     NextStep,
@@ -1123,6 +1123,96 @@ pub enum FormatId {
     Iso88591,
     /// ActionScript (Short 543, Category: programming)
     ActionScript,
+    /// X11 window system (Short 544, Category: device_caps)
+    X11Display,
+    /// Wayland display protocol (Short 545, Category: device_caps)
+    WaylandDisplay,
+    /// Quartz compositor (Short 546, Category: device_caps)
+    QuartzDisplay,
+    /// Windows desktop windowing (Short 547, Category: device_caps)
+    Win32Display,
+    /// Headless display (no display server) (Short 548, Category: device_caps)
+    HeadlessDisplay,
+    /// Raster display is able to display monochrome graphics (Short 549, Category: device_caps)
+    RasterColors1bit,
+    /// Raster display is able to display “True Color” graphics (Short 550, Category: device_caps)
+    RasterColors24bit,
+    /// Terminal display is monochrome (no color) (Short 551, Category: device_caps)
+    TerminalColors1bit,
+    /// Terminal display supports 4-bit color (specific colors may vary) (Short 552, Category: device_caps)
+    TerminalColors4bit,
+    /// Terminal display supports 8-bit color (specific colors may vary) (Short 553, Category: device_caps)
+    TerminalColors8bit,
+    /// Terminal display supports 24-bit color (“True Color”) (Short 554, Category: device_caps)
+    TerminalColors24bit,
+    /// Monochrome color depth (Short 555, Category: color_depth)
+    ColorDepth1bit,
+    /// “True Color” 24-bit color (Short 556, Category: color_depth)
+    ColorDepth24bit,
+    /// Replicant (Short 557, Category: os)
+    Replicant,
+    /// Dragora GNU/Linux-Libre (Short 558, Category: os)
+    Dragora,
+    /// Dyne:bolic (Short 559, Category: os)
+    Dynebolic,
+    /// Guix System (Short 560, Category: os)
+    GuixSystem,
+    /// Guix package manager (Short 561, Category: packagemgr)
+    Guix,
+    /// Homebrew package manager (Short 562, Category: packagemgr)
+    Homebrew,
+    /// MacPorts package manager (Short 563, Category: packagemgr)
+    MacPorts,
+    /// Hyperbola GNU/Linux-libre (Short 564, Category: os)
+    Hyperbola,
+    /// Parabola GNU/Linux-libre (Short 565, Category: os)
+    ParabolaGll,
+    /// PureOS (Short 566, Category: os)
+    PureOs,
+    /// Trisquel (Short 567, Category: os)
+    Trisquel,
+    /// Ututo S (Short 568, Category: os)
+    UtutoS,
+    /// libreCMC (Short 569, Category: os)
+    LibreCmc,
+    /// ProteanOS (Short 570, Category: os)
+    ProteanOs,
+    /// Debian (Short 571, Category: os)
+    Debian,
+    /// Ubuntu (Short 572, Category: os)
+    Ubuntu,
+    /// Fedora (Short 573, Category: os)
+    Fedora,
+    /// RHEL (Short 574, Category: os)
+    Rhel,
+    /// Arch (Short 575, Category: os)
+    ArchLinux,
+    /// Alpine (Short 576, Category: os)
+    Alpine,
+    /// OpenSUSE (Short 577, Category: os)
+    OpenSuse,
+    /// Gentoo (Short 578, Category: os)
+    Gentoo,
+    /// NixOS (Short 579, Category: os)
+    NixOs,
+    /// Nix package manager (Short 580, Category: packagemgr)
+    Nix,
+    /// Windows Subsystem for Linux (Short 581, Category: kernel)
+    Wsl,
+    /// Windows Subsystem for Linux, version 2 (Short 582, Category: kernel)
+    Wsl2,
+    /// musl libc (Short 583, Category: libc)
+    MuslLibc,
+    /// BusyBox utilities (Short 584, Category: userspace_utilities)
+    BusyBoxUtilities,
+    /// Bionic libc (Bionic also provides some other libraries) (Short 585, Category: libc)
+    BionicLibc,
+    /// Windows user-mode API subsystem for Win32 applications (Short 586, Category: userspace_libraries)
+    Win32Subsystem,
+    /// GNU utilities (Short 587, Category: userspace_utilities)
+    GnuUtilities,
+    /// Bionic userspace (Short 588, Category: userspace)
+    BionicUserspace,
 }
 
 impl FormatId {
@@ -1679,7 +1769,7 @@ impl FormatId {
             "xnu" => Some(Self::Xnu),
             "gnu" => Some(Self::Gnu),
             "darwin" => Some(Self::Darwin),
-            "bsduserland" | "bsd_userland" => Some(Self::BsdUserland),
+            "bsdlibc" | "bsd_libc" => Some(Self::BsdLibc),
             "gnulinux" | "gnu_linux" => Some(Self::GnuLinux),
             "android" => Some(Self::Android),
             "msdoskernel" | "ms_dos_kernel" => Some(Self::MsDosKernel),
@@ -1826,6 +1916,51 @@ impl FormatId {
             "orderxyz" | "order_xyz" => Some(Self::OrderXYZ),
             "iso88591" => Some(Self::Iso88591),
             "actionscript" | "action_script" => Some(Self::ActionScript),
+            "x11display" | "x11_display" => Some(Self::X11Display),
+            "waylanddisplay" | "wayland_display" => Some(Self::WaylandDisplay),
+            "quartzdisplay" | "quartz_display" => Some(Self::QuartzDisplay),
+            "win32display" | "win32_display" => Some(Self::Win32Display),
+            "headlessdisplay" | "headless_display" => Some(Self::HeadlessDisplay),
+            "rastercolors1bit" | "raster_colors1bit" => Some(Self::RasterColors1bit),
+            "rastercolors24bit" | "raster_colors24bit" => Some(Self::RasterColors24bit),
+            "terminalcolors1bit" | "terminal_colors1bit" => Some(Self::TerminalColors1bit),
+            "terminalcolors4bit" | "terminal_colors4bit" => Some(Self::TerminalColors4bit),
+            "terminalcolors8bit" | "terminal_colors8bit" => Some(Self::TerminalColors8bit),
+            "terminalcolors24bit" | "terminal_colors24bit" => Some(Self::TerminalColors24bit),
+            "colordepth1bit" | "color_depth1bit" => Some(Self::ColorDepth1bit),
+            "colordepth24bit" | "color_depth24bit" => Some(Self::ColorDepth24bit),
+            "replicant" => Some(Self::Replicant),
+            "dragora" => Some(Self::Dragora),
+            "dynebolic" => Some(Self::Dynebolic),
+            "guixsystem" | "guix_system" => Some(Self::GuixSystem),
+            "guix" => Some(Self::Guix),
+            "homebrew" => Some(Self::Homebrew),
+            "macports" | "mac_ports" => Some(Self::MacPorts),
+            "hyperbola" => Some(Self::Hyperbola),
+            "parabolagll" | "parabola_gll" => Some(Self::ParabolaGll),
+            "pureos" | "pure_os" => Some(Self::PureOs),
+            "trisquel" => Some(Self::Trisquel),
+            "ututos" | "ututo_s" => Some(Self::UtutoS),
+            "librecmc" | "libre_cmc" => Some(Self::LibreCmc),
+            "proteanos" | "protean_os" => Some(Self::ProteanOs),
+            "debian" => Some(Self::Debian),
+            "ubuntu" => Some(Self::Ubuntu),
+            "fedora" => Some(Self::Fedora),
+            "rhel" => Some(Self::Rhel),
+            "archlinux" | "arch_linux" => Some(Self::ArchLinux),
+            "alpine" => Some(Self::Alpine),
+            "opensuse" | "open_suse" => Some(Self::OpenSuse),
+            "gentoo" => Some(Self::Gentoo),
+            "nixos" | "nix_os" => Some(Self::NixOs),
+            "nix" => Some(Self::Nix),
+            "wsl" => Some(Self::Wsl),
+            "wsl2" => Some(Self::Wsl2),
+            "musllibc" | "musl_libc" => Some(Self::MuslLibc),
+            "busyboxutilities" | "busy_box_utilities" => Some(Self::BusyBoxUtilities),
+            "bioniclibc" | "bionic_libc" => Some(Self::BionicLibc),
+            "win32subsystem" | "win32_subsystem" => Some(Self::Win32Subsystem),
+            "gnuutilities" | "gnu_utilities" => Some(Self::GnuUtilities),
+            "bionicuserspace" | "bionic_userspace" => Some(Self::BionicUserspace),
             _ => None,
         }
     }
@@ -2231,7 +2366,7 @@ impl FormatId {
             Self::Xnu => "Xnu",
             Self::Gnu => "Gnu",
             Self::Darwin => "Darwin",
-            Self::BsdUserland => "BsdUserland",
+            Self::BsdLibc => "BsdLibc",
             Self::GnuLinux => "GnuLinux",
             Self::Android => "Android",
             Self::MsDosKernel => "MsDosKernel",
@@ -2378,6 +2513,51 @@ impl FormatId {
             Self::OrderXYZ => "OrderXYZ",
             Self::Iso88591 => "Iso88591",
             Self::ActionScript => "ActionScript",
+            Self::X11Display => "X11Display",
+            Self::WaylandDisplay => "WaylandDisplay",
+            Self::QuartzDisplay => "QuartzDisplay",
+            Self::Win32Display => "Win32Display",
+            Self::HeadlessDisplay => "HeadlessDisplay",
+            Self::RasterColors1bit => "RasterColors1bit",
+            Self::RasterColors24bit => "RasterColors24bit",
+            Self::TerminalColors1bit => "TerminalColors1bit",
+            Self::TerminalColors4bit => "TerminalColors4bit",
+            Self::TerminalColors8bit => "TerminalColors8bit",
+            Self::TerminalColors24bit => "TerminalColors24bit",
+            Self::ColorDepth1bit => "ColorDepth1bit",
+            Self::ColorDepth24bit => "ColorDepth24bit",
+            Self::Replicant => "Replicant",
+            Self::Dragora => "Dragora",
+            Self::Dynebolic => "Dynebolic",
+            Self::GuixSystem => "GuixSystem",
+            Self::Guix => "Guix",
+            Self::Homebrew => "Homebrew",
+            Self::MacPorts => "MacPorts",
+            Self::Hyperbola => "Hyperbola",
+            Self::ParabolaGll => "ParabolaGll",
+            Self::PureOs => "PureOs",
+            Self::Trisquel => "Trisquel",
+            Self::UtutoS => "UtutoS",
+            Self::LibreCmc => "LibreCmc",
+            Self::ProteanOs => "ProteanOs",
+            Self::Debian => "Debian",
+            Self::Ubuntu => "Ubuntu",
+            Self::Fedora => "Fedora",
+            Self::Rhel => "Rhel",
+            Self::ArchLinux => "ArchLinux",
+            Self::Alpine => "Alpine",
+            Self::OpenSuse => "OpenSuse",
+            Self::Gentoo => "Gentoo",
+            Self::NixOs => "NixOs",
+            Self::Nix => "Nix",
+            Self::Wsl => "Wsl",
+            Self::Wsl2 => "Wsl2",
+            Self::MuslLibc => "MuslLibc",
+            Self::BusyBoxUtilities => "BusyBoxUtilities",
+            Self::BionicLibc => "BionicLibc",
+            Self::Win32Subsystem => "Win32Subsystem",
+            Self::GnuUtilities => "GnuUtilities",
+            Self::BionicUserspace => "BionicUserspace",
         }
     }
 
@@ -2783,7 +2963,7 @@ impl FormatId {
             "f394" | "394" => Some(Self::Xnu),
             "f395" | "395" => Some(Self::Gnu),
             "f396" | "396" => Some(Self::Darwin),
-            "f397" | "397" => Some(Self::BsdUserland),
+            "f397" | "397" => Some(Self::BsdLibc),
             "f398" | "398" => Some(Self::GnuLinux),
             "f399" | "399" => Some(Self::Android),
             "f400" | "400" => Some(Self::MsDosKernel),
@@ -2930,6 +3110,51 @@ impl FormatId {
             "f541" | "541" => Some(Self::OrderXYZ),
             "f542" | "542" => Some(Self::Iso88591),
             "f543" | "543" => Some(Self::ActionScript),
+            "f544" | "544" => Some(Self::X11Display),
+            "f545" | "545" => Some(Self::WaylandDisplay),
+            "f546" | "546" => Some(Self::QuartzDisplay),
+            "f547" | "547" => Some(Self::Win32Display),
+            "f548" | "548" => Some(Self::HeadlessDisplay),
+            "f549" | "549" => Some(Self::RasterColors1bit),
+            "f550" | "550" => Some(Self::RasterColors24bit),
+            "f551" | "551" => Some(Self::TerminalColors1bit),
+            "f552" | "552" => Some(Self::TerminalColors4bit),
+            "f553" | "553" => Some(Self::TerminalColors8bit),
+            "f554" | "554" => Some(Self::TerminalColors24bit),
+            "f555" | "555" => Some(Self::ColorDepth1bit),
+            "f556" | "556" => Some(Self::ColorDepth24bit),
+            "f557" | "557" => Some(Self::Replicant),
+            "f558" | "558" => Some(Self::Dragora),
+            "f559" | "559" => Some(Self::Dynebolic),
+            "f560" | "560" => Some(Self::GuixSystem),
+            "f561" | "561" => Some(Self::Guix),
+            "f562" | "562" => Some(Self::Homebrew),
+            "f563" | "563" => Some(Self::MacPorts),
+            "f564" | "564" => Some(Self::Hyperbola),
+            "f565" | "565" => Some(Self::ParabolaGll),
+            "f566" | "566" => Some(Self::PureOs),
+            "f567" | "567" => Some(Self::Trisquel),
+            "f568" | "568" => Some(Self::UtutoS),
+            "f569" | "569" => Some(Self::LibreCmc),
+            "f570" | "570" => Some(Self::ProteanOs),
+            "f571" | "571" => Some(Self::Debian),
+            "f572" | "572" => Some(Self::Ubuntu),
+            "f573" | "573" => Some(Self::Fedora),
+            "f574" | "574" => Some(Self::Rhel),
+            "f575" | "575" => Some(Self::ArchLinux),
+            "f576" | "576" => Some(Self::Alpine),
+            "f577" | "577" => Some(Self::OpenSuse),
+            "f578" | "578" => Some(Self::Gentoo),
+            "f579" | "579" => Some(Self::NixOs),
+            "f580" | "580" => Some(Self::Nix),
+            "f581" | "581" => Some(Self::Wsl),
+            "f582" | "582" => Some(Self::Wsl2),
+            "f583" | "583" => Some(Self::MuslLibc),
+            "f584" | "584" => Some(Self::BusyBoxUtilities),
+            "f585" | "585" => Some(Self::BionicLibc),
+            "f586" | "586" => Some(Self::Win32Subsystem),
+            "f587" | "587" => Some(Self::GnuUtilities),
+            "f588" | "588" => Some(Self::BionicUserspace),
             _ => None,
         }
     }
@@ -3335,7 +3560,7 @@ impl FormatId {
             Self::Xnu => Some(394),
             Self::Gnu => Some(395),
             Self::Darwin => Some(396),
-            Self::BsdUserland => Some(397),
+            Self::BsdLibc => Some(397),
             Self::GnuLinux => Some(398),
             Self::Android => Some(399),
             Self::MsDosKernel => Some(400),
@@ -3482,6 +3707,51 @@ impl FormatId {
             Self::OrderXYZ => Some(541),
             Self::Iso88591 => Some(542),
             Self::ActionScript => Some(543),
+            Self::X11Display => Some(544),
+            Self::WaylandDisplay => Some(545),
+            Self::QuartzDisplay => Some(546),
+            Self::Win32Display => Some(547),
+            Self::HeadlessDisplay => Some(548),
+            Self::RasterColors1bit => Some(549),
+            Self::RasterColors24bit => Some(550),
+            Self::TerminalColors1bit => Some(551),
+            Self::TerminalColors4bit => Some(552),
+            Self::TerminalColors8bit => Some(553),
+            Self::TerminalColors24bit => Some(554),
+            Self::ColorDepth1bit => Some(555),
+            Self::ColorDepth24bit => Some(556),
+            Self::Replicant => Some(557),
+            Self::Dragora => Some(558),
+            Self::Dynebolic => Some(559),
+            Self::GuixSystem => Some(560),
+            Self::Guix => Some(561),
+            Self::Homebrew => Some(562),
+            Self::MacPorts => Some(563),
+            Self::Hyperbola => Some(564),
+            Self::ParabolaGll => Some(565),
+            Self::PureOs => Some(566),
+            Self::Trisquel => Some(567),
+            Self::UtutoS => Some(568),
+            Self::LibreCmc => Some(569),
+            Self::ProteanOs => Some(570),
+            Self::Debian => Some(571),
+            Self::Ubuntu => Some(572),
+            Self::Fedora => Some(573),
+            Self::Rhel => Some(574),
+            Self::ArchLinux => Some(575),
+            Self::Alpine => Some(576),
+            Self::OpenSuse => Some(577),
+            Self::Gentoo => Some(578),
+            Self::NixOs => Some(579),
+            Self::Nix => Some(580),
+            Self::Wsl => Some(581),
+            Self::Wsl2 => Some(582),
+            Self::MuslLibc => Some(583),
+            Self::BusyBoxUtilities => Some(584),
+            Self::BionicLibc => Some(585),
+            Self::Win32Subsystem => Some(586),
+            Self::GnuUtilities => Some(587),
+            Self::BionicUserspace => Some(588),
         }
     }
 
@@ -3886,7 +4156,7 @@ impl FormatId {
             Self::Xnu => Some(2228618_u128),
             Self::Gnu => Some(2228619_u128),
             Self::Darwin => Some(2228620_u128),
-            Self::BsdUserland => Some(2228621_u128),
+            Self::BsdLibc => Some(2228621_u128),
             Self::GnuLinux => Some(2228622_u128),
             Self::Android => Some(2228623_u128),
             Self::MsDosKernel => Some(2228624_u128),
@@ -4033,6 +4303,51 @@ impl FormatId {
             Self::OrderXYZ => Some(2228765_u128),
             Self::Iso88591 => Some(2228766_u128),
             Self::ActionScript => Some(2228767_u128),
+            Self::X11Display => Some(2228768_u128),
+            Self::WaylandDisplay => Some(2228769_u128),
+            Self::QuartzDisplay => Some(2228770_u128),
+            Self::Win32Display => Some(2228771_u128),
+            Self::HeadlessDisplay => Some(2228772_u128),
+            Self::RasterColors1bit => Some(2228773_u128),
+            Self::RasterColors24bit => Some(2228774_u128),
+            Self::TerminalColors1bit => Some(2228775_u128),
+            Self::TerminalColors4bit => Some(2228776_u128),
+            Self::TerminalColors8bit => Some(2228777_u128),
+            Self::TerminalColors24bit => Some(2228778_u128),
+            Self::ColorDepth1bit => Some(2228779_u128),
+            Self::ColorDepth24bit => Some(2228780_u128),
+            Self::Replicant => Some(2228781_u128),
+            Self::Dragora => Some(2228782_u128),
+            Self::Dynebolic => Some(2228783_u128),
+            Self::GuixSystem => Some(2228784_u128),
+            Self::Guix => Some(2228785_u128),
+            Self::Homebrew => Some(2228786_u128),
+            Self::MacPorts => Some(2228787_u128),
+            Self::Hyperbola => Some(2228788_u128),
+            Self::ParabolaGll => Some(2228789_u128),
+            Self::PureOs => Some(2228790_u128),
+            Self::Trisquel => Some(2228791_u128),
+            Self::UtutoS => Some(2228792_u128),
+            Self::LibreCmc => Some(2228793_u128),
+            Self::ProteanOs => Some(2228794_u128),
+            Self::Debian => Some(2228795_u128),
+            Self::Ubuntu => Some(2228796_u128),
+            Self::Fedora => Some(2228797_u128),
+            Self::Rhel => Some(2228798_u128),
+            Self::ArchLinux => Some(2228799_u128),
+            Self::Alpine => Some(2228800_u128),
+            Self::OpenSuse => Some(2228801_u128),
+            Self::Gentoo => Some(2228802_u128),
+            Self::NixOs => Some(2228803_u128),
+            Self::Nix => Some(2228804_u128),
+            Self::Wsl => Some(2228805_u128),
+            Self::Wsl2 => Some(2228806_u128),
+            Self::MuslLibc => Some(2228807_u128),
+            Self::BusyBoxUtilities => Some(2228808_u128),
+            Self::BionicLibc => Some(2228809_u128),
+            Self::Win32Subsystem => Some(2228810_u128),
+            Self::GnuUtilities => Some(2228811_u128),
+            Self::BionicUserspace => Some(2228812_u128),
         }
     }
 }
