@@ -1212,13 +1212,13 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\" or \"405\").\n");
+    out.push_str("    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\").\n");
     out.push_str("    #[must_use]\n");
     out.push_str("    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n");
     out.push_str("        let trimmed = shorthand.trim();\n");
     out.push_str("        match trimmed {\n");
     for r in &records {
-        out.push_str(&format!("            \"f{}\" | \"{}\" => Some(Self::{}),\n", r.short_id, r.short_id, r.ident));
+        out.push_str(&format!("            \"f{}\" => Some(Self::{}),\n", r.short_id, r.short_id, r.ident));
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
