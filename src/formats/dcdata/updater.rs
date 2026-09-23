@@ -542,9 +542,9 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 
                             let format_category = get(4);
                             let script_cell = if format_category.is_empty() {
-                                "Formats".to_string()
+                                ".Formats".to_string()
                             } else {
-                                format!("Formats:{format_category}")
+                                format!(".Formats:{format_category}")
                             };
 
                             let clean_ident = ident.trim_start_matches('!').trim();

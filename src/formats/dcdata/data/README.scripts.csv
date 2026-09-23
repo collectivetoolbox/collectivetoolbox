@@ -1,272 +1,59 @@
-Script,Category,Description
-.Colors,Character,Colors
-.Controls,Character,Control characters
-.DCE,Character,DCE-specific characters
-.DCE sheets,Character,DCE sheet switches
-.DCE versions,Character,DCE versions
-.EL Miscellaneous,Character,Ember Language miscellaneous source characters
-.EL Operators,Character,Ember Language operational and syntactic characters
-.EL Routines,Character,Ember Language routine and function invocation characters
-.EL Syntax,Character,Ember Language syntactic framing and literal delimiters
-.EL Types,Character,Ember Language type identifiers
-.Emoji,Character,Emoji symbols and glyph variants
-.Encapsulation,Character,Base64 and binary data encapsulation characters
-.Financial,Character,Financial and currency symbols
-.Mathematics,Character,Mathematical operators and notations
-.Miscellaneous,Character,Miscellaneous Document Characters
-.Noncharacters,Character,Noncharacters reserved for internal processing
-.Punctuation,Character,Punctuation characters
-.Semantic,Character,Semantic metadata and structured relationship characters
-.Semantic:fileflag,Character,Semantic filesystem file attributes and flags
-.Styling,Character,Text styling and presentation control characters
-.Symbols,Character,Symbolic and iconographic characters
-.Variant selectors,Character,Document Character variant selector characters
-.Formats:arch,Format,Format category for arch
-.Formats:armor,Format,Format category for armor
-.Formats:base_alphabet,Format,Format category for base_alphabet
-.Formats:calendar,Format,Format category for calendar
-.Formats:color_depth,Format,Format category for color_depth
-.Formats:compression,Format,Format category for compression
-.Formats:container,Format,Format category for container
-.Formats:database,Format,Format category for database
-.Formats:date,Format,Format category for date
-.Formats:device_caps,Format,Format category for device_caps
-.Formats:document,Format,Format category for document
-.Formats:duration,Format,Format category for duration
-.Formats:encoding,Format,Format category for encoding
-.Formats:executable,Format,Format category for executable
-.Formats:filesystem,Format,Format category for filesystem
-.Formats:hash,Format,Format category for hash
-.Formats:identifier,Format,Format category for identifier
-.Formats:kernel,Format,Format category for kernel
-.Formats:language,Format,Format category for language
-.Formats:libc,Format,Format category for libc
-.Formats:math,Format,Format category for math
-.Formats:number,Format,Format category for number
-.Formats:number_abstract,Format,Format category for number_abstract
-.Formats:numeral_system,Format,Format category for numeral_system
-.Formats:os,Format,Format category for os
-.Formats:packagemgr,Format,Format category for packagemgr
-.Formats:programming,Format,Format category for programming
-.Formats:semantic,Format,Format category for semantic
-.Formats:transformation,Format,Format category for transformation
-.Formats:userspace,Format,Format category for userspace
-.Formats:userspace_libraries,Format,Format category for userspace_libraries
-.Formats:userspace_utilities,Format,Format category for userspace_utilities
-.Formats:v:lineEndings,Format,Format category for v:lineEndings
-.Formats:v:unicodePua,Format,Format category for v:unicodePua
-.Formats:videoterminal,Format,Format category for videoterminal
-.Formats:virtualfilesystem,Format,Format category for virtualfilesystem
-Adlam,Unicode,Unicode Standard script Adlam
-Afak,Unicode,Unicode Standard script Afak
-Ahom,Unicode,Unicode Standard script Ahom
-Anatolian_Hieroglyphs,Unicode,Unicode Standard script Anatolian_Hieroglyphs
-Arabic,Unicode,Unicode Standard script Arabic
-Aran,Unicode,Unicode Standard script Aran
-Armenian,Unicode,Unicode Standard script Armenian
-Avestan,Unicode,Unicode Standard script Avestan
-Balinese,Unicode,Unicode Standard script Balinese
-Bamum,Unicode,Unicode Standard script Bamum
-Bassa_Vah,Unicode,Unicode Standard script Bassa_Vah
-Batak,Unicode,Unicode Standard script Batak
-Bengali,Unicode,Unicode Standard script Bengali
-Beria_Erfe,Unicode,Unicode Standard script Beria_Erfe
-Bhaiksuki,Unicode,Unicode Standard script Bhaiksuki
-Blis,Unicode,Unicode Standard script Blis
-Bopomofo,Unicode,Unicode Standard script Bopomofo
-Brahmi,Unicode,Unicode Standard script Brahmi
-Braille,Unicode,Unicode Standard script Braille
-Buginese,Unicode,Unicode Standard script Buginese
-Buhid,Unicode,Unicode Standard script Buhid
-Canadian_Aboriginal,Unicode,Unicode Standard script Canadian_Aboriginal
-Carian,Unicode,Unicode Standard script Carian
-Caucasian_Albanian,Unicode,Unicode Standard script Caucasian_Albanian
-Chakma,Unicode,Unicode Standard script Chakma
-Cham,Unicode,Unicode Standard script Cham
-Cherokee,Unicode,Unicode Standard script Cherokee
-Chorasmian,Unicode,Unicode Standard script Chorasmian
-Cirt,Unicode,Unicode Standard script Cirt
-Common,Unicode,Unicode Standard script Common
-Coptic,Unicode,Unicode Standard script Coptic
-Cuneiform,Unicode,Unicode Standard script Cuneiform
-Cypriot,Unicode,Unicode Standard script Cypriot
-Cypro_Minoan,Unicode,Unicode Standard script Cypro_Minoan
-Cyrillic,Unicode,Unicode Standard script Cyrillic
-Cyrs,Unicode,Unicode Standard script Cyrs
-Deseret,Unicode,Unicode Standard script Deseret
-Devanagari,Unicode,Unicode Standard script Devanagari
-Dives_Akuru,Unicode,Unicode Standard script Dives_Akuru
-Dogra,Unicode,Unicode Standard script Dogra
-Duployan,Unicode,Unicode Standard script Duployan
-Egyd,Unicode,Unicode Standard script Egyd
-Egyh,Unicode,Unicode Standard script Egyh
-Egyptian_Hieroglyphs,Unicode,Unicode Standard script Egyptian_Hieroglyphs
-Elbasan,Unicode,Unicode Standard script Elbasan
-Elymaic,Unicode,Unicode Standard script Elymaic
-Ethiopic,Unicode,Unicode Standard script Ethiopic
-Garay,Unicode,Unicode Standard script Garay
-Geok,Unicode,Unicode Standard script Geok
-Georgian,Unicode,Unicode Standard script Georgian
-Glagolitic,Unicode,Unicode Standard script Glagolitic
-Gothic,Unicode,Unicode Standard script Gothic
-Grantha,Unicode,Unicode Standard script Grantha
-Greek,Unicode,Unicode Standard script Greek
-Gujarati,Unicode,Unicode Standard script Gujarati
-Gunjala_Gondi,Unicode,Unicode Standard script Gunjala_Gondi
-Gurmukhi,Unicode,Unicode Standard script Gurmukhi
-Gurung_Khema,Unicode,Unicode Standard script Gurung_Khema
-Han,Unicode,Unicode Standard script Han
-Hanb,Unicode,Unicode Standard script Hanb
-Hangul,Unicode,Unicode Standard script Hangul
-Hanifi_Rohingya,Unicode,Unicode Standard script Hanifi_Rohingya
-Hans,Unicode,Unicode Standard script Hans
-Hant,Unicode,Unicode Standard script Hant
-Hanunoo,Unicode,Unicode Standard script Hanunoo
-Hatran,Unicode,Unicode Standard script Hatran
-Hebrew,Unicode,Unicode Standard script Hebrew
-Hiragana,Unicode,Unicode Standard script Hiragana
-Hntl,Unicode,Unicode Standard script Hntl
-Imperial_Aramaic,Unicode,Unicode Standard script Imperial_Aramaic
-Inds,Unicode,Unicode Standard script Inds
-Inherited,Unicode,Unicode Standard script Inherited
-Inscriptional_Pahlavi,Unicode,Unicode Standard script Inscriptional_Pahlavi
-Inscriptional_Parthian,Unicode,Unicode Standard script Inscriptional_Parthian
-Jamo,Unicode,Unicode Standard script Jamo
-Javanese,Unicode,Unicode Standard script Javanese
-Jpan,Unicode,Unicode Standard script Jpan
-Jurc,Unicode,Unicode Standard script Jurc
-Kaithi,Unicode,Unicode Standard script Kaithi
-Kannada,Unicode,Unicode Standard script Kannada
-Katakana,Unicode,Unicode Standard script Katakana
-Katakana_Or_Hiragana,Unicode,Unicode Standard script Katakana_Or_Hiragana
-Kawi,Unicode,Unicode Standard script Kawi
-Kayah_Li,Unicode,Unicode Standard script Kayah_Li
-Kharoshthi,Unicode,Unicode Standard script Kharoshthi
-Khitan_Small_Script,Unicode,Unicode Standard script Khitan_Small_Script
-Khmer,Unicode,Unicode Standard script Khmer
-Khojki,Unicode,Unicode Standard script Khojki
-Khudawadi,Unicode,Unicode Standard script Khudawadi
-Kirat_Rai,Unicode,Unicode Standard script Kirat_Rai
-Kore,Unicode,Unicode Standard script Kore
-Kpel,Unicode,Unicode Standard script Kpel
-Lao,Unicode,Unicode Standard script Lao
-Latf,Unicode,Unicode Standard script Latf
-Latg,Unicode,Unicode Standard script Latg
-Latin,Unicode,Unicode Standard script Latin
-Lepcha,Unicode,Unicode Standard script Lepcha
-Limbu,Unicode,Unicode Standard script Limbu
-Linear_A,Unicode,Unicode Standard script Linear_A
-Linear_B,Unicode,Unicode Standard script Linear_B
-Lisu,Unicode,Unicode Standard script Lisu
-Loma,Unicode,Unicode Standard script Loma
-Lycian,Unicode,Unicode Standard script Lycian
-Lydian,Unicode,Unicode Standard script Lydian
-Mahajani,Unicode,Unicode Standard script Mahajani
-Makasar,Unicode,Unicode Standard script Makasar
-Malayalam,Unicode,Unicode Standard script Malayalam
-Mandaic,Unicode,Unicode Standard script Mandaic
-Manichaean,Unicode,Unicode Standard script Manichaean
-Marchen,Unicode,Unicode Standard script Marchen
-Masaram_Gondi,Unicode,Unicode Standard script Masaram_Gondi
-Maya,Unicode,Unicode Standard script Maya
-Medefaidrin,Unicode,Unicode Standard script Medefaidrin
-Meetei_Mayek,Unicode,Unicode Standard script Meetei_Mayek
-Mende_Kikakui,Unicode,Unicode Standard script Mende_Kikakui
-Meroitic_Cursive,Unicode,Unicode Standard script Meroitic_Cursive
-Meroitic_Hieroglyphs,Unicode,Unicode Standard script Meroitic_Hieroglyphs
-Miao,Unicode,Unicode Standard script Miao
-Modi,Unicode,Unicode Standard script Modi
-Mongolian,Unicode,Unicode Standard script Mongolian
-Moon,Unicode,Unicode Standard script Moon
-Mro,Unicode,Unicode Standard script Mro
-Multani,Unicode,Unicode Standard script Multani
-Myanmar,Unicode,Unicode Standard script Myanmar
-Nabataean,Unicode,Unicode Standard script Nabataean
-Nag_Mundari,Unicode,Unicode Standard script Nag_Mundari
-Nandinagari,Unicode,Unicode Standard script Nandinagari
-New_Tai_Lue,Unicode,Unicode Standard script New_Tai_Lue
-Newa,Unicode,Unicode Standard script Newa
-Nkgb,Unicode,Unicode Standard script Nkgb
-Nko,Unicode,Unicode Standard script Nko
-Nushu,Unicode,Unicode Standard script Nushu
-Nyiakeng_Puachue_Hmong,Unicode,Unicode Standard script Nyiakeng_Puachue_Hmong
-Ogham,Unicode,Unicode Standard script Ogham
-Ol_Chiki,Unicode,Unicode Standard script Ol_Chiki
-Ol_Onal,Unicode,Unicode Standard script Ol_Onal
-Old_Hungarian,Unicode,Unicode Standard script Old_Hungarian
-Old_Italic,Unicode,Unicode Standard script Old_Italic
-Old_North_Arabian,Unicode,Unicode Standard script Old_North_Arabian
-Old_Permic,Unicode,Unicode Standard script Old_Permic
-Old_Persian,Unicode,Unicode Standard script Old_Persian
-Old_Sogdian,Unicode,Unicode Standard script Old_Sogdian
-Old_South_Arabian,Unicode,Unicode Standard script Old_South_Arabian
-Old_Turkic,Unicode,Unicode Standard script Old_Turkic
-Old_Uyghur,Unicode,Unicode Standard script Old_Uyghur
-Oriya,Unicode,Unicode Standard script Oriya
-Osage,Unicode,Unicode Standard script Osage
-Osmanya,Unicode,Unicode Standard script Osmanya
-Pahawh_Hmong,Unicode,Unicode Standard script Pahawh_Hmong
-Palmyrene,Unicode,Unicode Standard script Palmyrene
-Pau_Cin_Hau,Unicode,Unicode Standard script Pau_Cin_Hau
-Phags_Pa,Unicode,Unicode Standard script Phags_Pa
-Phlv,Unicode,Unicode Standard script Phlv
-Phoenician,Unicode,Unicode Standard script Phoenician
-Psalter_Pahlavi,Unicode,Unicode Standard script Psalter_Pahlavi
-Rejang,Unicode,Unicode Standard script Rejang
-Roro,Unicode,Unicode Standard script Roro
-Runic,Unicode,Unicode Standard script Runic
-Samaritan,Unicode,Unicode Standard script Samaritan
-Sara,Unicode,Unicode Standard script Sara
-Saurashtra,Unicode,Unicode Standard script Saurashtra
-Sharada,Unicode,Unicode Standard script Sharada
-Shavian,Unicode,Unicode Standard script Shavian
-Siddham,Unicode,Unicode Standard script Siddham
-Sidetic,Unicode,Unicode Standard script Sidetic
-SignWriting,Unicode,Unicode Standard script SignWriting
-Sinhala,Unicode,Unicode Standard script Sinhala
-Sogdian,Unicode,Unicode Standard script Sogdian
-Sora_Sompeng,Unicode,Unicode Standard script Sora_Sompeng
-Soyombo,Unicode,Unicode Standard script Soyombo
-Sundanese,Unicode,Unicode Standard script Sundanese
-Sunuwar,Unicode,Unicode Standard script Sunuwar
-Syloti_Nagri,Unicode,Unicode Standard script Syloti_Nagri
-Syre,Unicode,Unicode Standard script Syre
-Syriac,Unicode,Unicode Standard script Syriac
-Syrj,Unicode,Unicode Standard script Syrj
-Syrn,Unicode,Unicode Standard script Syrn
-Tagalog,Unicode,Unicode Standard script Tagalog
-Tagbanwa,Unicode,Unicode Standard script Tagbanwa
-Tai_Le,Unicode,Unicode Standard script Tai_Le
-Tai_Tham,Unicode,Unicode Standard script Tai_Tham
-Tai_Viet,Unicode,Unicode Standard script Tai_Viet
-Tai_Yo,Unicode,Unicode Standard script Tai_Yo
-Takri,Unicode,Unicode Standard script Takri
-Tamil,Unicode,Unicode Standard script Tamil
-Tangsa,Unicode,Unicode Standard script Tangsa
-Tangut,Unicode,Unicode Standard script Tangut
-Telugu,Unicode,Unicode Standard script Telugu
-Teng,Unicode,Unicode Standard script Teng
-Thaana,Unicode,Unicode Standard script Thaana
-Thai,Unicode,Unicode Standard script Thai
-Tibetan,Unicode,Unicode Standard script Tibetan
-Tifinagh,Unicode,Unicode Standard script Tifinagh
-Tirhuta,Unicode,Unicode Standard script Tirhuta
-Todhri,Unicode,Unicode Standard script Todhri
-Tolong_Siki,Unicode,Unicode Standard script Tolong_Siki
-Toto,Unicode,Unicode Standard script Toto
-Tulu_Tigalari,Unicode,Unicode Standard script Tulu_Tigalari
-Ugaritic,Unicode,Unicode Standard script Ugaritic
-Unknown,Unicode,Unicode Standard script Unknown
-Vai,Unicode,Unicode Standard script Vai
-Visp,Unicode,Unicode Standard script Visp
-Vithkuqi,Unicode,Unicode Standard script Vithkuqi
-Wancho,Unicode,Unicode Standard script Wancho
-Warang_Citi,Unicode,Unicode Standard script Warang_Citi
-Wole,Unicode,Unicode Standard script Wole
-Yezidi,Unicode,Unicode Standard script Yezidi
-Yi,Unicode,Unicode Standard script Yi
-Zanabazar_Square,Unicode,Unicode Standard script Zanabazar_Square
-Zmth,Unicode,Unicode Standard script Zmth
-Zsye,Unicode,Unicode Standard script Zsye
-Zsym,Unicode,Unicode Standard script Zsym
-Zxxx,Unicode,Unicode Standard script Zxxx
+Script
+.Colors
+.Controls
+.DCE
+.DCE sheets
+.DCE versions
+.EL Miscellaneous
+.EL Operators
+.EL Routines
+.EL Syntax
+.EL Types
+.Emoji
+.Encapsulation
+.Financial
+.Mathematics
+.Miscellaneous
+.Noncharacters
+.Punctuation
+.Semantic
+.Semantic:fileflag
+.Styling
+.Symbols
+.Variant selectors
+.Formats:arch
+.Formats:armor
+.Formats:base_alphabet
+.Formats:calendar
+.Formats:color_depth
+.Formats:compression
+.Formats:container
+.Formats:database
+.Formats:date
+.Formats:device_caps
+.Formats:document
+.Formats:duration
+.Formats:encoding
+.Formats:executable
+.Formats:filesystem
+.Formats:hash
+.Formats:identifier
+.Formats:kernel
+.Formats:language
+.Formats:libc
+.Formats:math
+.Formats:number
+.Formats:number_abstract
+.Formats:numeral_system
+.Formats:os
+.Formats:packagemgr
+.Formats:programming
+.Formats:semantic
+.Formats:transformation
+.Formats:userspace
+.Formats:userspace_libraries
+.Formats:userspace_utilities
+.Formats:v:lineEndings
+.Formats:v:unicodePua
+.Formats:videoterminal
+.Formats:virtualfilesystem

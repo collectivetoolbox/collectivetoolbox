@@ -300,13 +300,18 @@ fn validate_syntax_element(
                         Some("Specify a valid script name following a colon"),
                     );
                 } else if let Some(st) = subtype {
-                    if !known_scripts.is_empty() && !known_scripts.contains(st) {
+                    let is_valid = if st.starts_with('.') {
+                        known_scripts.is_empty() || known_scripts.contains(st)
+                    } else {
+                        ctb_formats_unicode::is_valid_unicode_script(st)
+                    };
+                    if !is_valid {
                         report.add_error(
                             source_file,
                             Some(line_no),
                             Some(col_name),
                             format!("Unknown script '[script:{st}]' in syntax rule"),
-                            Some("Must be a registered script defined in README.scripts.csv"),
+                            Some("Must be a registered Dc script or valid Unicode script"),
                         );
                     }
                 }

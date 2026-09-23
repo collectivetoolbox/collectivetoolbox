@@ -389,21 +389,18 @@ pub fn validate_scripts_table(
             continue;
         };
 
-        if row.len() < 3 {
+        if row.is_empty() {
             report.add_error(
                 file_path,
                 Some(line_no),
                 None,
-                format!("Row has {} columns, expected at least 3", row.len()),
-                Some("Ensure row has 'Script', 'Category', and 'Description' columns"),
+                "Empty row in scripts registry".to_string(),
+                Some("Specify script name"),
             );
             continue;
         }
 
         let script = row.get(0).map_or("", |s| s.trim());
-        let category = row.get(1).map_or("", |s| s.trim());
-        let desc = row.get(2).map_or("", |s| s.trim());
-
         if script.is_empty() {
             report.add_error(
                 file_path,
@@ -412,6 +409,14 @@ pub fn validate_scripts_table(
                 "Script identifier cannot be empty".to_string(),
                 Some("Specify a script name"),
             );
+        } else if !script.starts_with('.') {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Script"),
+                format!("Dc-specific script '{script}' must start with a full stop '.'"),
+                Some("Prefix script name with '.'"),
+            );
         } else if !valid_scripts.insert(script.to_string()) {
             report.add_error(
                 file_path,
@@ -419,26 +424,6 @@ pub fn validate_scripts_table(
                 Some("Script"),
                 format!("Duplicate script '{script}'"),
                 Some("Ensure each script is defined uniquely"),
-            );
-        }
-
-        if category.is_empty() {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Category"),
-                "Script category cannot be empty".to_string(),
-                Some("Specify 'Dc', 'Formats', or 'Unicode'"),
-            );
-        }
-
-        if desc.is_empty() {
-            report.add_error(
-                file_path,
-                Some(line_no),
-                Some("Description"),
-                "Script description cannot be empty".to_string(),
-                Some("Provide a description explaining the script categorization"),
             );
         }
     }
@@ -1122,15 +1107,18 @@ pub fn validate_dc_category_file(
             None
         };
 
-        let (row_category, format_details) = if let Some(fmt_cat) = script.strip_prefix("Formats:") {
+        let (row_category, format_details) = if let Some(fmt_cat) = script
+            .strip_prefix(".Formats:")
+            .or_else(|| script.strip_prefix("Formats:"))
+        {
             let cat_trimmed = fmt_cat.trim();
             if cat_trimmed.is_empty() {
                 report.add_error(
                     file_path,
                     Some(line_no),
                     Some("Script"),
-                    "Format script 'Formats:' is missing category name (e.g. 'Formats:calendar')".to_string(),
-                    Some("Specify category name after 'Formats:'"),
+                    "Format script '.Formats:' is missing category name (e.g. '.Formats:calendar')".to_string(),
+                    Some("Specify category name after '.Formats:'"),
                 );
             }
             let formatted_cat = if cat_trimmed.starts_with("format_") {
@@ -1317,13 +1305,18 @@ where
 
         for row in rows {
             if let Some(scripts) = known_scripts {
-                if !scripts.contains(&row.script) {
+                let is_valid = if row.script.starts_with('.') {
+                    scripts.contains(&row.script)
+                } else {
+                    ctb_formats_unicode::is_valid_unicode_script(&row.script)
+                };
+                if !is_valid {
                     report.add_error(
                         &row.source_file,
                         Some(row.line_number),
                         Some("Script"),
                         format!("Unknown script '{}'", row.script),
-                        Some("Ensure script is registered in README.scripts.csv"),
+                        Some("Ensure script is registered in README.scripts.csv or is a valid Unicode script"),
                     );
                 }
             }

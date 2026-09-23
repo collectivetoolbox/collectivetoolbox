@@ -25,21 +25,49 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
-use ctb_utilities::*;
+use crate::dc_char::DcChar;
 use serde::{Serialize, Deserialize};
 
 /// High-level category of file formats for domain filtering and score boosting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FormatCategory {
+    Arch,
+    Armor,
+    BaseAlphabet,
+    Calendar,
+    ColorDepth,
     Compression,
-    Archive,
-    Audio,
-    Image,
-    Video,
-    Document,
-    Executable,
+    Container,
     Database,
+    Date,
+    DeviceCaps,
+    Document,
+    Duration,
+    Encoding,
+    Executable,
+    Filesystem,
+    Hash,
+    Identifier,
+    Kernel,
+    Language,
+    Libc,
+    LineEndings,
+    Math,
+    Number,
+    NumberAbstract,
+    NumeralSystem,
+    Os,
     Other,
+    Packagemgr,
+    Programming,
+    Semantic,
+    Transformation,
+    UnicodePua,
+    Userspace,
+    UserspaceLibraries,
+    UserspaceUtilities,
+    Videoterminal,
+    Virtualfilesystem,
 }
 
 /// Standardized format identifier enum derived from formats category tables.
@@ -1256,6 +1284,70 @@ impl FormatId {
     #[must_use]
     pub fn category(&self) -> FormatCategory {
         match self {
+            Self::x86
+            | Self::amd64
+            | Self::arm
+            | Self::arm64
+            | Self::i586
+            | Self::sse2 => FormatCategory::Arch,
+            Self::BaseNb
+            | Self::BaseString
+            | Self::Base64Standard
+            | Self::HexByteString
+            | Self::HexByteStrings0xPrefix
+            | Self::HexdumpPlain
+            | Self::HexdumpFancy437
+            | Self::Base16b
+            | Self::Base16b_7
+            | Self::Base16b_8
+            | Self::Base16b_9
+            | Self::Base16b_10
+            | Self::Base16b_11
+            | Self::Base16b_12
+            | Self::Base16b_13
+            | Self::Base16b_14
+            | Self::Base16b_15
+            | Self::Base16b_16
+            | Self::Base16b_17
+            | Self::BaseNb_7
+            | Self::BaseNb_8
+            | Self::BaseNb_9
+            | Self::BaseNb_10
+            | Self::BaseNb_11
+            | Self::BaseNb_12
+            | Self::BaseNb_13
+            | Self::BaseNb_14
+            | Self::BaseNb_15
+            | Self::BaseNb_16
+            | Self::BaseNb_17
+            | Self::Unknown
+            | Self::QuotedPrintable
+            | Self::Uuencode
+            | Self::YEnc
+            | Self::BinHex
+            | Self::BinHexTrs80
+            | Self::BinHex1
+            | Self::BinHex2
+            | Self::BinHex5
+            | Self::MacBinary
+            | Self::PercentEncoding
+            | Self::NumericCharacterReferenceDec
+            | Self::NumericCharacterReferenceHex
+            | Self::MimeBase64
+            | Self::Xxencode
+            | Self::Hexdump
+            | Self::HexdumpXxd => FormatCategory::Armor,
+            Self::BaseAlphabet
+            | Self::AlphabetBase64Rfc4648
+            | Self::AlphabetBase36
+            | Self::AlphabetBase36Uppercase
+            | Self::AlphabetBase36Lowercase
+            | Self::AlphabetArabicIndicNumeral
+            | Self::AlphabetDevanagariNumeral => FormatCategory::BaseAlphabet,
+            Self::Gregorian
+            | Self::Julian => FormatCategory::Calendar,
+            Self::ColorDepth1bit
+            | Self::ColorDepth24bit => FormatCategory::ColorDepth,
             Self::Brotli
             | Self::Gzip
             | Self::Deflate
@@ -1297,7 +1389,81 @@ impl FormatId {
             | Self::CtbAssetBundleV2
             | Self::CtbAssetBundleV3
             | Self::CtbAssetBundleV4
-            | Self::CtbFileMetadataJson => FormatCategory::Archive,
+            | Self::CtbFileMetadataJson => FormatCategory::Container,
+            Self::Csv
+            | Self::Tsv
+            | Self::Ssv
+            | Self::Multipart
+            | Self::Json
+            | Self::Jsonc
+            | Self::Xml
+            | Self::Warc
+            | Self::Pan
+            | Self::Sqlite
+            | Self::IaMetaJson
+            | Self::IaFilesXml
+            | Self::IaMetaXml
+            | Self::IaMetaSqlite
+            | Self::Clubcard
+            | Self::CrliteFilter
+            | Self::CrliteFilterDelta
+            | Self::CommonLogFormat
+            | Self::ExtendedLogFormat
+            | Self::Pem
+            | Self::Pkcs8PrivateKey
+            | Self::Pkcs10Csr
+            | Self::PkixCert
+            | Self::PkixCrl
+            | Self::Pkcs7Mime
+            | Self::Pkcs12
+            | Self::CscJournal
+            | Self::CscDesc
+            | Self::CscIndex
+            | Self::CscIndexMeta
+            | Self::Redb => FormatCategory::Database,
+            Self::PanDate
+            | Self::PanTime
+            | Self::PanSuperDate
+            | Self::SecondsSinceEpoch
+            | Self::NsSinceEpoch => FormatCategory::Date,
+            Self::Videoterminal
+            | Self::Teleprinter
+            | Self::TerminalMouse
+            | Self::TerminalGraphics
+            | Self::TerminalSixelGraphics
+            | Self::TerminalIterm2Graphics
+            | Self::TerminalKittyGraphics
+            | Self::RasterDisplay
+            | Self::VectorDisplay
+            | Self::RenderModeImmediate
+            | Self::RenderModeInteractive
+            | Self::WebUi
+            | Self::WebView
+            | Self::BrowserVm
+            | Self::V86Vm
+            | Self::Pwa
+            | Self::X11Display
+            | Self::WaylandDisplay
+            | Self::QuartzDisplay
+            | Self::Win32Display
+            | Self::HeadlessDisplay
+            | Self::RasterColors1bit
+            | Self::RasterColors24bit
+            | Self::TerminalColors1bit
+            | Self::TerminalColors4bit
+            | Self::TerminalColors8bit
+            | Self::TerminalColors24bit
+            | Self::IsStdinTerminal
+            | Self::IsStdoutTerminal
+            | Self::IsStderrTerminal
+            | Self::TerminalCanEdit
+            | Self::TerminalCanEditPastLines
+            | Self::LineModeTerminal
+            | Self::BlockModeTerminal
+            | Self::PwaMobile
+            | Self::BrowserVmFullscreen
+            | Self::BrowserVmMobile
+            | Self::WebUiSystemBrowser => FormatCategory::DeviceCaps,
             Self::DcIntegerList
             | Self::Html
             | Self::Sems
@@ -1364,41 +1530,360 @@ impl FormatId {
             | Self::Csdl
             | Self::Dcts
             | Self::DcMixed => FormatCategory::Document,
+            Self::Second
+            | Self::Nanosecond => FormatCategory::Duration,
+            Self::Utf8
+            | Self::AsciiSafeSubset
+            | Self::Ascii
+            | Self::Ucs2
+            | Self::Wtf8
+            | Self::Utf32_BE
+            | Self::Cp437
+            | Self::MacRoman
+            | Self::Utf8_Base64
+            | Self::Win1252
+            | Self::AlphaSmartNeo
+            | Self::AlphaSmartNeoLowGrUs
+            | Self::AlphaSmartNeoLowGrUaMac
+            | Self::AlphaSmartNeoLowGrUaPc
+            | Self::AlphaSmartNeoLowCtlUs
+            | Self::AlphaSmartNeoLowCtlUaMac
+            | Self::AlphaSmartNeoLowCtlUaPc
+            | Self::Iso88591 => FormatCategory::Encoding,
             Self::Elf
             | Self::Pe
             | Self::MachO
             | Self::DebianPackage => FormatCategory::Executable,
-            Self::Csv
-            | Self::Tsv
-            | Self::Ssv
-            | Self::Multipart
-            | Self::Json
-            | Self::Jsonc
-            | Self::Xml
-            | Self::Warc
-            | Self::Pan
-            | Self::Sqlite
-            | Self::IaMetaJson
-            | Self::IaFilesXml
-            | Self::IaMetaXml
-            | Self::IaMetaSqlite
-            | Self::Clubcard
-            | Self::CrliteFilter
-            | Self::CrliteFilterDelta
-            | Self::CommonLogFormat
-            | Self::ExtendedLogFormat
-            | Self::Pem
-            | Self::Pkcs8PrivateKey
-            | Self::Pkcs10Csr
-            | Self::PkixCert
-            | Self::PkixCrl
-            | Self::Pkcs7Mime
-            | Self::Pkcs12
-            | Self::CscJournal
-            | Self::CscDesc
-            | Self::CscIndex
-            | Self::CscIndexMeta
-            | Self::Redb => FormatCategory::Database,
+            Self::MinixFs
+            | Self::Ext
+            | Self::Ext2
+            | Self::Ext3
+            | Self::Ext4
+            | Self::Xiafs
+            | Self::Xfs
+            | Self::Btrfs
+            | Self::F2fs
+            | Self::Zfs
+            | Self::Fat8bit
+            | Self::Fat12
+            | Self::Fat16
+            | Self::Fat16b
+            | Self::Fat32
+            | Self::Exfat
+            | Self::Fatx
+            | Self::Fatx16
+            | Self::Fatx32
+            | Self::FatPlus
+            | Self::Fat16Pus
+            | Self::Fat32Plus
+            | Self::Umsdos
+            | Self::Uvfat
+            | Self::Vfat
+            | Self::Iso9660
+            | Self::Udf
+            | Self::Joliet
+            | Self::Mfs
+            | Self::Hfs
+            | Self::HfsPlus
+            | Self::Apfs
+            | Self::Ntfs
+            | Self::Refs
+            | Self::ReiserFs
+            | Self::Reiser4
+            | Self::Bcachefs => FormatCategory::Filesystem,
+            Self::XxHash32
+            | Self::XxHash64
+            | Self::XxHash3_64
+            | Self::XxHash3_128
+            | Self::Md5
+            | Self::Md6
+            | Self::Sha1
+            | Self::Sha256
+            | Self::Sha512
+            | Self::Sha3
+            | Self::Tiger
+            | Self::Whirlpool
+            | Self::Adler32
+            | Self::Fletcher4
+            | Self::Fletcher8
+            | Self::Fletcher16
+            | Self::Fletcher32
+            | Self::Crc32
+            | Self::Cksum
+            | Self::BsdChecksum
+            | Self::SysvChecksum
+            | Self::Hmac
+            | Self::Blake
+            | Self::Blake2
+            | Self::Blake3
+            | Self::FowlerNollVo
+            | Self::Fnv0
+            | Self::Fnv1
+            | Self::Fnv1a
+            | Self::Fnv0_32
+            | Self::Fnv0_64
+            | Self::Fnv0_128
+            | Self::Fnv0_256
+            | Self::Fnv0_512
+            | Self::Fnv0_1024
+            | Self::Fnv1_32
+            | Self::Fnv1_64
+            | Self::Fnv1_128
+            | Self::Fnv1_256
+            | Self::Fnv1_512
+            | Self::Fnv1_1024
+            | Self::Fnv1a_32
+            | Self::Fnv1a_64
+            | Self::Fnv1a_128
+            | Self::Fnv1a_256
+            | Self::Fnv1a_512
+            | Self::Fnv1a_1024 => FormatCategory::Hash,
+            Self::IpAddr
+            | Self::Uri
+            | Self::FileName
+            | Self::FilePath
+            | Self::Lnk
+            | Self::MacAlias
+            | Self::MacBookmark
+            | Self::Torrent
+            | Self::Btih
+            | Self::Magnet
+            | Self::IaIdentifier
+            | Self::IaArchiveTorrent
+            | Self::UserAgent
+            | Self::FileExtension
+            | Self::UriProtocol
+            | Self::DcIdentifier
+            | Self::DcShortIdentifier
+            | Self::IpV4
+            | Self::IpV6 => FormatCategory::Identifier,
+            Self::Linux
+            | Self::BsdKernel
+            | Self::Mach
+            | Self::Hurd
+            | Self::Xnu
+            | Self::MsDosKernel
+            | Self::WinNtKernel
+            | Self::GnuMach
+            | Self::Wsl
+            | Self::Wsl2 => FormatCategory::Kernel,
+            Self::Lang_En
+            | Self::Lang_En_Us
+            | Self::Lang_Ar
+            | Self::Lang_Bn
+            | Self::Lang_De
+            | Self::Lang_En_Gb
+            | Self::Lang_Es
+            | Self::Lang_Fa
+            | Self::Lang_Fil
+            | Self::Lang_Fr
+            | Self::Lang_Hi
+            | Self::Lang_Id
+            | Self::Lang_It
+            | Self::Lang_Ja
+            | Self::Lang_Ko
+            | Self::Lang_Nl
+            | Self::Lang_Pl
+            | Self::Lang_Pt
+            | Self::Lang_Pt_Br
+            | Self::Lang_Ru
+            | Self::Lang_Tr
+            | Self::Lang_Ur
+            | Self::Lang_Vi
+            | Self::Lang_Zh_Cn => FormatCategory::Language,
+            Self::Gnu
+            | Self::Darwin
+            | Self::BsdLibc
+            | Self::MuslLibc
+            | Self::BionicLibc => FormatCategory::Libc,
+            Self::LineEndingLf
+            | Self::LineEndingCr
+            | Self::LineEndingCrLf
+            | Self::LineEndingLfCr
+            | Self::LineEndingRs
+            | Self::LineEndingNl
+            | Self::LineSeparatorLf
+            | Self::LineSeparatorCr
+            | Self::LineSeparatorCrLf
+            | Self::LineSeparatorLfCr
+            | Self::LineSeparatorRs
+            | Self::LineSeparatorNl => FormatCategory::LineEndings,
+            Self::MathExpression
+            | Self::ArithmeticExpression
+            | Self::SymbolicExpression
+            | Self::MathRelation
+            | Self::Equation
+            | Self::Inequality
+            | Self::Approximation
+            | Self::EquationSystem
+            | Self::Point
+            | Self::Point1D
+            | Self::Point2D
+            | Self::Point3D
+            | Self::Vector
+            | Self::Vector1D
+            | Self::Vector2D
+            | Self::Vector3D
+            | Self::Interval1D
+            | Self::Box2D
+            | Self::Box3D
+            | Self::Index1D
+            | Self::Index2D
+            | Self::Size2D
+            | Self::Size3D
+            | Self::CartesianPoint2D
+            | Self::CartesianPoint3D
+            | Self::ScreenPoint2D
+            | Self::ScreenRect
+            | Self::QuickDrawPoint
+            | Self::QuickDrawRect
+            | Self::OriginScreenTopLeft
+            | Self::OriginWindowTopLeft
+            | Self::OriginBottomLeft
+            | Self::OriginCenter
+            | Self::OriginSequenceStart
+            | Self::AxisHorizRight
+            | Self::AxisVertDown
+            | Self::AxisVertUp
+            | Self::AxisDepthIn
+            | Self::AxisDepthOut
+            | Self::AxisRowDown
+            | Self::AxisColRight
+            | Self::AxisOrdinal
+            | Self::AxisField
+            | Self::OrderXY
+            | Self::OrderVH
+            | Self::OrderXYZ => FormatCategory::Math,
+            Self::Integer
+            | Self::Natural0
+            | Self::Positive
+            | Self::Negative
+            | Self::U8
+            | Self::I8
+            | Self::U16
+            | Self::I16
+            | Self::U32
+            | Self::I32
+            | Self::U64
+            | Self::I64
+            | Self::U128
+            | Self::I128
+            | Self::Float
+            | Self::Fixed
+            | Self::Pack32
+            | Self::FloatIeee754
+            | Self::NumeralSystem
+            | Self::BaseNNumeral
+            | Self::Base
+            | Self::DcNumber
+            | Self::DcNumberB64Int
+            | Self::UnaryNumeral
+            | Self::BinaryNumeral
+            | Self::OctalNumeral
+            | Self::DecimalNumeral
+            | Self::HexadecimalNumeral => FormatCategory::Number,
+            Self::Rational
+            | Self::Real
+            | Self::Complex
+            | Self::Natural1
+            | Self::AbstractNumber
+            | Self::BaseNNumber => FormatCategory::NumberAbstract,
+            Self::RomanNumeral
+            | Self::TallyNumeral
+            | Self::ChineseNumeral
+            | Self::ChineseNumeralSmall
+            | Self::ChineseNumeralBig
+            | Self::SuzhouNumeral => FormatCategory::NumeralSystem,
+            Self::GnuLinux
+            | Self::Android
+            | Self::Windows
+            | Self::WinClassic
+            | Self::WinNt
+            | Self::MacOs
+            | Self::MacOsDarwin
+            | Self::FreeBsd
+            | Self::OpenBsd
+            | Self::NetBsd
+            | Self::DragonFlyBsd
+            | Self::Unix
+            | Self::AppleIos
+            | Self::WatchOs
+            | Self::TvOs
+            | Self::VisionOs
+            | Self::NextStep
+            | Self::Replicant
+            | Self::Dragora
+            | Self::Dynebolic
+            | Self::GuixSystem
+            | Self::Hyperbola
+            | Self::ParabolaGll
+            | Self::PureOs
+            | Self::Trisquel
+            | Self::UtutoS
+            | Self::LibreCmc
+            | Self::ProteanOs
+            | Self::Debian
+            | Self::Ubuntu
+            | Self::Fedora
+            | Self::Rhel
+            | Self::ArchLinux
+            | Self::Alpine
+            | Self::OpenSuse
+            | Self::Gentoo
+            | Self::NixOs => FormatCategory::Os,
+            Self::Guix
+            | Self::Homebrew
+            | Self::MacPorts
+            | Self::Nix => FormatCategory::Packagemgr,
+            Self::JavaScript
+            | Self::AppleScript
+            | Self::TypeScript
+            | Self::Perl
+            | Self::Bash
+            | Self::C
+            | Self::Cpp
+            | Self::Cs
+            | Self::Java
+            | Self::Perl5
+            | Self::Perl6
+            | Self::Raku
+            | Self::Rust
+            | Self::Php
+            | Self::Sh
+            | Self::StageL
+            | Self::StageLParseResult
+            | Self::Jq
+            | Self::JqJaq
+            | Self::StageL2
+            | Self::StageL2Intermediate
+            | Self::ActionScript => FormatCategory::Programming,
+            Self::DcArray
+            | Self::Unicode
+            | Self::String
+            | Self::DateString
+            | Self::TimeString
+            | Self::DateTimeString => FormatCategory::Semantic,
+            Self::SemanticToText
+            | Self::CodeToText
+            | Self::AlturaMacToWin
+            | Self::AlturaWinToMac => FormatCategory::Transformation,
+            Self::DcBasenb
+            | Self::DcBasenbFragment
+            | Self::Csur
+            | Self::Ucsur => FormatCategory::UnicodePua,
+            Self::GnuStep
+            | Self::BionicUserspace => FormatCategory::Userspace,
+            Self::Win32Subsystem => FormatCategory::UserspaceLibraries,
+            Self::BusyBoxUtilities
+            | Self::GnuUtilities => FormatCategory::UserspaceUtilities,
+            Self::Vt100 => FormatCategory::Videoterminal,
+            Self::Tmpfs
+            | Self::Ramfs
+            | Self::Overlayfs
+            | Self::Smb
+            | Self::Cifs
+            | Self::Smb2
+            | Self::Nfs => FormatCategory::Virtualfilesystem,
             _ => FormatCategory::Other,
         }
     }
@@ -2619,6 +3104,613 @@ impl FormatId {
         }
     }
 
+    /// Returns the format shorthand string (e.g. "f0", "f405").
+    #[must_use]
+    pub const fn shorthand(&self) -> &'static str {
+        match self {
+            Self::Utf8 => "f0",
+            Self::DcArray => "f1",
+            Self::DcIntegerList => "f2",
+            Self::AsciiSafeSubset => "f3",
+            Self::Ascii => "f4",
+            Self::Html => "f5",
+            Self::Sems => "f6",
+            Self::Unicode => "f7",
+            Self::Vt100 => "f8",
+            Self::Videoterminal => "f9",
+            Self::Teleprinter => "f10",
+            Self::DcBasenb => "f11",
+            Self::BaseNb => "f12",
+            Self::HtmlFragment => "f13",
+            Self::Text => "f14",
+            Self::Lang_En => "f15",
+            Self::Lang_En_Us => "f16",
+            Self::Elad => "f17",
+            Self::JavaScript => "f18",
+            Self::SemanticToText => "f19",
+            Self::CodeToText => "f20",
+            Self::EiteColorCoded => "f21",
+            Self::LineEndingLf => "f22",
+            Self::LineEndingCr => "f23",
+            Self::LineEndingCrLf => "f24",
+            Self::LineEndingLfCr => "f25",
+            Self::LineEndingRs => "f26",
+            Self::LineEndingNl => "f27",
+            Self::LineSeparatorLf => "f28",
+            Self::LineSeparatorCr => "f29",
+            Self::LineSeparatorCrLf => "f30",
+            Self::LineSeparatorLfCr => "f31",
+            Self::LineSeparatorRs => "f32",
+            Self::LineSeparatorNl => "f33",
+            Self::Brotli => "f34",
+            Self::Gzip => "f35",
+            Self::Deflate => "f36",
+            Self::Zlib => "f37",
+            Self::Bzip2 => "f38",
+            Self::Bzip => "f39",
+            Self::Zstd => "f40",
+            Self::Lzip => "f41",
+            Self::Xz => "f42",
+            Self::ScoCompress => "f43",
+            Self::CompressLzw => "f44",
+            Self::CompressLzw1 => "f45",
+            Self::CompressLzw16 => "f46",
+            Self::CompressLzw2 => "f47",
+            Self::Pack => "f48",
+            Self::OldPack => "f49",
+            Self::Compact => "f50",
+            Self::BaseString => "f51",
+            Self::Base64Standard => "f52",
+            Self::HexByteString => "f53",
+            Self::HexByteStrings0xPrefix => "f54",
+            Self::HexdumpPlain => "f55",
+            Self::HexdumpFancy437 => "f56",
+            Self::Base16b => "f57",
+            Self::Base16b_7 => "f58",
+            Self::Base16b_8 => "f59",
+            Self::Base16b_9 => "f60",
+            Self::Base16b_10 => "f61",
+            Self::Base16b_11 => "f62",
+            Self::Base16b_12 => "f63",
+            Self::Base16b_13 => "f64",
+            Self::Base16b_14 => "f65",
+            Self::Base16b_15 => "f66",
+            Self::Base16b_16 => "f67",
+            Self::Base16b_17 => "f68",
+            Self::BaseNb_7 => "f69",
+            Self::BaseNb_8 => "f70",
+            Self::BaseNb_9 => "f71",
+            Self::BaseNb_10 => "f72",
+            Self::BaseNb_11 => "f73",
+            Self::BaseNb_12 => "f74",
+            Self::BaseNb_13 => "f75",
+            Self::BaseNb_14 => "f76",
+            Self::BaseNb_15 => "f77",
+            Self::BaseNb_16 => "f78",
+            Self::BaseNb_17 => "f79",
+            Self::String => "f80",
+            Self::CString => "f81",
+            Self::PascalString => "f82",
+            Self::Ucs2 => "f83",
+            Self::Wtf8 => "f84",
+            Self::Utf32_BE => "f85",
+            Self::Cp437 => "f86",
+            Self::MacRoman => "f87",
+            Self::DcText => "f88",
+            Self::DcUtf => "f89",
+            Self::DcList => "f90",
+            Self::DcBasenbFragment => "f91",
+            Self::Cdce => "f92",
+            Self::CdceLegacy => "f93",
+            Self::CdceLegacyStrict => "f94",
+            Self::Dce => "f95",
+            Self::DceHex => "f96",
+            Self::Dce_3_0a => "f97",
+            Self::Dce_3_0a_raw => "f98",
+            Self::Dce_3_0a_hex => "f99",
+            Self::Dce_3_0a_raw_hex => "f100",
+            Self::Dce_3_0a_old => "f101",
+            Self::Dce2txt => "f102",
+            Self::Dce2hex => "f103",
+            Self::Hex2dce => "f104",
+            Self::Dce_3_01a => "f105",
+            Self::Dce_3_01a_raw => "f106",
+            Self::Dce_3_01a_hex => "f107",
+            Self::Dce_3_01a_raw_hex => "f108",
+            Self::DcIdList => "f109",
+            Self::Utf8_Base64 => "f110",
+            Self::Utf8_Dc64 => "f111",
+            Self::Utf8_Dc64_enc => "f112",
+            Self::Utf8_Dc64_bin => "f113",
+            Self::Utf8_Dc64_bin_hex => "f114",
+            Self::Utf8_Dc64_bin_enc => "f115",
+            Self::Utf8_Dc64_bin_enc_hex => "f116",
+            Self::HtmlLegacyCdce => "f117",
+            Self::HtmlLegacyCdceSnippet => "f118",
+            Self::AppleScript => "f119",
+            Self::TypeScript => "f120",
+            Self::Perl => "f121",
+            Self::Bash => "f122",
+            Self::C => "f123",
+            Self::Cpp => "f124",
+            Self::Cs => "f125",
+            Self::Java => "f126",
+            Self::Perl5 => "f127",
+            Self::Perl6 => "f128",
+            Self::Raku => "f129",
+            Self::Rust => "f130",
+            Self::Php => "f131",
+            Self::Sh => "f132",
+            Self::StageL => "f133",
+            Self::StageLParseResult => "f134",
+            Self::Elf => "f135",
+            Self::Pe => "f136",
+            Self::MachO => "f137",
+            Self::DebianPackage => "f138",
+            Self::Lang_Ar => "f139",
+            Self::Lang_Bn => "f140",
+            Self::Lang_De => "f141",
+            Self::Lang_En_Gb => "f142",
+            Self::Lang_Es => "f143",
+            Self::Lang_Fa => "f144",
+            Self::Lang_Fil => "f145",
+            Self::Lang_Fr => "f146",
+            Self::Lang_Hi => "f147",
+            Self::Lang_Id => "f148",
+            Self::Lang_It => "f149",
+            Self::Lang_Ja => "f150",
+            Self::Lang_Ko => "f151",
+            Self::Lang_Nl => "f152",
+            Self::Lang_Pl => "f153",
+            Self::Lang_Pt => "f154",
+            Self::Lang_Pt_Br => "f155",
+            Self::Lang_Ru => "f156",
+            Self::Lang_Tr => "f157",
+            Self::Lang_Ur => "f158",
+            Self::Lang_Vi => "f159",
+            Self::Lang_Zh_Cn => "f160",
+            Self::Tar => "f161",
+            Self::Zip => "f162",
+            Self::CtbAssetBundle => "f163",
+            Self::Pdf => "f164",
+            Self::Markdown => "f165",
+            Self::Troff => "f166",
+            Self::Rss => "f167",
+            Self::Rss09 => "f168",
+            Self::Rss091Netscape => "f169",
+            Self::Rss091UserLand => "f170",
+            Self::Rss092 => "f171",
+            Self::Rss1 => "f172",
+            Self::ScriptingNews10 => "f173",
+            Self::ScriptingNews20 => "f174",
+            Self::Atom => "f175",
+            Self::HAtom => "f176",
+            Self::JsonFeed11 => "f177",
+            Self::WfscanOutput => "f178",
+            Self::WfparseOutput => "f179",
+            Self::Csv => "f180",
+            Self::Tsv => "f181",
+            Self::Ssv => "f182",
+            Self::Multipart => "f183",
+            Self::Json => "f184",
+            Self::Jsonc => "f185",
+            Self::Xml => "f186",
+            Self::Warc => "f187",
+            Self::Pan => "f188",
+            Self::Sqlite => "f189",
+            Self::IaMetaJson => "f190",
+            Self::IaFilesXml => "f191",
+            Self::IaMetaXml => "f192",
+            Self::IaMetaSqlite => "f193",
+            Self::Clubcard => "f194",
+            Self::CrliteFilter => "f195",
+            Self::CrliteFilterDelta => "f196",
+            Self::CommonLogFormat => "f197",
+            Self::ExtendedLogFormat => "f198",
+            Self::Integer => "f199",
+            Self::Natural0 => "f200",
+            Self::Positive => "f201",
+            Self::Negative => "f202",
+            Self::U8 => "f203",
+            Self::I8 => "f204",
+            Self::U16 => "f205",
+            Self::I16 => "f206",
+            Self::U32 => "f207",
+            Self::I32 => "f208",
+            Self::U64 => "f209",
+            Self::I64 => "f210",
+            Self::U128 => "f211",
+            Self::I128 => "f212",
+            Self::Float => "f213",
+            Self::Fixed => "f214",
+            Self::Pack32 => "f215",
+            Self::Gregorian => "f216",
+            Self::Julian => "f217",
+            Self::DateString => "f218",
+            Self::TimeString => "f219",
+            Self::DateTimeString => "f220",
+            Self::PanDate => "f221",
+            Self::PanTime => "f222",
+            Self::PanSuperDate => "f223",
+            Self::MathExpression => "f224",
+            Self::Pem => "f225",
+            Self::IpAddr => "f226",
+            Self::Uri => "f227",
+            Self::FileName => "f228",
+            Self::FilePath => "f229",
+            Self::Lnk => "f230",
+            Self::MacAlias => "f231",
+            Self::MacBookmark => "f232",
+            Self::Torrent => "f233",
+            Self::Btih => "f234",
+            Self::Magnet => "f235",
+            Self::IaIdentifier => "f236",
+            Self::IaArchiveTorrent => "f237",
+            Self::XxHash32 => "f238",
+            Self::XxHash64 => "f239",
+            Self::XxHash3_64 => "f240",
+            Self::XxHash3_128 => "f241",
+            Self::Md5 => "f242",
+            Self::Md6 => "f243",
+            Self::Sha1 => "f244",
+            Self::Sha256 => "f245",
+            Self::Sha512 => "f246",
+            Self::Sha3 => "f247",
+            Self::Tiger => "f248",
+            Self::Whirlpool => "f249",
+            Self::Adler32 => "f250",
+            Self::Fletcher4 => "f251",
+            Self::Fletcher8 => "f252",
+            Self::Fletcher16 => "f253",
+            Self::Fletcher32 => "f254",
+            Self::Crc32 => "f255",
+            Self::Cksum => "f256",
+            Self::BsdChecksum => "f257",
+            Self::SysvChecksum => "f258",
+            Self::Hmac => "f259",
+            Self::Blake => "f260",
+            Self::Blake2 => "f261",
+            Self::Blake3 => "f262",
+            Self::UserAgent => "f263",
+            Self::FileExtension => "f264",
+            Self::UriProtocol => "f265",
+            Self::TerminalMouse => "f266",
+            Self::TerminalGraphics => "f267",
+            Self::TerminalSixelGraphics => "f268",
+            Self::TerminalIterm2Graphics => "f269",
+            Self::TerminalKittyGraphics => "f270",
+            Self::RasterDisplay => "f271",
+            Self::VectorDisplay => "f272",
+            Self::RenderModeImmediate => "f273",
+            Self::RenderModeInteractive => "f274",
+            Self::Unknown => "f275",
+            Self::Csur => "f276",
+            Self::Ucsur => "f277",
+            Self::Mime => "f278",
+            Self::QuotedPrintable => "f279",
+            Self::Uuencode => "f280",
+            Self::YEnc => "f281",
+            Self::BinHex => "f282",
+            Self::BinHexTrs80 => "f283",
+            Self::BinHex1 => "f284",
+            Self::BinHex2 => "f285",
+            Self::BinHex5 => "f286",
+            Self::MacBinary => "f287",
+            Self::Shar => "f288",
+            Self::Cpio => "f289",
+            Self::Pax => "f290",
+            Self::TarGz => "f291",
+            Self::TarZ => "f292",
+            Self::TarBz2 => "f293",
+            Self::OutlookMsg => "f294",
+            Self::PercentEncoding => "f295",
+            Self::NumericCharacterReferenceDec => "f296",
+            Self::NumericCharacterReferenceHex => "f297",
+            Self::MimeBase64 => "f298",
+            Self::Xxencode => "f299",
+            Self::Rzip => "f300",
+            Self::Lrzip => "f301",
+            Self::Bzip3 => "f302",
+            Self::Lz4 => "f303",
+            Self::Lzo => "f304",
+            Self::Zpaq => "f305",
+            Self::Orz => "f306",
+            Self::Lzfse => "f307",
+            Self::Hexdump => "f308",
+            Self::Pkcs8PrivateKey => "f309",
+            Self::Pkcs10Csr => "f310",
+            Self::PkixCert => "f311",
+            Self::PkixCrl => "f312",
+            Self::Pkcs7Mime => "f313",
+            Self::Pkcs12 => "f314",
+            Self::AppleSingle => "f315",
+            Self::AppleDouble => "f316",
+            Self::CtbNode => "f317",
+            Self::CtbNodeV1 => "f318",
+            Self::CtbNodeV2 => "f319",
+            Self::Lzma => "f320",
+            Self::Lzma2 => "f321",
+            Self::TarLzo => "f322",
+            Self::AlturaMacToWin => "f323",
+            Self::AlturaWinToMac => "f324",
+            Self::Win1252 => "f325",
+            Self::AlphaSmartNeo => "f326",
+            Self::AlphaSmartNeoLowGrUs => "f327",
+            Self::AlphaSmartNeoLowGrUaMac => "f328",
+            Self::AlphaSmartNeoLowGrUaPc => "f329",
+            Self::AlphaSmartNeoLowCtlUs => "f330",
+            Self::AlphaSmartNeoLowCtlUaMac => "f331",
+            Self::AlphaSmartNeoLowCtlUaPc => "f332",
+            Self::AlphaWord => "f333",
+            Self::CtbAssetBundleV1 => "f334",
+            Self::CtbAssetBundleV2 => "f335",
+            Self::CtbAssetBundleV3 => "f336",
+            Self::CtbAssetBundleV4 => "f337",
+            Self::Jq => "f338",
+            Self::JqJaq => "f339",
+            Self::Dcal => "f340",
+            Self::HexdumpXxd => "f341",
+            Self::StageL2 => "f342",
+            Self::StageL2Intermediate => "f343",
+            Self::Csdl => "f344",
+            Self::Rational => "f345",
+            Self::Real => "f346",
+            Self::Complex => "f347",
+            Self::FloatIeee754 => "f348",
+            Self::NumeralSystem => "f349",
+            Self::BaseNNumeral => "f350",
+            Self::Natural1 => "f351",
+            Self::DcIdentifier => "f352",
+            Self::DcShortIdentifier => "f353",
+            Self::Base => "f354",
+            Self::AbstractNumber => "f355",
+            Self::BaseNNumber => "f356",
+            Self::DcNumber => "f357",
+            Self::DcNumberB64Int => "f358",
+            Self::BaseAlphabet => "f359",
+            Self::AlphabetBase64Rfc4648 => "f360",
+            Self::AlphabetBase36 => "f361",
+            Self::AlphabetBase36Uppercase => "f362",
+            Self::AlphabetBase36Lowercase => "f363",
+            Self::ArithmeticExpression => "f364",
+            Self::SymbolicExpression => "f365",
+            Self::MathRelation => "f366",
+            Self::Equation => "f367",
+            Self::Inequality => "f368",
+            Self::Approximation => "f369",
+            Self::EquationSystem => "f370",
+            Self::UnaryNumeral => "f371",
+            Self::BinaryNumeral => "f372",
+            Self::OctalNumeral => "f373",
+            Self::DecimalNumeral => "f374",
+            Self::HexadecimalNumeral => "f375",
+            Self::AlphabetArabicIndicNumeral => "f376",
+            Self::AlphabetDevanagariNumeral => "f377",
+            Self::RomanNumeral => "f378",
+            Self::TallyNumeral => "f379",
+            Self::ChineseNumeral => "f380",
+            Self::ChineseNumeralSmall => "f381",
+            Self::ChineseNumeralBig => "f382",
+            Self::SuzhouNumeral => "f383",
+            Self::x86 => "f384",
+            Self::amd64 => "f385",
+            Self::arm => "f386",
+            Self::arm64 => "f387",
+            Self::i586 => "f388",
+            Self::sse2 => "f389",
+            Self::Linux => "f390",
+            Self::BsdKernel => "f391",
+            Self::Mach => "f392",
+            Self::Hurd => "f393",
+            Self::Xnu => "f394",
+            Self::Gnu => "f395",
+            Self::Darwin => "f396",
+            Self::BsdLibc => "f397",
+            Self::GnuLinux => "f398",
+            Self::Android => "f399",
+            Self::MsDosKernel => "f400",
+            Self::WinNtKernel => "f401",
+            Self::Windows => "f402",
+            Self::WinClassic => "f403",
+            Self::WinNt => "f404",
+            Self::MacOs => "f405",
+            Self::MacOsDarwin => "f406",
+            Self::FreeBsd => "f407",
+            Self::OpenBsd => "f408",
+            Self::NetBsd => "f409",
+            Self::CscJournal => "f410",
+            Self::CscDesc => "f411",
+            Self::DragonFlyBsd => "f412",
+            Self::GnuMach => "f413",
+            Self::CscIndex => "f414",
+            Self::CscIndexMeta => "f415",
+            Self::Redb => "f416",
+            Self::MinixFs => "f417",
+            Self::Ext => "f418",
+            Self::Ext2 => "f419",
+            Self::Ext3 => "f420",
+            Self::Ext4 => "f421",
+            Self::Xiafs => "f422",
+            Self::Xfs => "f423",
+            Self::Btrfs => "f424",
+            Self::F2fs => "f425",
+            Self::Zfs => "f426",
+            Self::Tmpfs => "f427",
+            Self::Ramfs => "f428",
+            Self::Overlayfs => "f429",
+            Self::Fat8bit => "f430",
+            Self::Fat12 => "f431",
+            Self::Fat16 => "f432",
+            Self::Fat16b => "f433",
+            Self::Fat32 => "f434",
+            Self::Exfat => "f435",
+            Self::Fatx => "f436",
+            Self::Fatx16 => "f437",
+            Self::Fatx32 => "f438",
+            Self::FatPlus => "f439",
+            Self::Fat16Pus => "f440",
+            Self::Fat32Plus => "f441",
+            Self::Umsdos => "f442",
+            Self::Uvfat => "f443",
+            Self::Vfat => "f444",
+            Self::Smb => "f445",
+            Self::Cifs => "f446",
+            Self::Smb2 => "f447",
+            Self::Nfs => "f448",
+            Self::Iso9660 => "f449",
+            Self::Udf => "f450",
+            Self::Joliet => "f451",
+            Self::Mfs => "f452",
+            Self::Hfs => "f453",
+            Self::HfsPlus => "f454",
+            Self::Apfs => "f455",
+            Self::Ntfs => "f456",
+            Self::Refs => "f457",
+            Self::ReiserFs => "f458",
+            Self::Reiser4 => "f459",
+            Self::Bcachefs => "f460",
+            Self::Dcts => "f461",
+            Self::FowlerNollVo => "f462",
+            Self::Fnv0 => "f463",
+            Self::Fnv1 => "f464",
+            Self::Fnv1a => "f465",
+            Self::Fnv0_32 => "f466",
+            Self::Fnv0_64 => "f467",
+            Self::Fnv0_128 => "f468",
+            Self::Fnv0_256 => "f469",
+            Self::Fnv0_512 => "f470",
+            Self::Fnv0_1024 => "f471",
+            Self::Fnv1_32 => "f472",
+            Self::Fnv1_64 => "f473",
+            Self::Fnv1_128 => "f474",
+            Self::Fnv1_256 => "f475",
+            Self::Fnv1_512 => "f476",
+            Self::Fnv1_1024 => "f477",
+            Self::Fnv1a_32 => "f478",
+            Self::Fnv1a_64 => "f479",
+            Self::Fnv1a_128 => "f480",
+            Self::Fnv1a_256 => "f481",
+            Self::Fnv1a_512 => "f482",
+            Self::Fnv1a_1024 => "f483",
+            Self::DcMixed => "f484",
+            Self::CtbFileMetadataJson => "f485",
+            Self::SecondsSinceEpoch => "f486",
+            Self::NsSinceEpoch => "f487",
+            Self::Second => "f488",
+            Self::Nanosecond => "f489",
+            Self::IpV4 => "f490",
+            Self::IpV6 => "f491",
+            Self::Unix => "f492",
+            Self::AppleIos => "f493",
+            Self::WatchOs => "f494",
+            Self::TvOs => "f495",
+            Self::VisionOs => "f496",
+            Self::GnuStep => "f497",
+            Self::NextStep => "f498",
+            Self::WebUi => "f499",
+            Self::WebView => "f500",
+            Self::BrowserVm => "f501",
+            Self::V86Vm => "f502",
+            Self::Pwa => "f503",
+            Self::Point => "f504",
+            Self::Point1D => "f505",
+            Self::Point2D => "f506",
+            Self::Point3D => "f507",
+            Self::Vector => "f508",
+            Self::Vector1D => "f509",
+            Self::Vector2D => "f510",
+            Self::Vector3D => "f511",
+            Self::Interval1D => "f512",
+            Self::Box2D => "f513",
+            Self::Box3D => "f514",
+            Self::Index1D => "f515",
+            Self::Index2D => "f516",
+            Self::Size2D => "f517",
+            Self::Size3D => "f518",
+            Self::CartesianPoint2D => "f519",
+            Self::CartesianPoint3D => "f520",
+            Self::ScreenPoint2D => "f521",
+            Self::ScreenRect => "f522",
+            Self::QuickDrawPoint => "f523",
+            Self::QuickDrawRect => "f524",
+            Self::OriginScreenTopLeft => "f525",
+            Self::OriginWindowTopLeft => "f526",
+            Self::OriginBottomLeft => "f527",
+            Self::OriginCenter => "f528",
+            Self::OriginSequenceStart => "f529",
+            Self::AxisHorizRight => "f530",
+            Self::AxisVertDown => "f531",
+            Self::AxisVertUp => "f532",
+            Self::AxisDepthIn => "f533",
+            Self::AxisDepthOut => "f534",
+            Self::AxisRowDown => "f535",
+            Self::AxisColRight => "f536",
+            Self::AxisOrdinal => "f537",
+            Self::AxisField => "f538",
+            Self::OrderXY => "f539",
+            Self::OrderVH => "f540",
+            Self::OrderXYZ => "f541",
+            Self::Iso88591 => "f542",
+            Self::ActionScript => "f543",
+            Self::X11Display => "f544",
+            Self::WaylandDisplay => "f545",
+            Self::QuartzDisplay => "f546",
+            Self::Win32Display => "f547",
+            Self::HeadlessDisplay => "f548",
+            Self::RasterColors1bit => "f549",
+            Self::RasterColors24bit => "f550",
+            Self::TerminalColors1bit => "f551",
+            Self::TerminalColors4bit => "f552",
+            Self::TerminalColors8bit => "f553",
+            Self::TerminalColors24bit => "f554",
+            Self::ColorDepth1bit => "f555",
+            Self::ColorDepth24bit => "f556",
+            Self::Replicant => "f557",
+            Self::Dragora => "f558",
+            Self::Dynebolic => "f559",
+            Self::GuixSystem => "f560",
+            Self::Guix => "f561",
+            Self::Homebrew => "f562",
+            Self::MacPorts => "f563",
+            Self::Hyperbola => "f564",
+            Self::ParabolaGll => "f565",
+            Self::PureOs => "f566",
+            Self::Trisquel => "f567",
+            Self::UtutoS => "f568",
+            Self::LibreCmc => "f569",
+            Self::ProteanOs => "f570",
+            Self::Debian => "f571",
+            Self::Ubuntu => "f572",
+            Self::Fedora => "f573",
+            Self::Rhel => "f574",
+            Self::ArchLinux => "f575",
+            Self::Alpine => "f576",
+            Self::OpenSuse => "f577",
+            Self::Gentoo => "f578",
+            Self::NixOs => "f579",
+            Self::Nix => "f580",
+            Self::Wsl => "f581",
+            Self::Wsl2 => "f582",
+            Self::MuslLibc => "f583",
+            Self::BusyBoxUtilities => "f584",
+            Self::BionicLibc => "f585",
+            Self::Win32Subsystem => "f586",
+            Self::GnuUtilities => "f587",
+            Self::BionicUserspace => "f588",
+            Self::IsStdinTerminal => "f589",
+            Self::IsStdoutTerminal => "f590",
+            Self::IsStderrTerminal => "f591",
+            Self::TerminalCanEdit => "f592",
+            Self::TerminalCanEditPastLines => "f593",
+            Self::LineModeTerminal => "f594",
+            Self::BlockModeTerminal => "f595",
+            Self::PwaMobile => "f596",
+            Self::BrowserVmFullscreen => "f597",
+            Self::BrowserVmMobile => "f598",
+            Self::WebUiSystemBrowser => "f599",
+        }
+    }
+
     /// Looks up a `FormatId` from its format shorthand string (e.g. "f405").
     #[must_use]
     pub fn from_shorthand(shorthand: &str) -> Option<Self> {
@@ -3225,613 +4317,6 @@ impl FormatId {
             "f598" => Some(Self::BrowserVmMobile),
             "f599" => Some(Self::WebUiSystemBrowser),
             _ => None,
-        }
-    }
-
-    /// Returns the Short format ID integer if known.
-    #[must_use]
-    pub const fn short_id(&self) -> Option<usize> {
-        match self {
-            Self::Utf8 => Some(0),
-            Self::DcArray => Some(1),
-            Self::DcIntegerList => Some(2),
-            Self::AsciiSafeSubset => Some(3),
-            Self::Ascii => Some(4),
-            Self::Html => Some(5),
-            Self::Sems => Some(6),
-            Self::Unicode => Some(7),
-            Self::Vt100 => Some(8),
-            Self::Videoterminal => Some(9),
-            Self::Teleprinter => Some(10),
-            Self::DcBasenb => Some(11),
-            Self::BaseNb => Some(12),
-            Self::HtmlFragment => Some(13),
-            Self::Text => Some(14),
-            Self::Lang_En => Some(15),
-            Self::Lang_En_Us => Some(16),
-            Self::Elad => Some(17),
-            Self::JavaScript => Some(18),
-            Self::SemanticToText => Some(19),
-            Self::CodeToText => Some(20),
-            Self::EiteColorCoded => Some(21),
-            Self::LineEndingLf => Some(22),
-            Self::LineEndingCr => Some(23),
-            Self::LineEndingCrLf => Some(24),
-            Self::LineEndingLfCr => Some(25),
-            Self::LineEndingRs => Some(26),
-            Self::LineEndingNl => Some(27),
-            Self::LineSeparatorLf => Some(28),
-            Self::LineSeparatorCr => Some(29),
-            Self::LineSeparatorCrLf => Some(30),
-            Self::LineSeparatorLfCr => Some(31),
-            Self::LineSeparatorRs => Some(32),
-            Self::LineSeparatorNl => Some(33),
-            Self::Brotli => Some(34),
-            Self::Gzip => Some(35),
-            Self::Deflate => Some(36),
-            Self::Zlib => Some(37),
-            Self::Bzip2 => Some(38),
-            Self::Bzip => Some(39),
-            Self::Zstd => Some(40),
-            Self::Lzip => Some(41),
-            Self::Xz => Some(42),
-            Self::ScoCompress => Some(43),
-            Self::CompressLzw => Some(44),
-            Self::CompressLzw1 => Some(45),
-            Self::CompressLzw16 => Some(46),
-            Self::CompressLzw2 => Some(47),
-            Self::Pack => Some(48),
-            Self::OldPack => Some(49),
-            Self::Compact => Some(50),
-            Self::BaseString => Some(51),
-            Self::Base64Standard => Some(52),
-            Self::HexByteString => Some(53),
-            Self::HexByteStrings0xPrefix => Some(54),
-            Self::HexdumpPlain => Some(55),
-            Self::HexdumpFancy437 => Some(56),
-            Self::Base16b => Some(57),
-            Self::Base16b_7 => Some(58),
-            Self::Base16b_8 => Some(59),
-            Self::Base16b_9 => Some(60),
-            Self::Base16b_10 => Some(61),
-            Self::Base16b_11 => Some(62),
-            Self::Base16b_12 => Some(63),
-            Self::Base16b_13 => Some(64),
-            Self::Base16b_14 => Some(65),
-            Self::Base16b_15 => Some(66),
-            Self::Base16b_16 => Some(67),
-            Self::Base16b_17 => Some(68),
-            Self::BaseNb_7 => Some(69),
-            Self::BaseNb_8 => Some(70),
-            Self::BaseNb_9 => Some(71),
-            Self::BaseNb_10 => Some(72),
-            Self::BaseNb_11 => Some(73),
-            Self::BaseNb_12 => Some(74),
-            Self::BaseNb_13 => Some(75),
-            Self::BaseNb_14 => Some(76),
-            Self::BaseNb_15 => Some(77),
-            Self::BaseNb_16 => Some(78),
-            Self::BaseNb_17 => Some(79),
-            Self::String => Some(80),
-            Self::CString => Some(81),
-            Self::PascalString => Some(82),
-            Self::Ucs2 => Some(83),
-            Self::Wtf8 => Some(84),
-            Self::Utf32_BE => Some(85),
-            Self::Cp437 => Some(86),
-            Self::MacRoman => Some(87),
-            Self::DcText => Some(88),
-            Self::DcUtf => Some(89),
-            Self::DcList => Some(90),
-            Self::DcBasenbFragment => Some(91),
-            Self::Cdce => Some(92),
-            Self::CdceLegacy => Some(93),
-            Self::CdceLegacyStrict => Some(94),
-            Self::Dce => Some(95),
-            Self::DceHex => Some(96),
-            Self::Dce_3_0a => Some(97),
-            Self::Dce_3_0a_raw => Some(98),
-            Self::Dce_3_0a_hex => Some(99),
-            Self::Dce_3_0a_raw_hex => Some(100),
-            Self::Dce_3_0a_old => Some(101),
-            Self::Dce2txt => Some(102),
-            Self::Dce2hex => Some(103),
-            Self::Hex2dce => Some(104),
-            Self::Dce_3_01a => Some(105),
-            Self::Dce_3_01a_raw => Some(106),
-            Self::Dce_3_01a_hex => Some(107),
-            Self::Dce_3_01a_raw_hex => Some(108),
-            Self::DcIdList => Some(109),
-            Self::Utf8_Base64 => Some(110),
-            Self::Utf8_Dc64 => Some(111),
-            Self::Utf8_Dc64_enc => Some(112),
-            Self::Utf8_Dc64_bin => Some(113),
-            Self::Utf8_Dc64_bin_hex => Some(114),
-            Self::Utf8_Dc64_bin_enc => Some(115),
-            Self::Utf8_Dc64_bin_enc_hex => Some(116),
-            Self::HtmlLegacyCdce => Some(117),
-            Self::HtmlLegacyCdceSnippet => Some(118),
-            Self::AppleScript => Some(119),
-            Self::TypeScript => Some(120),
-            Self::Perl => Some(121),
-            Self::Bash => Some(122),
-            Self::C => Some(123),
-            Self::Cpp => Some(124),
-            Self::Cs => Some(125),
-            Self::Java => Some(126),
-            Self::Perl5 => Some(127),
-            Self::Perl6 => Some(128),
-            Self::Raku => Some(129),
-            Self::Rust => Some(130),
-            Self::Php => Some(131),
-            Self::Sh => Some(132),
-            Self::StageL => Some(133),
-            Self::StageLParseResult => Some(134),
-            Self::Elf => Some(135),
-            Self::Pe => Some(136),
-            Self::MachO => Some(137),
-            Self::DebianPackage => Some(138),
-            Self::Lang_Ar => Some(139),
-            Self::Lang_Bn => Some(140),
-            Self::Lang_De => Some(141),
-            Self::Lang_En_Gb => Some(142),
-            Self::Lang_Es => Some(143),
-            Self::Lang_Fa => Some(144),
-            Self::Lang_Fil => Some(145),
-            Self::Lang_Fr => Some(146),
-            Self::Lang_Hi => Some(147),
-            Self::Lang_Id => Some(148),
-            Self::Lang_It => Some(149),
-            Self::Lang_Ja => Some(150),
-            Self::Lang_Ko => Some(151),
-            Self::Lang_Nl => Some(152),
-            Self::Lang_Pl => Some(153),
-            Self::Lang_Pt => Some(154),
-            Self::Lang_Pt_Br => Some(155),
-            Self::Lang_Ru => Some(156),
-            Self::Lang_Tr => Some(157),
-            Self::Lang_Ur => Some(158),
-            Self::Lang_Vi => Some(159),
-            Self::Lang_Zh_Cn => Some(160),
-            Self::Tar => Some(161),
-            Self::Zip => Some(162),
-            Self::CtbAssetBundle => Some(163),
-            Self::Pdf => Some(164),
-            Self::Markdown => Some(165),
-            Self::Troff => Some(166),
-            Self::Rss => Some(167),
-            Self::Rss09 => Some(168),
-            Self::Rss091Netscape => Some(169),
-            Self::Rss091UserLand => Some(170),
-            Self::Rss092 => Some(171),
-            Self::Rss1 => Some(172),
-            Self::ScriptingNews10 => Some(173),
-            Self::ScriptingNews20 => Some(174),
-            Self::Atom => Some(175),
-            Self::HAtom => Some(176),
-            Self::JsonFeed11 => Some(177),
-            Self::WfscanOutput => Some(178),
-            Self::WfparseOutput => Some(179),
-            Self::Csv => Some(180),
-            Self::Tsv => Some(181),
-            Self::Ssv => Some(182),
-            Self::Multipart => Some(183),
-            Self::Json => Some(184),
-            Self::Jsonc => Some(185),
-            Self::Xml => Some(186),
-            Self::Warc => Some(187),
-            Self::Pan => Some(188),
-            Self::Sqlite => Some(189),
-            Self::IaMetaJson => Some(190),
-            Self::IaFilesXml => Some(191),
-            Self::IaMetaXml => Some(192),
-            Self::IaMetaSqlite => Some(193),
-            Self::Clubcard => Some(194),
-            Self::CrliteFilter => Some(195),
-            Self::CrliteFilterDelta => Some(196),
-            Self::CommonLogFormat => Some(197),
-            Self::ExtendedLogFormat => Some(198),
-            Self::Integer => Some(199),
-            Self::Natural0 => Some(200),
-            Self::Positive => Some(201),
-            Self::Negative => Some(202),
-            Self::U8 => Some(203),
-            Self::I8 => Some(204),
-            Self::U16 => Some(205),
-            Self::I16 => Some(206),
-            Self::U32 => Some(207),
-            Self::I32 => Some(208),
-            Self::U64 => Some(209),
-            Self::I64 => Some(210),
-            Self::U128 => Some(211),
-            Self::I128 => Some(212),
-            Self::Float => Some(213),
-            Self::Fixed => Some(214),
-            Self::Pack32 => Some(215),
-            Self::Gregorian => Some(216),
-            Self::Julian => Some(217),
-            Self::DateString => Some(218),
-            Self::TimeString => Some(219),
-            Self::DateTimeString => Some(220),
-            Self::PanDate => Some(221),
-            Self::PanTime => Some(222),
-            Self::PanSuperDate => Some(223),
-            Self::MathExpression => Some(224),
-            Self::Pem => Some(225),
-            Self::IpAddr => Some(226),
-            Self::Uri => Some(227),
-            Self::FileName => Some(228),
-            Self::FilePath => Some(229),
-            Self::Lnk => Some(230),
-            Self::MacAlias => Some(231),
-            Self::MacBookmark => Some(232),
-            Self::Torrent => Some(233),
-            Self::Btih => Some(234),
-            Self::Magnet => Some(235),
-            Self::IaIdentifier => Some(236),
-            Self::IaArchiveTorrent => Some(237),
-            Self::XxHash32 => Some(238),
-            Self::XxHash64 => Some(239),
-            Self::XxHash3_64 => Some(240),
-            Self::XxHash3_128 => Some(241),
-            Self::Md5 => Some(242),
-            Self::Md6 => Some(243),
-            Self::Sha1 => Some(244),
-            Self::Sha256 => Some(245),
-            Self::Sha512 => Some(246),
-            Self::Sha3 => Some(247),
-            Self::Tiger => Some(248),
-            Self::Whirlpool => Some(249),
-            Self::Adler32 => Some(250),
-            Self::Fletcher4 => Some(251),
-            Self::Fletcher8 => Some(252),
-            Self::Fletcher16 => Some(253),
-            Self::Fletcher32 => Some(254),
-            Self::Crc32 => Some(255),
-            Self::Cksum => Some(256),
-            Self::BsdChecksum => Some(257),
-            Self::SysvChecksum => Some(258),
-            Self::Hmac => Some(259),
-            Self::Blake => Some(260),
-            Self::Blake2 => Some(261),
-            Self::Blake3 => Some(262),
-            Self::UserAgent => Some(263),
-            Self::FileExtension => Some(264),
-            Self::UriProtocol => Some(265),
-            Self::TerminalMouse => Some(266),
-            Self::TerminalGraphics => Some(267),
-            Self::TerminalSixelGraphics => Some(268),
-            Self::TerminalIterm2Graphics => Some(269),
-            Self::TerminalKittyGraphics => Some(270),
-            Self::RasterDisplay => Some(271),
-            Self::VectorDisplay => Some(272),
-            Self::RenderModeImmediate => Some(273),
-            Self::RenderModeInteractive => Some(274),
-            Self::Unknown => Some(275),
-            Self::Csur => Some(276),
-            Self::Ucsur => Some(277),
-            Self::Mime => Some(278),
-            Self::QuotedPrintable => Some(279),
-            Self::Uuencode => Some(280),
-            Self::YEnc => Some(281),
-            Self::BinHex => Some(282),
-            Self::BinHexTrs80 => Some(283),
-            Self::BinHex1 => Some(284),
-            Self::BinHex2 => Some(285),
-            Self::BinHex5 => Some(286),
-            Self::MacBinary => Some(287),
-            Self::Shar => Some(288),
-            Self::Cpio => Some(289),
-            Self::Pax => Some(290),
-            Self::TarGz => Some(291),
-            Self::TarZ => Some(292),
-            Self::TarBz2 => Some(293),
-            Self::OutlookMsg => Some(294),
-            Self::PercentEncoding => Some(295),
-            Self::NumericCharacterReferenceDec => Some(296),
-            Self::NumericCharacterReferenceHex => Some(297),
-            Self::MimeBase64 => Some(298),
-            Self::Xxencode => Some(299),
-            Self::Rzip => Some(300),
-            Self::Lrzip => Some(301),
-            Self::Bzip3 => Some(302),
-            Self::Lz4 => Some(303),
-            Self::Lzo => Some(304),
-            Self::Zpaq => Some(305),
-            Self::Orz => Some(306),
-            Self::Lzfse => Some(307),
-            Self::Hexdump => Some(308),
-            Self::Pkcs8PrivateKey => Some(309),
-            Self::Pkcs10Csr => Some(310),
-            Self::PkixCert => Some(311),
-            Self::PkixCrl => Some(312),
-            Self::Pkcs7Mime => Some(313),
-            Self::Pkcs12 => Some(314),
-            Self::AppleSingle => Some(315),
-            Self::AppleDouble => Some(316),
-            Self::CtbNode => Some(317),
-            Self::CtbNodeV1 => Some(318),
-            Self::CtbNodeV2 => Some(319),
-            Self::Lzma => Some(320),
-            Self::Lzma2 => Some(321),
-            Self::TarLzo => Some(322),
-            Self::AlturaMacToWin => Some(323),
-            Self::AlturaWinToMac => Some(324),
-            Self::Win1252 => Some(325),
-            Self::AlphaSmartNeo => Some(326),
-            Self::AlphaSmartNeoLowGrUs => Some(327),
-            Self::AlphaSmartNeoLowGrUaMac => Some(328),
-            Self::AlphaSmartNeoLowGrUaPc => Some(329),
-            Self::AlphaSmartNeoLowCtlUs => Some(330),
-            Self::AlphaSmartNeoLowCtlUaMac => Some(331),
-            Self::AlphaSmartNeoLowCtlUaPc => Some(332),
-            Self::AlphaWord => Some(333),
-            Self::CtbAssetBundleV1 => Some(334),
-            Self::CtbAssetBundleV2 => Some(335),
-            Self::CtbAssetBundleV3 => Some(336),
-            Self::CtbAssetBundleV4 => Some(337),
-            Self::Jq => Some(338),
-            Self::JqJaq => Some(339),
-            Self::Dcal => Some(340),
-            Self::HexdumpXxd => Some(341),
-            Self::StageL2 => Some(342),
-            Self::StageL2Intermediate => Some(343),
-            Self::Csdl => Some(344),
-            Self::Rational => Some(345),
-            Self::Real => Some(346),
-            Self::Complex => Some(347),
-            Self::FloatIeee754 => Some(348),
-            Self::NumeralSystem => Some(349),
-            Self::BaseNNumeral => Some(350),
-            Self::Natural1 => Some(351),
-            Self::DcIdentifier => Some(352),
-            Self::DcShortIdentifier => Some(353),
-            Self::Base => Some(354),
-            Self::AbstractNumber => Some(355),
-            Self::BaseNNumber => Some(356),
-            Self::DcNumber => Some(357),
-            Self::DcNumberB64Int => Some(358),
-            Self::BaseAlphabet => Some(359),
-            Self::AlphabetBase64Rfc4648 => Some(360),
-            Self::AlphabetBase36 => Some(361),
-            Self::AlphabetBase36Uppercase => Some(362),
-            Self::AlphabetBase36Lowercase => Some(363),
-            Self::ArithmeticExpression => Some(364),
-            Self::SymbolicExpression => Some(365),
-            Self::MathRelation => Some(366),
-            Self::Equation => Some(367),
-            Self::Inequality => Some(368),
-            Self::Approximation => Some(369),
-            Self::EquationSystem => Some(370),
-            Self::UnaryNumeral => Some(371),
-            Self::BinaryNumeral => Some(372),
-            Self::OctalNumeral => Some(373),
-            Self::DecimalNumeral => Some(374),
-            Self::HexadecimalNumeral => Some(375),
-            Self::AlphabetArabicIndicNumeral => Some(376),
-            Self::AlphabetDevanagariNumeral => Some(377),
-            Self::RomanNumeral => Some(378),
-            Self::TallyNumeral => Some(379),
-            Self::ChineseNumeral => Some(380),
-            Self::ChineseNumeralSmall => Some(381),
-            Self::ChineseNumeralBig => Some(382),
-            Self::SuzhouNumeral => Some(383),
-            Self::x86 => Some(384),
-            Self::amd64 => Some(385),
-            Self::arm => Some(386),
-            Self::arm64 => Some(387),
-            Self::i586 => Some(388),
-            Self::sse2 => Some(389),
-            Self::Linux => Some(390),
-            Self::BsdKernel => Some(391),
-            Self::Mach => Some(392),
-            Self::Hurd => Some(393),
-            Self::Xnu => Some(394),
-            Self::Gnu => Some(395),
-            Self::Darwin => Some(396),
-            Self::BsdLibc => Some(397),
-            Self::GnuLinux => Some(398),
-            Self::Android => Some(399),
-            Self::MsDosKernel => Some(400),
-            Self::WinNtKernel => Some(401),
-            Self::Windows => Some(402),
-            Self::WinClassic => Some(403),
-            Self::WinNt => Some(404),
-            Self::MacOs => Some(405),
-            Self::MacOsDarwin => Some(406),
-            Self::FreeBsd => Some(407),
-            Self::OpenBsd => Some(408),
-            Self::NetBsd => Some(409),
-            Self::CscJournal => Some(410),
-            Self::CscDesc => Some(411),
-            Self::DragonFlyBsd => Some(412),
-            Self::GnuMach => Some(413),
-            Self::CscIndex => Some(414),
-            Self::CscIndexMeta => Some(415),
-            Self::Redb => Some(416),
-            Self::MinixFs => Some(417),
-            Self::Ext => Some(418),
-            Self::Ext2 => Some(419),
-            Self::Ext3 => Some(420),
-            Self::Ext4 => Some(421),
-            Self::Xiafs => Some(422),
-            Self::Xfs => Some(423),
-            Self::Btrfs => Some(424),
-            Self::F2fs => Some(425),
-            Self::Zfs => Some(426),
-            Self::Tmpfs => Some(427),
-            Self::Ramfs => Some(428),
-            Self::Overlayfs => Some(429),
-            Self::Fat8bit => Some(430),
-            Self::Fat12 => Some(431),
-            Self::Fat16 => Some(432),
-            Self::Fat16b => Some(433),
-            Self::Fat32 => Some(434),
-            Self::Exfat => Some(435),
-            Self::Fatx => Some(436),
-            Self::Fatx16 => Some(437),
-            Self::Fatx32 => Some(438),
-            Self::FatPlus => Some(439),
-            Self::Fat16Pus => Some(440),
-            Self::Fat32Plus => Some(441),
-            Self::Umsdos => Some(442),
-            Self::Uvfat => Some(443),
-            Self::Vfat => Some(444),
-            Self::Smb => Some(445),
-            Self::Cifs => Some(446),
-            Self::Smb2 => Some(447),
-            Self::Nfs => Some(448),
-            Self::Iso9660 => Some(449),
-            Self::Udf => Some(450),
-            Self::Joliet => Some(451),
-            Self::Mfs => Some(452),
-            Self::Hfs => Some(453),
-            Self::HfsPlus => Some(454),
-            Self::Apfs => Some(455),
-            Self::Ntfs => Some(456),
-            Self::Refs => Some(457),
-            Self::ReiserFs => Some(458),
-            Self::Reiser4 => Some(459),
-            Self::Bcachefs => Some(460),
-            Self::Dcts => Some(461),
-            Self::FowlerNollVo => Some(462),
-            Self::Fnv0 => Some(463),
-            Self::Fnv1 => Some(464),
-            Self::Fnv1a => Some(465),
-            Self::Fnv0_32 => Some(466),
-            Self::Fnv0_64 => Some(467),
-            Self::Fnv0_128 => Some(468),
-            Self::Fnv0_256 => Some(469),
-            Self::Fnv0_512 => Some(470),
-            Self::Fnv0_1024 => Some(471),
-            Self::Fnv1_32 => Some(472),
-            Self::Fnv1_64 => Some(473),
-            Self::Fnv1_128 => Some(474),
-            Self::Fnv1_256 => Some(475),
-            Self::Fnv1_512 => Some(476),
-            Self::Fnv1_1024 => Some(477),
-            Self::Fnv1a_32 => Some(478),
-            Self::Fnv1a_64 => Some(479),
-            Self::Fnv1a_128 => Some(480),
-            Self::Fnv1a_256 => Some(481),
-            Self::Fnv1a_512 => Some(482),
-            Self::Fnv1a_1024 => Some(483),
-            Self::DcMixed => Some(484),
-            Self::CtbFileMetadataJson => Some(485),
-            Self::SecondsSinceEpoch => Some(486),
-            Self::NsSinceEpoch => Some(487),
-            Self::Second => Some(488),
-            Self::Nanosecond => Some(489),
-            Self::IpV4 => Some(490),
-            Self::IpV6 => Some(491),
-            Self::Unix => Some(492),
-            Self::AppleIos => Some(493),
-            Self::WatchOs => Some(494),
-            Self::TvOs => Some(495),
-            Self::VisionOs => Some(496),
-            Self::GnuStep => Some(497),
-            Self::NextStep => Some(498),
-            Self::WebUi => Some(499),
-            Self::WebView => Some(500),
-            Self::BrowserVm => Some(501),
-            Self::V86Vm => Some(502),
-            Self::Pwa => Some(503),
-            Self::Point => Some(504),
-            Self::Point1D => Some(505),
-            Self::Point2D => Some(506),
-            Self::Point3D => Some(507),
-            Self::Vector => Some(508),
-            Self::Vector1D => Some(509),
-            Self::Vector2D => Some(510),
-            Self::Vector3D => Some(511),
-            Self::Interval1D => Some(512),
-            Self::Box2D => Some(513),
-            Self::Box3D => Some(514),
-            Self::Index1D => Some(515),
-            Self::Index2D => Some(516),
-            Self::Size2D => Some(517),
-            Self::Size3D => Some(518),
-            Self::CartesianPoint2D => Some(519),
-            Self::CartesianPoint3D => Some(520),
-            Self::ScreenPoint2D => Some(521),
-            Self::ScreenRect => Some(522),
-            Self::QuickDrawPoint => Some(523),
-            Self::QuickDrawRect => Some(524),
-            Self::OriginScreenTopLeft => Some(525),
-            Self::OriginWindowTopLeft => Some(526),
-            Self::OriginBottomLeft => Some(527),
-            Self::OriginCenter => Some(528),
-            Self::OriginSequenceStart => Some(529),
-            Self::AxisHorizRight => Some(530),
-            Self::AxisVertDown => Some(531),
-            Self::AxisVertUp => Some(532),
-            Self::AxisDepthIn => Some(533),
-            Self::AxisDepthOut => Some(534),
-            Self::AxisRowDown => Some(535),
-            Self::AxisColRight => Some(536),
-            Self::AxisOrdinal => Some(537),
-            Self::AxisField => Some(538),
-            Self::OrderXY => Some(539),
-            Self::OrderVH => Some(540),
-            Self::OrderXYZ => Some(541),
-            Self::Iso88591 => Some(542),
-            Self::ActionScript => Some(543),
-            Self::X11Display => Some(544),
-            Self::WaylandDisplay => Some(545),
-            Self::QuartzDisplay => Some(546),
-            Self::Win32Display => Some(547),
-            Self::HeadlessDisplay => Some(548),
-            Self::RasterColors1bit => Some(549),
-            Self::RasterColors24bit => Some(550),
-            Self::TerminalColors1bit => Some(551),
-            Self::TerminalColors4bit => Some(552),
-            Self::TerminalColors8bit => Some(553),
-            Self::TerminalColors24bit => Some(554),
-            Self::ColorDepth1bit => Some(555),
-            Self::ColorDepth24bit => Some(556),
-            Self::Replicant => Some(557),
-            Self::Dragora => Some(558),
-            Self::Dynebolic => Some(559),
-            Self::GuixSystem => Some(560),
-            Self::Guix => Some(561),
-            Self::Homebrew => Some(562),
-            Self::MacPorts => Some(563),
-            Self::Hyperbola => Some(564),
-            Self::ParabolaGll => Some(565),
-            Self::PureOs => Some(566),
-            Self::Trisquel => Some(567),
-            Self::UtutoS => Some(568),
-            Self::LibreCmc => Some(569),
-            Self::ProteanOs => Some(570),
-            Self::Debian => Some(571),
-            Self::Ubuntu => Some(572),
-            Self::Fedora => Some(573),
-            Self::Rhel => Some(574),
-            Self::ArchLinux => Some(575),
-            Self::Alpine => Some(576),
-            Self::OpenSuse => Some(577),
-            Self::Gentoo => Some(578),
-            Self::NixOs => Some(579),
-            Self::Nix => Some(580),
-            Self::Wsl => Some(581),
-            Self::Wsl2 => Some(582),
-            Self::MuslLibc => Some(583),
-            Self::BusyBoxUtilities => Some(584),
-            Self::BionicLibc => Some(585),
-            Self::Win32Subsystem => Some(586),
-            Self::GnuUtilities => Some(587),
-            Self::BionicUserspace => Some(588),
-            Self::IsStdinTerminal => Some(589),
-            Self::IsStdoutTerminal => Some(590),
-            Self::IsStderrTerminal => Some(591),
-            Self::TerminalCanEdit => Some(592),
-            Self::TerminalCanEditPastLines => Some(593),
-            Self::LineModeTerminal => Some(594),
-            Self::BlockModeTerminal => Some(595),
-            Self::PwaMobile => Some(596),
-            Self::BrowserVmFullscreen => Some(597),
-            Self::BrowserVmMobile => Some(598),
-            Self::WebUiSystemBrowser => Some(599),
         }
     }
 
@@ -4442,611 +4927,16 @@ impl FormatId {
         }
     }
 
-    /// Looks up a `FormatId` from its Short format ID integer.
+    /// Returns the format character as a `DcChar`, if known.
     #[must_use]
-    pub const fn from_short_id(id: usize) -> Option<Self> {
-        match id {
-            0 => Some(Self::Utf8),
-            1 => Some(Self::DcArray),
-            2 => Some(Self::DcIntegerList),
-            3 => Some(Self::AsciiSafeSubset),
-            4 => Some(Self::Ascii),
-            5 => Some(Self::Html),
-            6 => Some(Self::Sems),
-            7 => Some(Self::Unicode),
-            8 => Some(Self::Vt100),
-            9 => Some(Self::Videoterminal),
-            10 => Some(Self::Teleprinter),
-            11 => Some(Self::DcBasenb),
-            12 => Some(Self::BaseNb),
-            13 => Some(Self::HtmlFragment),
-            14 => Some(Self::Text),
-            15 => Some(Self::Lang_En),
-            16 => Some(Self::Lang_En_Us),
-            17 => Some(Self::Elad),
-            18 => Some(Self::JavaScript),
-            19 => Some(Self::SemanticToText),
-            20 => Some(Self::CodeToText),
-            21 => Some(Self::EiteColorCoded),
-            22 => Some(Self::LineEndingLf),
-            23 => Some(Self::LineEndingCr),
-            24 => Some(Self::LineEndingCrLf),
-            25 => Some(Self::LineEndingLfCr),
-            26 => Some(Self::LineEndingRs),
-            27 => Some(Self::LineEndingNl),
-            28 => Some(Self::LineSeparatorLf),
-            29 => Some(Self::LineSeparatorCr),
-            30 => Some(Self::LineSeparatorCrLf),
-            31 => Some(Self::LineSeparatorLfCr),
-            32 => Some(Self::LineSeparatorRs),
-            33 => Some(Self::LineSeparatorNl),
-            34 => Some(Self::Brotli),
-            35 => Some(Self::Gzip),
-            36 => Some(Self::Deflate),
-            37 => Some(Self::Zlib),
-            38 => Some(Self::Bzip2),
-            39 => Some(Self::Bzip),
-            40 => Some(Self::Zstd),
-            41 => Some(Self::Lzip),
-            42 => Some(Self::Xz),
-            43 => Some(Self::ScoCompress),
-            44 => Some(Self::CompressLzw),
-            45 => Some(Self::CompressLzw1),
-            46 => Some(Self::CompressLzw16),
-            47 => Some(Self::CompressLzw2),
-            48 => Some(Self::Pack),
-            49 => Some(Self::OldPack),
-            50 => Some(Self::Compact),
-            51 => Some(Self::BaseString),
-            52 => Some(Self::Base64Standard),
-            53 => Some(Self::HexByteString),
-            54 => Some(Self::HexByteStrings0xPrefix),
-            55 => Some(Self::HexdumpPlain),
-            56 => Some(Self::HexdumpFancy437),
-            57 => Some(Self::Base16b),
-            58 => Some(Self::Base16b_7),
-            59 => Some(Self::Base16b_8),
-            60 => Some(Self::Base16b_9),
-            61 => Some(Self::Base16b_10),
-            62 => Some(Self::Base16b_11),
-            63 => Some(Self::Base16b_12),
-            64 => Some(Self::Base16b_13),
-            65 => Some(Self::Base16b_14),
-            66 => Some(Self::Base16b_15),
-            67 => Some(Self::Base16b_16),
-            68 => Some(Self::Base16b_17),
-            69 => Some(Self::BaseNb_7),
-            70 => Some(Self::BaseNb_8),
-            71 => Some(Self::BaseNb_9),
-            72 => Some(Self::BaseNb_10),
-            73 => Some(Self::BaseNb_11),
-            74 => Some(Self::BaseNb_12),
-            75 => Some(Self::BaseNb_13),
-            76 => Some(Self::BaseNb_14),
-            77 => Some(Self::BaseNb_15),
-            78 => Some(Self::BaseNb_16),
-            79 => Some(Self::BaseNb_17),
-            80 => Some(Self::String),
-            81 => Some(Self::CString),
-            82 => Some(Self::PascalString),
-            83 => Some(Self::Ucs2),
-            84 => Some(Self::Wtf8),
-            85 => Some(Self::Utf32_BE),
-            86 => Some(Self::Cp437),
-            87 => Some(Self::MacRoman),
-            88 => Some(Self::DcText),
-            89 => Some(Self::DcUtf),
-            90 => Some(Self::DcList),
-            91 => Some(Self::DcBasenbFragment),
-            92 => Some(Self::Cdce),
-            93 => Some(Self::CdceLegacy),
-            94 => Some(Self::CdceLegacyStrict),
-            95 => Some(Self::Dce),
-            96 => Some(Self::DceHex),
-            97 => Some(Self::Dce_3_0a),
-            98 => Some(Self::Dce_3_0a_raw),
-            99 => Some(Self::Dce_3_0a_hex),
-            100 => Some(Self::Dce_3_0a_raw_hex),
-            101 => Some(Self::Dce_3_0a_old),
-            102 => Some(Self::Dce2txt),
-            103 => Some(Self::Dce2hex),
-            104 => Some(Self::Hex2dce),
-            105 => Some(Self::Dce_3_01a),
-            106 => Some(Self::Dce_3_01a_raw),
-            107 => Some(Self::Dce_3_01a_hex),
-            108 => Some(Self::Dce_3_01a_raw_hex),
-            109 => Some(Self::DcIdList),
-            110 => Some(Self::Utf8_Base64),
-            111 => Some(Self::Utf8_Dc64),
-            112 => Some(Self::Utf8_Dc64_enc),
-            113 => Some(Self::Utf8_Dc64_bin),
-            114 => Some(Self::Utf8_Dc64_bin_hex),
-            115 => Some(Self::Utf8_Dc64_bin_enc),
-            116 => Some(Self::Utf8_Dc64_bin_enc_hex),
-            117 => Some(Self::HtmlLegacyCdce),
-            118 => Some(Self::HtmlLegacyCdceSnippet),
-            119 => Some(Self::AppleScript),
-            120 => Some(Self::TypeScript),
-            121 => Some(Self::Perl),
-            122 => Some(Self::Bash),
-            123 => Some(Self::C),
-            124 => Some(Self::Cpp),
-            125 => Some(Self::Cs),
-            126 => Some(Self::Java),
-            127 => Some(Self::Perl5),
-            128 => Some(Self::Perl6),
-            129 => Some(Self::Raku),
-            130 => Some(Self::Rust),
-            131 => Some(Self::Php),
-            132 => Some(Self::Sh),
-            133 => Some(Self::StageL),
-            134 => Some(Self::StageLParseResult),
-            135 => Some(Self::Elf),
-            136 => Some(Self::Pe),
-            137 => Some(Self::MachO),
-            138 => Some(Self::DebianPackage),
-            139 => Some(Self::Lang_Ar),
-            140 => Some(Self::Lang_Bn),
-            141 => Some(Self::Lang_De),
-            142 => Some(Self::Lang_En_Gb),
-            143 => Some(Self::Lang_Es),
-            144 => Some(Self::Lang_Fa),
-            145 => Some(Self::Lang_Fil),
-            146 => Some(Self::Lang_Fr),
-            147 => Some(Self::Lang_Hi),
-            148 => Some(Self::Lang_Id),
-            149 => Some(Self::Lang_It),
-            150 => Some(Self::Lang_Ja),
-            151 => Some(Self::Lang_Ko),
-            152 => Some(Self::Lang_Nl),
-            153 => Some(Self::Lang_Pl),
-            154 => Some(Self::Lang_Pt),
-            155 => Some(Self::Lang_Pt_Br),
-            156 => Some(Self::Lang_Ru),
-            157 => Some(Self::Lang_Tr),
-            158 => Some(Self::Lang_Ur),
-            159 => Some(Self::Lang_Vi),
-            160 => Some(Self::Lang_Zh_Cn),
-            161 => Some(Self::Tar),
-            162 => Some(Self::Zip),
-            163 => Some(Self::CtbAssetBundle),
-            164 => Some(Self::Pdf),
-            165 => Some(Self::Markdown),
-            166 => Some(Self::Troff),
-            167 => Some(Self::Rss),
-            168 => Some(Self::Rss09),
-            169 => Some(Self::Rss091Netscape),
-            170 => Some(Self::Rss091UserLand),
-            171 => Some(Self::Rss092),
-            172 => Some(Self::Rss1),
-            173 => Some(Self::ScriptingNews10),
-            174 => Some(Self::ScriptingNews20),
-            175 => Some(Self::Atom),
-            176 => Some(Self::HAtom),
-            177 => Some(Self::JsonFeed11),
-            178 => Some(Self::WfscanOutput),
-            179 => Some(Self::WfparseOutput),
-            180 => Some(Self::Csv),
-            181 => Some(Self::Tsv),
-            182 => Some(Self::Ssv),
-            183 => Some(Self::Multipart),
-            184 => Some(Self::Json),
-            185 => Some(Self::Jsonc),
-            186 => Some(Self::Xml),
-            187 => Some(Self::Warc),
-            188 => Some(Self::Pan),
-            189 => Some(Self::Sqlite),
-            190 => Some(Self::IaMetaJson),
-            191 => Some(Self::IaFilesXml),
-            192 => Some(Self::IaMetaXml),
-            193 => Some(Self::IaMetaSqlite),
-            194 => Some(Self::Clubcard),
-            195 => Some(Self::CrliteFilter),
-            196 => Some(Self::CrliteFilterDelta),
-            197 => Some(Self::CommonLogFormat),
-            198 => Some(Self::ExtendedLogFormat),
-            199 => Some(Self::Integer),
-            200 => Some(Self::Natural0),
-            201 => Some(Self::Positive),
-            202 => Some(Self::Negative),
-            203 => Some(Self::U8),
-            204 => Some(Self::I8),
-            205 => Some(Self::U16),
-            206 => Some(Self::I16),
-            207 => Some(Self::U32),
-            208 => Some(Self::I32),
-            209 => Some(Self::U64),
-            210 => Some(Self::I64),
-            211 => Some(Self::U128),
-            212 => Some(Self::I128),
-            213 => Some(Self::Float),
-            214 => Some(Self::Fixed),
-            215 => Some(Self::Pack32),
-            216 => Some(Self::Gregorian),
-            217 => Some(Self::Julian),
-            218 => Some(Self::DateString),
-            219 => Some(Self::TimeString),
-            220 => Some(Self::DateTimeString),
-            221 => Some(Self::PanDate),
-            222 => Some(Self::PanTime),
-            223 => Some(Self::PanSuperDate),
-            224 => Some(Self::MathExpression),
-            225 => Some(Self::Pem),
-            226 => Some(Self::IpAddr),
-            227 => Some(Self::Uri),
-            228 => Some(Self::FileName),
-            229 => Some(Self::FilePath),
-            230 => Some(Self::Lnk),
-            231 => Some(Self::MacAlias),
-            232 => Some(Self::MacBookmark),
-            233 => Some(Self::Torrent),
-            234 => Some(Self::Btih),
-            235 => Some(Self::Magnet),
-            236 => Some(Self::IaIdentifier),
-            237 => Some(Self::IaArchiveTorrent),
-            238 => Some(Self::XxHash32),
-            239 => Some(Self::XxHash64),
-            240 => Some(Self::XxHash3_64),
-            241 => Some(Self::XxHash3_128),
-            242 => Some(Self::Md5),
-            243 => Some(Self::Md6),
-            244 => Some(Self::Sha1),
-            245 => Some(Self::Sha256),
-            246 => Some(Self::Sha512),
-            247 => Some(Self::Sha3),
-            248 => Some(Self::Tiger),
-            249 => Some(Self::Whirlpool),
-            250 => Some(Self::Adler32),
-            251 => Some(Self::Fletcher4),
-            252 => Some(Self::Fletcher8),
-            253 => Some(Self::Fletcher16),
-            254 => Some(Self::Fletcher32),
-            255 => Some(Self::Crc32),
-            256 => Some(Self::Cksum),
-            257 => Some(Self::BsdChecksum),
-            258 => Some(Self::SysvChecksum),
-            259 => Some(Self::Hmac),
-            260 => Some(Self::Blake),
-            261 => Some(Self::Blake2),
-            262 => Some(Self::Blake3),
-            263 => Some(Self::UserAgent),
-            264 => Some(Self::FileExtension),
-            265 => Some(Self::UriProtocol),
-            266 => Some(Self::TerminalMouse),
-            267 => Some(Self::TerminalGraphics),
-            268 => Some(Self::TerminalSixelGraphics),
-            269 => Some(Self::TerminalIterm2Graphics),
-            270 => Some(Self::TerminalKittyGraphics),
-            271 => Some(Self::RasterDisplay),
-            272 => Some(Self::VectorDisplay),
-            273 => Some(Self::RenderModeImmediate),
-            274 => Some(Self::RenderModeInteractive),
-            275 => Some(Self::Unknown),
-            276 => Some(Self::Csur),
-            277 => Some(Self::Ucsur),
-            278 => Some(Self::Mime),
-            279 => Some(Self::QuotedPrintable),
-            280 => Some(Self::Uuencode),
-            281 => Some(Self::YEnc),
-            282 => Some(Self::BinHex),
-            283 => Some(Self::BinHexTrs80),
-            284 => Some(Self::BinHex1),
-            285 => Some(Self::BinHex2),
-            286 => Some(Self::BinHex5),
-            287 => Some(Self::MacBinary),
-            288 => Some(Self::Shar),
-            289 => Some(Self::Cpio),
-            290 => Some(Self::Pax),
-            291 => Some(Self::TarGz),
-            292 => Some(Self::TarZ),
-            293 => Some(Self::TarBz2),
-            294 => Some(Self::OutlookMsg),
-            295 => Some(Self::PercentEncoding),
-            296 => Some(Self::NumericCharacterReferenceDec),
-            297 => Some(Self::NumericCharacterReferenceHex),
-            298 => Some(Self::MimeBase64),
-            299 => Some(Self::Xxencode),
-            300 => Some(Self::Rzip),
-            301 => Some(Self::Lrzip),
-            302 => Some(Self::Bzip3),
-            303 => Some(Self::Lz4),
-            304 => Some(Self::Lzo),
-            305 => Some(Self::Zpaq),
-            306 => Some(Self::Orz),
-            307 => Some(Self::Lzfse),
-            308 => Some(Self::Hexdump),
-            309 => Some(Self::Pkcs8PrivateKey),
-            310 => Some(Self::Pkcs10Csr),
-            311 => Some(Self::PkixCert),
-            312 => Some(Self::PkixCrl),
-            313 => Some(Self::Pkcs7Mime),
-            314 => Some(Self::Pkcs12),
-            315 => Some(Self::AppleSingle),
-            316 => Some(Self::AppleDouble),
-            317 => Some(Self::CtbNode),
-            318 => Some(Self::CtbNodeV1),
-            319 => Some(Self::CtbNodeV2),
-            320 => Some(Self::Lzma),
-            321 => Some(Self::Lzma2),
-            322 => Some(Self::TarLzo),
-            323 => Some(Self::AlturaMacToWin),
-            324 => Some(Self::AlturaWinToMac),
-            325 => Some(Self::Win1252),
-            326 => Some(Self::AlphaSmartNeo),
-            327 => Some(Self::AlphaSmartNeoLowGrUs),
-            328 => Some(Self::AlphaSmartNeoLowGrUaMac),
-            329 => Some(Self::AlphaSmartNeoLowGrUaPc),
-            330 => Some(Self::AlphaSmartNeoLowCtlUs),
-            331 => Some(Self::AlphaSmartNeoLowCtlUaMac),
-            332 => Some(Self::AlphaSmartNeoLowCtlUaPc),
-            333 => Some(Self::AlphaWord),
-            334 => Some(Self::CtbAssetBundleV1),
-            335 => Some(Self::CtbAssetBundleV2),
-            336 => Some(Self::CtbAssetBundleV3),
-            337 => Some(Self::CtbAssetBundleV4),
-            338 => Some(Self::Jq),
-            339 => Some(Self::JqJaq),
-            340 => Some(Self::Dcal),
-            341 => Some(Self::HexdumpXxd),
-            342 => Some(Self::StageL2),
-            343 => Some(Self::StageL2Intermediate),
-            344 => Some(Self::Csdl),
-            345 => Some(Self::Rational),
-            346 => Some(Self::Real),
-            347 => Some(Self::Complex),
-            348 => Some(Self::FloatIeee754),
-            349 => Some(Self::NumeralSystem),
-            350 => Some(Self::BaseNNumeral),
-            351 => Some(Self::Natural1),
-            352 => Some(Self::DcIdentifier),
-            353 => Some(Self::DcShortIdentifier),
-            354 => Some(Self::Base),
-            355 => Some(Self::AbstractNumber),
-            356 => Some(Self::BaseNNumber),
-            357 => Some(Self::DcNumber),
-            358 => Some(Self::DcNumberB64Int),
-            359 => Some(Self::BaseAlphabet),
-            360 => Some(Self::AlphabetBase64Rfc4648),
-            361 => Some(Self::AlphabetBase36),
-            362 => Some(Self::AlphabetBase36Uppercase),
-            363 => Some(Self::AlphabetBase36Lowercase),
-            364 => Some(Self::ArithmeticExpression),
-            365 => Some(Self::SymbolicExpression),
-            366 => Some(Self::MathRelation),
-            367 => Some(Self::Equation),
-            368 => Some(Self::Inequality),
-            369 => Some(Self::Approximation),
-            370 => Some(Self::EquationSystem),
-            371 => Some(Self::UnaryNumeral),
-            372 => Some(Self::BinaryNumeral),
-            373 => Some(Self::OctalNumeral),
-            374 => Some(Self::DecimalNumeral),
-            375 => Some(Self::HexadecimalNumeral),
-            376 => Some(Self::AlphabetArabicIndicNumeral),
-            377 => Some(Self::AlphabetDevanagariNumeral),
-            378 => Some(Self::RomanNumeral),
-            379 => Some(Self::TallyNumeral),
-            380 => Some(Self::ChineseNumeral),
-            381 => Some(Self::ChineseNumeralSmall),
-            382 => Some(Self::ChineseNumeralBig),
-            383 => Some(Self::SuzhouNumeral),
-            384 => Some(Self::x86),
-            385 => Some(Self::amd64),
-            386 => Some(Self::arm),
-            387 => Some(Self::arm64),
-            388 => Some(Self::i586),
-            389 => Some(Self::sse2),
-            390 => Some(Self::Linux),
-            391 => Some(Self::BsdKernel),
-            392 => Some(Self::Mach),
-            393 => Some(Self::Hurd),
-            394 => Some(Self::Xnu),
-            395 => Some(Self::Gnu),
-            396 => Some(Self::Darwin),
-            397 => Some(Self::BsdLibc),
-            398 => Some(Self::GnuLinux),
-            399 => Some(Self::Android),
-            400 => Some(Self::MsDosKernel),
-            401 => Some(Self::WinNtKernel),
-            402 => Some(Self::Windows),
-            403 => Some(Self::WinClassic),
-            404 => Some(Self::WinNt),
-            405 => Some(Self::MacOs),
-            406 => Some(Self::MacOsDarwin),
-            407 => Some(Self::FreeBsd),
-            408 => Some(Self::OpenBsd),
-            409 => Some(Self::NetBsd),
-            410 => Some(Self::CscJournal),
-            411 => Some(Self::CscDesc),
-            412 => Some(Self::DragonFlyBsd),
-            413 => Some(Self::GnuMach),
-            414 => Some(Self::CscIndex),
-            415 => Some(Self::CscIndexMeta),
-            416 => Some(Self::Redb),
-            417 => Some(Self::MinixFs),
-            418 => Some(Self::Ext),
-            419 => Some(Self::Ext2),
-            420 => Some(Self::Ext3),
-            421 => Some(Self::Ext4),
-            422 => Some(Self::Xiafs),
-            423 => Some(Self::Xfs),
-            424 => Some(Self::Btrfs),
-            425 => Some(Self::F2fs),
-            426 => Some(Self::Zfs),
-            427 => Some(Self::Tmpfs),
-            428 => Some(Self::Ramfs),
-            429 => Some(Self::Overlayfs),
-            430 => Some(Self::Fat8bit),
-            431 => Some(Self::Fat12),
-            432 => Some(Self::Fat16),
-            433 => Some(Self::Fat16b),
-            434 => Some(Self::Fat32),
-            435 => Some(Self::Exfat),
-            436 => Some(Self::Fatx),
-            437 => Some(Self::Fatx16),
-            438 => Some(Self::Fatx32),
-            439 => Some(Self::FatPlus),
-            440 => Some(Self::Fat16Pus),
-            441 => Some(Self::Fat32Plus),
-            442 => Some(Self::Umsdos),
-            443 => Some(Self::Uvfat),
-            444 => Some(Self::Vfat),
-            445 => Some(Self::Smb),
-            446 => Some(Self::Cifs),
-            447 => Some(Self::Smb2),
-            448 => Some(Self::Nfs),
-            449 => Some(Self::Iso9660),
-            450 => Some(Self::Udf),
-            451 => Some(Self::Joliet),
-            452 => Some(Self::Mfs),
-            453 => Some(Self::Hfs),
-            454 => Some(Self::HfsPlus),
-            455 => Some(Self::Apfs),
-            456 => Some(Self::Ntfs),
-            457 => Some(Self::Refs),
-            458 => Some(Self::ReiserFs),
-            459 => Some(Self::Reiser4),
-            460 => Some(Self::Bcachefs),
-            461 => Some(Self::Dcts),
-            462 => Some(Self::FowlerNollVo),
-            463 => Some(Self::Fnv0),
-            464 => Some(Self::Fnv1),
-            465 => Some(Self::Fnv1a),
-            466 => Some(Self::Fnv0_32),
-            467 => Some(Self::Fnv0_64),
-            468 => Some(Self::Fnv0_128),
-            469 => Some(Self::Fnv0_256),
-            470 => Some(Self::Fnv0_512),
-            471 => Some(Self::Fnv0_1024),
-            472 => Some(Self::Fnv1_32),
-            473 => Some(Self::Fnv1_64),
-            474 => Some(Self::Fnv1_128),
-            475 => Some(Self::Fnv1_256),
-            476 => Some(Self::Fnv1_512),
-            477 => Some(Self::Fnv1_1024),
-            478 => Some(Self::Fnv1a_32),
-            479 => Some(Self::Fnv1a_64),
-            480 => Some(Self::Fnv1a_128),
-            481 => Some(Self::Fnv1a_256),
-            482 => Some(Self::Fnv1a_512),
-            483 => Some(Self::Fnv1a_1024),
-            484 => Some(Self::DcMixed),
-            485 => Some(Self::CtbFileMetadataJson),
-            486 => Some(Self::SecondsSinceEpoch),
-            487 => Some(Self::NsSinceEpoch),
-            488 => Some(Self::Second),
-            489 => Some(Self::Nanosecond),
-            490 => Some(Self::IpV4),
-            491 => Some(Self::IpV6),
-            492 => Some(Self::Unix),
-            493 => Some(Self::AppleIos),
-            494 => Some(Self::WatchOs),
-            495 => Some(Self::TvOs),
-            496 => Some(Self::VisionOs),
-            497 => Some(Self::GnuStep),
-            498 => Some(Self::NextStep),
-            499 => Some(Self::WebUi),
-            500 => Some(Self::WebView),
-            501 => Some(Self::BrowserVm),
-            502 => Some(Self::V86Vm),
-            503 => Some(Self::Pwa),
-            504 => Some(Self::Point),
-            505 => Some(Self::Point1D),
-            506 => Some(Self::Point2D),
-            507 => Some(Self::Point3D),
-            508 => Some(Self::Vector),
-            509 => Some(Self::Vector1D),
-            510 => Some(Self::Vector2D),
-            511 => Some(Self::Vector3D),
-            512 => Some(Self::Interval1D),
-            513 => Some(Self::Box2D),
-            514 => Some(Self::Box3D),
-            515 => Some(Self::Index1D),
-            516 => Some(Self::Index2D),
-            517 => Some(Self::Size2D),
-            518 => Some(Self::Size3D),
-            519 => Some(Self::CartesianPoint2D),
-            520 => Some(Self::CartesianPoint3D),
-            521 => Some(Self::ScreenPoint2D),
-            522 => Some(Self::ScreenRect),
-            523 => Some(Self::QuickDrawPoint),
-            524 => Some(Self::QuickDrawRect),
-            525 => Some(Self::OriginScreenTopLeft),
-            526 => Some(Self::OriginWindowTopLeft),
-            527 => Some(Self::OriginBottomLeft),
-            528 => Some(Self::OriginCenter),
-            529 => Some(Self::OriginSequenceStart),
-            530 => Some(Self::AxisHorizRight),
-            531 => Some(Self::AxisVertDown),
-            532 => Some(Self::AxisVertUp),
-            533 => Some(Self::AxisDepthIn),
-            534 => Some(Self::AxisDepthOut),
-            535 => Some(Self::AxisRowDown),
-            536 => Some(Self::AxisColRight),
-            537 => Some(Self::AxisOrdinal),
-            538 => Some(Self::AxisField),
-            539 => Some(Self::OrderXY),
-            540 => Some(Self::OrderVH),
-            541 => Some(Self::OrderXYZ),
-            542 => Some(Self::Iso88591),
-            543 => Some(Self::ActionScript),
-            544 => Some(Self::X11Display),
-            545 => Some(Self::WaylandDisplay),
-            546 => Some(Self::QuartzDisplay),
-            547 => Some(Self::Win32Display),
-            548 => Some(Self::HeadlessDisplay),
-            549 => Some(Self::RasterColors1bit),
-            550 => Some(Self::RasterColors24bit),
-            551 => Some(Self::TerminalColors1bit),
-            552 => Some(Self::TerminalColors4bit),
-            553 => Some(Self::TerminalColors8bit),
-            554 => Some(Self::TerminalColors24bit),
-            555 => Some(Self::ColorDepth1bit),
-            556 => Some(Self::ColorDepth24bit),
-            557 => Some(Self::Replicant),
-            558 => Some(Self::Dragora),
-            559 => Some(Self::Dynebolic),
-            560 => Some(Self::GuixSystem),
-            561 => Some(Self::Guix),
-            562 => Some(Self::Homebrew),
-            563 => Some(Self::MacPorts),
-            564 => Some(Self::Hyperbola),
-            565 => Some(Self::ParabolaGll),
-            566 => Some(Self::PureOs),
-            567 => Some(Self::Trisquel),
-            568 => Some(Self::UtutoS),
-            569 => Some(Self::LibreCmc),
-            570 => Some(Self::ProteanOs),
-            571 => Some(Self::Debian),
-            572 => Some(Self::Ubuntu),
-            573 => Some(Self::Fedora),
-            574 => Some(Self::Rhel),
-            575 => Some(Self::ArchLinux),
-            576 => Some(Self::Alpine),
-            577 => Some(Self::OpenSuse),
-            578 => Some(Self::Gentoo),
-            579 => Some(Self::NixOs),
-            580 => Some(Self::Nix),
-            581 => Some(Self::Wsl),
-            582 => Some(Self::Wsl2),
-            583 => Some(Self::MuslLibc),
-            584 => Some(Self::BusyBoxUtilities),
-            585 => Some(Self::BionicLibc),
-            586 => Some(Self::Win32Subsystem),
-            587 => Some(Self::GnuUtilities),
-            588 => Some(Self::BionicUserspace),
-            589 => Some(Self::IsStdinTerminal),
-            590 => Some(Self::IsStdoutTerminal),
-            591 => Some(Self::IsStderrTerminal),
-            592 => Some(Self::TerminalCanEdit),
-            593 => Some(Self::TerminalCanEditPastLines),
-            594 => Some(Self::LineModeTerminal),
-            595 => Some(Self::BlockModeTerminal),
-            596 => Some(Self::PwaMobile),
-            597 => Some(Self::BrowserVmFullscreen),
-            598 => Some(Self::BrowserVmMobile),
-            599 => Some(Self::WebUiSystemBrowser),
-            _ => None,
+    pub const fn dc_char(&self) -> Option<DcChar> {
+        match self {
+            Self::Unknown => None,
+            _ => if let Some(dc) = self.dc_id() {
+                Some(DcChar::from_u128(dc))
+            } else {
+                None
+            }
         }
     }
 
@@ -5658,3 +5548,1204 @@ impl FormatId {
         }
     }
 }
+
+/// DcChar constant for Format `Utf8` (Short f0, Category: encoding): UTF-8
+pub const DC_UTF8: DcChar = DcChar::from_format(0);
+/// DcChar constant for Format `DcArray` (Short f1, Category: semantic): Internal: Short Dc Array
+pub const DC_DC_ARRAY: DcChar = DcChar::from_format(1);
+/// DcChar constant for Format `DcIntegerList` (Short f2, Category: document): Dc Integer List (short Dcs)
+pub const DC_DC_INTEGER_LIST: DcChar = DcChar::from_format(2);
+/// DcChar constant for Format `AsciiSafeSubset` (Short f3, Category: encoding): Printable ASCII
+pub const DC_ASCII_SAFE_SUBSET: DcChar = DcChar::from_format(3);
+/// DcChar constant for Format `Ascii` (Short f4, Category: encoding): ASCII
+pub const DC_ASCII: DcChar = DcChar::from_format(4);
+/// DcChar constant for Format `Html` (Short f5, Category: document): HTML
+pub const DC_HTML: DcChar = DcChar::from_format(5);
+/// DcChar constant for Format `Sems` (Short f6, Category: document): SEMS (short Dcs)
+pub const DC_SEMS: DcChar = DcChar::from_format(6);
+/// DcChar constant for Format `Unicode` (Short f7, Category: semantic): Unicode
+pub const DC_UNICODE: DcChar = DcChar::from_format(7);
+/// DcChar constant for Format `Vt100` (Short f8, Category: videoterminal): VT100
+pub const DC_VT100: DcChar = DcChar::from_format(8);
+/// DcChar constant for Format `Videoterminal` (Short f9, Category: device_caps): Character-mode terminal
+pub const DC_VIDEOTERMINAL: DcChar = DcChar::from_format(9);
+/// DcChar constant for Format `Teleprinter` (Short f10, Category: device_caps): Character-mode teleprinter
+pub const DC_TELEPRINTER: DcChar = DcChar::from_format(10);
+/// DcChar constant for Format `DcBasenb` (Short f11, Category: v:unicodePua): Dc in Unicode
+pub const DC_DC_BASENB: DcChar = DcChar::from_format(11);
+/// DcChar constant for Format `BaseNb` (Short f12, Category: armor): BaseNb family
+pub const DC_BASE_NB: DcChar = DcChar::from_format(12);
+/// DcChar constant for Format `HtmlFragment` (Short f13, Category: document): HTML fragment
+pub const DC_HTML_FRAGMENT: DcChar = DcChar::from_format(13);
+/// DcChar constant for Format `Text` (Short f14, Category: document): Text
+pub const DC_TEXT: DcChar = DcChar::from_format(14);
+/// DcChar constant for Format `Lang_En` (Short f15, Category: language): English
+pub const DC_LANG__EN: DcChar = DcChar::from_format(15);
+/// DcChar constant for Format `Lang_En_Us` (Short f16, Category: language): English (US)
+pub const DC_LANG__EN__US: DcChar = DcChar::from_format(16);
+/// DcChar constant for Format `Elad` (Short f17, Category: document): EITE Language in ASCII documents (ELAD)
+pub const DC_ELAD: DcChar = DcChar::from_format(17);
+/// DcChar constant for Format `JavaScript` (Short f18, Category: programming): JavaScript
+pub const DC_JAVA_SCRIPT: DcChar = DcChar::from_format(18);
+/// DcChar constant for Format `SemanticToText` (Short f19, Category: transformation): Semantic Dcs to text
+pub const DC_SEMANTIC_TO_TEXT: DcChar = DcChar::from_format(19);
+/// DcChar constant for Format `CodeToText` (Short f20, Category: transformation): Programmatic Dcs to text
+pub const DC_CODE_TO_TEXT: DcChar = DcChar::from_format(20);
+/// DcChar constant for Format `EiteColorCoded` (Short f21, Category: document): Color-coded HTML integer list
+pub const DC_EITE_COLOR_CODED: DcChar = DcChar::from_format(21);
+/// DcChar constant for Format `LineEndingLf` (Short f22, Category: v:lineEndings): Lines terminated by LF
+pub const DC_LINE_ENDING_LF: DcChar = DcChar::from_format(22);
+/// DcChar constant for Format `LineEndingCr` (Short f23, Category: v:lineEndings): Lines terminated by CR
+pub const DC_LINE_ENDING_CR: DcChar = DcChar::from_format(23);
+/// DcChar constant for Format `LineEndingCrLf` (Short f24, Category: v:lineEndings): Lines terminated by CRLF
+pub const DC_LINE_ENDING_CR_LF: DcChar = DcChar::from_format(24);
+/// DcChar constant for Format `LineEndingLfCr` (Short f25, Category: v:lineEndings): Lines terminated by LFCR
+pub const DC_LINE_ENDING_LF_CR: DcChar = DcChar::from_format(25);
+/// DcChar constant for Format `LineEndingRs` (Short f26, Category: v:lineEndings): Lines terminated by RS
+pub const DC_LINE_ENDING_RS: DcChar = DcChar::from_format(26);
+/// DcChar constant for Format `LineEndingNl` (Short f27, Category: v:lineEndings): Lines terminated by NL (NEL)
+pub const DC_LINE_ENDING_NL: DcChar = DcChar::from_format(27);
+/// DcChar constant for Format `LineSeparatorLf` (Short f28, Category: v:lineEndings): Lines separated by LF
+pub const DC_LINE_SEPARATOR_LF: DcChar = DcChar::from_format(28);
+/// DcChar constant for Format `LineSeparatorCr` (Short f29, Category: v:lineEndings): Lines separated by CR
+pub const DC_LINE_SEPARATOR_CR: DcChar = DcChar::from_format(29);
+/// DcChar constant for Format `LineSeparatorCrLf` (Short f30, Category: v:lineEndings): Lines separated by CRLF
+pub const DC_LINE_SEPARATOR_CR_LF: DcChar = DcChar::from_format(30);
+/// DcChar constant for Format `LineSeparatorLfCr` (Short f31, Category: v:lineEndings): Lines separated by LFCR
+pub const DC_LINE_SEPARATOR_LF_CR: DcChar = DcChar::from_format(31);
+/// DcChar constant for Format `LineSeparatorRs` (Short f32, Category: v:lineEndings): Lines separated by RS
+pub const DC_LINE_SEPARATOR_RS: DcChar = DcChar::from_format(32);
+/// DcChar constant for Format `LineSeparatorNl` (Short f33, Category: v:lineEndings): Lines separated by NL (NEL)
+pub const DC_LINE_SEPARATOR_NL: DcChar = DcChar::from_format(33);
+/// DcChar constant for Format `Brotli` (Short f34, Category: compression): Brotli compression (RFC 9841)
+pub const DC_BROTLI: DcChar = DcChar::from_format(34);
+/// DcChar constant for Format `Gzip` (Short f35, Category: compression): GNU gzip compression (RFC 1952)
+pub const DC_GZIP: DcChar = DcChar::from_format(35);
+/// DcChar constant for Format `Deflate` (Short f36, Category: compression): Deflate compression (RFC 1591), raw
+pub const DC_DEFLATE: DcChar = DcChar::from_format(36);
+/// DcChar constant for Format `Zlib` (Short f37, Category: compression): Zlib compression (RFC 1950) (wrapped Deflate)
+pub const DC_ZLIB: DcChar = DcChar::from_format(37);
+/// DcChar constant for Format `Bzip2` (Short f38, Category: compression): Bzip2 compression
+pub const DC_BZIP2: DcChar = DcChar::from_format(38);
+/// DcChar constant for Format `Bzip` (Short f39, Category: compression): Original bzip compression
+pub const DC_BZIP: DcChar = DcChar::from_format(39);
+/// DcChar constant for Format `Zstd` (Short f40, Category: compression): Zstandard compression
+pub const DC_ZSTD: DcChar = DcChar::from_format(40);
+/// DcChar constant for Format `Lzip` (Short f41, Category: compression): Lzip compression
+pub const DC_LZIP: DcChar = DcChar::from_format(41);
+/// DcChar constant for Format `Xz` (Short f42, Category: compression): XZ compression
+pub const DC_XZ: DcChar = DcChar::from_format(42);
+/// DcChar constant for Format `ScoCompress` (Short f43, Category: compression): compress`: SCO `compress -H` format
+pub const DC_SCO_COMPRESS: DcChar = DcChar::from_format(43);
+/// DcChar constant for Format `CompressLzw` (Short f44, Category: compression): `compress` format, modern LZW block format
+pub const DC_COMPRESS_LZW: DcChar = DcChar::from_format(44);
+/// DcChar constant for Format `CompressLzw1` (Short f45, Category: compression): `compress` 1.0 (LZW headerless format)
+pub const DC_COMPRESS_LZW1: DcChar = DcChar::from_format(45);
+/// DcChar constant for Format `CompressLzw16` (Short f46, Category: compression): `compress` 1.6 (LZW sorted chain format)
+pub const DC_COMPRESS_LZW16: DcChar = DcChar::from_format(46);
+/// DcChar constant for Format `CompressLzw2` (Short f47, Category: compression): `compress` 2.0 (LZW non-block format)
+pub const DC_COMPRESS_LZW2: DcChar = DcChar::from_format(47);
+/// DcChar constant for Format `Pack` (Short f48, Category: compression): `pack` format, common version (Huffman)
+pub const DC_PACK: DcChar = DcChar::from_format(48);
+/// DcChar constant for Format `OldPack` (Short f49, Category: compression): `pack` format, early PDP-11 Unix binary tree
+pub const DC_OLD_PACK: DcChar = DcChar::from_format(49);
+/// DcChar constant for Format `Compact` (Short f50, Category: compression): `compact` (McMaster Adaptive Huffman)
+pub const DC_COMPACT: DcChar = DcChar::from_format(50);
+/// DcChar constant for Format `BaseString` (Short f51, Category: armor): Data encoded using an alphabet
+pub const DC_BASE_STRING: DcChar = DcChar::from_format(51);
+/// DcChar constant for Format `Base64Standard` (Short f52, Category: armor): The standard Base64 encoding (RFC 4648)
+pub const DC_BASE64_STANDARD: DcChar = DcChar::from_format(52);
+/// DcChar constant for Format `HexByteString` (Short f53, Category: armor): Hexadecimal bytes, lowercase (output) or case-insensitive (input)
+pub const DC_HEX_BYTE_STRING: DcChar = DcChar::from_format(53);
+/// DcChar constant for Format `HexByteStrings0xPrefix` (Short f54, Category: armor): Hexadecimal bytes, lowercase (output) or case-insensitive (input), prefixed with 0x
+pub const DC_HEX_BYTE_STRINGS0X_PREFIX: DcChar = DcChar::from_format(54);
+/// DcChar constant for Format `HexdumpPlain` (Short f55, Category: armor): Plain hexdump format
+pub const DC_HEXDUMP_PLAIN: DcChar = DcChar::from_format(55);
+/// DcChar constant for Format `HexdumpFancy437` (Short f56, Category: armor): Fancy hexdump format used in ctoolbox web UI
+pub const DC_HEXDUMP_FANCY437: DcChar = DcChar::from_format(56);
+/// DcChar constant for Format `Base16b` (Short f57, Category: armor): Modified Base16b family
+pub const DC_BASE16B: DcChar = DcChar::from_format(57);
+/// DcChar constant for Format `Base16b_7` (Short f58, Category: armor): Base16b, base 7
+pub const DC_BASE16B_7: DcChar = DcChar::from_format(58);
+/// DcChar constant for Format `Base16b_8` (Short f59, Category: armor): Base16b, base 8
+pub const DC_BASE16B_8: DcChar = DcChar::from_format(59);
+/// DcChar constant for Format `Base16b_9` (Short f60, Category: armor): Base16b, base 9
+pub const DC_BASE16B_9: DcChar = DcChar::from_format(60);
+/// DcChar constant for Format `Base16b_10` (Short f61, Category: armor): Base16b, base 10
+pub const DC_BASE16B_10: DcChar = DcChar::from_format(61);
+/// DcChar constant for Format `Base16b_11` (Short f62, Category: armor): Base16b, base 11
+pub const DC_BASE16B_11: DcChar = DcChar::from_format(62);
+/// DcChar constant for Format `Base16b_12` (Short f63, Category: armor): Base16b, base 12
+pub const DC_BASE16B_12: DcChar = DcChar::from_format(63);
+/// DcChar constant for Format `Base16b_13` (Short f64, Category: armor): Base16b, base 13
+pub const DC_BASE16B_13: DcChar = DcChar::from_format(64);
+/// DcChar constant for Format `Base16b_14` (Short f65, Category: armor): Base16b, base 14
+pub const DC_BASE16B_14: DcChar = DcChar::from_format(65);
+/// DcChar constant for Format `Base16b_15` (Short f66, Category: armor): Base16b, base 15
+pub const DC_BASE16B_15: DcChar = DcChar::from_format(66);
+/// DcChar constant for Format `Base16b_16` (Short f67, Category: armor): Base16b, base 16
+pub const DC_BASE16B_16: DcChar = DcChar::from_format(67);
+/// DcChar constant for Format `Base16b_17` (Short f68, Category: armor): Base16b, base 17
+pub const DC_BASE16B_17: DcChar = DcChar::from_format(68);
+/// DcChar constant for Format `BaseNb_7` (Short f69, Category: armor): BaseNb, base 7
+pub const DC_BASE_NB_7: DcChar = DcChar::from_format(69);
+/// DcChar constant for Format `BaseNb_8` (Short f70, Category: armor): BaseNb, base 8
+pub const DC_BASE_NB_8: DcChar = DcChar::from_format(70);
+/// DcChar constant for Format `BaseNb_9` (Short f71, Category: armor): BaseNb, base 9
+pub const DC_BASE_NB_9: DcChar = DcChar::from_format(71);
+/// DcChar constant for Format `BaseNb_10` (Short f72, Category: armor): BaseNb, base 10
+pub const DC_BASE_NB_10: DcChar = DcChar::from_format(72);
+/// DcChar constant for Format `BaseNb_11` (Short f73, Category: armor): BaseNb, base 11
+pub const DC_BASE_NB_11: DcChar = DcChar::from_format(73);
+/// DcChar constant for Format `BaseNb_12` (Short f74, Category: armor): BaseNb, base 12
+pub const DC_BASE_NB_12: DcChar = DcChar::from_format(74);
+/// DcChar constant for Format `BaseNb_13` (Short f75, Category: armor): BaseNb, base 13
+pub const DC_BASE_NB_13: DcChar = DcChar::from_format(75);
+/// DcChar constant for Format `BaseNb_14` (Short f76, Category: armor): BaseNb, base 14
+pub const DC_BASE_NB_14: DcChar = DcChar::from_format(76);
+/// DcChar constant for Format `BaseNb_15` (Short f77, Category: armor): BaseNb, base 15
+pub const DC_BASE_NB_15: DcChar = DcChar::from_format(77);
+/// DcChar constant for Format `BaseNb_16` (Short f78, Category: armor): BaseNb, base 16
+pub const DC_BASE_NB_16: DcChar = DcChar::from_format(78);
+/// DcChar constant for Format `BaseNb_17` (Short f79, Category: armor): BaseNb, base 17
+pub const DC_BASE_NB_17: DcChar = DcChar::from_format(79);
+/// DcChar constant for Format `String` (Short f80, Category: semantic): String
+pub const DC_STRING: DcChar = DcChar::from_format(80);
+/// DcChar constant for Format `CString` (Short f81, Category: document): C string (null-terminated)
+pub const DC_CSTRING: DcChar = DcChar::from_format(81);
+/// DcChar constant for Format `PascalString` (Short f82, Category: document): Pascal string
+pub const DC_PASCAL_STRING: DcChar = DcChar::from_format(82);
+/// DcChar constant for Format `Ucs2` (Short f83, Category: encoding): UCS-2
+pub const DC_UCS2: DcChar = DcChar::from_format(83);
+/// DcChar constant for Format `Wtf8` (Short f84, Category: encoding): WTF-8
+pub const DC_WTF8: DcChar = DcChar::from_format(84);
+/// DcChar constant for Format `Utf32_BE` (Short f85, Category: encoding): UTF-32, big-endian
+pub const DC_UTF32__BE: DcChar = DcChar::from_format(85);
+/// DcChar constant for Format `Cp437` (Short f86, Category: encoding): Code page 437 (CCSID 437)
+pub const DC_CP437: DcChar = DcChar::from_format(86);
+/// DcChar constant for Format `MacRoman` (Short f87, Category: encoding): MacRoman
+pub const DC_MAC_ROMAN: DcChar = DcChar::from_format(87);
+/// DcChar constant for Format `DcText` (Short f88, Category: document): DcText
+pub const DC_DC_TEXT: DcChar = DcChar::from_format(88);
+/// DcChar constant for Format `DcUtf` (Short f89, Category: document): DcUtf
+pub const DC_DC_UTF: DcChar = DcChar::from_format(89);
+/// DcChar constant for Format `DcList` (Short f90, Category: document): DcList
+pub const DC_DC_LIST: DcChar = DcChar::from_format(90);
+/// DcChar constant for Format `DcBasenbFragment` (Short f91, Category: v:unicodePua): DcBasenb Fragment
+pub const DC_DC_BASENB_FRAGMENT: DcChar = DcChar::from_format(91);
+/// DcChar constant for Format `Cdce` (Short f92, Category: document): CDCE
+pub const DC_CDCE: DcChar = DcChar::from_format(92);
+/// DcChar constant for Format `CdceLegacy` (Short f93, Category: document): CDCE (legacy)
+pub const DC_CDCE_LEGACY: DcChar = DcChar::from_format(93);
+/// DcChar constant for Format `CdceLegacyStrict` (Short f94, Category: document): CDCE (legacy, strict)
+pub const DC_CDCE_LEGACY_STRICT: DcChar = DcChar::from_format(94);
+/// DcChar constant for Format `Dce` (Short f95, Category: document): DCE (automatic version selection)
+pub const DC_DCE: DcChar = DcChar::from_format(95);
+/// DcChar constant for Format `DceHex` (Short f96, Category: document): DCE (hex-encoded)
+pub const DC_DCE_HEX: DcChar = DcChar::from_format(96);
+/// DcChar constant for Format `Dce_3_0a` (Short f97, Category: document): DCE 3.0a
+pub const DC_DCE_3_0A: DcChar = DcChar::from_format(97);
+/// DcChar constant for Format `Dce_3_0a_raw` (Short f98, Category: document): DCE 3.0a (raw)
+pub const DC_DCE_3_0A_RAW: DcChar = DcChar::from_format(98);
+/// DcChar constant for Format `Dce_3_0a_hex` (Short f99, Category: document): DCE 3.0a (hex-encoded)
+pub const DC_DCE_3_0A_HEX: DcChar = DcChar::from_format(99);
+/// DcChar constant for Format `Dce_3_0a_raw_hex` (Short f100, Category: document): DCE 3.0a (raw hex-encoded)
+pub const DC_DCE_3_0A_RAW_HEX: DcChar = DcChar::from_format(100);
+/// DcChar constant for Format `Dce_3_0a_old` (Short f101, Category: document): DCE 3.0a (old translator)
+pub const DC_DCE_3_0A_OLD: DcChar = DcChar::from_format(101);
+/// DcChar constant for Format `Dce2txt` (Short f102, Category: document): dce2txt
+pub const DC_DCE2TXT: DcChar = DcChar::from_format(102);
+/// DcChar constant for Format `Dce2hex` (Short f103, Category: document): dce2hex
+pub const DC_DCE2HEX: DcChar = DcChar::from_format(103);
+/// DcChar constant for Format `Hex2dce` (Short f104, Category: document): hex2dce
+pub const DC_HEX2DCE: DcChar = DcChar::from_format(104);
+/// DcChar constant for Format `Dce_3_01a` (Short f105, Category: document): DCE 3.01a
+pub const DC_DCE_3_01A: DcChar = DcChar::from_format(105);
+/// DcChar constant for Format `Dce_3_01a_raw` (Short f106, Category: document): DCE 3.01a (raw)
+pub const DC_DCE_3_01A_RAW: DcChar = DcChar::from_format(106);
+/// DcChar constant for Format `Dce_3_01a_hex` (Short f107, Category: document): DCE 3.01a (hex-encoded)
+pub const DC_DCE_3_01A_HEX: DcChar = DcChar::from_format(107);
+/// DcChar constant for Format `Dce_3_01a_raw_hex` (Short f108, Category: document): DCE 3.01a (raw hex-encoded)
+pub const DC_DCE_3_01A_RAW_HEX: DcChar = DcChar::from_format(108);
+/// DcChar constant for Format `DcIdList` (Short f109, Category: document): Dc ID list (ASCII)
+pub const DC_DC_ID_LIST: DcChar = DcChar::from_format(109);
+/// DcChar constant for Format `Utf8_Base64` (Short f110, Category: encoding): UTF-8 (Base64-encoded)
+pub const DC_UTF8__BASE64: DcChar = DcChar::from_format(110);
+/// DcChar constant for Format `Utf8_Dc64` (Short f111, Category: document): UTF-8 (Base64-encoded, ASCII Dc ID list)
+pub const DC_UTF8__DC64: DcChar = DcChar::from_format(111);
+/// DcChar constant for Format `Utf8_Dc64_enc` (Short f112, Category: document): UTF-8 (Base64-encoded, ASCII Dc ID list; with headers)
+pub const DC_UTF8__DC64_ENC: DcChar = DcChar::from_format(112);
+/// DcChar constant for Format `Utf8_Dc64_bin` (Short f113, Category: document): UTF-8 (Base64-encoded, DCE 3.01a+ encoding)
+pub const DC_UTF8__DC64_BIN: DcChar = DcChar::from_format(113);
+/// DcChar constant for Format `Utf8_Dc64_bin_hex` (Short f114, Category: document): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; hex-encoded)
+pub const DC_UTF8__DC64_BIN_HEX: DcChar = DcChar::from_format(114);
+/// DcChar constant for Format `Utf8_Dc64_bin_enc` (Short f115, Category: document): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers)
+pub const DC_UTF8__DC64_BIN_ENC: DcChar = DcChar::from_format(115);
+/// DcChar constant for Format `Utf8_Dc64_bin_enc_hex` (Short f116, Category: document): UTF-8 (Base64-encoded, DCE 3.01a+ encoding; with headers; hex-encoded)
+pub const DC_UTF8__DC64_BIN_ENC_HEX: DcChar = DcChar::from_format(116);
+/// DcChar constant for Format `HtmlLegacyCdce` (Short f117, Category: document): HTML (legacy CDCE output)
+pub const DC_HTML_LEGACY_CDCE: DcChar = DcChar::from_format(117);
+/// DcChar constant for Format `HtmlLegacyCdceSnippet` (Short f118, Category: document): HTML (snippet) (legacy CDCE output)
+pub const DC_HTML_LEGACY_CDCE_SNIPPET: DcChar = DcChar::from_format(118);
+/// DcChar constant for Format `AppleScript` (Short f119, Category: programming): AppleScript
+pub const DC_APPLE_SCRIPT: DcChar = DcChar::from_format(119);
+/// DcChar constant for Format `TypeScript` (Short f120, Category: programming): TypeScript
+pub const DC_TYPE_SCRIPT: DcChar = DcChar::from_format(120);
+/// DcChar constant for Format `Perl` (Short f121, Category: programming): Perl
+pub const DC_PERL: DcChar = DcChar::from_format(121);
+/// DcChar constant for Format `Bash` (Short f122, Category: programming): Bash
+pub const DC_BASH: DcChar = DcChar::from_format(122);
+/// DcChar constant for Format `C` (Short f123, Category: programming): C
+pub const DC_C: DcChar = DcChar::from_format(123);
+/// DcChar constant for Format `Cpp` (Short f124, Category: programming): C++
+pub const DC_CPP: DcChar = DcChar::from_format(124);
+/// DcChar constant for Format `Cs` (Short f125, Category: programming): C#
+pub const DC_CS: DcChar = DcChar::from_format(125);
+/// DcChar constant for Format `Java` (Short f126, Category: programming): Java
+pub const DC_JAVA: DcChar = DcChar::from_format(126);
+/// DcChar constant for Format `Perl5` (Short f127, Category: programming): Perl 5
+pub const DC_PERL5: DcChar = DcChar::from_format(127);
+/// DcChar constant for Format `Perl6` (Short f128, Category: programming): Perl 6 (quite different from earlier Perl versions)
+pub const DC_PERL6: DcChar = DcChar::from_format(128);
+/// DcChar constant for Format `Raku` (Short f129, Category: programming): Raku (successor of Perl 6)
+pub const DC_RAKU: DcChar = DcChar::from_format(129);
+/// DcChar constant for Format `Rust` (Short f130, Category: programming): Rust
+pub const DC_RUST: DcChar = DcChar::from_format(130);
+/// DcChar constant for Format `Php` (Short f131, Category: programming): PHP
+pub const DC_PHP: DcChar = DcChar::from_format(131);
+/// DcChar constant for Format `Sh` (Short f132, Category: programming): POSIX sh
+pub const DC_SH: DcChar = DcChar::from_format(132);
+/// DcChar constant for Format `StageL` (Short f133, Category: programming): StageL
+pub const DC_STAGE_L: DcChar = DcChar::from_format(133);
+/// DcChar constant for Format `StageLParseResult` (Short f134, Category: programming): StageL parse result
+pub const DC_STAGE_LPARSE_RESULT: DcChar = DcChar::from_format(134);
+/// DcChar constant for Format `Elf` (Short f135, Category: executable): ELF (Executable and Linkable Format)
+pub const DC_ELF: DcChar = DcChar::from_format(135);
+/// DcChar constant for Format `Pe` (Short f136, Category: executable): PE (Portable Executable)
+pub const DC_PE: DcChar = DcChar::from_format(136);
+/// DcChar constant for Format `MachO` (Short f137, Category: executable): Mach-O (Mach object)
+pub const DC_MACH_O: DcChar = DcChar::from_format(137);
+/// DcChar constant for Format `DebianPackage` (Short f138, Category: executable): Debian package
+pub const DC_DEBIAN_PACKAGE: DcChar = DcChar::from_format(138);
+/// DcChar constant for Format `Lang_Ar` (Short f139, Category: language): Arabic - العربية
+pub const DC_LANG__AR: DcChar = DcChar::from_format(139);
+/// DcChar constant for Format `Lang_Bn` (Short f140, Category: language): Bengali - বাংলা
+pub const DC_LANG__BN: DcChar = DcChar::from_format(140);
+/// DcChar constant for Format `Lang_De` (Short f141, Category: language): German - Deutsch
+pub const DC_LANG__DE: DcChar = DcChar::from_format(141);
+/// DcChar constant for Format `Lang_En_Gb` (Short f142, Category: language): English (UK)
+pub const DC_LANG__EN__GB: DcChar = DcChar::from_format(142);
+/// DcChar constant for Format `Lang_Es` (Short f143, Category: language): Spanish - Español
+pub const DC_LANG__ES: DcChar = DcChar::from_format(143);
+/// DcChar constant for Format `Lang_Fa` (Short f144, Category: language): Farsi - فارسی
+pub const DC_LANG__FA: DcChar = DcChar::from_format(144);
+/// DcChar constant for Format `Lang_Fil` (Short f145, Category: language): Filipino
+pub const DC_LANG__FIL: DcChar = DcChar::from_format(145);
+/// DcChar constant for Format `Lang_Fr` (Short f146, Category: language): French - Français
+pub const DC_LANG__FR: DcChar = DcChar::from_format(146);
+/// DcChar constant for Format `Lang_Hi` (Short f147, Category: language): Hindi - हिन्दी
+pub const DC_LANG__HI: DcChar = DcChar::from_format(147);
+/// DcChar constant for Format `Lang_Id` (Short f148, Category: language): Indonesian - Bahasa Indonesia
+pub const DC_LANG__ID: DcChar = DcChar::from_format(148);
+/// DcChar constant for Format `Lang_It` (Short f149, Category: language): Italian - Italiano
+pub const DC_LANG__IT: DcChar = DcChar::from_format(149);
+/// DcChar constant for Format `Lang_Ja` (Short f150, Category: language): Japanese - 日本語
+pub const DC_LANG__JA: DcChar = DcChar::from_format(150);
+/// DcChar constant for Format `Lang_Ko` (Short f151, Category: language): Korean - 한국어
+pub const DC_LANG__KO: DcChar = DcChar::from_format(151);
+/// DcChar constant for Format `Lang_Nl` (Short f152, Category: language): Dutch - Nederlands
+pub const DC_LANG__NL: DcChar = DcChar::from_format(152);
+/// DcChar constant for Format `Lang_Pl` (Short f153, Category: language): Polish - Polski
+pub const DC_LANG__PL: DcChar = DcChar::from_format(153);
+/// DcChar constant for Format `Lang_Pt` (Short f154, Category: language): Portuguese - Português
+pub const DC_LANG__PT: DcChar = DcChar::from_format(154);
+/// DcChar constant for Format `Lang_Pt_Br` (Short f155, Category: language): Brasilian Portuguese - Português (Brasil)
+pub const DC_LANG__PT__BR: DcChar = DcChar::from_format(155);
+/// DcChar constant for Format `Lang_Ru` (Short f156, Category: language): Russian - Русский
+pub const DC_LANG__RU: DcChar = DcChar::from_format(156);
+/// DcChar constant for Format `Lang_Tr` (Short f157, Category: language): Turkish - Türkçe
+pub const DC_LANG__TR: DcChar = DcChar::from_format(157);
+/// DcChar constant for Format `Lang_Ur` (Short f158, Category: language): Urdu - اردو
+pub const DC_LANG__UR: DcChar = DcChar::from_format(158);
+/// DcChar constant for Format `Lang_Vi` (Short f159, Category: language): Vietnamese - Tiếng Việt
+pub const DC_LANG__VI: DcChar = DcChar::from_format(159);
+/// DcChar constant for Format `Lang_Zh_Cn` (Short f160, Category: language): Chinese - 简体中文
+pub const DC_LANG__ZH__CN: DcChar = DcChar::from_format(160);
+/// DcChar constant for Format `Tar` (Short f161, Category: container): `tar` (tape archive)
+pub const DC_TAR: DcChar = DcChar::from_format(161);
+/// DcChar constant for Format `Zip` (Short f162, Category: container): ZIP archive
+pub const DC_ZIP: DcChar = DcChar::from_format(162);
+/// DcChar constant for Format `CtbAssetBundle` (Short f163, Category: container): Collective Toolbox asset bundle
+pub const DC_CTB_ASSET_BUNDLE: DcChar = DcChar::from_format(163);
+/// DcChar constant for Format `Pdf` (Short f164, Category: document): PDF (Portable Document Format)
+pub const DC_PDF: DcChar = DcChar::from_format(164);
+/// DcChar constant for Format `Markdown` (Short f165, Category: document): Markdown
+pub const DC_MARKDOWN: DcChar = DcChar::from_format(165);
+/// DcChar constant for Format `Troff` (Short f166, Category: document): Troff
+pub const DC_TROFF: DcChar = DcChar::from_format(166);
+/// DcChar constant for Format `Rss` (Short f167, Category: document): RSS 2, the common RSS format
+pub const DC_RSS: DcChar = DcChar::from_format(167);
+/// DcChar constant for Format `Rss09` (Short f168, Category: document): RSS 0.90
+pub const DC_RSS09: DcChar = DcChar::from_format(168);
+/// DcChar constant for Format `Rss091Netscape` (Short f169, Category: document): RSS 0.91, Netscape version
+pub const DC_RSS091_NETSCAPE: DcChar = DcChar::from_format(169);
+/// DcChar constant for Format `Rss091UserLand` (Short f170, Category: document): RSS 0.91, UserLand version
+pub const DC_RSS091_USER_LAND: DcChar = DcChar::from_format(170);
+/// DcChar constant for Format `Rss092` (Short f171, Category: document): RSS 0.92
+pub const DC_RSS092: DcChar = DcChar::from_format(171);
+/// DcChar constant for Format `Rss1` (Short f172, Category: document): RSS 1.0
+pub const DC_RSS1: DcChar = DcChar::from_format(172);
+/// DcChar constant for Format `ScriptingNews10` (Short f173, Category: document): Scripting News 1.0a2
+pub const DC_SCRIPTING_NEWS10: DcChar = DcChar::from_format(173);
+/// DcChar constant for Format `ScriptingNews20` (Short f174, Category: document): Scripting News 2.0b1
+pub const DC_SCRIPTING_NEWS20: DcChar = DcChar::from_format(174);
+/// DcChar constant for Format `Atom` (Short f175, Category: document): Atom
+pub const DC_ATOM: DcChar = DcChar::from_format(175);
+/// DcChar constant for Format `HAtom` (Short f176, Category: document): hAtom
+pub const DC_HATOM: DcChar = DcChar::from_format(176);
+/// DcChar constant for Format `JsonFeed11` (Short f177, Category: document): JSON Feed 1.1
+pub const DC_JSON_FEED11: DcChar = DcChar::from_format(177);
+/// DcChar constant for Format `WfscanOutput` (Short f178, Category: document): `wfscan` output (a tool to make some binary data and file formats more readable)
+pub const DC_WFSCAN_OUTPUT: DcChar = DcChar::from_format(178);
+/// DcChar constant for Format `WfparseOutput` (Short f179, Category: document): `wfparser` output (a tool to make some binary data and file formats more readable)
+pub const DC_WFPARSE_OUTPUT: DcChar = DcChar::from_format(179);
+/// DcChar constant for Format `Csv` (Short f180, Category: database): Comma-Separated Values
+pub const DC_CSV: DcChar = DcChar::from_format(180);
+/// DcChar constant for Format `Tsv` (Short f181, Category: database): Tab-Separated Values
+pub const DC_TSV: DcChar = DcChar::from_format(181);
+/// DcChar constant for Format `Ssv` (Short f182, Category: database): Semicolon-Separated Values
+pub const DC_SSV: DcChar = DcChar::from_format(182);
+/// DcChar constant for Format `Multipart` (Short f183, Category: database): Multipart form data
+pub const DC_MULTIPART: DcChar = DcChar::from_format(183);
+/// DcChar constant for Format `Json` (Short f184, Category: database): JSON
+pub const DC_JSON: DcChar = DcChar::from_format(184);
+/// DcChar constant for Format `Jsonc` (Short f185, Category: database): JSONC
+pub const DC_JSONC: DcChar = DcChar::from_format(185);
+/// DcChar constant for Format `Xml` (Short f186, Category: database): XML
+pub const DC_XML: DcChar = DcChar::from_format(186);
+/// DcChar constant for Format `Warc` (Short f187, Category: database): WARC
+pub const DC_WARC: DcChar = DcChar::from_format(187);
+/// DcChar constant for Format `Pan` (Short f188, Category: database): Panorama database
+pub const DC_PAN: DcChar = DcChar::from_format(188);
+/// DcChar constant for Format `Sqlite` (Short f189, Category: database): SQLite database
+pub const DC_SQLITE: DcChar = DcChar::from_format(189);
+/// DcChar constant for Format `IaMetaJson` (Short f190, Category: database): Internet Archive metadata JSON
+pub const DC_IA_META_JSON: DcChar = DcChar::from_format(190);
+/// DcChar constant for Format `IaFilesXml` (Short f191, Category: database): Internet Archive files XML
+pub const DC_IA_FILES_XML: DcChar = DcChar::from_format(191);
+/// DcChar constant for Format `IaMetaXml` (Short f192, Category: database): Internet Archive metadata XML
+pub const DC_IA_META_XML: DcChar = DcChar::from_format(192);
+/// DcChar constant for Format `IaMetaSqlite` (Short f193, Category: database): Internet Archive metadata SQLite
+pub const DC_IA_META_SQLITE: DcChar = DcChar::from_format(193);
+/// DcChar constant for Format `Clubcard` (Short f194, Category: database): Clubcard data
+pub const DC_CLUBCARD: DcChar = DcChar::from_format(194);
+/// DcChar constant for Format `CrliteFilter` (Short f195, Category: database): CRLite filter data
+pub const DC_CRLITE_FILTER: DcChar = DcChar::from_format(195);
+/// DcChar constant for Format `CrliteFilterDelta` (Short f196, Category: database): CRLite filter delta
+pub const DC_CRLITE_FILTER_DELTA: DcChar = DcChar::from_format(196);
+/// DcChar constant for Format `CommonLogFormat` (Short f197, Category: database): NCSA Common Log Format
+pub const DC_COMMON_LOG_FORMAT: DcChar = DcChar::from_format(197);
+/// DcChar constant for Format `ExtendedLogFormat` (Short f198, Category: database): W3C Extended Log Format
+pub const DC_EXTENDED_LOG_FORMAT: DcChar = DcChar::from_format(198);
+/// DcChar constant for Format `Integer` (Short f199, Category: number): Integer number
+pub const DC_INTEGER: DcChar = DcChar::from_format(199);
+/// DcChar constant for Format `Natural0` (Short f200, Category: number): Natural number, including 0
+pub const DC_NATURAL0: DcChar = DcChar::from_format(200);
+/// DcChar constant for Format `Positive` (Short f201, Category: number): Positive number
+pub const DC_POSITIVE: DcChar = DcChar::from_format(201);
+/// DcChar constant for Format `Negative` (Short f202, Category: number): Negative number
+pub const DC_NEGATIVE: DcChar = DcChar::from_format(202);
+/// DcChar constant for Format `U8` (Short f203, Category: number): 8-bit unsigned integer
+pub const DC_U8: DcChar = DcChar::from_format(203);
+/// DcChar constant for Format `I8` (Short f204, Category: number): 8-bit signed integer
+pub const DC_I8: DcChar = DcChar::from_format(204);
+/// DcChar constant for Format `U16` (Short f205, Category: number): 16-bit unsigned integer
+pub const DC_U16: DcChar = DcChar::from_format(205);
+/// DcChar constant for Format `I16` (Short f206, Category: number): 16-bit signed integer
+pub const DC_I16: DcChar = DcChar::from_format(206);
+/// DcChar constant for Format `U32` (Short f207, Category: number): 32-bit unsigned integer
+pub const DC_U32: DcChar = DcChar::from_format(207);
+/// DcChar constant for Format `I32` (Short f208, Category: number): 32-bit signed integer
+pub const DC_I32: DcChar = DcChar::from_format(208);
+/// DcChar constant for Format `U64` (Short f209, Category: number): 64-bit unsigned integer
+pub const DC_U64: DcChar = DcChar::from_format(209);
+/// DcChar constant for Format `I64` (Short f210, Category: number): 64-bit signed integer
+pub const DC_I64: DcChar = DcChar::from_format(210);
+/// DcChar constant for Format `U128` (Short f211, Category: number): 128-bit unsigned integer
+pub const DC_U128: DcChar = DcChar::from_format(211);
+/// DcChar constant for Format `I128` (Short f212, Category: number): 128-bit signed integer
+pub const DC_I128: DcChar = DcChar::from_format(212);
+/// DcChar constant for Format `Float` (Short f213, Category: number): Floating-point number
+pub const DC_FLOAT: DcChar = DcChar::from_format(213);
+/// DcChar constant for Format `Fixed` (Short f214, Category: number): Fixed-point number
+pub const DC_FIXED: DcChar = DcChar::from_format(214);
+/// DcChar constant for Format `Pack32` (Short f215, Category: number): Pack32 (encoded 32-bit value)
+pub const DC_PACK32: DcChar = DcChar::from_format(215);
+/// DcChar constant for Format `Gregorian` (Short f216, Category: calendar): Gregorian calendar
+pub const DC_GREGORIAN: DcChar = DcChar::from_format(216);
+/// DcChar constant for Format `Julian` (Short f217, Category: calendar): Julian calendar
+pub const DC_JULIAN: DcChar = DcChar::from_format(217);
+/// DcChar constant for Format `DateString` (Short f218, Category: semantic): A string representing a date
+pub const DC_DATE_STRING: DcChar = DcChar::from_format(218);
+/// DcChar constant for Format `TimeString` (Short f219, Category: semantic): A string representing a time
+pub const DC_TIME_STRING: DcChar = DcChar::from_format(219);
+/// DcChar constant for Format `DateTimeString` (Short f220, Category: semantic): A string representing a date and time
+pub const DC_DATE_TIME_STRING: DcChar = DcChar::from_format(220);
+/// DcChar constant for Format `PanDate` (Short f221, Category: date): Panorama date
+pub const DC_PAN_DATE: DcChar = DcChar::from_format(221);
+/// DcChar constant for Format `PanTime` (Short f222, Category: date): Panorama time
+pub const DC_PAN_TIME: DcChar = DcChar::from_format(222);
+/// DcChar constant for Format `PanSuperDate` (Short f223, Category: date): Panorama SuperDate
+pub const DC_PAN_SUPER_DATE: DcChar = DcChar::from_format(223);
+/// DcChar constant for Format `MathExpression` (Short f224, Category: math): Math expression (not an equation/relation)
+pub const DC_MATH_EXPRESSION: DcChar = DcChar::from_format(224);
+/// DcChar constant for Format `Pem` (Short f225, Category: database): PEM printable encoding (Privacy-Enhanced Mail, RFC 7468)
+pub const DC_PEM: DcChar = DcChar::from_format(225);
+/// DcChar constant for Format `IpAddr` (Short f226, Category: identifier): IP address
+pub const DC_IP_ADDR: DcChar = DcChar::from_format(226);
+/// DcChar constant for Format `Uri` (Short f227, Category: identifier): URI (Uniform Resource Identifier)
+pub const DC_URI: DcChar = DcChar::from_format(227);
+/// DcChar constant for Format `FileName` (Short f228, Category: identifier): File name
+pub const DC_FILE_NAME: DcChar = DcChar::from_format(228);
+/// DcChar constant for Format `FilePath` (Short f229, Category: identifier): File path
+pub const DC_FILE_PATH: DcChar = DcChar::from_format(229);
+/// DcChar constant for Format `Lnk` (Short f230, Category: identifier): Windows shortcut
+pub const DC_LNK: DcChar = DcChar::from_format(230);
+/// DcChar constant for Format `MacAlias` (Short f231, Category: identifier): Mac alias
+pub const DC_MAC_ALIAS: DcChar = DcChar::from_format(231);
+/// DcChar constant for Format `MacBookmark` (Short f232, Category: identifier): Mac bookmark
+pub const DC_MAC_BOOKMARK: DcChar = DcChar::from_format(232);
+/// DcChar constant for Format `Torrent` (Short f233, Category: identifier): Torrent
+pub const DC_TORRENT: DcChar = DcChar::from_format(233);
+/// DcChar constant for Format `Btih` (Short f234, Category: identifier): Torrent info hash
+pub const DC_BTIH: DcChar = DcChar::from_format(234);
+/// DcChar constant for Format `Magnet` (Short f235, Category: identifier): Magnet URI
+pub const DC_MAGNET: DcChar = DcChar::from_format(235);
+/// DcChar constant for Format `IaIdentifier` (Short f236, Category: identifier): Internet Archive item identifier
+pub const DC_IA_IDENTIFIER: DcChar = DcChar::from_format(236);
+/// DcChar constant for Format `IaArchiveTorrent` (Short f237, Category: identifier): Internet Archive item torrent
+pub const DC_IA_ARCHIVE_TORRENT: DcChar = DcChar::from_format(237);
+/// DcChar constant for Format `XxHash32` (Short f238, Category: hash): xxHash32
+pub const DC_XX_HASH32: DcChar = DcChar::from_format(238);
+/// DcChar constant for Format `XxHash64` (Short f239, Category: hash): xxHash64
+pub const DC_XX_HASH64: DcChar = DcChar::from_format(239);
+/// DcChar constant for Format `XxHash3_64` (Short f240, Category: hash): xxHash3-64
+pub const DC_XX_HASH3_64: DcChar = DcChar::from_format(240);
+/// DcChar constant for Format `XxHash3_128` (Short f241, Category: hash): xxHash3-128
+pub const DC_XX_HASH3_128: DcChar = DcChar::from_format(241);
+/// DcChar constant for Format `Md5` (Short f242, Category: hash): MD5
+pub const DC_MD5: DcChar = DcChar::from_format(242);
+/// DcChar constant for Format `Md6` (Short f243, Category: hash): MD6
+pub const DC_MD6: DcChar = DcChar::from_format(243);
+/// DcChar constant for Format `Sha1` (Short f244, Category: hash): SHA-1
+pub const DC_SHA1: DcChar = DcChar::from_format(244);
+/// DcChar constant for Format `Sha256` (Short f245, Category: hash): SHA-256
+pub const DC_SHA256: DcChar = DcChar::from_format(245);
+/// DcChar constant for Format `Sha512` (Short f246, Category: hash): SHA-512
+pub const DC_SHA512: DcChar = DcChar::from_format(246);
+/// DcChar constant for Format `Sha3` (Short f247, Category: hash): SHA-3
+pub const DC_SHA3: DcChar = DcChar::from_format(247);
+/// DcChar constant for Format `Tiger` (Short f248, Category: hash): Tiger checksum
+pub const DC_TIGER: DcChar = DcChar::from_format(248);
+/// DcChar constant for Format `Whirlpool` (Short f249, Category: hash): Whirlpool checksum
+pub const DC_WHIRLPOOL: DcChar = DcChar::from_format(249);
+/// DcChar constant for Format `Adler32` (Short f250, Category: hash): Adler32
+pub const DC_ADLER32: DcChar = DcChar::from_format(250);
+/// DcChar constant for Format `Fletcher4` (Short f251, Category: hash): Fletcher4
+pub const DC_FLETCHER4: DcChar = DcChar::from_format(251);
+/// DcChar constant for Format `Fletcher8` (Short f252, Category: hash): Fletcher8
+pub const DC_FLETCHER8: DcChar = DcChar::from_format(252);
+/// DcChar constant for Format `Fletcher16` (Short f253, Category: hash): Fletcher16
+pub const DC_FLETCHER16: DcChar = DcChar::from_format(253);
+/// DcChar constant for Format `Fletcher32` (Short f254, Category: hash): Fletcher32
+pub const DC_FLETCHER32: DcChar = DcChar::from_format(254);
+/// DcChar constant for Format `Crc32` (Short f255, Category: hash): CRC-321
+pub const DC_CRC32: DcChar = DcChar::from_format(255);
+/// DcChar constant for Format `Cksum` (Short f256, Category: hash): `cksum`
+pub const DC_CKSUM: DcChar = DcChar::from_format(256);
+/// DcChar constant for Format `BsdChecksum` (Short f257, Category: hash): BSD checksum
+pub const DC_BSD_CHECKSUM: DcChar = DcChar::from_format(257);
+/// DcChar constant for Format `SysvChecksum` (Short f258, Category: hash): SYSV checksum
+pub const DC_SYSV_CHECKSUM: DcChar = DcChar::from_format(258);
+/// DcChar constant for Format `Hmac` (Short f259, Category: hash): HMAC
+pub const DC_HMAC: DcChar = DcChar::from_format(259);
+/// DcChar constant for Format `Blake` (Short f260, Category: hash): BLAKE
+pub const DC_BLAKE: DcChar = DcChar::from_format(260);
+/// DcChar constant for Format `Blake2` (Short f261, Category: hash): BLAKE2
+pub const DC_BLAKE2: DcChar = DcChar::from_format(261);
+/// DcChar constant for Format `Blake3` (Short f262, Category: hash): BLAKE3
+pub const DC_BLAKE3: DcChar = DcChar::from_format(262);
+/// DcChar constant for Format `UserAgent` (Short f263, Category: identifier): User-Agent string
+pub const DC_USER_AGENT: DcChar = DcChar::from_format(263);
+/// DcChar constant for Format `FileExtension` (Short f264, Category: identifier): File extension
+pub const DC_FILE_EXTENSION: DcChar = DcChar::from_format(264);
+/// DcChar constant for Format `UriProtocol` (Short f265, Category: identifier): URI protocol
+pub const DC_URI_PROTOCOL: DcChar = DcChar::from_format(265);
+/// DcChar constant for Format `TerminalMouse` (Short f266, Category: device_caps): Character-mode videoterminal supporting mouse input
+pub const DC_TERMINAL_MOUSE: DcChar = DcChar::from_format(266);
+/// DcChar constant for Format `TerminalGraphics` (Short f267, Category: device_caps): Character-mode videoterminal supporting graphics
+pub const DC_TERMINAL_GRAPHICS: DcChar = DcChar::from_format(267);
+/// DcChar constant for Format `TerminalSixelGraphics` (Short f268, Category: device_caps): Character-mode videoterminal supporting sixel graphics
+pub const DC_TERMINAL_SIXEL_GRAPHICS: DcChar = DcChar::from_format(268);
+/// DcChar constant for Format `TerminalIterm2Graphics` (Short f269, Category: device_caps): Character-mode videoterminal supporting iTerm2 graphics
+pub const DC_TERMINAL_ITERM2_GRAPHICS: DcChar = DcChar::from_format(269);
+/// DcChar constant for Format `TerminalKittyGraphics` (Short f270, Category: device_caps): Character-mode videoterminal supporting Kitty graphics
+pub const DC_TERMINAL_KITTY_GRAPHICS: DcChar = DcChar::from_format(270);
+/// DcChar constant for Format `RasterDisplay` (Short f271, Category: device_caps): Raster display
+pub const DC_RASTER_DISPLAY: DcChar = DcChar::from_format(271);
+/// DcChar constant for Format `VectorDisplay` (Short f272, Category: device_caps): Vector display
+pub const DC_VECTOR_DISPLAY: DcChar = DcChar::from_format(272);
+/// DcChar constant for Format `RenderModeImmediate` (Short f273, Category: device_caps): Render full document immediately without interactive features
+pub const DC_RENDER_MODE_IMMEDIATE: DcChar = DcChar::from_format(273);
+/// DcChar constant for Format `RenderModeInteractive` (Short f274, Category: device_caps): Render with interactive features enabled
+pub const DC_RENDER_MODE_INTERACTIVE: DcChar = DcChar::from_format(274);
+/// DcChar constant for Format `Unknown` (Short f275, Category: armor): Unknown data
+pub const DC_UNKNOWN: DcChar = DcChar::from_format(275);
+/// DcChar constant for Format `Csur` (Short f276, Category: v:unicodePua): ConScript Unicode Registry
+pub const DC_CSUR: DcChar = DcChar::from_format(276);
+/// DcChar constant for Format `Ucsur` (Short f277, Category: v:unicodePua): Under-ConScript Unicode Registry
+pub const DC_UCSUR: DcChar = DcChar::from_format(277);
+/// DcChar constant for Format `Mime` (Short f278, Category: document): Multipurpose Internet Mail Extensions
+pub const DC_MIME: DcChar = DcChar::from_format(278);
+/// DcChar constant for Format `QuotedPrintable` (Short f279, Category: armor): Quoted-Printable
+pub const DC_QUOTED_PRINTABLE: DcChar = DcChar::from_format(279);
+/// DcChar constant for Format `Uuencode` (Short f280, Category: armor): Uuencode
+pub const DC_UUENCODE: DcChar = DcChar::from_format(280);
+/// DcChar constant for Format `YEnc` (Short f281, Category: armor): yEnc
+pub const DC_YENC: DcChar = DcChar::from_format(281);
+/// DcChar constant for Format `BinHex` (Short f282, Category: armor): The common BinHex 4 format
+pub const DC_BIN_HEX: DcChar = DcChar::from_format(282);
+/// DcChar constant for Format `BinHexTrs80` (Short f283, Category: armor): BinHex for TRS-80
+pub const DC_BIN_HEX_TRS80: DcChar = DcChar::from_format(283);
+/// DcChar constant for Format `BinHex1` (Short f284, Category: armor): BinHex 1 for Macintosh
+pub const DC_BIN_HEX1: DcChar = DcChar::from_format(284);
+/// DcChar constant for Format `BinHex2` (Short f285, Category: armor): BinHex 2
+pub const DC_BIN_HEX2: DcChar = DcChar::from_format(285);
+/// DcChar constant for Format `BinHex5` (Short f286, Category: armor): BinHex 5
+pub const DC_BIN_HEX5: DcChar = DcChar::from_format(286);
+/// DcChar constant for Format `MacBinary` (Short f287, Category: armor): MacBinary
+pub const DC_MAC_BINARY: DcChar = DcChar::from_format(287);
+/// DcChar constant for Format `Shar` (Short f288, Category: container): Shell archive
+pub const DC_SHAR: DcChar = DcChar::from_format(288);
+/// DcChar constant for Format `Cpio` (Short f289, Category: container): CPIO archive
+pub const DC_CPIO: DcChar = DcChar::from_format(289);
+/// DcChar constant for Format `Pax` (Short f290, Category: container): PAX archive
+pub const DC_PAX: DcChar = DcChar::from_format(290);
+/// DcChar constant for Format `TarGz` (Short f291, Category: container): TAR, Gzip
+pub const DC_TAR_GZ: DcChar = DcChar::from_format(291);
+/// DcChar constant for Format `TarZ` (Short f292, Category: container): TAR, `compress` (LZW)
+pub const DC_TAR_Z: DcChar = DcChar::from_format(292);
+/// DcChar constant for Format `TarBz2` (Short f293, Category: container): TAR, Bzip2
+pub const DC_TAR_BZ2: DcChar = DcChar::from_format(293);
+/// DcChar constant for Format `OutlookMsg` (Short f294, Category: document): Microsoft Outlook Email
+pub const DC_OUTLOOK_MSG: DcChar = DcChar::from_format(294);
+/// DcChar constant for Format `PercentEncoding` (Short f295, Category: armor): Percent encoding (URL encoding)
+pub const DC_PERCENT_ENCODING: DcChar = DcChar::from_format(295);
+/// DcChar constant for Format `NumericCharacterReferenceDec` (Short f296, Category: armor): Numeric Character Reference (decimal)
+pub const DC_NUMERIC_CHARACTER_REFERENCE_DEC: DcChar = DcChar::from_format(296);
+/// DcChar constant for Format `NumericCharacterReferenceHex` (Short f297, Category: armor): Numeric Character Reference (hexadecimal)
+pub const DC_NUMERIC_CHARACTER_REFERENCE_HEX: DcChar = DcChar::from_format(297);
+/// DcChar constant for Format `MimeBase64` (Short f298, Category: armor): Base64 with separators, line length 76
+pub const DC_MIME_BASE64: DcChar = DcChar::from_format(298);
+/// DcChar constant for Format `Xxencode` (Short f299, Category: armor): xxencoding
+pub const DC_XXENCODE: DcChar = DcChar::from_format(299);
+/// DcChar constant for Format `Rzip` (Short f300, Category: compression): rzip
+pub const DC_RZIP: DcChar = DcChar::from_format(300);
+/// DcChar constant for Format `Lrzip` (Short f301, Category: compression): lrzip (Long Range Zip)
+pub const DC_LRZIP: DcChar = DcChar::from_format(301);
+/// DcChar constant for Format `Bzip3` (Short f302, Category: compression): Bzip3
+pub const DC_BZIP3: DcChar = DcChar::from_format(302);
+/// DcChar constant for Format `Lz4` (Short f303, Category: compression): LZ4
+pub const DC_LZ4: DcChar = DcChar::from_format(303);
+/// DcChar constant for Format `Lzo` (Short f304, Category: compression): LZO (Lempel-Ziv-Oberhumer)
+pub const DC_LZO: DcChar = DcChar::from_format(304);
+/// DcChar constant for Format `Zpaq` (Short f305, Category: container): ZPAQ
+pub const DC_ZPAQ: DcChar = DcChar::from_format(305);
+/// DcChar constant for Format `Orz` (Short f306, Category: compression): orz (optimized reduced offset Lempel-Ziv)
+pub const DC_ORZ: DcChar = DcChar::from_format(306);
+/// DcChar constant for Format `Lzfse` (Short f307, Category: compression): LZFSE (Lempel–Ziv Finite State Entropy)
+pub const DC_LZFSE: DcChar = DcChar::from_format(307);
+/// DcChar constant for Format `Hexdump` (Short f308, Category: armor): Family of formats of binary data represented as hexadecimal
+pub const DC_HEXDUMP: DcChar = DcChar::from_format(308);
+/// DcChar constant for Format `Pkcs8PrivateKey` (Short f309, Category: database): PKCS#8 Private Key (RFC 5958 sec. 7.1) (Public Key Cryptography Standard 8)
+pub const DC_PKCS8_PRIVATE_KEY: DcChar = DcChar::from_format(309);
+/// DcChar constant for Format `Pkcs10Csr` (Short f310, Category: database): PKCS#10 Certificate Signing Request (RFC 5967 sec. 3.1) (Public Key Cryptography Standard 10)
+pub const DC_PKCS10_CSR: DcChar = DcChar::from_format(310);
+/// DcChar constant for Format `PkixCert` (Short f311, Category: database): X.509 Certificate (RFC 2585 sec. 4.1; RFC 5280 sec. 4)
+pub const DC_PKIX_CERT: DcChar = DcChar::from_format(311);
+/// DcChar constant for Format `PkixCrl` (Short f312, Category: database): X.509 CRL (RFC 2585 sec. 4.2; RFC 5280 sec. 5)
+pub const DC_PKIX_CRL: DcChar = DcChar::from_format(312);
+/// DcChar constant for Format `Pkcs7Mime` (Short f313, Category: database): PKCS#7 Certificate Bundle (RFC 5273 p. 3; RFC 2315 sec. 9.1) (Public Key Cryptography Standard 7)
+pub const DC_PKCS7_MIME: DcChar = DcChar::from_format(313);
+/// DcChar constant for Format `Pkcs12` (Short f314, Category: database): PKCS#12 Key and Certificate Bundle (Public Key Cryptography Standard 12)
+pub const DC_PKCS12: DcChar = DcChar::from_format(314);
+/// DcChar constant for Format `AppleSingle` (Short f315, Category: document): AppleSingle
+pub const DC_APPLE_SINGLE: DcChar = DcChar::from_format(315);
+/// DcChar constant for Format `AppleDouble` (Short f316, Category: document): AppleDouble (RFC 1740)
+pub const DC_APPLE_DOUBLE: DcChar = DcChar::from_format(316);
+/// DcChar constant for Format `CtbNode` (Short f317, Category: document): Collective Toolbox serialized node package
+pub const DC_CTB_NODE: DcChar = DcChar::from_format(317);
+/// DcChar constant for Format `CtbNodeV1` (Short f318, Category: document): Collective Toolbox serialized node package, version 1
+pub const DC_CTB_NODE_V1: DcChar = DcChar::from_format(318);
+/// DcChar constant for Format `CtbNodeV2` (Short f319, Category: document): Collective Toolbox serialized node package, version 2
+pub const DC_CTB_NODE_V2: DcChar = DcChar::from_format(319);
+/// DcChar constant for Format `Lzma` (Short f320, Category: compression): LZMA (Lempel–Ziv–Markov chain algorithm)
+pub const DC_LZMA: DcChar = DcChar::from_format(320);
+/// DcChar constant for Format `Lzma2` (Short f321, Category: compression): LZMA container format
+pub const DC_LZMA2: DcChar = DcChar::from_format(321);
+/// DcChar constant for Format `TarLzo` (Short f322, Category: container): TAR, LZO
+pub const DC_TAR_LZO: DcChar = DcChar::from_format(322);
+/// DcChar constant for Format `AlturaMacToWin` (Short f323, Category: transformation): Convert MacRoman characters to Windows-1252 characters in the way Altura Mac2Win does (replacing some characters with visually different ones)
+pub const DC_ALTURA_MAC_TO_WIN: DcChar = DcChar::from_format(323);
+/// DcChar constant for Format `AlturaWinToMac` (Short f324, Category: transformation): Convert Windows-1252 characters to MacRoman characters in the reverse of the way Altura Mac2Win does (replacing some characters with visually different ones)
+pub const DC_ALTURA_WIN_TO_MAC: DcChar = DcChar::from_format(324);
+/// DcChar constant for Format `Win1252` (Short f325, Category: encoding): Windows-1252 (\"ANSI\")
+pub const DC_WIN1252: DcChar = DcChar::from_format(325);
+/// DcChar constant for Format `AlphaSmartNeo` (Short f326, Category: encoding): AlphaSmart Neo encoding (has several variants)
+pub const DC_ALPHA_SMART_NEO: DcChar = DcChar::from_format(326);
+/// DcChar constant for Format `AlphaSmartNeoLowGrUs` (Short f327, Category: encoding): AlphaSmart Neo, graphical low bytes, USA
+pub const DC_ALPHA_SMART_NEO_LOW_GR_US: DcChar = DcChar::from_format(327);
+/// DcChar constant for Format `AlphaSmartNeoLowGrUaMac` (Short f328, Category: encoding): AlphaSmart Neo, graphical low bytes, Ukraine (Mac)
+pub const DC_ALPHA_SMART_NEO_LOW_GR_UA_MAC: DcChar = DcChar::from_format(328);
+/// DcChar constant for Format `AlphaSmartNeoLowGrUaPc` (Short f329, Category: encoding): AlphaSmart Neo, graphical low bytes, Ukraine (PC)
+pub const DC_ALPHA_SMART_NEO_LOW_GR_UA_PC: DcChar = DcChar::from_format(329);
+/// DcChar constant for Format `AlphaSmartNeoLowCtlUs` (Short f330, Category: encoding): AlphaSmart Neo, control low bytes, USA
+pub const DC_ALPHA_SMART_NEO_LOW_CTL_US: DcChar = DcChar::from_format(330);
+/// DcChar constant for Format `AlphaSmartNeoLowCtlUaMac` (Short f331, Category: encoding): AlphaSmart Neo, control low bytes, Ukraine (Mac)
+pub const DC_ALPHA_SMART_NEO_LOW_CTL_UA_MAC: DcChar = DcChar::from_format(331);
+/// DcChar constant for Format `AlphaSmartNeoLowCtlUaPc` (Short f332, Category: encoding): AlphaSmart Neo, control low bytes, Ukraine (PC)
+pub const DC_ALPHA_SMART_NEO_LOW_CTL_UA_PC: DcChar = DcChar::from_format(332);
+/// DcChar constant for Format `AlphaWord` (Short f333, Category: document): AlphaSmart AlphaWord file format
+pub const DC_ALPHA_WORD: DcChar = DcChar::from_format(333);
+/// DcChar constant for Format `CtbAssetBundleV1` (Short f334, Category: container): Collective Toolbox resource bundle, version 1
+pub const DC_CTB_ASSET_BUNDLE_V1: DcChar = DcChar::from_format(334);
+/// DcChar constant for Format `CtbAssetBundleV2` (Short f335, Category: container): Collective Toolbox resource bundle, version 2
+pub const DC_CTB_ASSET_BUNDLE_V2: DcChar = DcChar::from_format(335);
+/// DcChar constant for Format `CtbAssetBundleV3` (Short f336, Category: container): Collective Toolbox resource bundle, version 3
+pub const DC_CTB_ASSET_BUNDLE_V3: DcChar = DcChar::from_format(336);
+/// DcChar constant for Format `CtbAssetBundleV4` (Short f337, Category: container): Collective Toolbox resource bundle, version 4
+pub const DC_CTB_ASSET_BUNDLE_V4: DcChar = DcChar::from_format(337);
+/// DcChar constant for Format `Jq` (Short f338, Category: programming): jq programming language
+pub const DC_JQ: DcChar = DcChar::from_format(338);
+/// DcChar constant for Format `JqJaq` (Short f339, Category: programming): jq programming language as implemented by jaq
+pub const DC_JQ_JAQ: DcChar = DcChar::from_format(339);
+/// DcChar constant for Format `Dcal` (Short f340, Category: document): Dc ASCII List (long Dcs)
+pub const DC_DCAL: DcChar = DcChar::from_format(340);
+/// DcChar constant for Format `HexdumpXxd` (Short f341, Category: armor): xxd-style hexdump (as output by default xxd settings)
+pub const DC_HEXDUMP_XXD: DcChar = DcChar::from_format(341);
+/// DcChar constant for Format `StageL2` (Short f342, Category: programming): StageL 2
+pub const DC_STAGE_L2: DcChar = DcChar::from_format(342);
+/// DcChar constant for Format `StageL2Intermediate` (Short f343, Category: programming): Normalized StageL 2
+pub const DC_STAGE_L2_INTERMEDIATE: DcChar = DcChar::from_format(343);
+/// DcChar constant for Format `Csdl` (Short f344, Category: document): Comma-separated Dc list (long Dcs)
+pub const DC_CSDL: DcChar = DcChar::from_format(344);
+/// DcChar constant for Format `Rational` (Short f345, Category: number_abstract): Rational number
+pub const DC_RATIONAL: DcChar = DcChar::from_format(345);
+/// DcChar constant for Format `Real` (Short f346, Category: number_abstract): Real number
+pub const DC_REAL: DcChar = DcChar::from_format(346);
+/// DcChar constant for Format `Complex` (Short f347, Category: number_abstract): Complex number
+pub const DC_COMPLEX: DcChar = DcChar::from_format(347);
+/// DcChar constant for Format `FloatIeee754` (Short f348, Category: number): IEEE 754 floating-point number formats
+pub const DC_FLOAT_IEEE754: DcChar = DcChar::from_format(348);
+/// DcChar constant for Format `NumeralSystem` (Short f349, Category: number): Format for representing numbers
+pub const DC_NUMERAL_SYSTEM: DcChar = DcChar::from_format(349);
+/// DcChar constant for Format `BaseNNumeral` (Short f350, Category: number): Representation of a number in a given base
+pub const DC_BASE_NNUMERAL: DcChar = DcChar::from_format(350);
+/// DcChar constant for Format `Natural1` (Short f351, Category: number_abstract): Natural number, not including zero
+pub const DC_NATURAL1: DcChar = DcChar::from_format(351);
+/// DcChar constant for Format `DcIdentifier` (Short f352, Category: identifier): Dc identifier (long)
+pub const DC_DC_IDENTIFIER: DcChar = DcChar::from_format(352);
+/// DcChar constant for Format `DcShortIdentifier` (Short f353, Category: identifier): Dc identifier (short)
+pub const DC_DC_SHORT_IDENTIFIER: DcChar = DcChar::from_format(353);
+/// DcChar constant for Format `Base` (Short f354, Category: number): A radix in a number system
+pub const DC_BASE: DcChar = DcChar::from_format(354);
+/// DcChar constant for Format `AbstractNumber` (Short f355, Category: number_abstract): Any number, but not in a specific representation
+pub const DC_ABSTRACT_NUMBER: DcChar = DcChar::from_format(355);
+/// DcChar constant for Format `BaseNNumber` (Short f356, Category: number_abstract): Representation of a number in a given base, agnostic to alphabet
+pub const DC_BASE_NNUMBER: DcChar = DcChar::from_format(356);
+/// DcChar constant for Format `DcNumber` (Short f357, Category: number): A number represented using Dcs, a sequence of Dcs between Dcs 6 and 7
+pub const DC_DC_NUMBER: DcChar = DcChar::from_format(357);
+/// DcChar constant for Format `DcNumberB64Int` (Short f358, Category: number): A DcNumber representing an integer expressed in base 64
+pub const DC_DC_NUMBER_B64_INT: DcChar = DcChar::from_format(358);
+/// DcChar constant for Format `BaseAlphabet` (Short f359, Category: base_alphabet): A set of characters used in a positional number system
+pub const DC_BASE_ALPHABET: DcChar = DcChar::from_format(359);
+/// DcChar constant for Format `AlphabetBase64Rfc4648` (Short f360, Category: base_alphabet): Standard Base 64 alphabet from RFC 4648. Case-sensitive.
+pub const DC_ALPHABET_BASE64_RFC4648: DcChar = DcChar::from_format(360);
+/// DcChar constant for Format `AlphabetBase36` (Short f361, Category: base_alphabet): Base alphabet with 36 characters; standard Arabic digits + Latin letters: 0-9 (A-Z|a-z)
+pub const DC_ALPHABET_BASE36: DcChar = DcChar::from_format(361);
+/// DcChar constant for Format `AlphabetBase36Uppercase` (Short f362, Category: base_alphabet): Base alphabet with 36 characters, uppercase: 0-9 A-Z
+pub const DC_ALPHABET_BASE36_UPPERCASE: DcChar = DcChar::from_format(362);
+/// DcChar constant for Format `AlphabetBase36Lowercase` (Short f363, Category: base_alphabet): Base alphabet with 36 characters, lowercase: 0-9 a-z
+pub const DC_ALPHABET_BASE36_LOWERCASE: DcChar = DcChar::from_format(363);
+/// DcChar constant for Format `ArithmeticExpression` (Short f364, Category: math): Arithmetic expression
+pub const DC_ARITHMETIC_EXPRESSION: DcChar = DcChar::from_format(364);
+/// DcChar constant for Format `SymbolicExpression` (Short f365, Category: math): Math expression with variables
+pub const DC_SYMBOLIC_EXPRESSION: DcChar = DcChar::from_format(365);
+/// DcChar constant for Format `MathRelation` (Short f366, Category: math): Math relation
+pub const DC_MATH_RELATION: DcChar = DcChar::from_format(366);
+/// DcChar constant for Format `Equation` (Short f367, Category: math): Predicate asserting equality
+pub const DC_EQUATION: DcChar = DcChar::from_format(367);
+/// DcChar constant for Format `Inequality` (Short f368, Category: math): Predicate asserting ordering
+pub const DC_INEQUALITY: DcChar = DcChar::from_format(368);
+/// DcChar constant for Format `Approximation` (Short f369, Category: math): Predicate asserting approximate equality
+pub const DC_APPROXIMATION: DcChar = DcChar::from_format(369);
+/// DcChar constant for Format `EquationSystem` (Short f370, Category: math): A system of equations, inequalities, and/or approximations
+pub const DC_EQUATION_SYSTEM: DcChar = DcChar::from_format(370);
+/// DcChar constant for Format `UnaryNumeral` (Short f371, Category: number): A number with radix 1
+pub const DC_UNARY_NUMERAL: DcChar = DcChar::from_format(371);
+/// DcChar constant for Format `BinaryNumeral` (Short f372, Category: number): A number with radix 2
+pub const DC_BINARY_NUMERAL: DcChar = DcChar::from_format(372);
+/// DcChar constant for Format `OctalNumeral` (Short f373, Category: number): A number with radix 8
+pub const DC_OCTAL_NUMERAL: DcChar = DcChar::from_format(373);
+/// DcChar constant for Format `DecimalNumeral` (Short f374, Category: number): A number with radix 10
+pub const DC_DECIMAL_NUMERAL: DcChar = DcChar::from_format(374);
+/// DcChar constant for Format `HexadecimalNumeral` (Short f375, Category: number): A number with radix 16
+pub const DC_HEXADECIMAL_NUMERAL: DcChar = DcChar::from_format(375);
+/// DcChar constant for Format `AlphabetArabicIndicNumeral` (Short f376, Category: base_alphabet): Arabic-Indic numerals (٠-٩)
+pub const DC_ALPHABET_ARABIC_INDIC_NUMERAL: DcChar = DcChar::from_format(376);
+/// DcChar constant for Format `AlphabetDevanagariNumeral` (Short f377, Category: base_alphabet): Devanagari numerals (०-९)
+pub const DC_ALPHABET_DEVANAGARI_NUMERAL: DcChar = DcChar::from_format(377);
+/// DcChar constant for Format `RomanNumeral` (Short f378, Category: numeral_system): Roman numeral system
+pub const DC_ROMAN_NUMERAL: DcChar = DcChar::from_format(378);
+/// DcChar constant for Format `TallyNumeral` (Short f379, Category: numeral_system): Additive tally marks
+pub const DC_TALLY_NUMERAL: DcChar = DcChar::from_format(379);
+/// DcChar constant for Format `ChineseNumeral` (Short f380, Category: numeral_system): Chinese numeral systems
+pub const DC_CHINESE_NUMERAL: DcChar = DcChar::from_format(380);
+/// DcChar constant for Format `ChineseNumeralSmall` (Short f381, Category: numeral_system): Chinese numerals. Varies depending on simplified versus traditional characters
+pub const DC_CHINESE_NUMERAL_SMALL: DcChar = DcChar::from_format(381);
+/// DcChar constant for Format `ChineseNumeralBig` (Short f382, Category: numeral_system): Chinese numerals for finance. Varies depending on simplified versus traditional characters
+pub const DC_CHINESE_NUMERAL_BIG: DcChar = DcChar::from_format(382);
+/// DcChar constant for Format `SuzhouNumeral` (Short f383, Category: numeral_system): Suzhou numeral system
+pub const DC_SUZHOU_NUMERAL: DcChar = DcChar::from_format(383);
+/// DcChar constant for Format `x86` (Short f384, Category: arch): x86 family, 32-bit
+pub const DC_X86: DcChar = DcChar::from_format(384);
+/// DcChar constant for Format `amd64` (Short f385, Category: arch): 64-bit extension of x86
+pub const DC_AMD64: DcChar = DcChar::from_format(385);
+/// DcChar constant for Format `arm` (Short f386, Category: arch): ARM/Acorn
+pub const DC_ARM: DcChar = DcChar::from_format(386);
+/// DcChar constant for Format `arm64` (Short f387, Category: arch): 64-bit extension of ARM
+pub const DC_ARM64: DcChar = DcChar::from_format(387);
+/// DcChar constant for Format `i586` (Short f388, Category: arch): Pentium (i586)
+pub const DC_I586: DcChar = DcChar::from_format(388);
+/// DcChar constant for Format `sse2` (Short f389, Category: arch): Streaming SIMD Extensions 2 support
+pub const DC_SSE2: DcChar = DcChar::from_format(389);
+/// DcChar constant for Format `Linux` (Short f390, Category: kernel): Linux kernel family
+pub const DC_LINUX: DcChar = DcChar::from_format(390);
+/// DcChar constant for Format `BsdKernel` (Short f391, Category: kernel): BSD kernel family
+pub const DC_BSD_KERNEL: DcChar = DcChar::from_format(391);
+/// DcChar constant for Format `Mach` (Short f392, Category: kernel): Mach kernel family
+pub const DC_MACH: DcChar = DcChar::from_format(392);
+/// DcChar constant for Format `Hurd` (Short f393, Category: kernel): Hurd kernel
+pub const DC_HURD: DcChar = DcChar::from_format(393);
+/// DcChar constant for Format `Xnu` (Short f394, Category: kernel): XNU (X is Not Unix)
+pub const DC_XNU: DcChar = DcChar::from_format(394);
+/// DcChar constant for Format `Gnu` (Short f395, Category: libc): GNU libc
+pub const DC_GNU: DcChar = DcChar::from_format(395);
+/// DcChar constant for Format `Darwin` (Short f396, Category: libc): Darwin libc
+pub const DC_DARWIN: DcChar = DcChar::from_format(396);
+/// DcChar constant for Format `BsdLibc` (Short f397, Category: libc): BSD libc family
+pub const DC_BSD_LIBC: DcChar = DcChar::from_format(397);
+/// DcChar constant for Format `GnuLinux` (Short f398, Category: os): GNU/Linux Linux kernel with GNU libc and utilities
+pub const DC_GNU_LINUX: DcChar = DcChar::from_format(398);
+/// DcChar constant for Format `Android` (Short f399, Category: os): Android
+pub const DC_ANDROID: DcChar = DcChar::from_format(399);
+/// DcChar constant for Format `MsDosKernel` (Short f400, Category: kernel): Microsoft DOS kernel
+pub const DC_MS_DOS_KERNEL: DcChar = DcChar::from_format(400);
+/// DcChar constant for Format `WinNtKernel` (Short f401, Category: kernel): Windows NT kernel
+pub const DC_WIN_NT_KERNEL: DcChar = DcChar::from_format(401);
+/// DcChar constant for Format `Windows` (Short f402, Category: os): Windows OS family
+pub const DC_WINDOWS: DcChar = DcChar::from_format(402);
+/// DcChar constant for Format `WinClassic` (Short f403, Category: os): MS-DOS-based Windows
+pub const DC_WIN_CLASSIC: DcChar = DcChar::from_format(403);
+/// DcChar constant for Format `WinNt` (Short f404, Category: os): Windows NT family
+pub const DC_WIN_NT: DcChar = DcChar::from_format(404);
+/// DcChar constant for Format `MacOs` (Short f405, Category: os): Mac OS family
+pub const DC_MAC_OS: DcChar = DcChar::from_format(405);
+/// DcChar constant for Format `MacOsDarwin` (Short f406, Category: os): Mac OS 10+ family
+pub const DC_MAC_OS_DARWIN: DcChar = DcChar::from_format(406);
+/// DcChar constant for Format `FreeBsd` (Short f407, Category: os): FreeBSD
+pub const DC_FREE_BSD: DcChar = DcChar::from_format(407);
+/// DcChar constant for Format `OpenBsd` (Short f408, Category: os): OpenBSD
+pub const DC_OPEN_BSD: DcChar = DcChar::from_format(408);
+/// DcChar constant for Format `NetBsd` (Short f409, Category: os): NetBSD
+pub const DC_NET_BSD: DcChar = DcChar::from_format(409);
+/// DcChar constant for Format `CscJournal` (Short f410, Category: database): Collective Toolbox csc journal
+pub const DC_CSC_JOURNAL: DcChar = DcChar::from_format(410);
+/// DcChar constant for Format `CscDesc` (Short f411, Category: database): Collective Toolbox csc description
+pub const DC_CSC_DESC: DcChar = DcChar::from_format(411);
+/// DcChar constant for Format `DragonFlyBsd` (Short f412, Category: os): DragonFly BSD
+pub const DC_DRAGON_FLY_BSD: DcChar = DcChar::from_format(412);
+/// DcChar constant for Format `GnuMach` (Short f413, Category: kernel): GNU Mach
+pub const DC_GNU_MACH: DcChar = DcChar::from_format(413);
+/// DcChar constant for Format `CscIndex` (Short f414, Category: database): Collective Toolbox csc index
+pub const DC_CSC_INDEX: DcChar = DcChar::from_format(414);
+/// DcChar constant for Format `CscIndexMeta` (Short f415, Category: database): Collective Toolbox csc index metadata
+pub const DC_CSC_INDEX_META: DcChar = DcChar::from_format(415);
+/// DcChar constant for Format `Redb` (Short f416, Category: database): redb database
+pub const DC_REDB: DcChar = DcChar::from_format(416);
+/// DcChar constant for Format `MinixFs` (Short f417, Category: filesystem): MINIX Filesystem
+pub const DC_MINIX_FS: DcChar = DcChar::from_format(417);
+/// DcChar constant for Format `Ext` (Short f418, Category: filesystem): ext filesystem
+pub const DC_EXT: DcChar = DcChar::from_format(418);
+/// DcChar constant for Format `Ext2` (Short f419, Category: filesystem): ext2 filesystem
+pub const DC_EXT2: DcChar = DcChar::from_format(419);
+/// DcChar constant for Format `Ext3` (Short f420, Category: filesystem): ext3 filesystem
+pub const DC_EXT3: DcChar = DcChar::from_format(420);
+/// DcChar constant for Format `Ext4` (Short f421, Category: filesystem): ext4 filesystem
+pub const DC_EXT4: DcChar = DcChar::from_format(421);
+/// DcChar constant for Format `Xiafs` (Short f422, Category: filesystem): Xiafs
+pub const DC_XIAFS: DcChar = DcChar::from_format(422);
+/// DcChar constant for Format `Xfs` (Short f423, Category: filesystem): XFS filesystem
+pub const DC_XFS: DcChar = DcChar::from_format(423);
+/// DcChar constant for Format `Btrfs` (Short f424, Category: filesystem): Btrfs
+pub const DC_BTRFS: DcChar = DcChar::from_format(424);
+/// DcChar constant for Format `F2fs` (Short f425, Category: filesystem): F2FS (Flash-Friendly File System)
+pub const DC_F2FS: DcChar = DcChar::from_format(425);
+/// DcChar constant for Format `Zfs` (Short f426, Category: filesystem): ZFS (FKA Zettabyte File System)
+pub const DC_ZFS: DcChar = DcChar::from_format(426);
+/// DcChar constant for Format `Tmpfs` (Short f427, Category: virtualfilesystem): Temporary filesystem
+pub const DC_TMPFS: DcChar = DcChar::from_format(427);
+/// DcChar constant for Format `Ramfs` (Short f428, Category: virtualfilesystem): RAM disk filesystem
+pub const DC_RAMFS: DcChar = DcChar::from_format(428);
+/// DcChar constant for Format `Overlayfs` (Short f429, Category: virtualfilesystem): Overlay filesystem
+pub const DC_OVERLAYFS: DcChar = DcChar::from_format(429);
+/// DcChar constant for Format `Fat8bit` (Short f430, Category: filesystem): FAT (File Allocation Table)
+pub const DC_FAT8BIT: DcChar = DcChar::from_format(430);
+/// DcChar constant for Format `Fat12` (Short f431, Category: filesystem): FAT12
+pub const DC_FAT12: DcChar = DcChar::from_format(431);
+/// DcChar constant for Format `Fat16` (Short f432, Category: filesystem): FAT16
+pub const DC_FAT16: DcChar = DcChar::from_format(432);
+/// DcChar constant for Format `Fat16b` (Short f433, Category: filesystem): FAT16B
+pub const DC_FAT16B: DcChar = DcChar::from_format(433);
+/// DcChar constant for Format `Fat32` (Short f434, Category: filesystem): FAT32
+pub const DC_FAT32: DcChar = DcChar::from_format(434);
+/// DcChar constant for Format `Exfat` (Short f435, Category: filesystem): ExFAT
+pub const DC_EXFAT: DcChar = DcChar::from_format(435);
+/// DcChar constant for Format `Fatx` (Short f436, Category: filesystem): FATX
+pub const DC_FATX: DcChar = DcChar::from_format(436);
+/// DcChar constant for Format `Fatx16` (Short f437, Category: filesystem): FATX16
+pub const DC_FATX16: DcChar = DcChar::from_format(437);
+/// DcChar constant for Format `Fatx32` (Short f438, Category: filesystem): FATX32
+pub const DC_FATX32: DcChar = DcChar::from_format(438);
+/// DcChar constant for Format `FatPlus` (Short f439, Category: filesystem): FAT+
+pub const DC_FAT_PLUS: DcChar = DcChar::from_format(439);
+/// DcChar constant for Format `Fat16Pus` (Short f440, Category: filesystem): FAT16+
+pub const DC_FAT16_PUS: DcChar = DcChar::from_format(440);
+/// DcChar constant for Format `Fat32Plus` (Short f441, Category: filesystem): FAT32+
+pub const DC_FAT32_PLUS: DcChar = DcChar::from_format(441);
+/// DcChar constant for Format `Umsdos` (Short f442, Category: filesystem): UMSDOS
+pub const DC_UMSDOS: DcChar = DcChar::from_format(442);
+/// DcChar constant for Format `Uvfat` (Short f443, Category: filesystem): UVFAT
+pub const DC_UVFAT: DcChar = DcChar::from_format(443);
+/// DcChar constant for Format `Vfat` (Short f444, Category: filesystem): VFAT
+pub const DC_VFAT: DcChar = DcChar::from_format(444);
+/// DcChar constant for Format `Smb` (Short f445, Category: virtualfilesystem): SMB (Server Message Block)
+pub const DC_SMB: DcChar = DcChar::from_format(445);
+/// DcChar constant for Format `Cifs` (Short f446, Category: virtualfilesystem): CIFS (Common Internet File System)
+pub const DC_CIFS: DcChar = DcChar::from_format(446);
+/// DcChar constant for Format `Smb2` (Short f447, Category: virtualfilesystem): SMB2
+pub const DC_SMB2: DcChar = DcChar::from_format(447);
+/// DcChar constant for Format `Nfs` (Short f448, Category: virtualfilesystem): NFS (Network File System)
+pub const DC_NFS: DcChar = DcChar::from_format(448);
+/// DcChar constant for Format `Iso9660` (Short f449, Category: filesystem): ISO 9660
+pub const DC_ISO9660: DcChar = DcChar::from_format(449);
+/// DcChar constant for Format `Udf` (Short f450, Category: filesystem): UDF (Universal Disk Format)
+pub const DC_UDF: DcChar = DcChar::from_format(450);
+/// DcChar constant for Format `Joliet` (Short f451, Category: filesystem): Joliet
+pub const DC_JOLIET: DcChar = DcChar::from_format(451);
+/// DcChar constant for Format `Mfs` (Short f452, Category: filesystem): MFS (Macintosh File System)
+pub const DC_MFS: DcChar = DcChar::from_format(452);
+/// DcChar constant for Format `Hfs` (Short f453, Category: filesystem): HFS (Hierarchical File System)
+pub const DC_HFS: DcChar = DcChar::from_format(453);
+/// DcChar constant for Format `HfsPlus` (Short f454, Category: filesystem): HFS+
+pub const DC_HFS_PLUS: DcChar = DcChar::from_format(454);
+/// DcChar constant for Format `Apfs` (Short f455, Category: filesystem): APFS
+pub const DC_APFS: DcChar = DcChar::from_format(455);
+/// DcChar constant for Format `Ntfs` (Short f456, Category: filesystem): NTFS
+pub const DC_NTFS: DcChar = DcChar::from_format(456);
+/// DcChar constant for Format `Refs` (Short f457, Category: filesystem): ReFS
+pub const DC_REFS: DcChar = DcChar::from_format(457);
+/// DcChar constant for Format `ReiserFs` (Short f458, Category: filesystem): ReiserFS
+pub const DC_REISER_FS: DcChar = DcChar::from_format(458);
+/// DcChar constant for Format `Reiser4` (Short f459, Category: filesystem): Reiser4
+pub const DC_REISER4: DcChar = DcChar::from_format(459);
+/// DcChar constant for Format `Bcachefs` (Short f460, Category: filesystem): Bcachefs
+pub const DC_BCACHEFS: DcChar = DcChar::from_format(460);
+/// DcChar constant for Format `Dcts` (Short f461, Category: document): DcText short
+pub const DC_DCTS: DcChar = DcChar::from_format(461);
+/// DcChar constant for Format `FowlerNollVo` (Short f462, Category: hash): FNV (Fowler-Noll-Vo) hash
+pub const DC_FOWLER_NOLL_VO: DcChar = DcChar::from_format(462);
+/// DcChar constant for Format `Fnv0` (Short f463, Category: hash): FNV-0 hash
+pub const DC_FNV0: DcChar = DcChar::from_format(463);
+/// DcChar constant for Format `Fnv1` (Short f464, Category: hash): FNV-1 hash
+pub const DC_FNV1: DcChar = DcChar::from_format(464);
+/// DcChar constant for Format `Fnv1a` (Short f465, Category: hash): FNV-1a hash
+pub const DC_FNV1A: DcChar = DcChar::from_format(465);
+/// DcChar constant for Format `Fnv0_32` (Short f466, Category: hash): FNV-0 hash, 32 bits
+pub const DC_FNV0_32: DcChar = DcChar::from_format(466);
+/// DcChar constant for Format `Fnv0_64` (Short f467, Category: hash): FNV-0 hash, 64 bits
+pub const DC_FNV0_64: DcChar = DcChar::from_format(467);
+/// DcChar constant for Format `Fnv0_128` (Short f468, Category: hash): FNV-0 hash, 128 bits
+pub const DC_FNV0_128: DcChar = DcChar::from_format(468);
+/// DcChar constant for Format `Fnv0_256` (Short f469, Category: hash): FNV-0 hash, 256 bits
+pub const DC_FNV0_256: DcChar = DcChar::from_format(469);
+/// DcChar constant for Format `Fnv0_512` (Short f470, Category: hash): FNV-0 hash, 512 bits
+pub const DC_FNV0_512: DcChar = DcChar::from_format(470);
+/// DcChar constant for Format `Fnv0_1024` (Short f471, Category: hash): FNV-0 hash, 1024 bits
+pub const DC_FNV0_1024: DcChar = DcChar::from_format(471);
+/// DcChar constant for Format `Fnv1_32` (Short f472, Category: hash): FNV-1 hash, 32 bits
+pub const DC_FNV1_32: DcChar = DcChar::from_format(472);
+/// DcChar constant for Format `Fnv1_64` (Short f473, Category: hash): FNV-1 hash, 64 bits
+pub const DC_FNV1_64: DcChar = DcChar::from_format(473);
+/// DcChar constant for Format `Fnv1_128` (Short f474, Category: hash): FNV-1 hash, 128 bits
+pub const DC_FNV1_128: DcChar = DcChar::from_format(474);
+/// DcChar constant for Format `Fnv1_256` (Short f475, Category: hash): FNV-1 hash, 256 bits
+pub const DC_FNV1_256: DcChar = DcChar::from_format(475);
+/// DcChar constant for Format `Fnv1_512` (Short f476, Category: hash): FNV-1 hash, 512 bits
+pub const DC_FNV1_512: DcChar = DcChar::from_format(476);
+/// DcChar constant for Format `Fnv1_1024` (Short f477, Category: hash): FNV-1 hash, 1024 bits
+pub const DC_FNV1_1024: DcChar = DcChar::from_format(477);
+/// DcChar constant for Format `Fnv1a_32` (Short f478, Category: hash): FNV-1a hash, 32 bits
+pub const DC_FNV1A_32: DcChar = DcChar::from_format(478);
+/// DcChar constant for Format `Fnv1a_64` (Short f479, Category: hash): FNV-1a hash, 64 bits
+pub const DC_FNV1A_64: DcChar = DcChar::from_format(479);
+/// DcChar constant for Format `Fnv1a_128` (Short f480, Category: hash): FNV-1a hash, 128 bits
+pub const DC_FNV1A_128: DcChar = DcChar::from_format(480);
+/// DcChar constant for Format `Fnv1a_256` (Short f481, Category: hash): FNV-1a hash, 256 bits
+pub const DC_FNV1A_256: DcChar = DcChar::from_format(481);
+/// DcChar constant for Format `Fnv1a_512` (Short f482, Category: hash): FNV-1a hash, 512 bits
+pub const DC_FNV1A_512: DcChar = DcChar::from_format(482);
+/// DcChar constant for Format `Fnv1a_1024` (Short f483, Category: hash): FNV-1a hash, 1024 bits
+pub const DC_FNV1A_1024: DcChar = DcChar::from_format(483);
+/// DcChar constant for Format `DcMixed` (Short f484, Category: document): DcUtf mixed mode
+pub const DC_DC_MIXED: DcChar = DcChar::from_format(484);
+/// DcChar constant for Format `CtbFileMetadataJson` (Short f485, Category: container): File metadata JSON as serialized by Collective Toolbox
+pub const DC_CTB_FILE_METADATA_JSON: DcChar = DcChar::from_format(485);
+/// DcChar constant for Format `SecondsSinceEpoch` (Short f486, Category: date): Seconds since Unix epoch
+pub const DC_SECONDS_SINCE_EPOCH: DcChar = DcChar::from_format(486);
+/// DcChar constant for Format `NsSinceEpoch` (Short f487, Category: date): Nanoseconds since Unix epoch
+pub const DC_NS_SINCE_EPOCH: DcChar = DcChar::from_format(487);
+/// DcChar constant for Format `Second` (Short f488, Category: duration): Second
+pub const DC_SECOND: DcChar = DcChar::from_format(488);
+/// DcChar constant for Format `Nanosecond` (Short f489, Category: duration): Nanosecond
+pub const DC_NANOSECOND: DcChar = DcChar::from_format(489);
+/// DcChar constant for Format `IpV4` (Short f490, Category: identifier): IPV4 address
+pub const DC_IP_V4: DcChar = DcChar::from_format(490);
+/// DcChar constant for Format `IpV6` (Short f491, Category: identifier): IPV6 address
+pub const DC_IP_V6: DcChar = DcChar::from_format(491);
+/// DcChar constant for Format `Unix` (Short f492, Category: os): Unix OS family
+pub const DC_UNIX: DcChar = DcChar::from_format(492);
+/// DcChar constant for Format `AppleIos` (Short f493, Category: os): Apple iOS
+pub const DC_APPLE_IOS: DcChar = DcChar::from_format(493);
+/// DcChar constant for Format `WatchOs` (Short f494, Category: os): Apple watchOS
+pub const DC_WATCH_OS: DcChar = DcChar::from_format(494);
+/// DcChar constant for Format `TvOs` (Short f495, Category: os): Apple tvOS
+pub const DC_TV_OS: DcChar = DcChar::from_format(495);
+/// DcChar constant for Format `VisionOs` (Short f496, Category: os): Apple visionOS
+pub const DC_VISION_OS: DcChar = DcChar::from_format(496);
+/// DcChar constant for Format `GnuStep` (Short f497, Category: userspace): GNUstep environment
+pub const DC_GNU_STEP: DcChar = DcChar::from_format(497);
+/// DcChar constant for Format `NextStep` (Short f498, Category: os): NeXTSTEP / OPENSTEP environment
+pub const DC_NEXT_STEP: DcChar = DcChar::from_format(498);
+/// DcChar constant for Format `WebUi` (Short f499, Category: device_caps): Web-based user interface
+pub const DC_WEB_UI: DcChar = DcChar::from_format(499);
+/// DcChar constant for Format `WebView` (Short f500, Category: device_caps): Embedded webview display
+pub const DC_WEB_VIEW: DcChar = DcChar::from_format(500);
+/// DcChar constant for Format `BrowserVm` (Short f501, Category: device_caps): Browser virtual machine runtime
+pub const DC_BROWSER_VM: DcChar = DcChar::from_format(501);
+/// DcChar constant for Format `V86Vm` (Short f502, Category: device_caps): v86 browser x86 PC emulation
+pub const DC_V86_VM: DcChar = DcChar::from_format(502);
+/// DcChar constant for Format `Pwa` (Short f503, Category: device_caps): Progressive Web Application
+pub const DC_PWA: DcChar = DcChar::from_format(503);
+/// DcChar constant for Format `Point` (Short f504, Category: math): Point in n-dimensional space
+pub const DC_POINT: DcChar = DcChar::from_format(504);
+/// DcChar constant for Format `Point1D` (Short f505, Category: math): Point in 1-dimensional space
+pub const DC_POINT1_D: DcChar = DcChar::from_format(505);
+/// DcChar constant for Format `Point2D` (Short f506, Category: math): Point in 2-dimensional space
+pub const DC_POINT2_D: DcChar = DcChar::from_format(506);
+/// DcChar constant for Format `Point3D` (Short f507, Category: math): Point in 3-dimensional space
+pub const DC_POINT3_D: DcChar = DcChar::from_format(507);
+/// DcChar constant for Format `Vector` (Short f508, Category: math): Vector in n-dimensional space
+pub const DC_VECTOR: DcChar = DcChar::from_format(508);
+/// DcChar constant for Format `Vector1D` (Short f509, Category: math): Vector in 1-dimensional space
+pub const DC_VECTOR1_D: DcChar = DcChar::from_format(509);
+/// DcChar constant for Format `Vector2D` (Short f510, Category: math): Vector in 2-dimensional space
+pub const DC_VECTOR2_D: DcChar = DcChar::from_format(510);
+/// DcChar constant for Format `Vector3D` (Short f511, Category: math): Vector in 3-dimensional space
+pub const DC_VECTOR3_D: DcChar = DcChar::from_format(511);
+/// DcChar constant for Format `Interval1D` (Short f512, Category: math): 1-dimensional interval or range
+pub const DC_INTERVAL1_D: DcChar = DcChar::from_format(512);
+/// DcChar constant for Format `Box2D` (Short f513, Category: math): 2-dimensional bounding box or rectangle
+pub const DC_BOX2_D: DcChar = DcChar::from_format(513);
+/// DcChar constant for Format `Box3D` (Short f514, Category: math): 3-dimensional bounding box or cuboid
+pub const DC_BOX3_D: DcChar = DcChar::from_format(514);
+/// DcChar constant for Format `Index1D` (Short f515, Category: math): 1-dimensional discrete sequence index
+pub const DC_INDEX1_D: DcChar = DcChar::from_format(515);
+/// DcChar constant for Format `Index2D` (Short f516, Category: math): 2-dimensional discrete grid or key-value index
+pub const DC_INDEX2_D: DcChar = DcChar::from_format(516);
+/// DcChar constant for Format `Size2D` (Short f517, Category: math): 2-dimensional size or extent dimensions
+pub const DC_SIZE2_D: DcChar = DcChar::from_format(517);
+/// DcChar constant for Format `Size3D` (Short f518, Category: math): 3-dimensional size or extent dimensions
+pub const DC_SIZE3_D: DcChar = DcChar::from_format(518);
+/// DcChar constant for Format `CartesianPoint2D` (Short f519, Category: math): 2-dimensional Cartesian point [x y]
+pub const DC_CARTESIAN_POINT2_D: DcChar = DcChar::from_format(519);
+/// DcChar constant for Format `CartesianPoint3D` (Short f520, Category: math): 3-dimensional Cartesian point [x y z]
+pub const DC_CARTESIAN_POINT3_D: DcChar = DcChar::from_format(520);
+/// DcChar constant for Format `ScreenPoint2D` (Short f521, Category: math): 2-dimensional screen coordinate [x y]
+pub const DC_SCREEN_POINT2_D: DcChar = DcChar::from_format(521);
+/// DcChar constant for Format `ScreenRect` (Short f522, Category: math): 2-dimensional screen rectangle [x y width height]
+pub const DC_SCREEN_RECT: DcChar = DcChar::from_format(522);
+/// DcChar constant for Format `QuickDrawPoint` (Short f523, Category: math): Mac OS QuickDraw point [v h]
+pub const DC_QUICK_DRAW_POINT: DcChar = DcChar::from_format(523);
+/// DcChar constant for Format `QuickDrawRect` (Short f524, Category: math): Mac OS QuickDraw rectangle [top left bottom right]
+pub const DC_QUICK_DRAW_RECT: DcChar = DcChar::from_format(524);
+/// DcChar constant for Format `OriginScreenTopLeft` (Short f525, Category: math): Origin anchor at screen top-left
+pub const DC_ORIGIN_SCREEN_TOP_LEFT: DcChar = DcChar::from_format(525);
+/// DcChar constant for Format `OriginWindowTopLeft` (Short f526, Category: math): Origin anchor at window or container top-left
+pub const DC_ORIGIN_WINDOW_TOP_LEFT: DcChar = DcChar::from_format(526);
+/// DcChar constant for Format `OriginBottomLeft` (Short f527, Category: math): Origin anchor at bottom-left
+pub const DC_ORIGIN_BOTTOM_LEFT: DcChar = DcChar::from_format(527);
+/// DcChar constant for Format `OriginCenter` (Short f528, Category: math): Origin anchor at center
+pub const DC_ORIGIN_CENTER: DcChar = DcChar::from_format(528);
+/// DcChar constant for Format `OriginSequenceStart` (Short f529, Category: math): Origin anchor at sequence start
+pub const DC_ORIGIN_SEQUENCE_START: DcChar = DcChar::from_format(529);
+/// DcChar constant for Format `AxisHorizRight` (Short f530, Category: math): Horizontal axis directed rightwards (+x)
+pub const DC_AXIS_HORIZ_RIGHT: DcChar = DcChar::from_format(530);
+/// DcChar constant for Format `AxisVertDown` (Short f531, Category: math): Vertical axis directed downwards (+y/+v)
+pub const DC_AXIS_VERT_DOWN: DcChar = DcChar::from_format(531);
+/// DcChar constant for Format `AxisVertUp` (Short f532, Category: math): Vertical axis directed upwards (+y)
+pub const DC_AXIS_VERT_UP: DcChar = DcChar::from_format(532);
+/// DcChar constant for Format `AxisDepthIn` (Short f533, Category: math): Depth axis directed inward (+z)
+pub const DC_AXIS_DEPTH_IN: DcChar = DcChar::from_format(533);
+/// DcChar constant for Format `AxisDepthOut` (Short f534, Category: math): Depth axis directed outward (+z)
+pub const DC_AXIS_DEPTH_OUT: DcChar = DcChar::from_format(534);
+/// DcChar constant for Format `AxisRowDown` (Short f535, Category: math): Discrete row axis directed downwards (+row)
+pub const DC_AXIS_ROW_DOWN: DcChar = DcChar::from_format(535);
+/// DcChar constant for Format `AxisColRight` (Short f536, Category: math): Discrete column axis directed rightwards (+col)
+pub const DC_AXIS_COL_RIGHT: DcChar = DcChar::from_format(536);
+/// DcChar constant for Format `AxisOrdinal` (Short f537, Category: math): Discrete ordinal sequence position (+index)
+pub const DC_AXIS_ORDINAL: DcChar = DcChar::from_format(537);
+/// DcChar constant for Format `AxisField` (Short f538, Category: math): Discrete field selector (e.g. key vs value)
+pub const DC_AXIS_FIELD: DcChar = DcChar::from_format(538);
+/// DcChar constant for Format `OrderXY` (Short f539, Category: math): Cartesian tuple axis ordering [x y]
+pub const DC_ORDER_XY: DcChar = DcChar::from_format(539);
+/// DcChar constant for Format `OrderVH` (Short f540, Category: math): Row-major / QuickDraw tuple axis ordering [v h]
+pub const DC_ORDER_VH: DcChar = DcChar::from_format(540);
+/// DcChar constant for Format `OrderXYZ` (Short f541, Category: math): 3D Cartesian tuple axis ordering [x y z]
+pub const DC_ORDER_XYZ: DcChar = DcChar::from_format(541);
+/// DcChar constant for Format `Iso88591` (Short f542, Category: encoding): ISO 8859-1
+pub const DC_ISO88591: DcChar = DcChar::from_format(542);
+/// DcChar constant for Format `ActionScript` (Short f543, Category: programming): ActionScript
+pub const DC_ACTION_SCRIPT: DcChar = DcChar::from_format(543);
+/// DcChar constant for Format `X11Display` (Short f544, Category: device_caps): X11 window system
+pub const DC_X11_DISPLAY: DcChar = DcChar::from_format(544);
+/// DcChar constant for Format `WaylandDisplay` (Short f545, Category: device_caps): Wayland display protocol
+pub const DC_WAYLAND_DISPLAY: DcChar = DcChar::from_format(545);
+/// DcChar constant for Format `QuartzDisplay` (Short f546, Category: device_caps): Quartz compositor
+pub const DC_QUARTZ_DISPLAY: DcChar = DcChar::from_format(546);
+/// DcChar constant for Format `Win32Display` (Short f547, Category: device_caps): Windows desktop windowing
+pub const DC_WIN32_DISPLAY: DcChar = DcChar::from_format(547);
+/// DcChar constant for Format `HeadlessDisplay` (Short f548, Category: device_caps): Headless display (no display server)
+pub const DC_HEADLESS_DISPLAY: DcChar = DcChar::from_format(548);
+/// DcChar constant for Format `RasterColors1bit` (Short f549, Category: device_caps): Raster display is able to display monochrome graphics
+pub const DC_RASTER_COLORS1BIT: DcChar = DcChar::from_format(549);
+/// DcChar constant for Format `RasterColors24bit` (Short f550, Category: device_caps): Raster display is able to display “True Color” graphics
+pub const DC_RASTER_COLORS24BIT: DcChar = DcChar::from_format(550);
+/// DcChar constant for Format `TerminalColors1bit` (Short f551, Category: device_caps): Terminal display is monochrome (no color)
+pub const DC_TERMINAL_COLORS1BIT: DcChar = DcChar::from_format(551);
+/// DcChar constant for Format `TerminalColors4bit` (Short f552, Category: device_caps): Terminal display supports 4-bit color (specific colors may vary)
+pub const DC_TERMINAL_COLORS4BIT: DcChar = DcChar::from_format(552);
+/// DcChar constant for Format `TerminalColors8bit` (Short f553, Category: device_caps): Terminal display supports 8-bit color (specific colors may vary)
+pub const DC_TERMINAL_COLORS8BIT: DcChar = DcChar::from_format(553);
+/// DcChar constant for Format `TerminalColors24bit` (Short f554, Category: device_caps): Terminal display supports 24-bit color (“True Color”)
+pub const DC_TERMINAL_COLORS24BIT: DcChar = DcChar::from_format(554);
+/// DcChar constant for Format `ColorDepth1bit` (Short f555, Category: color_depth): Monochrome color depth
+pub const DC_COLOR_DEPTH1BIT: DcChar = DcChar::from_format(555);
+/// DcChar constant for Format `ColorDepth24bit` (Short f556, Category: color_depth): “True Color” 24-bit color
+pub const DC_COLOR_DEPTH24BIT: DcChar = DcChar::from_format(556);
+/// DcChar constant for Format `Replicant` (Short f557, Category: os): Replicant
+pub const DC_REPLICANT: DcChar = DcChar::from_format(557);
+/// DcChar constant for Format `Dragora` (Short f558, Category: os): Dragora GNU/Linux-Libre
+pub const DC_DRAGORA: DcChar = DcChar::from_format(558);
+/// DcChar constant for Format `Dynebolic` (Short f559, Category: os): Dyne:bolic
+pub const DC_DYNEBOLIC: DcChar = DcChar::from_format(559);
+/// DcChar constant for Format `GuixSystem` (Short f560, Category: os): Guix System
+pub const DC_GUIX_SYSTEM: DcChar = DcChar::from_format(560);
+/// DcChar constant for Format `Guix` (Short f561, Category: packagemgr): Guix package manager
+pub const DC_GUIX: DcChar = DcChar::from_format(561);
+/// DcChar constant for Format `Homebrew` (Short f562, Category: packagemgr): Homebrew package manager
+pub const DC_HOMEBREW: DcChar = DcChar::from_format(562);
+/// DcChar constant for Format `MacPorts` (Short f563, Category: packagemgr): MacPorts package manager
+pub const DC_MAC_PORTS: DcChar = DcChar::from_format(563);
+/// DcChar constant for Format `Hyperbola` (Short f564, Category: os): Hyperbola GNU/Linux-libre
+pub const DC_HYPERBOLA: DcChar = DcChar::from_format(564);
+/// DcChar constant for Format `ParabolaGll` (Short f565, Category: os): Parabola GNU/Linux-libre
+pub const DC_PARABOLA_GLL: DcChar = DcChar::from_format(565);
+/// DcChar constant for Format `PureOs` (Short f566, Category: os): PureOS
+pub const DC_PURE_OS: DcChar = DcChar::from_format(566);
+/// DcChar constant for Format `Trisquel` (Short f567, Category: os): Trisquel
+pub const DC_TRISQUEL: DcChar = DcChar::from_format(567);
+/// DcChar constant for Format `UtutoS` (Short f568, Category: os): Ututo S
+pub const DC_UTUTO_S: DcChar = DcChar::from_format(568);
+/// DcChar constant for Format `LibreCmc` (Short f569, Category: os): libreCMC
+pub const DC_LIBRE_CMC: DcChar = DcChar::from_format(569);
+/// DcChar constant for Format `ProteanOs` (Short f570, Category: os): ProteanOS
+pub const DC_PROTEAN_OS: DcChar = DcChar::from_format(570);
+/// DcChar constant for Format `Debian` (Short f571, Category: os): Debian
+pub const DC_DEBIAN: DcChar = DcChar::from_format(571);
+/// DcChar constant for Format `Ubuntu` (Short f572, Category: os): Ubuntu
+pub const DC_UBUNTU: DcChar = DcChar::from_format(572);
+/// DcChar constant for Format `Fedora` (Short f573, Category: os): Fedora
+pub const DC_FEDORA: DcChar = DcChar::from_format(573);
+/// DcChar constant for Format `Rhel` (Short f574, Category: os): RHEL
+pub const DC_RHEL: DcChar = DcChar::from_format(574);
+/// DcChar constant for Format `ArchLinux` (Short f575, Category: os): Arch
+pub const DC_ARCH_LINUX: DcChar = DcChar::from_format(575);
+/// DcChar constant for Format `Alpine` (Short f576, Category: os): Alpine
+pub const DC_ALPINE: DcChar = DcChar::from_format(576);
+/// DcChar constant for Format `OpenSuse` (Short f577, Category: os): OpenSUSE
+pub const DC_OPEN_SUSE: DcChar = DcChar::from_format(577);
+/// DcChar constant for Format `Gentoo` (Short f578, Category: os): Gentoo
+pub const DC_GENTOO: DcChar = DcChar::from_format(578);
+/// DcChar constant for Format `NixOs` (Short f579, Category: os): NixOS
+pub const DC_NIX_OS: DcChar = DcChar::from_format(579);
+/// DcChar constant for Format `Nix` (Short f580, Category: packagemgr): Nix package manager
+pub const DC_NIX: DcChar = DcChar::from_format(580);
+/// DcChar constant for Format `Wsl` (Short f581, Category: kernel): Windows Subsystem for Linux
+pub const DC_WSL: DcChar = DcChar::from_format(581);
+/// DcChar constant for Format `Wsl2` (Short f582, Category: kernel): Windows Subsystem for Linux, version 2
+pub const DC_WSL2: DcChar = DcChar::from_format(582);
+/// DcChar constant for Format `MuslLibc` (Short f583, Category: libc): musl libc
+pub const DC_MUSL_LIBC: DcChar = DcChar::from_format(583);
+/// DcChar constant for Format `BusyBoxUtilities` (Short f584, Category: userspace_utilities): BusyBox utilities
+pub const DC_BUSY_BOX_UTILITIES: DcChar = DcChar::from_format(584);
+/// DcChar constant for Format `BionicLibc` (Short f585, Category: libc): Bionic libc (Bionic also provides some other libraries)
+pub const DC_BIONIC_LIBC: DcChar = DcChar::from_format(585);
+/// DcChar constant for Format `Win32Subsystem` (Short f586, Category: userspace_libraries): Windows user-mode API subsystem for Win32 applications
+pub const DC_WIN32_SUBSYSTEM: DcChar = DcChar::from_format(586);
+/// DcChar constant for Format `GnuUtilities` (Short f587, Category: userspace_utilities): GNU utilities
+pub const DC_GNU_UTILITIES: DcChar = DcChar::from_format(587);
+/// DcChar constant for Format `BionicUserspace` (Short f588, Category: userspace): Bionic userspace
+pub const DC_BIONIC_USERSPACE: DcChar = DcChar::from_format(588);
+/// DcChar constant for Format `IsStdinTerminal` (Short f589, Category: device_caps): Whether standard input is connected to interactive terminal
+pub const DC_IS_STDIN_TERMINAL: DcChar = DcChar::from_format(589);
+/// DcChar constant for Format `IsStdoutTerminal` (Short f590, Category: device_caps): Whether standard output is connected to interactive terminal
+pub const DC_IS_STDOUT_TERMINAL: DcChar = DcChar::from_format(590);
+/// DcChar constant for Format `IsStderrTerminal` (Short f591, Category: device_caps): Whether standard error is connected to interactive terminal
+pub const DC_IS_STDERR_TERMINAL: DcChar = DcChar::from_format(591);
+/// DcChar constant for Format `TerminalCanEdit` (Short f592, Category: device_caps): Terminal can make changes to the current line of output
+pub const DC_TERMINAL_CAN_EDIT: DcChar = DcChar::from_format(592);
+/// DcChar constant for Format `TerminalCanEditPastLines` (Short f593, Category: device_caps): Is a videoterminal that can edit past lines, not just the current one
+pub const DC_TERMINAL_CAN_EDIT_PAST_LINES: DcChar = DcChar::from_format(593);
+/// DcChar constant for Format `LineModeTerminal` (Short f594, Category: device_caps): Line-at-a-time terminal
+pub const DC_LINE_MODE_TERMINAL: DcChar = DcChar::from_format(594);
+/// DcChar constant for Format `BlockModeTerminal` (Short f595, Category: device_caps): Screen-at-a-time terminal
+pub const DC_BLOCK_MODE_TERMINAL: DcChar = DcChar::from_format(595);
+/// DcChar constant for Format `PwaMobile` (Short f596, Category: device_caps): Progressive Web Application running on mobile device
+pub const DC_PWA_MOBILE: DcChar = DcChar::from_format(596);
+/// DcChar constant for Format `BrowserVmFullscreen` (Short f597, Category: device_caps): Browser virtual machine running in fullscreen canvas
+pub const DC_BROWSER_VM_FULLSCREEN: DcChar = DcChar::from_format(597);
+/// DcChar constant for Format `BrowserVmMobile` (Short f598, Category: device_caps): Browser virtual machine running on mobile viewport
+pub const DC_BROWSER_VM_MOBILE: DcChar = DcChar::from_format(598);
+/// DcChar constant for Format `WebUiSystemBrowser` (Short f599, Category: device_caps): Web-based user interface hosted in system browser
+pub const DC_WEB_UI_SYSTEM_BROWSER: DcChar = DcChar::from_format(599);

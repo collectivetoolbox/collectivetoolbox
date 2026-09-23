@@ -6,7 +6,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114118,6,Begin number,0,BN,,!Cx,.Semantic,"@ident(""BeginNumber"")",Begin a DCE number.
 1114119,7,End number,0,BN,,!Cx,.Semantic,"@ident(""EndNumber"")",End a DCE number.
 1114120,8,Unknown value,0,BN,,!Cx,.Semantic,,Substitution character for an unknown value.
-1114121,9,Gregorian calendar identifier,0,BN,,!Cx,Formats:calendar,,Internal DCE calendar identifier for the Gregorian calendar.
+1114121,9,Gregorian calendar identifier,0,BN,,!Cx,.Formats:calendar,,Internal DCE calendar identifier for the Gregorian calendar.
 1114122,10,Positive,0,BN,,!Cx,.Semantic,"@ident(""Positive"")",Positive value (syntactical representation — This is not the + character)
 1114123,11,Negative,0,BN,,!Cx,.Semantic,"@ident(""Negative"")",Negative (syntactical representation — This is not the − character)
 1114226,114,Begin unbounded content,0,BN,,!Cx,.Semantic,,"This denotes content that is not ""bound"" (given a context of a page, etc. to be within) — in other words it is what a plain text file is to a word processing file with page formatting — content with no context given for presenting it"

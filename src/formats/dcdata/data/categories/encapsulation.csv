@@ -63,11 +63,11 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114300,188,Base 64 encapsulation digit 61,0,BN,,!Cx,.Encapsulation,,
 1114301,189,Base 64 encapsulation digit 62,0,BN,,!Cx,.Encapsulation,,
 1114302,190,Base 64 encapsulation digit 63,0,BN,,!Cx,.Encapsulation,"@ident(""Base64End"")",
-1114303,191,Begin encapsulated UTF-8,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationUtf8"")",Begin Base 64 encapsulated UTF-8
+1114303,191,Begin encapsulated UTF-8,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationUtf8""), :~ [^192]* 192",Begin Base 64 encapsulated UTF-8
 1114304,192,End encapsulated UTF-8,0,BN,,!Cx,.Encapsulation,"@ident(""EndEncapsulationUtf8"")",End Base 64 encapsulated UTF-8
 1114307,195,Base 64 encapsulation padding character,0,BN,,!Cx,.Encapsulation,"@ident(""Base64Padding"")",
 1114312,200,Begin keyed embed fragment,0,BN,,!Cx,.Encapsulation,,"This Dc is used for embedding arbitrary keyed ID/data pairs in a document. Standard structure: Followed by base64-encoded data identifying a fragment, then Dc 202 (End keyed embed ID sequence), then by the base64-encoded fragment itself, then by Dc 201 (End keyed embed fragment)."
 1114313,201,End keyed embed fragment,0,BN,,!Cx,.Encapsulation,,See description for 200
 1114314,202,End keyed embed ID sequence,0,BN,,!Cx,.Encapsulation,,See description for 200
-1114315,203,Begin encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationBinary"")","Arbitrary binary data (base64 encoded, no semantic significance assigned to it)"
+1114315,203,Begin encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""StartEncapsulationBinary""), :~ ([127..190] | 195)* 204","Arbitrary binary data (base64 encoded, no semantic significance assigned to it)"
 1114316,204,End encapsulated binary data,0,BN,,!Cx,.Encapsulation,"@ident(""EndEncapsulationBinary"")",See description for 203

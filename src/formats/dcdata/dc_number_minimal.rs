@@ -34,9 +34,9 @@ use anyhow::{Result, anyhow, bail};
 
 use crate::dc::{
     DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER, DC_END_NUMBER,
-    DC_FORMAT_199,
 };
 use crate::dc_char::DcChar;
+use ctb_utilities::DC_INTEGER;
 
 /// Converts a 6-bit Base64 numeral value (0..=63) or padding sentinel (64) into
 /// its corresponding Base64 encapsulation `DcChar`.
@@ -95,7 +95,7 @@ pub fn is_dc_base64_encapsulation_char(ch: DcChar) -> bool {
 /// Encodes an unsigned 128-bit integer into a sequence of `DcChar`s.
 ///
 /// Structure:
-/// `[DC_BEGIN_NUMBER, DC_FORMAT_199, ...Base64 encapsulation digits..., DC_END_NUMBER]`
+/// `[DC_BEGIN_NUMBER, DC_INTEGER, ...Base64 encapsulation digits..., DC_END_NUMBER]`
 #[must_use]
 pub fn u128_to_dc_number_chars(mut val: u128) -> Vec<DcChar> {
     let mut digits = Vec::new();
@@ -116,7 +116,7 @@ pub fn u128_to_dc_number_chars(mut val: u128) -> Vec<DcChar> {
 
     let mut result = Vec::with_capacity(digits.len().saturating_add(3));
     result.push(DC_BEGIN_NUMBER);
-    result.push(DC_FORMAT_199);
+    result.push(DC_INTEGER);
     result.extend(digits);
     result.push(DC_END_NUMBER);
     result
@@ -131,8 +131,8 @@ pub fn u128_to_dc_number_short(val: u128) -> Vec<u32> {
     let chars = u128_to_dc_number_chars(val);
     let mut out = Vec::with_capacity(chars.len());
     for ch in chars {
-        if ch == DC_FORMAT_199 {
-            // Reason for fallback: DC_FORMAT_199 canonically maps to format 199
+        if ch == DC_INTEGER {
+            // Reason for fallback: DC_INTEGER canonically maps to format 199
             out.push(ch.to_format().unwrap_or(199));
         } else {
             // Reason for fallback: valid Base64 encapsulation chars and framing delimiters map to their short IDs

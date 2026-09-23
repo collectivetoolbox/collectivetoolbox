@@ -13,7 +13,7 @@ This document describes the schema of columns used across Document Character (Dc
 | 5 | **⇆** | Bidirectional class (e.g. `L`, `R`, `AL`, `EN`, `ES`, `ET`, `AN`, `CS`, `B`, `S`, `WS`, `ON`, `BN`). |
 | 6 | **Aa** | Casing partner Short Dc ID or format base if in legacy layout. |
 | 7 | **Type** | General Category (e.g. `Lu`, `Ll`, `Lt`, `Lm`, `Lo`, `Mn`, `Mc`, `Me`, `Nd`, `Nl`, `No`, `Zs`, `Zl`, `Zp`, `Cc`, `Cf`, `Cs`, `Co`, `Cn`, `Pd`, `Ps`, `Pe`, `Pc`, `Pi`, `Pf`, `Po`, `Sm`, `Sc`, `Sk`, `So`, or `!Cx` for extended Dcs). |
-| 8 | **Script** | Script or Unicode block name (e.g. `Latin`, `Common`, `Basic Latin`), or hierarchical namespaced script (e.g. `Formats:<category>`, `Semantic:fileflag`). |
+| 8 | **Script** | Script name (e.g. `Latin`, `Common`), or Dc-specific hierarchical script prefixed with a full stop (e.g. `.Formats:<category>`, `.Semantic:fileflag`). |
 | 9 | **Aliases; >=xref, <=decompos., :=Dc syntax, @chain** | Composite column for aliases, directives, cross-references, decompositions, and syntax rules (detailed below). |
 | 10 | **Description** | Human-readable explanatory description, clarifications, and usage notes. |
 | 11 | **Extensions** | Primary file extension first (e.g. `.tar.gz`), followed by comma-separated alternatives. |

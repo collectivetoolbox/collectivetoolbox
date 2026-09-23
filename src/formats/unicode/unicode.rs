@@ -220,6 +220,23 @@ pub fn script_name(cp: u32) -> Option<&'static str> {
     script_names.get(script_val)
 }
 
+static ALL_UNICODE_SCRIPTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    let script_names = icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
+    let mut scripts = HashSet::new();
+    for i in 0..=1000 {
+        if let Some(name) = script_names.get(icu_properties::props::Script::from_icu4c_value(i)) {
+            scripts.insert(name);
+        }
+    }
+    scripts
+});
+
+/// Checks if a string is a valid Unicode script name (e.g. "Latin", "Arabic", "Common").
+#[must_use]
+pub fn is_valid_unicode_script(name: &str) -> bool {
+    ALL_UNICODE_SCRIPTS.contains(name)
+}
+
 /// Character metadata record for generating the unified Unicode character table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnicodeCharRecord {
