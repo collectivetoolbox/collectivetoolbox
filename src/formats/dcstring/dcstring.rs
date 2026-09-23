@@ -41,7 +41,7 @@ pub mod error;
 
 pub use converters::dctext::DcList;
 pub use converters::{dcal, dcts, dctext, utf8};
-pub use dc_char::DcChar;
+pub use dc_char::{DcChar, DcCharExt};
 pub use dc_mixed::{
     DcMixed, DcMixedChunk, DcMixedError, DcMixedOwned, DcMst, DcMstr,
     DcMstring, DcMstSlice, validate_dcmst,

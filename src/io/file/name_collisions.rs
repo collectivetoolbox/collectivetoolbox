@@ -391,9 +391,7 @@ mod tests {
     fn test_name_collision_dependency_ordering() -> Result<()> {
         let temp = tempdir()?;
         let src = temp.path().join("src");
-        let dest = temp.path().join("dest");
         fs::create_dir_all(&src)?;
-        fs::create_dir_all(&dest)?;
 
         // Foo.as and Foo.as.as
         fs::write(src.join("Foo.as"), b"content 1")?;
@@ -403,22 +401,24 @@ mod tests {
         let entries = read_dir_safe(&src, &traversal_opts)?;
 
         let read_opts = AppleReadOptions::default();
-        let ordered = validate_and_order_directory_entries(
-            entries,
-            &src,
-            &dest,
-            &dest,
-            Path::new(""),
-            &read_opts,
-            AppleWriteMode::ForceAppleSingle,
-            AppleSingleExtension::As,
-        )?;
+        for input_entries in [entries.clone(), entries.into_iter().rev().collect()] {
+            let ordered = validate_and_order_directory_entries(
+                input_entries,
+                &src,
+                &src,
+                &src,
+                Path::new(""),
+                &read_opts,
+                AppleWriteMode::ForceAppleSingle,
+                AppleSingleExtension::As,
+            )?;
 
-        // Foo.as maps to Foo.as.as; Foo.as.as maps to Foo.as.as.as.
-        // Therefore Foo.as.as must be ordered BEFORE Foo.as!
-        ensure!(ordered.len() == 2);
-        ensure!(ordered.first().map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as.as")));
-        ensure!(ordered.get(1).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as")));
+            // Foo.as maps to Foo.as.as; Foo.as.as maps to Foo.as.as.as.
+            // Therefore Foo.as.as must be ordered BEFORE Foo.as!
+            ensure!(ordered.len() == 2);
+            ensure!(ordered.first().map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as.as")));
+            ensure!(ordered.get(1).map(|e| e.file_name.as_os_str()) == Some(std::ffi::OsStr::new("Foo.as")));
+        }
 
         Ok(())
     }

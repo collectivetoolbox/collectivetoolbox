@@ -1341,10 +1341,14 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("file");
         fs::write(&path, b"data").unwrap();
-        crate::sys_flags::apply_file_flags(&path, &[FileFlag::NoDump], None, true).unwrap();
+        let (mut baseline_flags, _) = crate::sys_flags::query_file_flags(&path, false).unwrap();
+        baseline_flags.retain(|flag| *flag != FileFlag::NoDump);
+        let mut flags_with_nodump = baseline_flags.clone();
+        flags_with_nodump.push(FileFlag::NoDump);
+        crate::sys_flags::apply_file_flags(&path, &flags_with_nodump, None, true).unwrap();
         assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.contains(&FileFlag::NoDump));
-        crate::sys_flags::apply_file_flags(&path, &[], None, true).unwrap();
-        assert!(crate::sys_flags::query_file_flags(&path, false).unwrap().0.is_empty());
+        crate::sys_flags::apply_file_flags(&path, &baseline_flags, None, true).unwrap();
+        assert_eq!(crate::sys_flags::query_file_flags(&path, false).unwrap().0, baseline_flags);
         let raw = PlatformRawFlags { source_os: OsFamily::Linux, raw_value: u64::MAX, has_unparsed_flags: true };
         assert!(crate::sys_flags::apply_file_flags(&path, &[], Some(&raw), false).is_err());
     }

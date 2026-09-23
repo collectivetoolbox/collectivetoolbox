@@ -181,7 +181,7 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             raw_cat
         } else {
             let sc = get_opt(script_col);
-            if let Some(stripped) = sc.strip_prefix("Formats:") {
+            if let Some(stripped) = sc.strip_prefix(".Formats:") {
                 stripped.to_string()
             } else {
                 sc

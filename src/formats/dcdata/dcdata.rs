@@ -54,7 +54,7 @@ pub use ctb_storage_minimal::shorthand::{
     parse_unicode_shorthand,
 };
 
-pub use dc_char::DcChar;
+pub use dc_char::{DcChar, DcCharExt};
 pub use ctb_utilities::DC_INTEGER;
 pub use dc::{
     DC_BASE64_END, DC_BASE64_PADDING, DC_BASE64_START, DC_BEGIN_NUMBER,

@@ -1230,6 +1230,7 @@ pub type DcMstSlice = DcMstr;
 )]
 mod tests {
     use super::*;
+    use ctb_formats_dcdata::dc_char::DcCharExt;
 
     #[crate::ctb_test]
     fn test_dc_203_bytes_constant() {

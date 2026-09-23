@@ -32,7 +32,7 @@ use std::ops::{Deref, DerefMut};
 
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
 
-use crate::{DcChar, DcStr, DcUtfError, validate_dcutf};
+use crate::{DcChar, DcCharExt, DcStr, DcUtfError, validate_dcutf};
 
 /// An owned, growable string buffer containing valid UTF-8e-128 (DcUtf) data.
 #[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -1283,6 +1283,11 @@ mod tests {
         let size = u64::try_from(payload_bytes.len()).unwrap();
 
         let rel_path = PathBuf::from("nested/test_file.bin");
+        let baseline_file = tempfile::NamedTempFile::new_in(&dest_root).unwrap();
+        fs::write(baseline_file.path(), payload_bytes).unwrap();
+        let (flags, platform_raw_flags) =
+            crate::sys_flags::query_file_flags(baseline_file.path(), false).unwrap();
+        baseline_file.close().unwrap();
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
@@ -1309,8 +1314,8 @@ mod tests {
                     birthtime_nsec: None,
                     resolution_nsec: None,
                 },
-                flags: Vec::new(),
-                platform_raw_flags: None,
+                flags,
+                platform_raw_flags,
                 read_time: None,
                 filesystem_type: None,
                 environment: None,

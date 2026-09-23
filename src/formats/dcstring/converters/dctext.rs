@@ -32,6 +32,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::Result;
+use crate::dc_char::DcCharExt;
 use ctb_formats_utilities::{ConversionOutput, FormatLog};
 use ctb_formats_dcdata::dc::{DC_ESCAPE, DC_LONG_DC};
 use crate::dc_number::{
