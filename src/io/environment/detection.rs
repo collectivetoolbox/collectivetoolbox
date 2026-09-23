@@ -107,25 +107,30 @@ pub fn detect_architecture() -> FormatId {
     }
 }
 
-#[cfg(target_os = "linux")]
-fn detect_linux_kernel() -> (FormatId, Option<String>) {
-    let release = std::fs::read_to_string("/proc/sys/kernel/osrelease")
-        .ok()
-        .map(|s| s.trim().to_string());
+fn probe_linux_procfs(detected: &mut Vec<FormatId>) -> Option<String> {
+    let mut kernel_version = None;
+    if let Ok(release) = std::fs::read_to_string("/proc/sys/kernel/osrelease") {
+        let trimmed = release.trim().to_string();
+        if !trimmed.is_empty() {
+            kernel_version = Some(trimmed);
+        }
+    }
 
-    let version_str = std::fs::read_to_string("/proc/version")
-        .unwrap_or_default()
-        .to_ascii_lowercase();
+    if let Ok(version_str) = std::fs::read_to_string("/proc/version") {
+        let v = version_str.to_ascii_lowercase();
+        if v.contains("wsl2") {
+            detected.push(FormatId::Wsl2);
+            detected.push(FormatId::Wsl);
+            detected.push(FormatId::Linux);
+        } else if v.contains("microsoft") || v.contains("wsl") {
+            detected.push(FormatId::Wsl);
+            detected.push(FormatId::Linux);
+        } else if v.contains("linux") {
+            detected.push(FormatId::Linux);
+        }
+    }
 
-    let kernel = if version_str.contains("wsl2") {
-        FormatId::Wsl2
-    } else if version_str.contains("microsoft") || version_str.contains("wsl") {
-        FormatId::Wsl
-    } else {
-        FormatId::Linux
-    };
-
-    (kernel, release)
+    kernel_version
 }
 
 /// Detect the host execution identity.
@@ -135,141 +140,264 @@ fn detect_linux_kernel() -> (FormatId, Option<String>) {
 )]
 #[must_use]
 pub fn detect_identity() -> EnvironmentIdentity {
+    let mut detected = Vec::new();
+
+    // 1. Architecture detection
     let architecture = detect_architecture();
+    detected.push(architecture);
 
-    #[cfg(target_os = "linux")]
-    {
-        let (kernel, kernel_version) = detect_linux_kernel();
-        let libc = if cfg!(target_env = "musl") {
-            Some(FormatId::MuslLibc)
+    // 2. Kernel & OS probing
+    let kernel_version = probe_linux_procfs(&mut detected);
+
+    if cfg!(target_os = "linux") {
+        detected.push(FormatId::Linux);
+        detected.push(FormatId::Unix);
+        if cfg!(target_os = "android") {
+            detected.push(FormatId::Android);
         } else {
-            Some(FormatId::Gnu)
-        };
-
-        let mut userspace = Vec::new();
-        if libc == Some(FormatId::Gnu) {
-            userspace.push(FormatId::GnuUtilities);
+            detected.push(FormatId::GnuLinux);
         }
-        if Path::new("/bin/busybox").exists() || Path::new("/usr/bin/busybox").exists() {
-            userspace.push(FormatId::BusyBoxUtilities);
-        }
-        if super::looks_like_gnustep() {
-            userspace.push(FormatId::GnuStep);
-        }
-
-        let os = FormatId::GnuLinux;
-        let os_families = vec![FormatId::Unix];
-
-        EnvironmentIdentity {
-            kernel,
-            kernel_version,
-            libc,
-            userspace,
-            os,
-            os_families,
-            architecture,
-        }
+    } else if cfg!(target_os = "macos") {
+        detected.push(FormatId::MacOsDarwin);
+        detected.push(FormatId::MacOs);
+        detected.push(FormatId::Xnu);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Darwin);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "ios") {
+        detected.push(FormatId::AppleIos);
+        detected.push(FormatId::Xnu);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Darwin);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "watchos") {
+        detected.push(FormatId::WatchOs);
+        detected.push(FormatId::Xnu);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Darwin);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "tvos") {
+        detected.push(FormatId::TvOs);
+        detected.push(FormatId::Xnu);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Darwin);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "visionos") {
+        detected.push(FormatId::VisionOs);
+        detected.push(FormatId::Xnu);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Darwin);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "windows") {
+        detected.push(FormatId::Windows);
+        detected.push(FormatId::WinNt);
+        detected.push(FormatId::WinNtKernel);
+        detected.push(FormatId::Win32Subsystem);
+    } else if cfg!(target_os = "freebsd") {
+        detected.push(FormatId::FreeBsd);
+        detected.push(FormatId::BsdKernel);
+        detected.push(FormatId::BsdLibc);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "openbsd") {
+        detected.push(FormatId::OpenBsd);
+        detected.push(FormatId::BsdKernel);
+        detected.push(FormatId::BsdLibc);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "netbsd") {
+        detected.push(FormatId::NetBsd);
+        detected.push(FormatId::BsdKernel);
+        detected.push(FormatId::BsdLibc);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "dragonfly") {
+        detected.push(FormatId::DragonFlyBsd);
+        detected.push(FormatId::BsdKernel);
+        detected.push(FormatId::BsdLibc);
+        detected.push(FormatId::Unix);
+    } else if cfg!(target_os = "hurd") || Path::new("/servers/socket").exists() {
+        detected.push(FormatId::Hurd);
+        detected.push(FormatId::GnuMach);
+        detected.push(FormatId::Mach);
+        detected.push(FormatId::Gnu);
+        detected.push(FormatId::GnuUtilities);
+        detected.push(FormatId::Unix);
+    } else if cfg!(unix) {
+        detected.push(FormatId::Unix);
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        let kernel = FormatId::Xnu;
-        let kernel_version = None;
-        let libc = Some(FormatId::Darwin);
-
-        let mut userspace = Vec::new();
-        if super::looks_like_gnustep() {
-            userspace.push(FormatId::GnuStep);
-        }
-
-        let os = FormatId::MacOsDarwin;
-        let os_families = vec![FormatId::MacOs, FormatId::Unix];
-
-        EnvironmentIdentity {
-            kernel,
-            kernel_version,
-            libc,
-            userspace,
-            os,
-            os_families,
-            architecture,
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let kernel = FormatId::WinNtKernel;
-        let kernel_version = None;
-        let libc = None;
-        let userspace = vec![FormatId::Win32Subsystem];
-        let os = FormatId::WinNt;
-        let os_families = vec![FormatId::Windows];
-
-        EnvironmentIdentity {
-            kernel,
-            kernel_version,
-            libc,
-            userspace,
-            os,
-            os_families,
-            architecture,
-        }
-    }
-
-    #[cfg(any(
-        target_os = "freebsd",
-        target_os = "openbsd",
-        target_os = "netbsd",
-        target_os = "dragonfly"
-    ))]
-    {
-        let kernel = FormatId::BsdKernel;
-        let kernel_version = None;
-        let libc = Some(FormatId::BsdLibc);
-        let userspace = Vec::new();
-
-        let os = if cfg!(target_os = "freebsd") {
-            FormatId::FreeBsd
-        } else if cfg!(target_os = "openbsd") {
-            FormatId::OpenBsd
-        } else if cfg!(target_os = "netbsd") {
-            FormatId::NetBsd
-        } else {
-            FormatId::DragonFlyBsd
-        };
-
-        let os_families = vec![FormatId::Unix];
-
-        EnvironmentIdentity {
-            kernel,
-            kernel_version,
-            libc,
-            userspace,
-            os,
-            os_families,
-            architecture,
-        }
-    }
-
-    #[cfg(not(any(
-        target_os = "linux",
+    // 3. Libc detection
+    if cfg!(target_env = "musl") {
+        detected.push(FormatId::MuslLibc);
+    } else if cfg!(target_env = "gnu") {
+        detected.push(FormatId::Gnu);
+        detected.push(FormatId::GnuUtilities);
+    } else if cfg!(target_os = "android") {
+        detected.push(FormatId::BionicLibc);
+        detected.push(FormatId::BionicUserspace);
+    } else if cfg!(any(
         target_os = "macos",
-        target_os = "windows",
+        target_os = "ios",
+        target_os = "watchos",
+        target_os = "tvos",
+        target_os = "visionos"
+    )) {
+        detected.push(FormatId::Darwin);
+    } else if cfg!(any(
         target_os = "freebsd",
         target_os = "openbsd",
         target_os = "netbsd",
         target_os = "dragonfly"
-    )))]
+    )) {
+        detected.push(FormatId::BsdLibc);
+    } else if cfg!(target_os = "linux") {
+        detected.push(FormatId::Gnu);
+        detected.push(FormatId::GnuUtilities);
+    }
+
+    // 4. Userspace environments, subsystems, and package managers
+    // (Checked across platforms without assumptions)
+    if super::looks_like_gnustep() {
+        detected.push(FormatId::GnuStep);
+    }
+    if super::looks_like_nextstep_or_openstep() {
+        detected.push(FormatId::NextStep);
+    }
+    if Path::new("/bin/busybox").exists() || Path::new("/usr/bin/busybox").exists() {
+        detected.push(FormatId::BusyBoxUtilities);
+    }
+    if env::var_os("WINDIR").is_some() || env::var_os("SYSTEMROOT").is_some() {
+        detected.push(FormatId::Win32Subsystem);
+    }
+    if env::var_os("HOMEBREW_PREFIX").is_some()
+        || Path::new("/opt/homebrew").exists()
+        || Path::new("/usr/local/Homebrew").exists()
+        || Path::new("/home/linuxbrew/.linuxbrew").exists()
     {
-        EnvironmentIdentity {
-            kernel: FormatId::Linux,
-            kernel_version: None,
-            libc: None,
-            userspace: Vec::new(),
-            os: FormatId::Unix,
-            os_families: vec![FormatId::Unix],
-            architecture,
-        }
+        detected.push(FormatId::Homebrew);
+    }
+    if env::var_os("MACPORTS_PREFIX").is_some() || Path::new("/opt/local/bin/port").exists() {
+        detected.push(FormatId::MacPorts);
+    }
+    if env::var_os("NIX_PROFILES").is_some() || Path::new("/nix/store").exists() {
+        detected.push(FormatId::Nix);
+    }
+    if env::var_os("GUIX_ENVIRONMENT").is_some() || Path::new("/gnu/store").exists() {
+        detected.push(FormatId::Guix);
+    }
+
+    // Deduplicate detected formats
+    let mut seen = HashSet::new();
+    detected.retain(|id| seen.insert(*id));
+
+    // Derive EnvironmentIdentity from detected formats
+    let kernel = if detected.contains(&FormatId::Wsl2) {
+        FormatId::Wsl2
+    } else if detected.contains(&FormatId::Wsl) {
+        FormatId::Wsl
+    } else if detected.contains(&FormatId::Linux) {
+        FormatId::Linux
+    } else if detected.contains(&FormatId::Xnu) {
+        FormatId::Xnu
+    } else if detected.contains(&FormatId::WinNtKernel) {
+        FormatId::WinNtKernel
+    } else if detected.contains(&FormatId::BsdKernel) {
+        FormatId::BsdKernel
+    } else if detected.contains(&FormatId::Hurd) {
+        FormatId::Hurd
+    } else if detected.contains(&FormatId::GnuMach) {
+        FormatId::GnuMach
+    } else if detected.contains(&FormatId::Mach) {
+        FormatId::Mach
+    } else {
+        detected
+            .iter()
+            .copied()
+            .find(|f| f.category() == FormatCategory::Kernel)
+            .unwrap_or(FormatId::Linux)
+    };
+
+    let libc = detected
+        .iter()
+        .copied()
+        .find(|f| f.category() == FormatCategory::Libc);
+
+    let os = if detected.contains(&FormatId::MacOsDarwin) {
+        FormatId::MacOsDarwin
+    } else if detected.contains(&FormatId::AppleIos) {
+        FormatId::AppleIos
+    } else if detected.contains(&FormatId::WatchOs) {
+        FormatId::WatchOs
+    } else if detected.contains(&FormatId::TvOs) {
+        FormatId::TvOs
+    } else if detected.contains(&FormatId::VisionOs) {
+        FormatId::VisionOs
+    } else if detected.contains(&FormatId::WinNt) {
+        FormatId::WinNt
+    } else if detected.contains(&FormatId::Windows) {
+        FormatId::Windows
+    } else if detected.contains(&FormatId::FreeBsd) {
+        FormatId::FreeBsd
+    } else if detected.contains(&FormatId::OpenBsd) {
+        FormatId::OpenBsd
+    } else if detected.contains(&FormatId::NetBsd) {
+        FormatId::NetBsd
+    } else if detected.contains(&FormatId::DragonFlyBsd) {
+        FormatId::DragonFlyBsd
+    } else if detected.contains(&FormatId::Android) {
+        FormatId::Android
+    } else if detected.contains(&FormatId::GnuLinux) || detected.contains(&FormatId::Linux) {
+        FormatId::GnuLinux
+    } else if detected.contains(&FormatId::NextStep) {
+        FormatId::NextStep
+    } else {
+        detected
+            .iter()
+            .copied()
+            .find(|f| f.category() == FormatCategory::Os)
+            .unwrap_or(FormatId::Unix)
+    };
+
+    let os_families: Vec<FormatId> = detected
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::Unix
+                    | FormatId::Windows
+                    | FormatId::MacOs
+                    | FormatId::WinClassic
+            )
+        })
+        .collect();
+
+    let userspace: Vec<FormatId> = detected
+        .iter()
+        .copied()
+        .filter(|f| {
+            matches!(
+                f,
+                FormatId::GnuUtilities
+                    | FormatId::BusyBoxUtilities
+                    | FormatId::GnuStep
+                    | FormatId::NextStep
+                    | FormatId::Win32Subsystem
+                    | FormatId::BionicUserspace
+                    | FormatId::Homebrew
+                    | FormatId::MacPorts
+                    | FormatId::Nix
+                    | FormatId::Guix
+            )
+        })
+        .collect();
+
+    EnvironmentIdentity {
+        kernel,
+        kernel_version,
+        libc,
+        userspace,
+        os,
+        os_families,
+        architecture,
     }
 }
 
@@ -453,6 +581,10 @@ pub fn check_has_format(
 
 /// Reconstruct [`EnvironmentIdentity`] and [`EnvironmentCapabilities`] from
 /// an OS string and a slice of [`FormatId`] formats.
+#[expect(
+    clippy::too_many_lines,
+    reason = "Comprehensive environment reconstruction across multiple format categories"
+)]
 #[must_use]
 pub fn reconstruct_identity_and_capabilities(
     os_str: &str,
@@ -468,8 +600,7 @@ pub fn reconstruct_identity_and_capabilities(
         .iter()
         .copied()
         .find(|f| f.category() == FormatCategory::Kernel)
-        .unwrap_or_else(|| match os_str {
-            "linux" => FormatId::Linux,
+        .unwrap_or(match os_str {
             "macos" | "ios" | "watchos" | "tvos" | "visionos" => FormatId::Xnu,
             "windows" => FormatId::WinNtKernel,
             "freebsd" | "openbsd" | "netbsd" | "dragonfly" => FormatId::BsdKernel,
@@ -519,6 +650,7 @@ pub fn reconstruct_identity_and_capabilities(
                 FormatId::GnuUtilities
                     | FormatId::BusyBoxUtilities
                     | FormatId::GnuStep
+                    | FormatId::NextStep
                     | FormatId::Win32Subsystem
                     | FormatId::BionicUserspace
                     | FormatId::Homebrew
@@ -644,6 +776,7 @@ pub fn format_environment_summary(
         FormatId::OpenBsd => "OpenBSD",
         FormatId::NetBsd => "NetBSD",
         FormatId::DragonFlyBsd => "DragonFly BSD",
+        FormatId::NextStep => "NeXTSTEP / OPENSTEP",
         _ => ident.os.ident(),
     };
 

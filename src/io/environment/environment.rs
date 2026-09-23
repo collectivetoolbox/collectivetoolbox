@@ -516,10 +516,15 @@ pub fn looks_like_gnustep() -> bool {
 /// Does it look like it's running in a NeXTSTEP or OPENSTEP environment? A
 /// guess, not confirmed.
 pub fn looks_like_nextstep_or_openstep() -> bool {
-    let Ok(path) = env::var("PATH") else {
-        return false;
-    };
-    path.split(':').any(|entry| entry.trim_end_matches('/') == "/NextApps")
+    if let Ok(path) = env::var("PATH") {
+        if path.split(':').any(|entry| entry.trim_end_matches('/') == "/NextApps") {
+            return true;
+        }
+    }
+    if env::var_os("NEXT_ROOT").is_some() || env::var_os("NEXTSTEP").is_some() {
+        return true;
+    }
+    std::path::Path::new("/NextApps").is_dir()
 }
 
 /// Is this a BSD of some sort, not including Darwin?
@@ -1464,6 +1469,53 @@ mod tests {
         // SAFETY: Test restores environment variable
         unsafe {
             env::remove_var("TERM_PROGRAM");
+        }
+    }
+
+    #[crate::ctb_test]
+    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
+    fn test_looks_like_nextstep_or_openstep() {
+        let original_path = env::var("PATH").ok();
+        // SAFETY: Test runs in controlled single-threaded test harness or restores variable
+        unsafe {
+            env::set_var("PATH", "/usr/bin:/NextApps");
+        }
+        assert!(looks_like_nextstep_or_openstep());
+        // SAFETY: Test restores environment variable
+        unsafe {
+            if let Some(orig) = original_path {
+                env::set_var("PATH", orig);
+            } else {
+                env::remove_var("PATH");
+            }
+        }
+    }
+
+    #[crate::ctb_test]
+    #[allow(unsafe_code, reason = "Modifying environment variable is unsafe in Rust 2024")]
+    fn test_detect_identity_gnustep_and_nextstep() {
+        let original_path = env::var("PATH").ok();
+        let original_term = env::var("TERM_PROGRAM").ok();
+        // SAFETY: Test runs in controlled single-threaded test harness and restores variables
+        unsafe {
+            env::set_var("PATH", "/usr/bin:/NextApps");
+            env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
+        }
+        let ident = detect_identity();
+        assert!(ident.userspace.contains(&FormatId::GnuStep));
+        assert!(ident.userspace.contains(&FormatId::NextStep));
+        // SAFETY: Test restores environment variables
+        unsafe {
+            if let Some(orig) = original_path {
+                env::set_var("PATH", orig);
+            } else {
+                env::remove_var("PATH");
+            }
+            if let Some(orig) = original_term {
+                env::set_var("TERM_PROGRAM", orig);
+            } else {
+                env::remove_var("TERM_PROGRAM");
+            }
         }
     }
 
