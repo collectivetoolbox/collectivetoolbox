@@ -123,5 +123,17 @@ fn main() -> ExitCode {
         }
     }
 
+    match ctb_formats_dcdata::updater::generate_dc_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated dcdata/dc.rs from category tables with @ident annotations.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating dcdata/dc.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
     ExitCode::SUCCESS
 }

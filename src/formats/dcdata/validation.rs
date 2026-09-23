@@ -353,6 +353,99 @@ pub fn validate_all_data_tables_from_repo(
     report
 }
 
+/// Validates the README.scripts.csv registry table, verifying schema and uniqueness,
+/// and returning the set of valid script identifiers.
+pub fn validate_scripts_table(
+    csv_bytes: &[u8],
+    file_path: &str,
+    report: &mut ValidationReport,
+) -> HashSet<String> {
+    let vec_bytes = csv_bytes.to_vec();
+    let table = match csv_tools::parse_csv_reader(
+        &vec_bytes,
+        csv_tools::CsvParseOptions {
+            has_header: true,
+            flexible: true,
+            ..Default::default()
+        },
+    ) {
+        Ok(t) => t,
+        Err(e) => {
+            report.add_error(
+                file_path,
+                None,
+                None,
+                format!("Failed to parse CSV: {e}"),
+                Some("Verify CSV syntax and formatting"),
+            );
+            return HashSet::new();
+        }
+    };
+
+    let mut valid_scripts = HashSet::new();
+    for i in 0..table.row_count() {
+        let line_no = i.saturating_add(2);
+        let Some(row) = table.row(i) else {
+            continue;
+        };
+
+        if row.len() < 3 {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                None,
+                format!("Row has {} columns, expected at least 3", row.len()),
+                Some("Ensure row has 'Script', 'Category', and 'Description' columns"),
+            );
+            continue;
+        }
+
+        let script = row.get(0).map_or("", |s| s.trim());
+        let category = row.get(1).map_or("", |s| s.trim());
+        let desc = row.get(2).map_or("", |s| s.trim());
+
+        if script.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Script"),
+                "Script identifier cannot be empty".to_string(),
+                Some("Specify a script name"),
+            );
+        } else if !valid_scripts.insert(script.to_string()) {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Script"),
+                format!("Duplicate script '{script}'"),
+                Some("Ensure each script is defined uniquely"),
+            );
+        }
+
+        if category.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Category"),
+                "Script category cannot be empty".to_string(),
+                Some("Specify 'Dc', 'Formats', or 'Unicode'"),
+            );
+        }
+
+        if desc.is_empty() {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some("Description"),
+                "Script description cannot be empty".to_string(),
+                Some("Provide a description explaining the script categorization"),
+            );
+        }
+    }
+
+    valid_scripts
+}
+
 /// Validates the README-decompositions.csv table, verifying schema and uniqueness,
 /// and returning the set of valid decomposition tags.
 pub fn validate_decompositions_table(
@@ -480,6 +573,8 @@ pub fn validate_named_types_table(
     file_path: &str,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
+    known_scripts: Option<&HashSet<String>>,
+    known_syntax_targets: Option<&HashSet<CharTarget>>,
     report: &mut ValidationReport,
 ) -> HashSet<String> {
     let all_known_names = extract_named_type_names(csv_bytes);
@@ -504,6 +599,11 @@ pub fn validate_named_types_table(
             return HashSet::new();
         }
     };
+
+    let default_scripts = HashSet::new();
+    let scripts = known_scripts.unwrap_or(&default_scripts);
+    let default_syntax_targets = HashSet::new();
+    let syntax_targets = known_syntax_targets.unwrap_or(&default_syntax_targets);
 
     let mut seen_names = HashSet::new();
     for i in 0..table.row_count() {
@@ -563,6 +663,8 @@ pub fn validate_named_types_table(
                         known_dc_ids,
                         known_format_ids,
                         &all_known_names,
+                        scripts,
+                        syntax_targets,
                         report,
                         file_path,
                         line_no,
@@ -1192,6 +1294,8 @@ pub fn validate_dc_files_data<'a, I>(
     known_format_ids: &HashSet<usize>,
     known_decomp_tags: Option<&HashSet<String>>,
     known_named_types: Option<&HashSet<String>>,
+    known_scripts: Option<&HashSet<String>>,
+    known_format_with_syntax: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn>
 where
@@ -1212,6 +1316,18 @@ where
         let rows = validate_dc_category_file(contents, path_str, report);
 
         for row in rows {
+            if let Some(scripts) = known_scripts {
+                if !scripts.contains(&row.script) {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Script"),
+                        format!("Unknown script '{}'", row.script),
+                        Some("Ensure script is registered in README.scripts.csv"),
+                    );
+                }
+            }
+
             if let Some(short_id) = row.short_id {
                 if let Some((prev_file, prev_line)) =
                     short_id_map.get(&short_id)
@@ -1264,6 +1380,19 @@ where
         .filter_map(|r| r.short_id)
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
+
+    let mut known_syntax_targets: HashSet<CharTarget> = all_rows
+        .iter()
+        .filter(|r| r.syntax.is_some())
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
+        .map(CharTarget::Dc)
+        .collect();
+    if let Some(fmts_with_syntax) = known_format_with_syntax {
+        for &fid in fmts_with_syntax {
+            known_syntax_targets.insert(CharTarget::Format(fid));
+        }
+    }
 
     // Validate that Short Dc IDs form a contiguous sequence starting from 0 with no gaps/holes
     if let Some(&max_id) = known_dc_ids.iter().max() {
@@ -1395,6 +1524,8 @@ where
             let default_named_types = HashSet::new();
             // Reason for fallback: optional named types registry defaults to empty set when omitted
             let named_types = known_named_types.unwrap_or(&default_named_types);
+            let default_scripts = HashSet::new();
+            let scripts = known_scripts.unwrap_or(&default_scripts);
 
             validate_dc_syntax(
                 syntax_rule,
@@ -1402,6 +1533,8 @@ where
                 &known_dc_ids,
                 known_format_ids,
                 named_types,
+                scripts,
+                &known_syntax_targets,
                 report,
                 &row.source_file,
                 row.line_number,
@@ -1418,6 +1551,8 @@ pub fn validate_all_dc_files(
     known_format_ids: &HashSet<usize>,
     known_decomp_tags: Option<&HashSet<String>>,
     known_named_types: Option<&HashSet<String>>,
+    known_scripts: Option<&HashSet<String>>,
+    known_format_with_syntax: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let mut files = Vec::new();
@@ -1432,6 +1567,8 @@ pub fn validate_all_dc_files(
         known_format_ids,
         known_decomp_tags,
         known_named_types,
+        known_scripts,
+        known_format_with_syntax,
         report,
     )
 }
@@ -1442,6 +1579,8 @@ pub fn validate_all_dc_files_from_disk(
     known_format_ids: &HashSet<usize>,
     known_decomp_tags: Option<&HashSet<String>>,
     known_named_types: Option<&HashSet<String>>,
+    known_scripts: Option<&HashSet<String>>,
+    known_format_with_syntax: Option<&HashSet<usize>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(dc_dir) else {
@@ -1504,6 +1643,8 @@ pub fn validate_all_dc_files_from_disk(
         known_format_ids,
         known_decomp_tags,
         known_named_types,
+        known_scripts,
+        known_format_with_syntax,
         report,
     )
 }
@@ -2064,6 +2205,9 @@ mod tests {
         let known_fmts: HashSet<usize> = [80].into_iter().collect();
         let mut known_named_types: HashSet<String> = HashSet::new();
         known_named_types.insert("identifier".to_string());
+        let mut known_scripts: HashSet<String> = HashSet::new();
+        known_scripts.insert(".EL Types".to_string());
+        let known_syntax_targets: HashSet<CharTarget> = HashSet::new();
 
         // Valid rule
         let valid_rule = parse_dc_syntax(":~ [^248 255]+ 248").unwrap();
@@ -2073,6 +2217,8 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
             &mut report,
             "test/syntax.csv",
             10,
@@ -2087,6 +2233,8 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
             &mut report,
             "test/syntax.csv",
             11,
@@ -2104,6 +2252,8 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
             &mut report2,
             "test/syntax.csv",
             12,
@@ -2120,12 +2270,50 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
             &mut report3,
             "test/syntax.csv",
             13,
         );
         assert!(report3.has_errors());
         assert!(report3.format_report().contains("Unknown named type construct '[unknown_type]'"));
+
+        // Macro expansion of target without syntax: f80 has no syntax
+        let mut report4 = ValidationReport::new();
+        let macro_no_syntax_rule = parse_dc_syntax(":~ 511 [f80:]").unwrap();
+        validate_dc_syntax(
+            &macro_no_syntax_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
+            &mut report4,
+            "test/syntax.csv",
+            14,
+        );
+        assert!(report4.has_errors());
+        assert!(report4.format_report().contains("references target that does not define its own syntax rule"));
+
+        // Unknown script in [script:...]: [script:Nonexistent]
+        let mut report5 = ValidationReport::new();
+        let unknown_script_rule = parse_dc_syntax(":[script:Nonexistent]").unwrap();
+        validate_dc_syntax(
+            &unknown_script_rule,
+            246,
+            &known_dcs,
+            &known_fmts,
+            &known_named_types,
+            &known_scripts,
+            &known_syntax_targets,
+            &mut report5,
+            "test/syntax.csv",
+            15,
+        );
+        assert!(report5.has_errors());
+        assert!(report5.format_report().contains("Unknown script '[script:Nonexistent]'"));
     }
 
     #[crate::ctb_test]

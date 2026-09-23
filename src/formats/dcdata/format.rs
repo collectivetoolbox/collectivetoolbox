@@ -744,6 +744,7 @@ pub fn validate_all_format_files_from_disk(
     validate_format_files_data(
         files_iter,
         &formats_dir.display().to_string(),
+        known_scripts,
         report,
     )
 }

@@ -675,11 +675,6 @@ impl DcMixedDecode for ctb_formats_utilities::FormatId {
         if let Some(fid) = Self::from_dc_id(ch.0) {
             return Ok(fid);
         }
-        if let Ok(short) = ch.to_short() {
-            if let Some(fid) = Self::from_short_id(usize::try_from(short).unwrap_or(0)) {
-                return Ok(fid);
-            }
-        }
         bail!("Unknown format DC character {ch:?}")
     }
 }

@@ -45,6 +45,8 @@ static ALL_DC_DEFNS: LazyLock<Vec<DcDefn>> = LazyLock::new(|| {
             &known_format_ids,
             None,
             None,
+            None,
+            None,
             &mut report,
         )
     } else {

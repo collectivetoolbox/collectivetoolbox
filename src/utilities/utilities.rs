@@ -71,7 +71,7 @@ pub mod ui;
 pub mod workspace_path_resolution;
 #[path = "format_id.generated.rs"]
 pub mod format_id;
-pub use format_id::FormatId;
+pub use format_id::{FormatCategory, FormatId, *};
 pub use dc_char::DcChar;
 
 pub use crate::cli::{OutputChunk, ToolResult};

@@ -28,7 +28,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use anyhow::{Context, Result, bail};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -903,6 +903,31 @@ fn to_snake_case(s: &str) -> String {
     res
 }
 
+fn to_screaming_snake_case(s: &str) -> String {
+    to_snake_case(s).to_ascii_uppercase()
+}
+
+fn category_to_variant_name(cat: &str) -> String {
+    let s = if let Some(stripped) = cat.strip_prefix("v:") {
+        stripped
+    } else {
+        cat
+    };
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    for ch in s.chars() {
+        if ch == '_' || ch == '-' || ch == ':' {
+            capitalize_next = true;
+        } else if capitalize_next {
+            result.extend(ch.to_uppercase());
+            capitalize_next = false;
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
 fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     if path.exists() {
         if let Ok(existing) = fs::read_to_string(path) {
@@ -1021,6 +1046,16 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
 
     records.sort_by_key(|r| r.short_id);
 
+    // Collect distinct categories dynamically
+    let mut category_variants: BTreeSet<String> = BTreeSet::new();
+    let mut cat_to_variant: HashMap<String, String> = HashMap::new();
+    for r in &records {
+        let variant = category_to_variant_name(&r.category);
+        cat_to_variant.insert(r.category.clone(), variant.clone());
+        category_variants.insert(variant);
+    }
+    category_variants.insert("Other".to_string());
+
     let mut out = String::new();
     out.push_str("// SPDX-License-Identifier: AGPL-3.0-or-later\n");
     out.push_str("/*\n");
@@ -1044,19 +1079,13 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("    clippy::wildcard_imports,\n");
     out.push_str("    reason = \"Standard workspace module prelude\"\n");
     out.push_str(")]\n");
-    out.push_str("use ctb_utilities::*;\nuse serde::{Serialize, Deserialize};\n\n");
+    out.push_str("use crate::dc_char::DcChar;\nuse serde::{Serialize, Deserialize};\n\n");
     out.push_str("/// High-level category of file formats for domain filtering and score boosting.\n");
     out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n");
     out.push_str("pub enum FormatCategory {\n");
-    out.push_str("    Compression,\n");
-    out.push_str("    Archive,\n");
-    out.push_str("    Audio,\n");
-    out.push_str("    Image,\n");
-    out.push_str("    Video,\n");
-    out.push_str("    Document,\n");
-    out.push_str("    Executable,\n");
-    out.push_str("    Database,\n");
-    out.push_str("    Other,\n");
+    for cat_var in &category_variants {
+        out.push_str(&format!("    {cat_var},\n"));
+    }
     out.push_str("}\n\n");
 
     out.push_str("/// Standardized format identifier enum derived from formats category tables.\n");
@@ -1084,69 +1113,16 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("    pub fn category(&self) -> FormatCategory {\n");
     out.push_str("        match self {\n");
 
-    // Group variants by FormatCategory
-    let mut compression = Vec::new();
-    let mut archive = Vec::new();
-    let mut audio = Vec::new();
-    let mut image = Vec::new();
-    let mut video = Vec::new();
-    let mut document = Vec::new();
-    let mut executable = Vec::new();
-    let mut database = Vec::new();
-
+    let mut grouped_by_cat: BTreeMap<String, Vec<&str>> = BTreeMap::new();
     for r in &records {
-        match r.category.as_str() {
-            "compression" => compression.push(r.ident.as_str()),
-            "container" | "archive" => archive.push(r.ident.as_str()),
-            "audio" => audio.push(r.ident.as_str()),
-            "image" => image.push(r.ident.as_str()),
-            "video" => video.push(r.ident.as_str()),
-            "document" | "text" => document.push(r.ident.as_str()),
-            "executable" => executable.push(r.ident.as_str()),
-            "database" => database.push(r.ident.as_str()),
-            _ => {}
+        if let Some(var) = cat_to_variant.get(&r.category) {
+            grouped_by_cat.entry(var.clone()).or_default().push(&r.ident);
         }
     }
-
-    if !compression.is_empty() {
+    for (var, idents) in grouped_by_cat {
         out.push_str("            ");
-        out.push_str(&compression.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Compression,\n");
-    }
-    if !archive.is_empty() {
-        out.push_str("            ");
-        out.push_str(&archive.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Archive,\n");
-    }
-    if !audio.is_empty() {
-        out.push_str("            ");
-        out.push_str(&audio.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Audio,\n");
-    }
-    if !image.is_empty() {
-        out.push_str("            ");
-        out.push_str(&image.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Image,\n");
-    }
-    if !video.is_empty() {
-        out.push_str("            ");
-        out.push_str(&video.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Video,\n");
-    }
-    if !document.is_empty() {
-        out.push_str("            ");
-        out.push_str(&document.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Document,\n");
-    }
-    if !executable.is_empty() {
-        out.push_str("            ");
-        out.push_str(&executable.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Executable,\n");
-    }
-    if !database.is_empty() {
-        out.push_str("            ");
-        out.push_str(&database.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
-        out.push_str(" => FormatCategory::Database,\n");
+        out.push_str(&idents.iter().map(|s| format!("Self::{s}")).collect::<Vec<_>>().join("\n            | "));
+        out.push_str(&format!(" => FormatCategory::{var},\n"));
     }
     out.push_str("            _ => FormatCategory::Other,\n");
     out.push_str("        }\n");
@@ -1192,6 +1168,19 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
+    out.push_str("    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn shorthand(&self) -> &'static str {\n");
+    out.push_str("        match self {\n");
+    for r in &records {
+        out.push_str(&format!("            Self::{} => \"f{}\",\n", r.ident, r.short_id));
+    }
+    if !seen_idents.contains("Unknown") {
+        out.push_str("            Self::Unknown => \"unknown\",\n");
+    }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
     out.push_str("    /// Looks up a `FormatId` from its format shorthand string (e.g. \"f405\").\n");
     out.push_str("    #[must_use]\n");
     out.push_str("    pub fn from_shorthand(shorthand: &str) -> Option<Self> {\n");
@@ -1201,19 +1190,6 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
         out.push_str(&format!("            \"f{}\" => Some(Self::{}),\n", r.short_id, r.ident));
     }
     out.push_str("            _ => None,\n");
-    out.push_str("        }\n");
-    out.push_str("    }\n\n");
-
-    out.push_str("    /// Returns the Short format ID integer if known.\n");
-    out.push_str("    #[must_use]\n");
-    out.push_str("    pub const fn short_id(&self) -> Option<usize> {\n");
-    out.push_str("        match self {\n");
-    for r in &records {
-        out.push_str(&format!("            Self::{} => Some({}),\n", r.ident, r.short_id));
-    }
-    if !seen_idents.contains("Unknown") {
-        out.push_str("            Self::Unknown => None,\n");
-    }
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
@@ -1230,14 +1206,16 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
-    out.push_str("    /// Looks up a `FormatId` from its Short format ID integer.\n");
+    out.push_str("    /// Returns the format character as a `DcChar`, if known.\n");
     out.push_str("    #[must_use]\n");
-    out.push_str("    pub const fn from_short_id(id: usize) -> Option<Self> {\n");
-    out.push_str("        match id {\n");
-    for r in &records {
-        out.push_str(&format!("            {} => Some(Self::{}),\n", r.short_id, r.ident));
-    }
-    out.push_str("            _ => None,\n");
+    out.push_str("    pub const fn dc_char(&self) -> Option<DcChar> {\n");
+    out.push_str("        match self {\n");
+    out.push_str("            Self::Unknown => None,\n");
+    out.push_str("            _ => if let Some(dc) = self.dc_id() {\n");
+    out.push_str("                Some(DcChar::from_u128(dc))\n");
+    out.push_str("            } else {\n");
+    out.push_str("                None\n");
+    out.push_str("            }\n");
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
@@ -1251,12 +1229,20 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
     out.push_str("    }\n");
-    out.push_str("}\n");
+    out.push_str("}\n\n");
+
+    // Generate individual format DcChar constants
+    for r in &records {
+        let screaming = to_screaming_snake_case(&r.ident);
+        let escaped_label = r.label.replace('\n', " ").replace('"', "\\\"");
+        out.push_str(&format!("/// DcChar constant for Format `{}` (Short f{}, Category: {}): {}\n", r.ident, r.short_id, r.category, escaped_label));
+        out.push_str(&format!("pub const DC_{screaming}: DcChar = DcChar::from_format({});\n", r.short_id));
+    }
 
     Ok(out)
 }
 
-/// Generates or updates `src/formats/utilities/format_id.generated.rs` if the contents changed.
+/// Generates or updates `src/utilities/format_id.generated.rs` if the contents changed.
 ///
 /// # Errors
 /// Returns an error if directory resolution, generation, or writing fails.
@@ -1280,16 +1266,177 @@ pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
         .join("utilities")
         .join("format_id.generated.rs");
 
-    let target_file_formats = repo_root
+    let code = generate_format_id_code(&formats_dir)?;
+    write_if_changed(&target_file_utilities, &code)
+}
+
+/// Extracts the ident annotation from an aliases / annotations string, if present.
+fn extract_ident_annotation(s: &str) -> Option<String> {
+    if let Some(pos) = s.find("@ident(") {
+        let rest = &s[pos.saturating_add(7)..];
+        if let Some(end) = rest.find(')') {
+            let inner = rest.get(..end).unwrap_or("").trim().trim_matches('"');
+            if !inner.is_empty() {
+                return Some(inner.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Generates the contents of `src/formats/dcdata/dc.rs` from category CSV files.
+///
+/// # Errors
+/// Returns an error if reading files or CSV parsing fails.
+pub fn generate_dc_code(categories_dir: &Path) -> Result<String> {
+    struct DcRowData {
+        short_id: u32,
+        ident: String,
+        name: String,
+        description: String,
+    }
+
+    let mut records: Vec<DcRowData> = Vec::new();
+    let mut seen_idents = HashSet::new();
+
+    if categories_dir.is_dir() {
+        let mut entries = Vec::new();
+        for entry in fs::read_dir(categories_dir)? {
+            entries.push(entry?);
+        }
+        entries.sort_by_key(|e| e.file_name());
+
+        for entry in entries {
+            let path = entry.path();
+            if path.is_file() {
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+                if file_name.ends_with(".csv")
+                    && file_name != "schema.csv"
+                    && !file_name.ends_with(".generated.csv")
+                {
+                    let (_, rows) = read_csv_file(&path)?;
+                    for row in rows {
+                        if is_empty_row(&row) {
+                            continue;
+                        }
+                        let get = |idx: usize| -> String {
+                            row.get(idx).cloned().unwrap_or_default()
+                        };
+                        let Ok(short_id) = get(1).parse::<u32>() else {
+                            continue;
+                        };
+                        let aliases = get(8);
+                        let Some(ident) = extract_ident_annotation(&aliases) else {
+                            continue;
+                        };
+                        if seen_idents.contains(&ident) {
+                            continue;
+                        }
+                        seen_idents.insert(ident.clone());
+                        let name = get(2).trim_start_matches('!').trim().to_string();
+                        let desc = get(9).trim().to_string();
+
+                        records.push(DcRowData {
+                            short_id,
+                            ident,
+                            name,
+                            description: desc,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    records.sort_by_key(|r| r.short_id);
+
+    let mut out = String::new();
+    out.push_str("// SPDX-License-Identifier: AGPL-3.0-or-later\n");
+    out.push_str("/*\n");
+    out.push_str("This file is part of Collective Toolbox, a database and document workspace and utilities.\n");
+    out.push_str("Copyright (C) 2026 Collective Toolbox Developers\n");
+    out.push_str("Contact: info@collectivetoolbox.com\n\n");
+    out.push_str("This program is free software: you can redistribute it and/or modify it under\n");
+    out.push_str("the terms of the GNU Affero General Public License as published by the Free\n");
+    out.push_str("Software Foundation, either version 3 of the License, or (at your option) any\n");
+    out.push_str("later version.\n\n");
+    out.push_str("This program is distributed in the hope that it will be useful, but WITHOUT ANY\n");
+    out.push_str("WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR\n");
+    out.push_str("A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.\n\n");
+    out.push_str("You should have received a copy of the GNU Affero General Public License along\n");
+    out.push_str("with this program.  If not, see <https://www.gnu.org/licenses/>.\n");
+    out.push_str("*/\n\n");
+    out.push_str("//! Constants and definitions for Document Character (Dc) data.\n");
+    out.push_str("//! @generated by ctb-formats-dcdata::updater from category data tables.\n");
+    out.push_str("//! Do not edit by hand.\n\n");
+    out.push_str("#[expect(\n");
+    out.push_str("    unused_imports,\n");
+    out.push_str("    clippy::wildcard_imports,\n");
+    out.push_str("    reason = \"Standard workspace module prelude\"\n");
+    out.push_str(")]\n");
+    out.push_str("use crate::utilities::*;\n\n");
+    out.push_str("pub use ctb_storage_minimal::global_graph_layout::{\n");
+    out.push_str("    SHORT_DC_REGION_END, SHORT_DC_REGION_START,\n");
+    out.push_str("};\n\n");
+    out.push_str("pub use crate::dc_char::DcChar;\n\n");
+
+    for r in &records {
+        let screaming = to_screaming_snake_case(&r.ident);
+        let doc = if !r.description.is_empty() {
+            &r.description
+        } else {
+            &r.name
+        };
+        out.push_str(&format!("/// {} (Dc {}).\n", doc.replace('\n', " "), r.short_id));
+        out.push_str(&format!("pub const DC_{screaming}: DcChar = DcChar::from_short({});\n", r.short_id));
+    }
+
+    out.push_str("\n/// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.\n");
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn short_to_long_dc(short_id: u32) -> u128 {\n");
+    out.push_str("    SHORT_DC_REGION_START.saturating_add(u128::from(short_id))\n");
+    out.push_str("}\n\n");
+    out.push_str("/// Converts a long (Global Graph) Document Character ID to its short Dc ID, if within short range.\n");
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn long_to_short_dc(dc_id: u128) -> Option<u32> {\n");
+    out.push_str("    if (SHORT_DC_REGION_START..=SHORT_DC_REGION_END).contains(&dc_id) {\n");
+    out.push_str("        u32::try_from(dc_id.saturating_sub(SHORT_DC_REGION_START)).ok()\n");
+    out.push_str("    } else {\n");
+    out.push_str("        None\n");
+    out.push_str("    }\n");
+    out.push_str("}\n");
+
+    Ok(out)
+}
+
+/// Generates or updates `src/formats/dcdata/dc.rs` if the contents changed.
+///
+/// # Errors
+/// Returns an error if directory resolution, generation, or writing fails.
+pub fn generate_dc_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = find_repository_root_from(base_dir)?;
+    let categories_dir = repo_root
         .join("src")
         .join("formats")
-        .join("utilities")
-        .join("format_id.generated.rs");
+        .join("dcdata")
+        .join("data")
+        .join("categories");
+    ensure!(
+        categories_dir.is_dir(),
+        "Could not locate categories directory at {}",
+        categories_dir.display()
+    );
 
-    let code = generate_format_id_code(&formats_dir)?;
-    let r1 = write_if_changed(&target_file_utilities, &code)?;
-    let r2 = write_if_changed(&target_file_formats, &code)?;
-    Ok(r1 || r2)
+    let target_file = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("dc.rs");
+
+    let code = generate_dc_code(&categories_dir)?;
+    write_if_changed(&target_file, &code)
 }
 
 #[cfg(test)]
