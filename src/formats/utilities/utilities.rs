@@ -31,6 +31,7 @@ pub mod magic_data;
 pub mod magic_parser;
 pub mod mime_derivation;
 
+pub use format_id::FormatId;
 pub use format_info::{FormatInfo, describe_format, get_format_info};
 pub use magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
 pub use mime_derivation::{FORMAT_CATALOG, FormatCatalog, FormatMapping};

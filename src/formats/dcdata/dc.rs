@@ -78,6 +78,10 @@ pub const DC_OPTIONAL_PRESENT: DcChar = DcChar::from_short(315);
 pub const DC_OPTIONAL_ABSENT: DcChar = DcChar::from_short(316);
 /// Equivalent representations (Dc 397).
 pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
+/// Boolean true (Dc 517).
+pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
+/// Boolean false (Dc 518).
+pub const DC_BOOLEAN_FALSE: DcChar = DcChar::from_short(518);
 
 
 /// First Base64 encapsulation digit (digit 0 = 'A' = Dc 127).

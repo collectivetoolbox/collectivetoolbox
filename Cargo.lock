@@ -3282,6 +3282,7 @@ dependencies = [
  "anyhow",
  "ctb-formats-dcdata",
  "ctb-utilities",
+ "serde",
 ]
 
 [[package]]

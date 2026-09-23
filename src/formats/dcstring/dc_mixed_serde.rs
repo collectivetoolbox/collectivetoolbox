@@ -38,10 +38,10 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use ctb_formats_dcdata::dc::{
-    DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BEGIN_NUMBER, DC_END_LIST, DC_END_KV_MAP,
-    DC_END_NUMBER, DC_EQUIVALENT_REPRESENTATIONS, DC_NEGATIVE,
-    DC_OPTIONAL_ABSENT, DC_OPTIONAL_PRESENT, DC_POSITIVE,
-    DC_START_ENCAPSULATION_BINARY,
+    DC_BEGIN_LIST, DC_BEGIN_KV_MAP, DC_BEGIN_NUMBER, DC_BOOLEAN_FALSE,
+    DC_BOOLEAN_TRUE, DC_END_LIST, DC_END_KV_MAP, DC_END_NUMBER,
+    DC_EQUIVALENT_REPRESENTATIONS, DC_OPTIONAL_ABSENT,
+    DC_OPTIONAL_PRESENT, DC_START_ENCAPSULATION_BINARY,
 };
 
 use crate::dc_mixed::{DcMixed, DcMixedChunks, DcMst, DcMstr};
@@ -385,34 +385,52 @@ impl<'a> DcMixedReader<'a> {
             .context("Failed to parse integer from Dc number representation")
     }
 
+    /// Reads an unsigned 128-bit integer.
+    pub fn read_u128(&mut self) -> Result<u128> {
+        self.expect_short_dc(6)?; // DC_BEGIN_NUMBER
+        let mut num_str = String::new();
+        loop {
+            let ch = self
+                .next_char()
+                .context("Unexpected EOF while reading number")?;
+            if ch.to_short_dc() == Some(7) {
+                // DC_END_NUMBER
+                break;
+            }
+            if let Some(c) = ch.as_char() {
+                num_str.push(c);
+            } else {
+                bail!("Unexpected character {ch:?} in number sequence");
+            }
+        }
+        num_str
+            .trim()
+            .parse::<u128>()
+            .context("Failed to parse unsigned integer from Dc number representation")
+    }
+
     /// Reads an unsigned 64-bit integer.
     pub fn read_u64(&mut self) -> Result<u64> {
-        let val = self.read_i128()?;
+        let val = self.read_u128()?;
         u64::try_from(val).context("Value out of range for u64")
     }
 
     /// Reads an unsigned 32-bit integer.
     pub fn read_u32(&mut self) -> Result<u32> {
-        let val = self.read_i128()?;
+        let val = self.read_u128()?;
         u32::try_from(val).context("Value out of range for u32")
     }
 
     /// Reads an unsigned 16-bit integer.
     pub fn read_u16(&mut self) -> Result<u16> {
-        let val = self.read_i128()?;
+        let val = self.read_u128()?;
         u16::try_from(val).context("Value out of range for u16")
     }
 
     /// Reads an unsigned 8-bit integer.
     pub fn read_u8(&mut self) -> Result<u8> {
-        let val = self.read_i128()?;
+        let val = self.read_u128()?;
         u8::try_from(val).context("Value out of range for u8")
-    }
-
-    /// Reads an unsigned 128-bit integer.
-    pub fn read_u128(&mut self) -> Result<u128> {
-        let val = self.read_i128()?;
-        u128::try_from(val).context("Value out of range for u128")
     }
 
     /// Reads a signed 64-bit integer.
@@ -421,14 +439,14 @@ impl<'a> DcMixedReader<'a> {
         i64::try_from(val).context("Value out of range for i64")
     }
 
-    /// Reads a boolean flag indicator (`Dc 10` for true, `Dc 11` for false).
+    /// Reads a boolean flag indicator (`Dc 517` or `Dc 10` for true, `Dc 518` or `Dc 11` for false).
     pub fn read_bool(&mut self) -> Result<bool> {
         let ch = self.next_char()?;
         match ch.to_short_dc() {
-            Some(10) => Ok(true),
-            Some(11) => Ok(false),
+            Some(10 | 517) => Ok(true),
+            Some(11 | 518) => Ok(false),
             other => {
-                bail!("Expected boolean indicator (Dc 10 or 11), found {other:?}")
+                bail!("Expected boolean indicator (Dc 517, 518, 10, or 11), found {other:?}")
             }
         }
     }
@@ -462,9 +480,9 @@ impl DcMixedEncode for str {
 impl DcMixedEncode for bool {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
         if *self {
-            mst.push_char(DC_POSITIVE); // Dc 10
+            mst.push_char(DC_BOOLEAN_TRUE); // Dc 517
         } else {
-            mst.push_char(DC_NEGATIVE); // Dc 11
+            mst.push_char(DC_BOOLEAN_FALSE); // Dc 518
         }
         Ok(())
     }
@@ -476,7 +494,7 @@ impl DcMixedDecode for bool {
     }
 }
 
-macro_rules! impl_dc_mixed_integer {
+macro_rules! impl_dc_mixed_integer_signed {
     ($($t:ty),*) => {
         $(
             impl DcMixedEncode for $t {
@@ -498,7 +516,30 @@ macro_rules! impl_dc_mixed_integer {
     };
 }
 
-impl_dc_mixed_integer!(u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+macro_rules! impl_dc_mixed_integer_unsigned {
+    ($($t:ty),*) => {
+        $(
+            impl DcMixedEncode for $t {
+                fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+                    mst.push_char(DC_BEGIN_NUMBER);
+                    mst.push_str(&self.to_string());
+                    mst.push_char(DC_END_NUMBER);
+                    Ok(())
+                }
+            }
+
+            impl DcMixedDecode for $t {
+                fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+                    let val = reader.read_u128()?;
+                    <$t>::try_from(val).context(concat!("Value out of range for ", stringify!($t)))
+                }
+            }
+        )*
+    };
+}
+
+impl_dc_mixed_integer_unsigned!(u8, u16, u32, u64, u128, usize);
+impl_dc_mixed_integer_signed!(i8, i16, i32, i64, i128, isize);
 
 impl<A: DcMixedEncode, B: DcMixedEncode> DcMixedEncode for (A, B) {
     fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
@@ -638,6 +679,29 @@ impl DcMixedDecode for std::net::IpAddr {
         }
         let s = reader.read_string()?;
         s.parse::<std::net::IpAddr>().context("Failed to parse IP address")
+    }
+}
+
+impl DcMixedEncode for ctb_formats_utilities::FormatId {
+    fn encode_dc_mixed(&self, mst: &mut DcMst) -> Result<()> {
+        let dc_id = self.dc_id().context("FormatId missing dc_id")?;
+        mst.push_char(DcChar::from_u128(dc_id));
+        Ok(())
+    }
+}
+
+impl DcMixedDecode for ctb_formats_utilities::FormatId {
+    fn decode_dc_mixed(reader: &mut DcMixedReader<'_>) -> Result<Self> {
+        let ch = reader.next_char()?;
+        if let Some(fid) = Self::from_dc_id(ch.0) {
+            return Ok(fid);
+        }
+        if let Ok(short) = ch.to_short() {
+            if let Some(fid) = Self::from_short_id(usize::try_from(short).unwrap_or(0)) {
+                return Ok(fid);
+            }
+        }
+        bail!("Unknown format DC character {ch:?}")
     }
 }
 
@@ -1164,6 +1228,65 @@ mod tests {
 
         let e2 = SampleBinaryEnum::Blob(vec![10, 20, 30]);
         assert_dc_roundtrip(&e2)?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 420, end = 421)]
+    struct SampleRepeatedVecStruct {
+        #[dc(346)]
+        ips: Vec<std::net::IpAddr>,
+        #[dc(519)]
+        formats: Vec<ctb_formats_utilities::FormatId>,
+    }
+
+    #[crate::ctb_test]
+    fn test_repeated_tagged_vec_roundtrip() -> Result<()> {
+        let v4: std::net::Ipv4Addr = "192.168.1.1".parse()?;
+        let v6: std::net::Ipv6Addr = "fe80::1".parse()?;
+        let s = SampleRepeatedVecStruct {
+            ips: vec![std::net::IpAddr::V4(v4), std::net::IpAddr::V6(v6)],
+            formats: vec![
+                ctb_formats_utilities::FormatId::PwaMobile,
+                ctb_formats_utilities::FormatId::Linux,
+            ],
+        };
+        assert_dc_roundtrip(&s)?;
+
+        let empty = SampleRepeatedVecStruct {
+            ips: Vec::new(),
+            formats: Vec::new(),
+        };
+        assert_dc_roundtrip(&empty)?;
+        Ok(())
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, DcMixed)]
+    #[dc(begin = 422, end = 423)]
+    struct SampleFlattenedFormatsStruct {
+        #[dc(342)]
+        name: String,
+        #[dc(flatten)]
+        formats: Vec<ctb_formats_utilities::FormatId>,
+    }
+
+    #[crate::ctb_test]
+    fn test_flattened_formats_roundtrip() -> Result<()> {
+        let s = SampleFlattenedFormatsStruct {
+            name: "test_env".to_string(),
+            formats: vec![
+                ctb_formats_utilities::FormatId::PwaMobile,
+                ctb_formats_utilities::FormatId::Linux,
+                ctb_formats_utilities::FormatId::GnuLinux,
+            ],
+        };
+        assert_dc_roundtrip(&s)?;
+
+        let empty = SampleFlattenedFormatsStruct {
+            name: "empty_formats".to_string(),
+            formats: Vec::new(),
+        };
+        assert_dc_roundtrip(&empty)?;
         Ok(())
     }
 }

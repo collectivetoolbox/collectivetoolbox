@@ -602,3 +602,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228817,f593,"Is a videoterminal that can edit past lines, not just the current one",0,BN,,!Cx,Formats:device_caps,"@ident(""TerminalCanEditPastLines"")",,,,,,,,,,
 2228818,f594,Line-at-a-time terminal,0,BN,,!Cx,Formats:device_caps,"@ident(""LineModeTerminal"")",,,,,,,,,,
 2228819,f595,Screen-at-a-time terminal,0,BN,,!Cx,Formats:device_caps,"@ident(""BlockModeTerminal"")",,,,,,,,,,
+2228820,f596,Progressive Web Application running on mobile device,0,BN,,!Cx,Formats:device_caps,"@ident(""PwaMobile""), @implies(f503)",,,,,,,,,,
+2228821,f597,Browser virtual machine running in fullscreen canvas,0,BN,,!Cx,Formats:device_caps,"@ident(""BrowserVmFullscreen""), @implies(f501)",,,,,,,,,,
+2228822,f598,Browser virtual machine running on mobile viewport,0,BN,,!Cx,Formats:device_caps,"@ident(""BrowserVmMobile""), @implies(f501)",,,,,,,,,,
+2228823,f599,Web-based user interface hosted in system browser,0,BN,,!Cx,Formats:device_caps,"@ident(""WebUiSystemBrowser""), @implies(f499)",,,,,,,,,,

@@ -1045,14 +1045,14 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("    clippy::wildcard_imports,\n");
     out.push_str("    reason = \"Standard workspace module prelude\"\n");
     out.push_str(")]\n");
-    out.push_str("use ctb_utilities::*;\n\n");
+    out.push_str("use ctb_utilities::*;\nuse serde::{Serialize, Deserialize};\n\n");
 
     out.push_str("/// Standardized format identifier enum derived from formats category tables.\n");
     out.push_str("#[expect(\n");
     out.push_str("    non_camel_case_types,\n");
     out.push_str("    reason = \"Language and format variants use underscores to reflect canonical format abbreviations\"\n");
     out.push_str(")]\n");
-    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n");
+    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]\n");
     out.push_str("pub enum FormatId {\n");
 
     for r in &records {
@@ -1215,6 +1215,28 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     if !seen_idents.contains("Unknown") {
         out.push_str("            Self::Unknown => None,\n");
     }
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Looks up a `FormatId` from its Short format ID integer.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn from_short_id(id: usize) -> Option<Self> {\n");
+    out.push_str("        match id {\n");
+    for r in &records {
+        out.push_str(&format!("            {} => Some(Self::{}),\n", r.short_id, r.ident));
+    }
+    out.push_str("            _ => None,\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /// Looks up a `FormatId` from its Global Document Character ID.\n");
+    out.push_str("    #[must_use]\n");
+    out.push_str("    pub const fn from_dc_id(id: u128) -> Option<Self> {\n");
+    out.push_str("        match id {\n");
+    for r in &records {
+        out.push_str(&format!("            {}_u128 => Some(Self::{}),\n", r.dc_id, r.ident));
+    }
+    out.push_str("            _ => None,\n");
     out.push_str("        }\n");
     out.push_str("    }\n");
     out.push_str("}\n");

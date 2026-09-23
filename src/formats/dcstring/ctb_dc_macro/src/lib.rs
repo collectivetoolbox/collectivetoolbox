@@ -95,7 +95,7 @@ use syn::{
 };
 
 use ctb_storage_minimal::global_graph_layout::{
-    FORMAT_REGION_START, SHORT_DC_REGION_START, UNICODE_REGION_START,
+    FORMAT_REGION_END, FORMAT_REGION_START, SHORT_DC_REGION_START, UNICODE_REGION_START,
 };
 use ctb_storage_minimal::shorthand::DcShorthand;
 
@@ -133,6 +133,7 @@ struct FieldDcAttr {
     omit_default: bool,
     equivalents: Option<Vec<EquivalentItem>>,
     aliases: Vec<u128>,
+    flatten: bool,
 }
 
 fn extract_type_from_option(ty: &syn::Type) -> Option<&syn::Type> {
@@ -317,6 +318,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
     let mut omit_default = false;
     let mut equivalents = None;
     let mut aliases = Vec::new();
+    let mut flatten = false;
     let mut has_dc_attr = false;
 
     for attr in &field.attrs {
@@ -460,6 +462,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
                             "binary" => binary = true,
                             "skip" => skip = true,
                             "default" => default = true,
+                            "flatten" => flatten = true,
                             "omit_default" => {
                                 omit_default = true;
                                 default = true;
@@ -513,11 +516,11 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         }
     }
 
-    if !skip && tag.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
+    if !skip && !flatten && tag.is_none() && nested.is_empty() && (begin.is_none() || end.is_none()) {
         return Err(syn::Error::new(
             field.span(),
             format!(
-                "Field `{field_name}` must have an assigned Dc ID (e.g. #[dc(401)], #[dc(f315)], #[dc(nested = ...)], #[dc(begin = ..., end = ...)], or #[dc(skip, reason = \"...\")])"
+                "Field `{field_name}` must have an assigned Dc ID (e.g. #[dc(401)], #[dc(f315)], #[dc(nested = ...)], #[dc(begin = ..., end = ...)], #[dc(flatten)], or #[dc(skip, reason = \"...\")])"
             ),
         ));
     }
@@ -533,6 +536,7 @@ fn parse_field_attrs(field: &syn::Field) -> syn::Result<FieldDcAttr> {
         omit_default,
         equivalents,
         aliases,
+        flatten,
     })
 }
 
@@ -676,6 +680,86 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 if attr.skip {
                     construct_fields.push(quote! {
                         #field_ident: ::std::default::Default::default()
+                    });
+                    continue;
+                }
+
+                if attr.flatten {
+                    let type_str = quote!(#field_ty).to_string();
+                    let is_vec = type_str.starts_with("Vec <") || type_str.starts_with("Vec<");
+                    if is_vec {
+                        encode_fields.push(quote! {
+                            for item in &self.#field_ident {
+                                #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                            }
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: #field_ty = ::std::vec::Vec::new();
+                        });
+                        if type_str.contains("FormatId") {
+                            decode_arms.push(quote! {
+                                tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => {
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    #field_ident.push(elem);
+                                }
+                            });
+                            decode_field_arms.push(quote! {
+                                tag if (#FORMAT_REGION_START..=#FORMAT_REGION_END).contains(&tag) => {
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    self.#field_ident.push(elem);
+                                    Ok(true)
+                                }
+                            });
+                        } else {
+                            decode_arms.push(quote! {
+                                _ => {
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    #field_ident.push(elem);
+                                }
+                            });
+                            decode_field_arms.push(quote! {
+                                _ => {
+                                    let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                    self.#field_ident.push(elem);
+                                    Ok(true)
+                                }
+                            });
+                        }
+                        field_validations.push(quote! {
+                            let #field_ident = #field_ident;
+                        });
+                    } else {
+                        encode_fields.push(quote! {
+                            #crate_root::DcMixedEncode::encode_dc_mixed(&self.#field_ident, mst)?;
+                        });
+                        field_inits.push(quote! {
+                            let mut #field_ident: ::std::option::Option<#field_ty> = ::std::option::Option::None;
+                        });
+                        decode_arms.push(quote! {
+                            tag => {
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                #field_ident = ::std::option::Option::Some(val);
+                            }
+                        });
+                        decode_field_arms.push(quote! {
+                            tag => {
+                                let val = <#field_ty as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                                self.#field_ident = val;
+                                Ok(true)
+                            }
+                        });
+                        field_validations.push(quote! {
+                            let #field_ident = #field_ident.ok_or_else(|| {
+                                #anyhow_path::anyhow!(
+                                    "Flattened field `{}` missing from DcMixed stream for {}",
+                                    stringify!(#field_ident),
+                                    stringify!(#type_name)
+                                )
+                            })?;
+                        });
+                    }
+                    construct_fields.push(quote! {
+                        #field_ident
                     });
                     continue;
                 }
@@ -1039,6 +1123,37 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                             }
                         });
                     }
+                } else if is_vec {
+                    let encode_stmt = quote! {
+                        for item in &self.#field_ident {
+                            mst.push_char(#crate_root::DcChar::from_u128(#id));
+                            #crate_root::DcMixedEncode::encode_dc_mixed(item, mst)?;
+                        }
+                    };
+                    if attr.omit_default {
+                        encode_fields.push(quote! {
+                            if !self.#field_ident.is_empty() {
+                                #encode_stmt
+                            }
+                        });
+                    } else {
+                        encode_fields.push(encode_stmt);
+                    }
+                    decode_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            #field_ident.push(elem);
+                        }
+                    });
+                    decode_field_arms.push(quote! {
+                        #(#all_match_tags)|* => {
+                            reader.next_char()?;
+                            let elem = <<#field_ty as ::std::iter::IntoIterator>::Item as #crate_root::DcMixedDecode>::decode_dc_mixed(reader)?;
+                            self.#field_ident.push(elem);
+                            Ok(true)
+                        }
+                    });
                 } else {
                     let encode_stmt = quote! {
                         mst.push_char(#crate_root::DcChar::from_u128(#id));
@@ -1071,7 +1186,7 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Decode temporary storage
-                if (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) && is_vec {
+                if is_vec && !attr.binary {
                     field_inits.push(quote! {
                         let mut #field_ident: #field_ty = ::std::vec::Vec::new();
                     });
@@ -1082,16 +1197,16 @@ fn expand_derive_dc_mixed(input: &DeriveInput) -> syn::Result<proc_macro2::Token
                 }
 
                 // Field validation / construction
-                if attr.default {
+                if is_vec && !attr.binary {
+                    field_validations.push(quote! {
+                        let #field_ident = #field_ident;
+                    });
+                } else if attr.default {
                     field_validations.push(quote! {
                         let #field_ident = match #field_ident {
                             ::std::option::Option::Some(v) => v,
                             ::std::option::Option::None => ::std::default::Default::default(),
                         };
-                    });
-                } else if is_vec && (!attr.nested.is_empty() || (attr.begin.is_some() && attr.end.is_some())) {
-                    field_validations.push(quote! {
-                        let #field_ident = #field_ident;
                     });
                 } else if extract_type_from_option(&field_ty).is_some() {
                     field_validations.push(quote! {

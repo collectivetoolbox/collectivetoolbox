@@ -48,7 +48,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114455,343,Collective Toolbox build version,0,BN,,!Cx,Semantic,:~ [string],Toolbox software build version string.
 1114456,344,Architecture pointer bit width description,0,BN,,!Cx,Semantic,:~ [number],Description of a pointer bit width of architecture.
 1114457,345,Working directory path,0,BN,,!Cx,Semantic,:~ [filepath],"Semantic identifier for a describing a working directory path. Doesn't represent the current working directory at runtime of the Dc document using it; it's a static descriptor. (In other words, it's not a cwd function, but it would be used to record the value of a cwd function.)"
-1114458,346,Host local network IP address,0,BN,,!Cx,Semantic,:~ 511 [f490:],Local network IP address of an execution environment host.
+1114458,346,Host local network IP address,0,BN,,!Cx,Semantic,:~ 511 [f226:],Local network IP address of an execution environment host.
 1114459,347,System clock resolution nanoseconds,0,BN,,!Cx,Semantic,:~ [number],System time resolution in nanoseconds.
 1114460,348,Ambiguous values,0,BN,,!Cx,Semantic,:~ [list],Indicates that any of the values in the list may be the case.
 1114461,349,Begin file origin description,0,BN,,!Cx,Semantic,:~ [^350]+ 350,Begins a file origin descriptor.
@@ -100,7 +100,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114507,395,Begin date duration description,0,BN,,!Cx,Semantic,:~ [formats:duration] [^396]+ 396,
 1114508,396,End date duration description,0,BN,,!Cx,Semantic,,
 1114509,397,Equivalent representations,0,BN,,!Cx,Semantic,:~ [list],Indicates that all values within the list have the same underlying meaning.
-1114510,398,Host public network IP address,0,BN,,!Cx,Semantic,:~ 511 [f490:],Public or remote network IP address of an execution environment host.
+1114510,398,Host public network IP address,0,BN,,!Cx,Semantic,:~ 511 [f226:],Public or remote network IP address of an execution environment host.
 1114511,399,File backup timestamp,0,BN,,!Cx,Semantic,:~ [date],Backup timestamp of a file.
 1114512,400,File comment,0,BN,,!Cx,Semantic,:~ [string],File comment string.
 1114513,401,Begin Mac OS file metadata description,0,BN,,!Cx,Semantic,:~ [^402]+ 402,Begins a preserved Mac OS Finder and archive metadata record.
@@ -205,3 +205,17 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114628,516,Type intersection,0,BN,,!Cx,Semantic,:~ (([type] [type]) | [list:type]),"Indicates that any of multiple types satisfy the type description. See also Dc 300 “Type union”, which indicates that all of multiple types satisfy the type description."
 1114629,517,Boolean true,0,BN,,!Cx,Semantic,,
 1114630,518,Boolean false,0,BN,,!Cx,Semantic,,
+1114631,519,Server system clock offset nanoseconds,0,BN,,!Cx,Semantic,:~ [number:Integer],Difference between server time and system time in nanoseconds.
+1114632,520,Execution environment is an application built with release configuration,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is built in release mode with optimizations.
+1114633,521,Execution environment is an application built with debug configuration,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is built in debug mode with debug assertions enabled.
+1114634,522,Execution environment binary is running directly from cargo target directory,0,BN,,!Cx,Semantic,:~ [boolean],Application binary is executing directly from the cargo build target directory.
+1114635,523,Execution environment is running under test runner harness,0,BN,,!Cx,Semantic,:~ [boolean],Application is executing inside a test runner harness.
+1114636,524,Execution environment is an officially branded Collective Toolbox build,0,BN,,!Cx,Semantic,:~ [boolean],Application build includes official Collective Toolbox branding assets.
+1114637,525,Execution environment is an officially signed Collective Toolbox build,0,BN,,!Cx,Semantic,:~ [boolean],Application build is cryptographically verified as an official Collective Toolbox release.
+1114638,526,Execution environment process role is lightweight CLI,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as a lightweight CLI invocation without booting workspace.
+1114639,527,Execution environment process role is workspace supervisor,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as the root workspace supervisor.
+1114640,528,Execution environment process role is workspace main process,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as the main workspace process.
+1114641,529,Execution environment process role is service subprocess,0,BN,,!Cx,Semantic,:~ [boolean],Process is executing as a workspace child service process over IPC.
+1114642,530,Execution environment is running as an official Collective Toolbox public website deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is deployed as an official Collective Toolbox public website.
+1114643,531,Execution environment is running as a public website deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is deployed as a public website.
+1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,Semantic,:~ [boolean],Execution environment is executing on a local machine.
