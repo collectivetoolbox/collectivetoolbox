@@ -98,6 +98,7 @@ impl DatasetRuleResolver {
         let mut fmt_report = crate::report::ValidationReport::new();
         for defn in crate::format::validate_all_format_files(
             &crate::FORMATS_CATEGORIES_DIR,
+            None,
             &mut fmt_report,
         ) {
             if let Some(short_id) = defn.short_id {

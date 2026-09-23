@@ -485,6 +485,7 @@ pub fn validate_formats_category_file(
 pub fn validate_format_files_data<'a, I>(
     files: I,
     category_dir_label: &str,
+    known_scripts: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn>
 where
@@ -526,6 +527,18 @@ where
         );
 
         for row in rows {
+            if let Some(scripts) = known_scripts {
+                if !scripts.contains(&row.script) {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Script"),
+                        format!("Unknown format script '{}'", row.script),
+                        Some("Ensure format category is registered in README.scripts.csv"),
+                    );
+                }
+            }
+
             if let Some(short_id) = row.short_id {
                 if let Some((prev_file, prev_line)) =
                     short_id_map.get(&short_id)
@@ -612,12 +625,46 @@ where
         }
     }
 
+    // Validate format syntax definitions
+    let known_syntax_targets: HashSet<crate::syntax::CharTarget> = all_rows
+        .iter()
+        .filter(|r| r.syntax.is_some())
+        .filter_map(|r| r.short_id)
+        .map(crate::syntax::CharTarget::Format)
+        .collect();
+    let empty_dcs = HashSet::new();
+    let empty_named_types = HashSet::new();
+    let default_scripts = HashSet::new();
+    let scripts_ref = known_scripts.unwrap_or(&default_scripts);
+
+    for row in &all_rows {
+        if let Some(syntax_rule) = &row.syntax {
+            let self_id = row
+                .short_id
+                .and_then(|sid| u32::try_from(sid).ok())
+                .unwrap_or(0);
+            crate::syntax::validator::validate_dc_syntax(
+                syntax_rule,
+                self_id,
+                &empty_dcs,
+                &known_fmt_ids,
+                &empty_named_types,
+                scripts_ref,
+                &known_syntax_targets,
+                report,
+                &row.source_file,
+                row.line_number,
+            );
+        }
+    }
+
     all_rows
 }
 
 /// Discovers all format category files from an embedded directory and validates uniqueness across files.
 pub fn validate_all_format_files(
     formats_dir: &Dir,
+    known_scripts: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let mut files = Vec::new();
@@ -629,6 +676,7 @@ pub fn validate_all_format_files(
     validate_format_files_data(
         files,
         "src/formats/dcdata/data/categories/formats/",
+        known_scripts,
         report,
     )
 }
@@ -636,6 +684,7 @@ pub fn validate_all_format_files(
 /// Discovers all format category files from an on-disk directory and validates uniqueness across files.
 pub fn validate_all_format_files_from_disk(
     formats_dir: &std::path::Path,
+    known_scripts: Option<&HashSet<String>>,
     report: &mut ValidationReport,
 ) -> Vec<DcDefn> {
     let Ok(entries) = std::fs::read_dir(formats_dir) else {

@@ -129,9 +129,12 @@ fn validate_pattern_node(
     source_file: &str,
     line_no: usize,
     col_name: &str,
+    self_dc_id: u32,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
+    known_scripts: &HashSet<String>,
+    known_syntax_targets: &HashSet<CharTarget>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
 ) {
@@ -143,9 +146,12 @@ fn validate_pattern_node(
                     source_file,
                     line_no,
                     col_name,
+                    self_dc_id,
                     known_dc_ids,
                     known_format_ids,
                     known_named_types,
+                    known_scripts,
+                    known_syntax_targets,
                     bound_vars,
                     report,
                 );
@@ -158,9 +164,12 @@ fn validate_pattern_node(
                     source_file,
                     line_no,
                     col_name,
+                    self_dc_id,
                     known_dc_ids,
                     known_format_ids,
                     known_named_types,
+                    known_scripts,
+                    known_syntax_targets,
                     bound_vars,
                     report,
                 );
@@ -175,9 +184,12 @@ fn validate_syntax_element(
     source_file: &str,
     line_no: usize,
     col_name: &str,
+    self_dc_id: u32,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
+    known_scripts: &HashSet<String>,
+    known_syntax_targets: &HashSet<CharTarget>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
 ) {
@@ -185,7 +197,7 @@ fn validate_syntax_element(
         SyntaxTerm::SelfChar => {
             // Self-referential '~' is valid
         }
-        SyntaxTerm::CharRef(target) | SyntaxTerm::RuleRef { target } => {
+        SyntaxTerm::CharRef(target) => {
             check_target_reference(
                 target,
                 source_file,
@@ -196,6 +208,33 @@ fn validate_syntax_element(
                 false,
                 report,
             );
+        }
+        SyntaxTerm::RuleRef { target } => {
+            check_target_reference(
+                target,
+                source_file,
+                line_no,
+                col_name,
+                known_dc_ids,
+                known_format_ids,
+                false,
+                report,
+            );
+            if target != &CharTarget::Dc(self_dc_id)
+                && !known_syntax_targets.contains(target)
+            {
+                report.add_error(
+                    source_file,
+                    Some(line_no),
+                    Some(col_name),
+                    format!(
+                        "Macro expansion '[{target}:]' references target that does not define its own syntax rule"
+                    ),
+                    Some(
+                        "Define syntax for the referenced character or format before expanding it as a macro rule",
+                    ),
+                );
+            }
         }
         SyntaxTerm::CharSet { members, .. } => {
             for target in members {
@@ -257,9 +296,19 @@ fn validate_syntax_element(
                         source_file,
                         Some(line_no),
                         Some(col_name),
-                        "Named construct '[script]' requires a non-empty script name (e.g. '[script:EL Types]')".to_string(),
+                        "Named construct '[script]' requires a non-empty script name (e.g. '[script:.EL Types]')".to_string(),
                         Some("Specify a valid script name following a colon"),
                     );
+                } else if let Some(st) = subtype {
+                    if !known_scripts.is_empty() && !known_scripts.contains(st) {
+                        report.add_error(
+                            source_file,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Unknown script '[script:{st}]' in syntax rule"),
+                            Some("Must be a registered script defined in README.scripts.csv"),
+                        );
+                    }
                 }
             } else if !known_named_types.is_empty()
                 && !known_named_types.contains(name)
@@ -283,9 +332,12 @@ fn validate_syntax_element(
                 source_file,
                 line_no,
                 col_name,
+                self_dc_id,
                 known_dc_ids,
                 known_format_ids,
                 known_named_types,
+                known_scripts,
+                known_syntax_targets,
                 bound_vars,
                 report,
             );
@@ -296,10 +348,12 @@ fn validate_syntax_element(
 /// Validates a parsed `DcSyntaxRule` AST against database registries.
 pub fn validate_dc_syntax(
     rule: &DcSyntaxRule,
-    _self_dc_id: u32,
+    self_dc_id: u32,
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
+    known_scripts: &HashSet<String>,
+    known_syntax_targets: &HashSet<CharTarget>,
     report: &mut ValidationReport,
     source_file: &str,
     line_no: usize,
@@ -313,9 +367,12 @@ pub fn validate_dc_syntax(
         source_file,
         line_no,
         col_name,
+        self_dc_id,
         known_dc_ids,
         known_format_ids,
         known_named_types,
+        known_scripts,
+        known_syntax_targets,
         &mut bound_vars,
         report,
     );

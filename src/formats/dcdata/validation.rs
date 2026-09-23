@@ -62,13 +62,35 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         &mut report,
     );
 
-    // 2. Validate Formats category files
+    // 2. Validate Scripts Registry table
+    let known_scripts = if let Some(scripts_bytes) =
+        crate::get_dc_data_file("README.scripts.csv")
+    {
+        validate_scripts_table(
+            &scripts_bytes,
+            "data/README.scripts.csv",
+            &mut report,
+        )
+    } else {
+        report.add_error(
+            "data/README.scripts.csv",
+            None,
+            None,
+            "Could not locate embedded README.scripts.csv",
+            None,
+        );
+        HashSet::new()
+    };
+
+    // 3. Validate Formats category files
     let format_rows =
-        validate_all_format_files(&FORMATS_CATEGORIES_DIR, &mut report);
+        validate_all_format_files(&FORMATS_CATEGORIES_DIR, Some(&known_scripts), &mut report);
     let known_format_ids: HashSet<usize> =
         format_rows.iter().filter_map(|r| r.short_id).collect();
+    let known_format_with_syntax: HashSet<usize> =
+        format_rows.iter().filter(|r| r.syntax.is_some()).filter_map(|r| r.short_id).collect();
 
-    // 3. Validate Decompositions table
+    // 4. Validate Decompositions table
     let known_decomp_tags = if let Some(decomp_bytes) =
         crate::get_dc_data_file("README-decompositions.csv")
     {
@@ -95,13 +117,15 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         .map(|b| extract_named_type_names(b))
         .unwrap_or_default();
 
-    // 4. Validate Document Characters category files
+    // 5. Validate Document Characters category files
     let dc_rows = if let Some(dc_dir) = get_dc_categories_dir() {
         validate_all_dc_files(
             dc_dir,
             &known_format_ids,
             Some(&known_decomp_tags),
             Some(&known_named_types),
+            Some(&known_scripts),
+            Some(&known_format_with_syntax),
             &mut report,
         )
     } else {
@@ -141,12 +165,25 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
 
+    let mut known_syntax_targets: HashSet<CharTarget> = dc_rows
+        .iter()
+        .filter(|r| r.syntax.is_some())
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
+        .map(CharTarget::Dc)
+        .collect();
+    for &fid in &known_format_with_syntax {
+        known_syntax_targets.insert(CharTarget::Format(fid));
+    }
+
     if let Some(named_types_bytes) = named_types_bytes_opt {
         validate_named_types_table(
             &named_types_bytes,
             "data/README-named-types.csv",
             &known_dc_ids,
             &known_format_ids,
+            Some(&known_scripts),
+            Some(&known_syntax_targets),
             &mut report,
         );
     } else {
@@ -187,14 +224,35 @@ pub fn validate_all_data_tables_from_repo(
         );
     }
 
-    // 2. Validate Formats category files
+    // 2. Validate Scripts Registry table
+    let scripts_path = repo_root.join("src/formats/dcdata/data/README.scripts.csv");
+    let known_scripts = if let Ok(bytes) = std::fs::read(&scripts_path) {
+        validate_scripts_table(
+            &bytes,
+            "src/formats/dcdata/data/README.scripts.csv",
+            &mut report,
+        )
+    } else {
+        report.add_error(
+            "src/formats/dcdata/data/README.scripts.csv",
+            None,
+            None,
+            "Could not locate README.scripts.csv on disk",
+            Some("Ensure file exists in src/formats/dcdata/data/"),
+        );
+        HashSet::new()
+    };
+
+    // 3. Validate Formats category files
     let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
     let format_rows =
-        validate_all_format_files_from_disk(&formats_dir, &mut report);
+        validate_all_format_files_from_disk(&formats_dir, Some(&known_scripts), &mut report);
     let known_format_ids: HashSet<usize> =
         format_rows.iter().filter_map(|r| r.short_id).collect();
+    let known_format_with_syntax: HashSet<usize> =
+        format_rows.iter().filter(|r| r.syntax.is_some()).filter_map(|r| r.short_id).collect();
 
-    // 3. Validate Decompositions table
+    // 4. Validate Decompositions table
     let decomp_path =
         repo_root.join("src/formats/dcdata/data/README-decompositions.csv");
     let known_decomp_tags = if let Ok(bytes) = std::fs::read(&decomp_path) {
@@ -223,17 +281,19 @@ pub fn validate_all_data_tables_from_repo(
         .map(|b| extract_named_type_names(b))
         .unwrap_or_default();
 
-    // 4. Validate Document Characters category files
+    // 5. Validate Document Characters category files
     let dc_dir = repo_root.join("src/formats/dcdata/data/categories");
     let dc_rows = validate_all_dc_files_from_disk(
         &dc_dir,
         &known_format_ids,
         Some(&known_decomp_tags),
         Some(&known_named_types),
+        Some(&known_scripts),
+        Some(&known_format_with_syntax),
         &mut report,
     );
 
-    // 5. Validate Cross-Table Name / Label Uniqueness
+    // 6. Validate Cross-Table Name / Label Uniqueness
     let dc_names: Vec<(usize, &str, &str)> = dc_rows
         .iter()
         .filter_map(|r| {
@@ -252,12 +312,23 @@ pub fn validate_all_data_tables_from_repo(
 
     validate_cross_table_uniqueness(&dc_names, &format_labels, &mut report);
 
-    // 6. Validate Named Types table
+    // 7. Validate Named Types table
     let known_dc_ids: HashSet<u32> = dc_rows
         .iter()
         .filter_map(|r| r.short_id)
         .filter_map(|id| u32::try_from(id).ok())
         .collect();
+
+    let mut known_syntax_targets: HashSet<CharTarget> = dc_rows
+        .iter()
+        .filter(|r| r.syntax.is_some())
+        .filter_map(|r| r.short_id)
+        .filter_map(|id| u32::try_from(id).ok())
+        .map(CharTarget::Dc)
+        .collect();
+    for &fid in &known_format_with_syntax {
+        known_syntax_targets.insert(CharTarget::Format(fid));
+    }
 
     if let Some(bytes) = named_types_bytes_opt {
         validate_named_types_table(
@@ -265,6 +336,8 @@ pub fn validate_all_data_tables_from_repo(
             "src/formats/dcdata/data/README-named-types.csv",
             &known_dc_ids,
             &known_format_ids,
+            Some(&known_scripts),
+            Some(&known_syntax_targets),
             &mut report,
         );
     } else {
@@ -848,7 +921,7 @@ pub fn validate_dc_category_file(
             let gc = validate_general_category(ctb_formats_unicode::general_category_code(cp))
                 .unwrap_or(GeneralCategory::NonUnicodeControl);
             // Reason for fallback: unassigned Unicode codepoints default to Common script
-            let sc = ctb_formats_unicode::find_block(cp)
+            let sc = ctb_formats_unicode::script_name(cp)
                 .unwrap_or("Common")
                 .to_string();
             (cc, bc, gc, sc)

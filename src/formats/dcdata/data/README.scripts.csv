@@ -1,9 +1,9 @@
 Script,Category,Description
-.Colors,Character,DCE color palette character
-.Controls,Character,DCE control characters
-.DCE,Character,DCE core characters
-.DCE sheets,Character,DCE spreadsheet formatting and structural characters
-.DCE versions,Character,DCE versioning and metadata characters
+.Colors,Character,Colors
+.Controls,Character,Control characters
+.DCE,Character,DCE-specific characters
+.DCE sheets,Character,DCE sheet switches
+.DCE versions,Character,DCE versions
 .EL Miscellaneous,Character,Ember Language miscellaneous source characters
 .EL Operators,Character,Ember Language operational and syntactic characters
 .EL Routines,Character,Ember Language routine and function invocation characters
@@ -21,42 +21,42 @@ Script,Category,Description
 .Styling,Character,Text styling and presentation control characters
 .Symbols,Character,Symbolic and iconographic characters
 .Variant selectors,Character,Document Character variant selector characters
-Formats:arch,Format,Format category for arch
-Formats:armor,Format,Format category for armor
-Formats:base_alphabet,Format,Format category for base_alphabet
-Formats:calendar,Format,Format category for calendar
-Formats:color_depth,Format,Format category for color_depth
-Formats:compression,Format,Format category for compression
-Formats:container,Format,Format category for container
-Formats:database,Format,Format category for database
-Formats:date,Format,Format category for date
-Formats:device_caps,Format,Format category for device_caps
-Formats:document,Format,Format category for document
-Formats:duration,Format,Format category for duration
-Formats:encoding,Format,Format category for encoding
-Formats:executable,Format,Format category for executable
-Formats:filesystem,Format,Format category for filesystem
-Formats:hash,Format,Format category for hash
-Formats:identifier,Format,Format category for identifier
-Formats:kernel,Format,Format category for kernel
-Formats:language,Format,Format category for language
-Formats:libc,Format,Format category for libc
-Formats:math,Format,Format category for math
-Formats:number,Format,Format category for number
-Formats:number_abstract,Format,Format category for number_abstract
-Formats:numeral_system,Format,Format category for numeral_system
-Formats:os,Format,Format category for os
-Formats:packagemgr,Format,Format category for packagemgr
-Formats:programming,Format,Format category for programming
-Formats:semantic,Format,Format category for semantic
-Formats:transformation,Format,Format category for transformation
-Formats:userspace,Format,Format category for userspace
-Formats:userspace_libraries,Format,Format category for userspace_libraries
-Formats:userspace_utilities,Format,Format category for userspace_utilities
-Formats:v:lineEndings,Format,Format category for v:lineEndings
-Formats:v:unicodePua,Format,Format category for v:unicodePua
-Formats:videoterminal,Format,Format category for videoterminal
-Formats:virtualfilesystem,Format,Format category for virtualfilesystem
+.Formats:arch,Format,Format category for arch
+.Formats:armor,Format,Format category for armor
+.Formats:base_alphabet,Format,Format category for base_alphabet
+.Formats:calendar,Format,Format category for calendar
+.Formats:color_depth,Format,Format category for color_depth
+.Formats:compression,Format,Format category for compression
+.Formats:container,Format,Format category for container
+.Formats:database,Format,Format category for database
+.Formats:date,Format,Format category for date
+.Formats:device_caps,Format,Format category for device_caps
+.Formats:document,Format,Format category for document
+.Formats:duration,Format,Format category for duration
+.Formats:encoding,Format,Format category for encoding
+.Formats:executable,Format,Format category for executable
+.Formats:filesystem,Format,Format category for filesystem
+.Formats:hash,Format,Format category for hash
+.Formats:identifier,Format,Format category for identifier
+.Formats:kernel,Format,Format category for kernel
+.Formats:language,Format,Format category for language
+.Formats:libc,Format,Format category for libc
+.Formats:math,Format,Format category for math
+.Formats:number,Format,Format category for number
+.Formats:number_abstract,Format,Format category for number_abstract
+.Formats:numeral_system,Format,Format category for numeral_system
+.Formats:os,Format,Format category for os
+.Formats:packagemgr,Format,Format category for packagemgr
+.Formats:programming,Format,Format category for programming
+.Formats:semantic,Format,Format category for semantic
+.Formats:transformation,Format,Format category for transformation
+.Formats:userspace,Format,Format category for userspace
+.Formats:userspace_libraries,Format,Format category for userspace_libraries
+.Formats:userspace_utilities,Format,Format category for userspace_utilities
+.Formats:v:lineEndings,Format,Format category for v:lineEndings
+.Formats:v:unicodePua,Format,Format category for v:unicodePua
+.Formats:videoterminal,Format,Format category for videoterminal
+.Formats:virtualfilesystem,Format,Format category for virtualfilesystem
 Adlam,Unicode,Unicode Standard script Adlam
 Afak,Unicode,Unicode Standard script Afak
 Ahom,Unicode,Unicode Standard script Ahom

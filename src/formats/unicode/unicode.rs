@@ -211,6 +211,15 @@ pub fn combining_class(cp: u32) -> u8 {
         .to_icu4c_value()
 }
 
+/// Returns the canonical script name for a code point (e.g. "Latin", "Arabic", "Common").
+#[must_use]
+pub fn script_name(cp: u32) -> Option<&'static str> {
+    let script_map = icu_properties::CodePointMapData::<icu_properties::props::Script>::new();
+    let script_names = icu_properties::PropertyNamesLong::<icu_properties::props::Script>::new();
+    let script_val = script_map.get32(cp);
+    script_names.get(script_val)
+}
+
 /// Character metadata record for generating the unified Unicode character table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnicodeCharRecord {
