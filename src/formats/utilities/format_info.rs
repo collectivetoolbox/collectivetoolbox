@@ -38,7 +38,8 @@ pub struct FormatInfo {
     pub ident: String,
     pub label: String,
     pub category: String,
-    pub base_format: String,
+    pub implies: String,
+    pub based_on: String,
     pub extensions: String,
     pub mime: String,
     pub uti: String,
@@ -189,7 +190,8 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
 
         let base_or_aliases = get_opt(base_col);
         let mut nicknames = get_opt(nicknames_col);
-        let mut base_format = base_or_aliases.clone();
+        let mut implies = String::new();
+        let mut based_on = String::new();
 
         if !base_or_aliases.is_empty() {
             let mut report = ctb_formats_dcdata::report::ValidationReport::new();
@@ -208,8 +210,11 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
             if nicknames.is_empty() && !parsed.nicknames.is_empty() {
                 nicknames = parsed.nicknames.join(", ");
             }
-            if !parsed.base_formats.is_empty() {
-                base_format = parsed.base_formats.join(", ");
+            if !parsed.implies.is_empty() {
+                implies = parsed.implies.join(", ");
+            }
+            if !parsed.based_on.is_empty() {
+                based_on = parsed.based_on.join(", ");
             }
         }
 
@@ -232,7 +237,8 @@ fn parse_format_csv_data(bytes: &[u8], map: &mut HashMap<usize, FormatInfo>) {
                 ident,
                 label,
                 category,
-                base_format,
+                implies,
+                based_on,
                 extensions,
                 mime,
                 uti,
@@ -338,8 +344,11 @@ pub fn describe_format(fmt_id: usize) -> Result<String> {
     if !info.nicknames.is_empty() {
         lines.push(format!("Nicknames: {nick}", nick = info.nicknames));
     }
-    if !info.base_format.is_empty() {
-        lines.push(format!("Base format: {base}", base = info.base_format));
+    if !info.implies.is_empty() {
+        lines.push(format!("Implies: {imp}", imp = info.implies));
+    }
+    if !info.based_on.is_empty() {
+        lines.push(format!("Based on: {base}", base = info.based_on));
     }
     if !info.import_support.is_empty() {
         lines.push(format!(
@@ -408,5 +417,33 @@ mod tests {
         assert!(desc.contains("Ident: Utf8"));
         assert!(desc.contains("Category: encoding"));
         assert!(desc.contains("Extensions: .txt, .utf8"));
+    }
+
+    #[crate::ctb_test]
+    fn test_implies_and_based_on_loading_and_formatting() {
+        // f546 = QuartzDisplay, implies f271 (RasterDisplay)
+        let quartz = get_format_info(546).expect("Format 546 exists");
+        assert_eq!(quartz.ident, "QuartzDisplay");
+        assert_eq!(quartz.implies, "f271");
+        assert!(quartz.based_on.is_empty());
+        let quartz_desc = describe_format(546).expect("Describe 546");
+        assert!(quartz_desc.contains("Implies: f271"));
+
+        // f561 = Guix, based on f580 (Nix)
+        let guix = get_format_info(561).expect("Format 561 exists");
+        assert_eq!(guix.ident, "Guix");
+        assert_eq!(guix.based_on, "f580");
+        assert!(guix.implies.is_empty());
+        let guix_desc = describe_format(561).expect("Describe 561");
+        assert!(guix_desc.contains("Based on: f580"));
+
+        // f572 = Ubuntu, based on f571 (Debian) and implies f398 (GnuLinux)
+        let ubuntu = get_format_info(572).expect("Format 572 exists");
+        assert_eq!(ubuntu.ident, "Ubuntu");
+        assert_eq!(ubuntu.based_on, "f571");
+        assert_eq!(ubuntu.implies, "f398");
+        let ubuntu_desc = describe_format(572).expect("Describe 572");
+        assert!(ubuntu_desc.contains("Based on: f571"));
+        assert!(ubuntu_desc.contains("Implies: f398"));
     }
 }

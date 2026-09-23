@@ -332,10 +332,15 @@ pub fn validate_formats_category_file(
             report,
             true,
         );
-        let base_format = if parsed.base_formats.is_empty() {
+        let implies = if parsed.implies.is_empty() {
             None
         } else {
-            Some(parsed.base_formats.join(", "))
+            Some(parsed.implies.join(", "))
+        };
+        let based_on = if parsed.based_on.is_empty() {
+            None
+        } else {
+            Some(parsed.based_on.join(", "))
         };
         let chain = None;
         let format_spec_raw = parsed.format_spec_raw;
@@ -369,8 +374,8 @@ pub fn validate_formats_category_file(
         } else {
             None
         };
-        let syntax = if let Some(raw_syn) = &syntax_raw {
-            match parse_dc_syntax(raw_syn) {
+        let syntax = if let Some(raw_syntax) = &syntax_raw {
+            match parse_dc_syntax(raw_syntax) {
                 Ok(rule) => Some(rule),
                 Err(e) => {
                     report.add_error(
@@ -394,7 +399,8 @@ pub fn validate_formats_category_file(
         };
 
         let format_details = FormatDetails {
-            base_format,
+            implies,
+            based_on,
             chain,
             format_spec,
             extensions: if extensions.is_empty() {

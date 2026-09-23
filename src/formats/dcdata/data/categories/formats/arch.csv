@@ -15,11 +15,11 @@ Import/export/tests support columns meaning:
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
 2228608,384,x86,"x86 family, 32-bit",arch,,,,,,,,,,,,
-2228609,385,amd64,64-bit extension of x86,arch,@base(f384),,,,,,,,,,,
+2228609,385,amd64,64-bit extension of x86,arch,@implies(f384),,,,,,,,,,,
 2228610,386,arm,ARM/Acorn,arch,,,,,,,,,,,,
 2228611,387,arm64,64-bit extension of ARM,arch,,,,,,,,,,,,
-2228612,388,i586,Pentium (i586),arch,@base(f384),,,,,,,,,,,
-2228613,389,sse2,Streaming SIMD Extensions 2 support,arch,@base(f388),,,,,,,,,,,
+2228612,388,i586,Pentium (i586),arch,@implies(f384),,,,,,,,,,,
+2228613,389,sse2,Streaming SIMD Extensions 2 support,arch,@implies(f388),,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,

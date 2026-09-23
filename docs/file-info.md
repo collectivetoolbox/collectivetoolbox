@@ -3,7 +3,7 @@
 ## Implementation Progress Snapshot
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
-- **Data Migration to `@chain(...)` & `@base(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
+- **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
 - **Basic Multi-Signal Format Detection & Extension Chains:** Prototype completed (`ctb_formats_utilities::detection`); pending data-driven probabilistic extension parsing and candidate ranking
 - **Initial Data Cleanup (Math/Line Endings/Calendar):** Completed (2026-09-17)
 - **Grammar & Evaluation Engine:** Completed (strict/permissive parser, bounded recursive matcher, framing validation, and runtime stubs)
@@ -30,9 +30,9 @@
 - [x] **Bidirectional Dc Token Stream:** Implement prefix Polish notation encoder/decoder with tail-position optimization and delimiter `299` disambiguation in `dc_stream.rs`.
 
 ### Phase 3: CSV Format Data Migration
-- [x] **Unified Column Specification Parser:** Add unified parsing for column 6 (formats) and column 9 (characters) supporting `@chain(...)` and `@base(...)` directives (`src/formats/dcdata/column_spec.rs`).
+- [x] **Unified Column Specification Parser:** Add unified parsing for column 6 (formats) and column 9 (characters) supporting `@chain(...)`, `@implies(...)`, and `@based_on(...)` directives (`src/formats/dcdata/column_spec.rs`).
 - [x] **Disallow Ambiguous Bare Identifiers:** Reject bare format references in format CSVs to ensure unambiguous expression parsing.
-- [x] **CSV Data Migration:** Convert existing `Chain (=)` and base entries to valid `@chain(...)` and `@base(...)` directives across format CSV files (`src/formats/dcdata/data/`).
+- [x] **CSV Data Migration:** Convert existing entries to valid `@chain(...)`, `@implies(...)`, and `@based_on(...)` directives across format CSV files (`src/formats/dcdata/data/`).
 - [x] **Format Details Integration:** Expose validated `format_spec: Option<FormatExpr>` on `FormatDetails` and `DcDef`.
 
 ### Phase 4: Syntax Framing, Grammar & Safe Evaluator
@@ -214,9 +214,11 @@ The following describes model boundaries and current implementation status for f
    Consolidated directives avoid horizontal scrolling while ensuring unambiguous parsing:
    - `@chain(...)` (e.g., `@chain(((f15 > f542) ! f0) > f0)` or `@chain(f161 > f35)`):
      expresses format composition and conversion pipelines.
-   - `@base(...)` (e.g., `@base(f161)`, or compound `@base(f390 & f395)`): expresses
-     base format relationships using valid Dc shorthand syntax (e.g., `f<id>`). Bare
-     format identifiers without a directive prefix are disallowed in format category files
+   - `@implies(...)` (e.g., `@implies(f271)`, `@implies(f390 & f395 & f587)`): expresses
+     logical capability entailment and property guarantees using valid Dc shorthand syntax.
+   - `@based_on(...)` (e.g., `@based_on(f580)`, `@based_on(f571)`): expresses historical
+     ancestry, derivation lineage, or parent format inspiration without implying runtime capabilities.
+     Bare format identifiers without a directive prefix are disallowed in format category files
      and trigger validation errors to prevent ambiguous parsing.
    - `@xref(...)` (e.g., `@xref(u22ee)`): expresses cross-references to code points or Dcs.
    - `@formalAliasCorrection("...")`, `@formalAliasControl("...")`, `@formalAliasAlternate("...")`,

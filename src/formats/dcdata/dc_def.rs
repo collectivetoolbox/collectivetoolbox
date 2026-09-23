@@ -35,7 +35,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct FormatDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub base_format: Option<String>,
+    pub implies: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub based_on: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chain: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

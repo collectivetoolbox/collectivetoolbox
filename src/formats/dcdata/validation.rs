@@ -966,7 +966,8 @@ pub fn validate_dc_category_file(
             (
                 formatted_cat,
                 Some(crate::dc_def::FormatDetails {
-                    base_format: None,
+                    implies: None,
+                    based_on: None,
                     chain: None,
                     format_spec: None,
                     extensions: None,
@@ -1504,7 +1505,7 @@ mod tests {
                 .format
                 .as_ref()
                 .context("Missing format details")?;
-            assert_eq!(details.base_format.as_deref(), Some(base));
+            assert_eq!(details.implies.as_deref(), Some(base));
             assert!(row.syntax.is_some());
             assert!(row.decompositions.is_empty());
         }

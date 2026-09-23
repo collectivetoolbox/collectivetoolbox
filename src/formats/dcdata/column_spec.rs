@@ -24,7 +24,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! (`"Aliases; >=xref, <=decompos., :=Dc syntax, @chain"`).
 //!
 //! It parses comma-separated directives:
-//! - `@base(...)`: Base / related format or parent category using Dc shorthand syntax.
+//! - `@implies(...)`: Logically implied format, supertype, or capability requirement using Dc shorthand syntax.
+//! - `@based_on(...)`: Historical ancestry, lineage, or parent format reference using Dc shorthand syntax.
 //! - `@chain(...)` or `@(...)`: Format composition specification DSL.
 //! - `:<syntax>`: Document Character syntax rule DSL.
 //! - `><xref>`: Cross-reference.
@@ -55,8 +56,10 @@ pub struct ParsedAliasesOrBaseColumn {
     pub aliases: Vec<String>,
     /// Formal aliases extracted from `@formalAliasCorrection(...)`, `@formalAliasControl(...)`, etc.
     pub formal_aliases: Vec<ParsedFormalAlias>,
-    /// Base format or parent category references extracted from `@base(...)`.
-    pub base_formats: Vec<String>,
+    /// Formats / capabilities logically implied by this format, extracted from `@implies(...)`.
+    pub implies: Vec<String>,
+    /// Ancestor / historical lineage formats extracted from `@based_on(...)`.
+    pub based_on: Vec<String>,
     /// Cross-reference targets extracted from `@xref(...)` and `><target>`.
     pub cross_references: Vec<String>,
     /// Decomposition expressions extracted from `<<tag>payload>`.
@@ -84,7 +87,7 @@ pub struct ParsedAliasesOrBaseColumn {
 /// - No consecutive commas or leading/trailing commas.
 ///
 /// When `is_format_table` is `true`, bare format names lacking a directive are rejected with
-/// an error instructing migration to `@base(...)`.
+/// an error instructing migration to `@implies(...)` or `@based_on(...)`.
 pub fn parse_aliases_or_base_column(
     raw: &str,
     file_path: &str,
@@ -325,30 +328,62 @@ fn process_column_item(
     }
 
     if item_trimmed.starts_with('@') {
-        if let Some(inner) = item_trimmed.strip_prefix("@base(") {
+        if let Some(inner) = item_trimmed.strip_prefix("@implies(") {
             if let Some(stripped) = inner.strip_suffix(')') {
-                let base_val = stripped.trim();
-                if base_val.is_empty() {
+                let val = stripped.trim();
+                if val.is_empty() {
                     report.add_error(
                         file_path,
                         Some(line_no),
                         Some(col_name),
-                        format!("Empty '@base()' directive in {col_name} column: '{item_trimmed}'"),
-                        Some("Specify a format shorthand inside @base(...) (e.g. '@base(f161)')"),
+                        format!("Empty '@implies()' directive in {col_name} column: '{item_trimmed}'"),
+                        Some("Specify a format shorthand inside @implies(...) (e.g. '@implies(f271)')"),
                     );
                 } else {
-                    validate_base_shorthand_expr(base_val, file_path, line_no, report, col_name);
-                    parsed.base_formats.push(base_val.to_string());
+                    validate_shorthand_expr(val, file_path, line_no, report, col_name, "@implies");
+                    parsed.implies.push(val.to_string());
                 }
             } else {
                 report.add_error(
                     file_path,
                     Some(line_no),
                     Some(col_name),
-                    format!("Malformed '@base(...)': missing closing parenthesis in '{item_trimmed}'"),
-                    Some("Ensure '@base(...)' closes with a parenthesis"),
+                    format!("Malformed '@implies(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@implies(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@based_on(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let val = stripped.trim();
+                if val.is_empty() {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Empty '@based_on()' directive in {col_name} column: '{item_trimmed}'"),
+                        Some("Specify a format shorthand inside @based_on(...) (e.g. '@based_on(f580)')"),
+                    );
+                } else {
+                    validate_shorthand_expr(val, file_path, line_no, report, col_name, "@based_on");
+                    parsed.based_on.push(val.to_string());
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@based_on(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@based_on(...)' closes with a parenthesis"),
+                );
+            }
+        } else if item_trimmed.starts_with("@base(") {
+            report.add_error(
+                file_path,
+                Some(line_no),
+                Some(col_name),
+                format!("Directive '@base(...)' is deprecated and ambiguous: '{item_trimmed}'"),
+                Some("Use '@implies(...)' for capability/property entailment or '@based_on(...)' for historical ancestry/derivation"),
+            );
         } else if let Some(inner) = item_trimmed.strip_prefix("@xref(") {
             if let Some(stripped) = inner.strip_suffix(')') {
                 let target = stripped.trim();
@@ -570,7 +605,7 @@ fn process_column_item(
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@base(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', and '@os(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', and '@os(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -708,10 +743,10 @@ fn process_column_item(
                 file_path,
                 Some(line_no),
                 Some(col_name),
-                format!("Bare base format '{item_trimmed}' is disallowed in format tables. Use '@base(...)' instead"),
-                Some("Wrap base format references in '@base(shorthand)' (e.g. '@base(f161)')"),
+                format!("Bare base format '{item_trimmed}' is disallowed in format tables. Use '@implies(...)', '@based_on(...)', or appropriate directive instead"),
+                Some("Wrap format references in '@implies(shorthand)' (e.g. '@implies(f271)') or '@based_on(shorthand)' (e.g. '@based_on(f580)')"),
             );
-            parsed.base_formats.push(item_trimmed.to_string());
+            parsed.based_on.push(item_trimmed.to_string());
         } else {
             if item_trimmed.contains("  ") {
                 report.add_error(
@@ -727,13 +762,14 @@ fn process_column_item(
     }
 }
 
-/// Validates that tokens in a `@base(...)` expression conform to Dc shorthand syntax.
-fn validate_base_shorthand_expr(
+/// Validates that tokens in an `@implies(...)` or `@based_on(...)` expression conform to Dc shorthand syntax.
+fn validate_shorthand_expr(
     expr: &str,
     file_path: &str,
     line_no: usize,
     report: &mut ValidationReport,
     col_name: &str,
+    directive_name: &str,
 ) {
     // Split by operational delimiters &, |, (, ) to validate atomic identifiers
     for token in expr
@@ -747,9 +783,9 @@ fn validate_base_shorthand_expr(
                 Some(line_no),
                 Some(col_name),
                 format!(
-                    "Invalid Dc shorthand token '{token}' in '@base({expr})'. Must use format shorthands (e.g. 'f161')"
+                    "Invalid Dc shorthand token '{token}' in '{directive_name}({expr})'. Must use format shorthands (e.g. 'f161')"
                 ),
-                Some("Ensure all base references inside '@base(...)' use Dc shorthand syntax"),
+                Some("Ensure all format references inside directive use Dc shorthand syntax"),
             );
         }
     }
@@ -773,15 +809,31 @@ mod tests {
     fn test_parse_aliases_or_base_column_directives() {
         let mut report = ValidationReport::new();
         let parsed = parse_aliases_or_base_column(
-            "@base(f161), @chain(f161 > f35)",
+            "@based_on(f580), @implies(f398), @chain(f161 > f35)",
             "test.csv",
             1,
             &mut report,
             true,
         );
         assert!(!report.has_errors(), "Report errors: {}", report.format_report());
-        assert_eq!(parsed.base_formats, vec!["f161"]);
+        assert_eq!(parsed.based_on, vec!["f580"]);
+        assert_eq!(parsed.implies, vec!["f398"]);
         assert_eq!(parsed.format_spec_raw.as_deref(), Some("@chain(f161 > f35)"));
+    }
+
+    #[crate::ctb_test]
+    fn test_legacy_base_directive_fails_validation() {
+        let mut report = ValidationReport::new();
+        let _ = parse_aliases_or_base_column(
+            "@base(f161)",
+            "test.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(report.has_errors());
+        let err = report.format_report();
+        assert!(err.contains("Directive '@base(...)' is deprecated and ambiguous"));
     }
 
     #[crate::ctb_test]
@@ -853,7 +905,7 @@ mod tests {
     fn test_parse_ident_and_nick_directives() {
         let mut report = ValidationReport::default();
         let parsed = parse_aliases_or_base_column(
-            r#"@ident("TarGz"), @nick("tgz"), @nick("tar-gz"), @base(f161)"#,
+            r#"@ident("TarGz"), @nick("tgz"), @nick("tar-gz"), @based_on(f161)"#,
             "test_format.csv",
             1,
             &mut report,
@@ -862,7 +914,7 @@ mod tests {
         assert!(!report.has_errors(), "Errors: {}", report.format_report());
         assert_eq!(parsed.rust_ident.as_deref(), Some("TarGz"));
         assert_eq!(parsed.nicknames, vec!["tgz", "tar-gz"]);
-        assert_eq!(parsed.base_formats, vec!["f161"]);
+        assert_eq!(parsed.based_on, vec!["f161"]);
 
         // Test invalid ident fails validation
         let mut err_report = ValidationReport::default();
@@ -881,7 +933,7 @@ mod tests {
     fn test_parse_os_directive() {
         let mut report = ValidationReport::default();
         let parsed = parse_aliases_or_base_column(
-            r#"@os(f405), @os(f406), @base(f161)"#,
+            r#"@os(f405), @os(f406), @implies(f161)"#,
             "test_format.csv",
             1,
             &mut report,
@@ -889,7 +941,7 @@ mod tests {
         );
         assert!(!report.has_errors(), "Errors: {}", report.format_report());
         assert_eq!(parsed.os_associations, vec!["f405", "f406"]);
-        assert_eq!(parsed.base_formats, vec!["f161"]);
+        assert_eq!(parsed.implies, vec!["f161"]);
 
         // Test invalid OS token (non-shorthand text like "macos" is disallowed)
         let mut err_report = ValidationReport::default();

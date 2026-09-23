@@ -905,6 +905,15 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     if let Some(chain) = parsed.format_spec_raw {
         parts.push(chain);
     }
+    for bo in parsed.based_on {
+        parts.push(format!("@based_on({bo})"));
+    }
+    for imp in parsed.implies {
+        parts.push(format!("@implies({imp})"));
+    }
+    for os in parsed.os_associations {
+        parts.push(format!("@os({os})"));
+    }
     parts.join(", ")
 }
 

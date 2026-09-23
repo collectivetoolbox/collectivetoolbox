@@ -40,12 +40,19 @@ Column 9 appears as Column 9 in Dc and Unicode tables and Column 6 in Format cat
 
 ### Directives Catalog
 
-#### `@base(...)`
-- **Purpose**: Defines base or parent format/category relationships using Dc shorthand syntax.
-- **Syntax**: `@base(<shorthand>)` or `@base(<shorthand> & <shorthand>)`.
+#### `@implies(...)`
+- **Purpose**: Defines logical capability entailment, subtyping, and property guarantees using Dc shorthand syntax ($A \implies B$).
+- **Syntax**: `@implies(<shorthand>)` or compound `@implies(<shorthand> & <shorthand>)`.
 - **Examples**:
-  - `@base(f161)`
-  - `@base(f390 & f395)`
+  - `@implies(f271)` (Quartz compositor implies Raster display)
+  - `@implies(f390 & f395 & f587)` (GNU/Linux implies Linux kernel, GNU libc, and GNU utilities)
+
+#### `@based_on(...)`
+- **Purpose**: Defines historical ancestry, derivation lineage, inspiration, or parent format model using Dc shorthand syntax.
+- **Syntax**: `@based_on(<shorthand>)` or compound `@based_on(<shorthand> & <shorthand>)`.
+- **Examples**:
+  - `@based_on(f580)` (Guix package manager based on Nix)
+  - `@based_on(f571)` (Ubuntu based on Debian lineage)
 
 #### `@chain(...)`
 - **Purpose**: Defines format composition pipelines and transformation chains using the format specification DSL.
