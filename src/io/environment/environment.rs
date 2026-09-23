@@ -504,18 +504,11 @@ pub fn looks_like_gnustep() -> bool {
             return true;
         }
     }
-    if env::var_os("GNUSTEP_USER_ROOT").is_some()
-        || env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
-        || env::var_os("GNUSTEP_PATHLIST").is_some()
-        || env::var_os("GNUSTEP_CONFIG_FILE").is_some()
-    {
-        return true;
-    }
-    if std::path::Path::new("/etc/GNUstep/GNUstep.conf").exists()
-        || std::path::Path::new("/etc/GNUstep.conf").exists()
-    {
-        return true;
-    }
+    // Multiple LLMs suggest you can use these, but I couldn't confirm it and it
+    // doesn't appear to be the case on my system (though I haven't tried a
+    // dedicated WindowMaker session):
+    // env::var_os("GNUSTEP_SYSTEM_ROOT").is_some()
+    //     || env::var_os("GNUSTEP_USER_ROOT").is_some()
     false
 }
 
@@ -1367,12 +1360,12 @@ mod tests {
     fn test_looks_like_gnustep() {
         // SAFETY: Test runs in controlled single-threaded test harness or restores variable
         unsafe {
-            env::set_var("GNUSTEP_USER_ROOT", "/tmp/fake_gnustep");
+            env::set_var("TERM_PROGRAM", "GNUstep_Terminal");
         }
         assert!(looks_like_gnustep());
         // SAFETY: Test restores environment variable
         unsafe {
-            env::remove_var("GNUSTEP_USER_ROOT");
+            env::remove_var("TERM_PROGRAM");
         }
     }
 
