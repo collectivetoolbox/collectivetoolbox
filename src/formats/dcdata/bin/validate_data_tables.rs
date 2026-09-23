@@ -114,11 +114,11 @@ fn main() -> ExitCode {
     match ctb_formats_dcdata::updater::generate_format_id_file(&repo_root) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated format_id.rs from formats category tables.");
+                println!("Successfully updated format_id.generated.rs from formats category tables.");
             }
         }
         Err(e) => {
-            eprintln!("Error generating format_id.rs: {e}");
+            eprintln!("Error generating format_id.generated.rs: {e}");
             return ExitCode::FAILURE;
         }
     }

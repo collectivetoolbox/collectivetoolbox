@@ -140,6 +140,20 @@ pub fn find_repository_root() -> Result<PathBuf> {
     bail!("Could not locate repository root containing src/formats/")
 }
 
+/// Discovers the root directory of the ctoolbox repository starting from a path.
+pub fn find_repository_root_from(start: &Path) -> Result<PathBuf> {
+    let mut cur = Some(start);
+    while let Some(dir) = cur {
+        if dir.join("Cargo.toml").is_file()
+            && dir.join("src").join("formats").is_dir()
+        {
+            return Ok(dir.to_path_buf());
+        }
+        cur = dir.parent();
+    }
+    find_repository_root()
+}
+
 /// Reads a CSV file returning the header row and data rows.
 pub fn read_csv_file(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
     let content = fs::read_to_string(path)
@@ -1259,51 +1273,34 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
 /// # Errors
 /// Returns an error if directory resolution, generation, or writing fails.
 pub fn generate_format_id_file(base_dir: &Path) -> Result<bool> {
-    // FIXME: This should use the right path, not guess a bunch of random ones.
-    // FIXME: The file without ".generated" in the name needs to be exorcised. It's back from the dead.
-    let candidates = [
-        ("src/formats/dcdata/data/categories/formats", "src/formats/utilities/format_id.rs"),
-        ("formats/dcdata/data/categories/formats", "formats/utilities/format_id.rs"),
-        ("dcdata/data/categories/formats", "utilities/format_id.rs"),
-        ("data/categories/formats", "../utilities/format_id.rs"),
-        ("../dcdata/data/categories/formats", "format_id.rs"),
-    ];
+    let repo_root = find_repository_root_from(base_dir)?;
+    let formats_dir = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("data")
+        .join("categories")
+        .join("formats");
+    ensure!(
+        formats_dir.is_dir(),
+        "Could not locate formats directory at {}",
+        formats_dir.display()
+    );
 
-    let mut resolved_formats = None;
-    let mut resolved_target = None;
+    let target_file = repo_root
+        .join("src")
+        .join("formats")
+        .join("utilities")
+        .join("format_id.generated.rs");
 
-    for &(f_rel, t_rel) in &candidates {
-        if base_dir.join(f_rel).is_dir() {
-            resolved_formats = Some(base_dir.join(f_rel));
-            resolved_target = Some(base_dir.join(t_rel));
-            break;
-        }
+    let stale_file = repo_root
+        .join("src")
+        .join("formats")
+        .join("utilities")
+        .join("format_id.rs");
+    if stale_file.is_file() {
+        let _ = fs::remove_file(&stale_file);
     }
-
-    if resolved_formats.is_none() {
-        let mut cur = base_dir;
-        while let Some(parent) = cur.parent() {
-            for &(f_rel, t_rel) in &candidates {
-                if parent.join(f_rel).is_dir() {
-                    resolved_formats = Some(parent.join(f_rel));
-                    resolved_target = Some(parent.join(t_rel));
-                    break;
-                }
-            }
-            if resolved_formats.is_some() {
-                break;
-            }
-            cur = parent;
-        }
-    }
-
-    let (formats_dir, target_file) = match (resolved_formats, resolved_target) {
-        (Some(f), Some(t)) => (f, t),
-        _ => bail!(
-            "Could not locate formats directory from {}",
-            base_dir.display()
-        ),
-    };
 
     let code = generate_format_id_code(&formats_dir)?;
     write_if_changed(&target_file, &code)
@@ -1418,6 +1415,6 @@ mod tests {
     fn test_generate_format_id_file() {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let updated = generate_format_id_file(manifest).unwrap();
-        println!("format_id.rs generated: {updated}");
+        println!("format_id.generated.rs generated: {updated}");
     }
 }

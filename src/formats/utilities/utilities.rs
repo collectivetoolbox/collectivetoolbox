@@ -23,6 +23,7 @@ pub mod detection;
 pub mod encoding;
 pub mod extension;
 pub mod extension_data;
+#[path = "format_id.generated.rs"]
 pub mod format_id;
 pub mod format_info;
 pub mod magic;
