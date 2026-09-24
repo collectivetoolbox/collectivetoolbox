@@ -47,6 +47,7 @@ The standard ncurses terminfo database is included here under its own historical
 - Check for workspace lint setup correct: `cd ~/ctoolbox || exit 1; cargo workspace-lints -v`
 - Quick build and run: `cd ~/ctoolbox || exit 1; RUST_BACKTRACE=1 ./run-linux`
 - Run a single test: `cargo test spans_attach_request_and_stream_fields -- --nocapture`
+- Removing an accidental submodule: `git rm -f --cached folder` - it does *not* delete the folder.
 - Creating Docker containers:
   - Note: Docker containers are NOT required to build ctoolbox or probably the v86 image, but are how I build the v86 image. I want to minimize dependency on, so the Dockerfiles use a Debian base image without extras to start with and build everything on top of that. CI runs in a container that's already partly built. It should be possible to build the image on a native Debian installation using the same scripts, though it may require some manual wrangling and I haven't tried it.
   - Build v86 image in Docker container (used for building v86 image; this will take several hours; 400GB free disk space recommended though you may be able to get away with less): `pushd ~/ctoolbox/ || exit 1; ./scripts/build-docker-image; notify-send "Docker command finished" || true`

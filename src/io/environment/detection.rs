@@ -384,57 +384,15 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
         device_caps.push(FormatId::WebUi);
     }
 
-    let mut terminal_caps = Vec::new();
-    if is_stdin_terminal {
-        terminal_caps.push(FormatId::IsStdinTerminal);
-    }
-    if is_stdout_terminal {
-        terminal_caps.push(FormatId::IsStdoutTerminal);
-    }
-    if is_stderr_terminal {
-        terminal_caps.push(FormatId::IsStderrTerminal);
-    }
-
-    if is_stdout_terminal {
-        // Reason for fallback: unset TERM defaults to empty string baseline
-        let term = env::var("TERM").unwrap_or_default();
-        if term == "dumb" {
-            device_caps.push(FormatId::Teleprinter);
-            terminal_caps.push(FormatId::Teleprinter);
-            terminal_caps.push(FormatId::LineModeTerminal);
-            terminal_caps.push(FormatId::TerminalColors1bit);
-        } else {
-            device_caps.push(FormatId::Videoterminal);
-            terminal_caps.push(FormatId::Videoterminal);
-            // FIXME: It should check terminfo (with bundled database), not guess.
-            terminal_caps.push(FormatId::Vt100);
-            terminal_caps.push(FormatId::TerminalCanEdit);
-            terminal_caps.push(FormatId::TerminalCanEditPastLines);
-            // FIXME: Mouse support is not standard ability of most terminals. It should be detected if possible or user-configured.
-            terminal_caps.push(FormatId::TerminalMouse);
-
-            // Reason for fallback: unset COLORTERM defaults to empty string baseline
-            let colorterm = env::var("COLORTERM")
-                .unwrap_or_default()
-                .to_ascii_lowercase();
-            if colorterm == "truecolor" || colorterm == "24bit" {
-                terminal_caps.push(FormatId::TerminalColors24bit);
-            } else if term.contains("256color") {
-                terminal_caps.push(FormatId::TerminalColors8bit);
-            } else {
-                terminal_caps.push(FormatId::TerminalColors4bit);
-            }
-
-            if env::var_os("KITTY_WINDOW_ID").is_some() || term == "xterm-kitty" {
-                terminal_caps.push(FormatId::TerminalKittyGraphics);
-            }
-            // Reason for fallback: unset TERM_PROGRAM defaults to empty string baseline
-            let term_prog = env::var("TERM_PROGRAM").unwrap_or_default();
-            if term_prog == "iTerm.app" || term_prog == "WezTerm" {
-                terminal_caps.push(FormatId::TerminalIterm2Graphics);
-            }
-        }
-    }
+    // Reason for fallback: unset TERM defaults to empty string baseline
+    let term = env::var("TERM").unwrap_or_default();
+    let (terminal_caps, term_device_caps) = detect_terminal_capabilities_for(
+        &term,
+        is_stdout_terminal,
+        is_stdin_terminal,
+        is_stderr_terminal,
+    );
+    device_caps.extend(term_device_caps);
 
     let mut render_modes = Vec::new();
     if is_stdout_terminal && is_stdin_terminal {
@@ -453,6 +411,117 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
         is_stdout_terminal,
         is_stderr_terminal,
     }
+}
+
+/// Detect terminal capabilities and associated device capabilities for a
+/// specific terminal name and stdio terminal stream flags.
+#[must_use]
+pub fn detect_terminal_capabilities_for(
+    term: &str,
+    is_stdout_terminal: bool,
+    is_stdin_terminal: bool,
+    is_stderr_terminal: bool,
+) -> (Vec<FormatId>, Vec<FormatId>) {
+    let mut terminal_caps = Vec::new();
+    let mut device_caps = Vec::new();
+
+    if is_stdin_terminal {
+        terminal_caps.push(FormatId::IsStdinTerminal);
+    }
+    if is_stdout_terminal {
+        terminal_caps.push(FormatId::IsStdoutTerminal);
+    }
+    if is_stderr_terminal {
+        terminal_caps.push(FormatId::IsStderrTerminal);
+    }
+
+    if is_stdout_terminal {
+        let term_info = if term.is_empty() {
+            None
+        } else {
+            Terminfo::from_name(term)
+        };
+
+        let is_teleprinter = term == "dumb"
+            || term_info
+                .as_ref()
+                .map_or(false, |info| !info.can_cursor_address());
+
+        if is_teleprinter {
+            device_caps.push(FormatId::Teleprinter);
+            terminal_caps.push(FormatId::Teleprinter);
+            terminal_caps.push(FormatId::LineModeTerminal);
+            terminal_caps.push(FormatId::TerminalColors1bit);
+        } else {
+            device_caps.push(FormatId::Videoterminal);
+            terminal_caps.push(FormatId::Videoterminal);
+
+            let can_edit_past_lines = term_info
+                .as_ref()
+                .map_or(true, Terminfo::can_cursor_address);
+            if can_edit_past_lines {
+                terminal_caps.push(FormatId::TerminalCanEditPastLines);
+            }
+
+            let can_edit = term_info
+                .as_ref()
+                .map_or(true, Terminfo::can_edit_line);
+            if can_edit {
+                terminal_caps.push(FormatId::TerminalCanEdit);
+            }
+
+            let is_vt100 = term_info
+                .as_ref()
+                .map_or(false, Terminfo::is_vt100_compatible);
+            if is_vt100 {
+                terminal_caps.push(FormatId::Vt100);
+            }
+
+            // Note: User-facing CLI or pc_settings configuration may be added later.
+            let has_mouse = term_info
+                .as_ref()
+                .map_or(false, Terminfo::has_mouse);
+            if has_mouse {
+                terminal_caps.push(FormatId::TerminalMouse);
+            }
+
+            // Reason for fallback: unset COLORTERM defaults to empty string baseline
+            let colorterm = env::var("COLORTERM")
+                .unwrap_or_default()
+                .to_ascii_lowercase();
+            let is_truecolor = colorterm == "truecolor"
+                || colorterm == "24bit"
+                || term_info
+                    .as_ref()
+                    .map_or(false, Terminfo::has_truecolor);
+
+            if is_truecolor {
+                terminal_caps.push(FormatId::TerminalColors24bit);
+            } else {
+                let max_colors = term_info
+                    .as_ref()
+                    .map_or(8, Terminfo::max_colors);
+                if max_colors >= 256 {
+                    terminal_caps.push(FormatId::TerminalColors8bit);
+                } else if max_colors >= 8 {
+                    terminal_caps.push(FormatId::TerminalColors4bit);
+                } else {
+                    terminal_caps.push(FormatId::TerminalColors1bit);
+                }
+            }
+
+            if env::var_os("KITTY_WINDOW_ID").is_some() || term == "xterm-kitty" {
+                terminal_caps.push(FormatId::TerminalKittyGraphics);
+            }
+            // Reason for fallback: unset TERM_PROGRAM defaults to empty string baseline
+            let term_prog = env::var("TERM_PROGRAM").unwrap_or_default();
+            if term_prog == "iTerm.app" || term_prog == "WezTerm" {
+                terminal_caps.push(FormatId::TerminalIterm2Graphics);
+            }
+        }
+    }
+
+    (terminal_caps, device_caps)
 }
 
 /// Collect and deduplicate all [`FormatId`] elements representing an
@@ -758,4 +827,69 @@ pub fn format_environment_summary(
     };
 
     format!("{os_name}{identity_details} [{caps_summary}]")
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    reason = "Standard test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_xterm_256color_capabilities() {
+        let (term_caps, dev_caps) =
+            detect_terminal_capabilities_for("xterm-256color", true, true, true);
+        assert!(term_caps.contains(&FormatId::Videoterminal));
+        assert!(term_caps.contains(&FormatId::TerminalCanEditPastLines));
+        assert!(term_caps.contains(&FormatId::TerminalCanEdit));
+        assert!(term_caps.contains(&FormatId::Vt100));
+        assert!(term_caps.contains(&FormatId::TerminalMouse));
+        assert!(term_caps.contains(&FormatId::TerminalColors8bit));
+        assert!(dev_caps.contains(&FormatId::Videoterminal));
+    }
+
+    #[crate::ctb_test]
+    fn test_dumb_terminal_capabilities() {
+        let (term_caps, dev_caps) =
+            detect_terminal_capabilities_for("dumb", true, true, true);
+        assert!(term_caps.contains(&FormatId::Teleprinter));
+        assert!(term_caps.contains(&FormatId::LineModeTerminal));
+        assert!(term_caps.contains(&FormatId::TerminalColors1bit));
+        assert!(!term_caps.contains(&FormatId::TerminalMouse));
+        assert!(!term_caps.contains(&FormatId::Vt100));
+        assert!(!term_caps.contains(&FormatId::Videoterminal));
+        assert!(dev_caps.contains(&FormatId::Teleprinter));
+    }
+
+    #[crate::ctb_test]
+    fn test_vt100_capabilities() {
+        let (term_caps, dev_caps) =
+            detect_terminal_capabilities_for("vt100", true, true, true);
+        assert!(term_caps.contains(&FormatId::Videoterminal));
+        assert!(term_caps.contains(&FormatId::Vt100));
+        assert!(term_caps.contains(&FormatId::TerminalCanEditPastLines));
+        assert!(!term_caps.contains(&FormatId::TerminalMouse));
+        assert!(dev_caps.contains(&FormatId::Videoterminal));
+    }
+
+    #[crate::ctb_test]
+    fn test_xterm_direct_capabilities() {
+        let (term_caps, _) =
+            detect_terminal_capabilities_for("xterm-direct", true, true, true);
+        assert!(term_caps.contains(&FormatId::TerminalColors24bit));
+    }
+
+    #[crate::ctb_test]
+    fn test_ms_terminal_capabilities() {
+        let (term_caps, dev_caps) =
+            detect_terminal_capabilities_for("ms-terminal", true, true, true);
+        assert!(term_caps.contains(&FormatId::Videoterminal));
+        assert!(term_caps.contains(&FormatId::TerminalMouse));
+        assert!(term_caps.contains(&FormatId::TerminalColors8bit));
+        assert!(dev_caps.contains(&FormatId::Videoterminal));
+    }
 }

@@ -1578,6 +1578,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_environment_identity_and_capabilities() {
+        let _lock = ENV_TEST_MUTEX.lock().unwrap();
         let ident = identity();
         let caps = capabilities();
         let formats = all_format_ids();

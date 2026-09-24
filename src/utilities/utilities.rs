@@ -69,6 +69,8 @@ pub mod string;
 pub mod testing;
 pub mod ui;
 pub mod workspace_path_resolution;
+pub mod terminfo;
+pub use terminfo::Terminfo;
 #[path = "format_id.generated.rs"]
 pub mod format_id;
 pub use format_id::{FormatCategory, FormatId, *};
@@ -108,6 +110,13 @@ static UTILITIES_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_utilities_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&UTILITIES_DATA_DIR, key)
+}
+
+pub(crate) fn get_utilities_data_str(key: &str) -> Option<&'static str> {
+    // Reason for fallback: asset lookup keys without a leading slash retain original relative path key
+    let key = key.strip_prefix('/').unwrap_or(key);
+    let file = UTILITIES_DATA_DIR.get_file(key)?;
+    std::str::from_utf8(file.contents()).ok()
 }
 
 /// Access the service IPC context from anywhere in a service crate.
