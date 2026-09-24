@@ -279,6 +279,14 @@ pub fn evaluate_rule<S: DetectionSource + ?Sized>(
         }
     }
 
+    if description.trim().is_empty()
+        && mime.is_none()
+        && ext.is_none()
+        && apple.is_none()
+    {
+        return None;
+    }
+
     Some(RuleMatchResult {
         description,
         mime,

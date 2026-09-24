@@ -4,10 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Basic Multi-Signal Format Detection & Extension Chains:** Prototype completed (`ctb_formats_utilities::detection`); pending data-driven probabilistic extension parsing and candidate ranking
-- **Initial Data Cleanup (Math/Line Endings/Calendar):** Completed (2026-09-17)
-- **Grammar & Evaluation Engine:** Completed (strict/permissive parser, bounded recursive matcher, framing validation, and runtime stubs)
-- **Declarative Detection Rule Dataset & Abstract Source Trait:** Pending
+- **Declarative File Type Detection Engine & Universal Source Trait:** Completed (`ctb_formats_utilities::detection`, `DetectionSource`, `FileEntity`/`AttachedStream` integration, `FormatInheritanceGraph`, and `DetectionOutcome`)
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
 - **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
@@ -60,12 +57,12 @@
   - [x] Expose bounded range reads, known length, and sparse extent maps (`Extent::Data` / `Extent::Hole`) without eager in-memory buffering.
   - [x] Support in-memory byte slices (`MemoryPayloadSource`), disk files (`DiskPayloadSource`), and archive member streams through uniform `PayloadSource` handles.
   - [x] Implement bounded immediate-child probing for directory packages / application bundles (`FileEntityKind::Bundle` or `Directory`, e.g., macOS `.app`) using `SandboxedDir` / `read_dir_safe`, restricted to bounded depth (1-2) and strict entry/byte quotas without following arbitrary symlinks.
-  - [ ] Leverage attached streams / forks (`AttachedStream`, e.g., AppleDouble `._` companion metadata and resource forks) as rich detection signals.
-  - [ ] Explicitly distinguish between insufficient data / quota exhaustion, read errors, and true negative matches.
+  - [x] Leverage attached streams / forks (`AttachedStream`, e.g., AppleDouble `._` companion metadata and resource forks) as rich detection signals.
+  - [x] Explicitly distinguish between insufficient data / quota exhaustion, read errors, and true negative matches.
 - [x] **Declarative Detection Rules Engine & Preexisting Engine Integration (`old/filedetect`):**
   - [x] **libmagic Engine Port & Rule Compilation:** Port the hierarchical `softmagic` interpreter from BSD-2-Clause `file` (`old/filedetect/file/`) into safe Rust, supporting test trees (`>` hierarchy), endian types, bitmasks, indirect offsets (`FILE_INDIRECT`), relative offsets, and search/regex patterns.
   - [x] **Magdir Rule Compilation:** Build an ingestion and compilation pipeline for libmagic's extensive `Magdir/` rule database (15,000+ rules), mapping libmagic MIME/description outputs to authoritative Dc format IDs.
-  - [ ] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
+  - [x] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
   - [x] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
   - [x] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
   - [ ] **Nested file parsing** like and/or ported from polyfile.

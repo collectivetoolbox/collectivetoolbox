@@ -162,15 +162,96 @@ pub struct DetectionHint {
     pub extension: Option<String>,
     pub platform: Option<FormatId>,
     pub expected_category: Option<FormatCategory>,
+    pub apple_type_code: Option<[u8; 4]>,
+    pub stream_candidates: Vec<DetectionCandidate>,
+}
+
+/// Types of resource quotas enforced during detection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum DetectionQuotaType {
+    /// Maximum byte inspection window limit reached.
+    ByteBudget,
+    /// Maximum directory entries inspected during bundle probing.
+    BundleEntries,
+    /// Maximum directory or container nesting depth exceeded.
+    RecursionDepth,
+}
+
+/// Detailed outcome of format detection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DetectionOutcome {
+    /// One or more matching format candidates were identified and ranked.
+    Matched(Vec<DetectionCandidate>),
+    /// Insufficient data was available to evaluate candidate signatures
+    /// (e.g., source length is smaller than required minimum magic offset).
+    InsufficientData {
+        available_bytes: u64,
+        required_bytes: u64,
+    },
+    /// A configured quota or resource budget was exhausted during detection.
+    QuotaExhausted {
+        quota_type: DetectionQuotaType,
+        limit: u64,
+    },
+    /// A hardware or OS read error occurred during probing.
+    ReadError {
+        offset: u64,
+        message: String,
+    },
+    /// The source was inspected up to all required bounds and did not
+    /// match any known format signature.
+    TrueNegative {
+        bytes_inspected: u64,
+    },
+}
+
+/// Comprehensive report produced by format detection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetectionReport {
+    /// High-level detection outcome.
+    pub outcome: DetectionOutcome,
+    /// Evaluated candidates (empty on error, insufficient data, or true negative).
+    pub candidates: Vec<DetectionCandidate>,
+    /// Total bytes read and evaluated across all probes.
+    pub bytes_evaluated: u64,
+    /// Whether any attached stream or fork signals were evaluated.
+    pub stream_signals_used: bool,
 }
 
 /// Specific evidence item contributing to a candidate's confidence score.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DetectionEvidence {
-    Magic { description: String, score: u32 },
-    Extension { ext: String, is_primary: bool, score: u32 },
-    PlatformPrior { platform: FormatId, score: u32 },
-    CategoryMatch { category: FormatCategory, score: u32 },
+    Magic {
+        description: String,
+        score: u32,
+    },
+    Extension {
+        ext: String,
+        is_primary: bool,
+        score: u32,
+    },
+    PlatformPrior {
+        platform: FormatId,
+        score: u32,
+    },
+    CategoryMatch {
+        category: FormatCategory,
+        score: u32,
+    },
+    AppleTypeCode {
+        code: [u8; 4],
+        score: u32,
+    },
+    AttachedStream {
+        stream_kind_name: String,
+        detail: String,
+        score: u32,
+    },
+    SubsumedAncestor {
+        parent_id: Option<FormatId>,
+        parent_mime: Option<String>,
+        score: u32,
+    },
 }
 
 /// Output candidate produced by format detection.
@@ -298,13 +379,151 @@ impl DetectionSource for EmptySource {
     }
 }
 
-/// Primary format detection function: evaluates magic byte rules, extensions,
-/// and environment priors to produce ranked format candidates.
-pub fn guess_format_candidates(
+/// Resolves conflicts among format candidates using priority scores and the format
+/// inheritance graph (`sub-class-of`).
+///
+/// Specialized child formats subsume generic parent formats (e.g. `Svg` subsumes `Xml`,
+/// and `Docx` subsumes `Zip`), recording the parent as a subsumed ancestor rather than
+/// creating an artificial conflict. True non-hierarchical ambiguities are classified as
+/// `ConfidenceTier::Conflicted`.
+#[must_use]
+pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> Vec<DetectionCandidate> {
+    if candidates.len() <= 1 {
+        return candidates;
+    }
+
+    let mut subsumed_indices = std::collections::HashSet::new();
+    let num_candidates = candidates.len();
+
+    // 1. Identify subsumption relationships
+    for i in 0..num_candidates {
+        for j in 0..num_candidates {
+            if i == j || subsumed_indices.contains(&j) {
+                continue;
+            }
+            let Some(child_candidate) = candidates.get(i) else {
+                continue;
+            };
+            let Some(parent_candidate) = candidates.get(j) else {
+                continue;
+            };
+
+            let is_subclass = match (child_candidate.format_id, parent_candidate.format_id) {
+                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
+                _ => match (&child_candidate.mime, &parent_candidate.mime) {
+                    (Some(c_mime), Some(p_mime)) => {
+                        FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
+                    }
+                    _ => false,
+                },
+            };
+
+            // If i is a subtype of j and i has equal or higher score (or within 15 points)
+            if is_subclass && child_candidate.score.saturating_add(15) >= parent_candidate.score {
+                subsumed_indices.insert(j);
+            }
+        }
+    }
+
+    // 2. Attach subsumed ancestors as evidence to child formats
+    let parent_summaries: Vec<(usize, Option<FormatId>, Option<String>, u32)> = subsumed_indices
+        .iter()
+        .filter_map(|&sub_idx| {
+            candidates
+                .get(sub_idx)
+                .map(|p| (sub_idx, p.format_id, p.mime.clone(), p.score))
+        })
+        .collect();
+
+    for (i, cand) in candidates.iter_mut().enumerate() {
+        if subsumed_indices.contains(&i) {
+            continue;
+        }
+        for &(_sub_idx, parent_fmt, ref parent_mime, parent_score) in &parent_summaries {
+            let is_subclass = match (cand.format_id, parent_fmt) {
+                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
+                _ => match (&cand.mime, parent_mime) {
+                    (Some(c_mime), Some(p_mime)) => {
+                        FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
+                    }
+                    _ => false,
+                },
+            };
+            if is_subclass {
+                cand.evidence.push(DetectionEvidence::SubsumedAncestor {
+                    parent_id: parent_fmt,
+                    parent_mime: parent_mime.clone(),
+                    score: parent_score,
+                });
+            }
+        }
+    }
+
+    // 3. Demote subsumed candidates in score so they do not compete with their specialization
+    for &idx in &subsumed_indices {
+        if let Some(c) = candidates.get_mut(idx) {
+            c.score = c.score.saturating_sub(30);
+            c.confidence = if c.score >= 65 {
+                ConfidenceTier::Moderate
+            } else {
+                ConfidenceTier::Weak
+            };
+        }
+    }
+
+    // 4. Detect true non-hierarchical conflicts:
+    // If multiple non-subsumed candidates have Strong or HighestConfidence (score >= 70)
+    let non_subsumed_strong_count = candidates
+        .iter()
+        .enumerate()
+        .filter(|(idx, c)| !subsumed_indices.contains(idx) && c.score >= 70)
+        .count();
+
+    if non_subsumed_strong_count > 1 {
+        for (idx, c) in candidates.iter_mut().enumerate() {
+            if !subsumed_indices.contains(&idx) && c.score >= 70 {
+                c.confidence = ConfidenceTier::Conflicted;
+            }
+        }
+    }
+
+    // 5. Final sort: Highest confidence and score first
+    candidates.sort_by(|a, b| {
+        b.confidence
+            .cmp(&a.confidence)
+            .then_with(|| b.score.cmp(&a.score))
+    });
+
+    candidates
+}
+
+/// Primary format detection function returning a comprehensive report.
+pub fn guess_format_report(
     source: &mut dyn DetectionSource,
     hint: Option<&DetectionHint>,
-) -> Vec<DetectionCandidate> {
+) -> Result<DetectionReport> {
     let mut candidates = Vec::new();
+    let mut bytes_evaluated = 0u64;
+    let mut read_error: Option<String> = None;
+
+    if let Some(h) = hint {
+        if let Some(code) = h.apple_type_code {
+            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code) {
+                candidates.push(DetectionCandidate {
+                    format_id: mapping.format_id,
+                    dc_id: Some(mapping.dc_id),
+                    mime: mapping.mime_types.first().cloned(),
+                    description: mapping.label.clone(),
+                    confidence: ConfidenceTier::Strong,
+                    score: 90,
+                    evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
+                });
+            }
+        }
+        for sc in &h.stream_candidates {
+            candidates.push(sc.clone());
+        }
+    }
 
     let hint_ext = hint.and_then(|h| {
         h.extension.as_deref().or_else(|| {
@@ -321,9 +540,12 @@ pub fn guess_format_candidates(
     for entry in MAGIC_REGISTRY {
         let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
         let mut buf = vec![0u8; req_len];
-        if let Ok(n) = source.read_at(0, &mut buf) {
-            let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
-            if is_match {
+        match source.read_at(0, &mut buf) {
+            Ok(n) => {
+                let n_u64 = u64::try_from(n).unwrap_or(0);
+                bytes_evaluated = bytes_evaluated.max(n_u64);
+                let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
+                if is_match {
                 let fmt = entry.format_id;
                 let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
                 let dc_id = mapping.map(|m| m.dc_id);
@@ -378,15 +600,19 @@ pub fn guess_format_candidates(
                     ConfidenceTier::Weak
                 };
 
-                candidates.push(DetectionCandidate {
-                    format_id: Some(fmt),
-                    dc_id,
-                    mime,
-                    description: label,
-                    confidence,
-                    score,
-                    evidence,
-                });
+                    candidates.push(DetectionCandidate {
+                        format_id: Some(fmt),
+                        dc_id,
+                        mime,
+                        description: label,
+                        confidence,
+                        score,
+                        evidence,
+                    });
+                }
+            }
+            Err(e) => {
+                read_error = Some(e.to_string());
             }
         }
     }
@@ -394,6 +620,9 @@ pub fn guess_format_candidates(
     // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
     for rule in COMPILED_MAGIC_RULES.iter() {
         if let Some(match_res) = evaluate_rule(rule, source) {
+            if match_res.description.trim().is_empty() && match_res.mime.is_none() {
+                continue;
+            }
             let mut score = match_res.score;
             let mut evidence = Vec::new();
             evidence.push(DetectionEvidence::Magic {
@@ -596,14 +825,54 @@ pub fn guess_format_candidates(
         }
     }
 
-    // 3. Sort candidates descending by confidence and score
-    candidates.sort_by(|a, b| {
-        b.confidence
-            .cmp(&a.confidence)
-            .then_with(|| b.score.cmp(&a.score))
+    // 3. Resolve candidate conflicts and subsumption hierarchies
+    let resolved = resolve_candidate_conflicts(candidates);
+
+    let stream_signals_used = hint.is_some_and(|h| {
+        !h.stream_candidates.is_empty() || h.apple_type_code.is_some()
     });
 
-    candidates
+    let outcome = if let Some(err) = read_error {
+        DetectionOutcome::ReadError {
+            offset: 0,
+            message: err,
+        }
+    } else if !resolved.is_empty() {
+        DetectionOutcome::Matched(resolved.clone())
+    } else if let Some(total) = source.total_len() {
+        if total < 4 && hint.is_none() {
+            DetectionOutcome::InsufficientData {
+                available_bytes: total,
+                required_bytes: 4,
+            }
+        } else {
+            DetectionOutcome::TrueNegative {
+                bytes_inspected: bytes_evaluated,
+            }
+        }
+    } else {
+        DetectionOutcome::TrueNegative {
+            bytes_inspected: bytes_evaluated,
+        }
+    };
+
+    Ok(DetectionReport {
+        outcome,
+        candidates: resolved,
+        bytes_evaluated,
+        stream_signals_used,
+    })
+}
+
+/// Evaluates magic byte rules, extensions, and environment priors to produce
+/// ranked format candidates.
+pub fn guess_format_candidates(
+    source: &mut dyn DetectionSource,
+    hint: Option<&DetectionHint>,
+) -> Vec<DetectionCandidate> {
+    guess_format_report(source, hint)
+        .map(|rep| rep.candidates)
+        .unwrap_or_default()
 }
 
 /// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
@@ -626,6 +895,7 @@ pub fn detect_format_id(
         extension: None,
         platform: None,
         expected_category,
+        ..Default::default()
     });
 
     let candidates = if let Some(bytes) = data {
@@ -831,6 +1101,104 @@ mod tests {
             Some(FormatCategory::Compression),
         );
         assert_eq!(fmt, Some(FormatId::Brotli));
+    }
+
+    #[ctb_test]
+    fn test_detection_report_outcomes() {
+        // Insufficient data
+        let empty_data: [u8; 0] = [];
+        let mut empty_slice: &[u8] = &empty_data;
+        let report_insufficient = guess_format_report(&mut empty_slice, None).unwrap();
+        assert!(matches!(
+            report_insufficient.outcome,
+            DetectionOutcome::InsufficientData { available_bytes: 0, required_bytes: 4 }
+        ));
+
+        // True negative (random non-matching bytes with no hint)
+        let random_data = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
+        let mut rand_slice: &[u8] = &random_data;
+        let report_neg = guess_format_report(&mut rand_slice, None).unwrap();
+        assert!(
+            matches!(report_neg.outcome, DetectionOutcome::TrueNegative { .. }),
+            "Expected TrueNegative, got: {:?}",
+            report_neg.outcome
+        );
+
+        // Matched
+        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
+        let mut gz_slice: &[u8] = &gzip_data;
+        let report_matched = guess_format_report(&mut gz_slice, None).unwrap();
+        assert!(matches!(report_matched.outcome, DetectionOutcome::Matched(_)));
+        assert_eq!(report_matched.candidates[0].format_id, Some(FormatId::Gzip));
+    }
+
+    #[ctb_test]
+    fn test_resolve_candidate_conflicts_subsumption() {
+        // Construct candidates where one is a child and one is a parent
+        let candidates = vec![
+            DetectionCandidate {
+                format_id: Some(FormatId::IaFilesXml),
+                dc_id: None,
+                mime: Some("application/xml".to_string()),
+                description: "Internet Archive files XML".to_string(),
+                confidence: ConfidenceTier::Strong,
+                score: 85,
+                evidence: vec![DetectionEvidence::Extension {
+                    ext: "xml".to_string(),
+                    is_primary: true,
+                    score: 85,
+                }],
+            },
+            DetectionCandidate {
+                format_id: Some(FormatId::Xml),
+                dc_id: None,
+                mime: Some("application/xml".to_string()),
+                description: "XML".to_string(),
+                confidence: ConfidenceTier::Strong,
+                score: 80,
+                evidence: vec![DetectionEvidence::Magic {
+                    description: "xml_magic".to_string(),
+                    score: 80,
+                }],
+            },
+        ];
+
+        let resolved = resolve_candidate_conflicts(candidates);
+        assert!(!resolved.is_empty());
+        let top = &resolved[0];
+        assert_eq!(top.format_id, Some(FormatId::IaFilesXml));
+        assert!(top.evidence.iter().any(|ev| matches!(
+            ev,
+            DetectionEvidence::SubsumedAncestor { parent_id: Some(p), .. } if *p == FormatId::Xml
+        )));
+    }
+
+    #[ctb_test]
+    fn test_detection_with_stream_and_apple_type_hint() {
+        let empty_data: [u8; 0] = [];
+        let mut empty_slice: &[u8] = &empty_data;
+        let hint = DetectionHint {
+            apple_type_code: Some(*b"TEXT"),
+            stream_candidates: vec![DetectionCandidate {
+                format_id: Some(FormatId::Ascii),
+                dc_id: None,
+                mime: Some("text/plain".to_string()),
+                description: "Mac resource fork plain text".to_string(),
+                confidence: ConfidenceTier::Strong,
+                score: 75,
+                evidence: vec![DetectionEvidence::AttachedStream {
+                    stream_kind_name: "MacResourceFork".to_string(),
+                    detail: "Resource type TEXT".to_string(),
+                    score: 75,
+                }],
+            }],
+            ..Default::default()
+        };
+
+        let report = guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
+        assert!(report.stream_signals_used);
+        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
+        assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
     }
 }
 /*

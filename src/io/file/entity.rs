@@ -287,21 +287,32 @@ impl FileEntity {
     }
 
     /// Guesses file format candidates using multi-signal evidence: magic byte patterns,
-    /// hierarchical libmagic rules, file extension hints, platform priors, and bundle probing.
+    /// Evaluates multiple detection signals including primary payload magic,
+    /// hierarchical libmagic rules, file extension hints, platform priors,
+    /// directory bundle inspection, and attached streams / resource forks.
     pub fn guess_format(
         &self,
         payload: &mut dyn PayloadSource,
     ) -> Vec<ctb_formats_utilities::detection::DetectionCandidate> {
+        self.detect_format_report(payload)
+            .map(|rep| rep.candidates)
+            .unwrap_or_default()
+    }
+
+    /// Evaluates multiple detection signals and produces a comprehensive `DetectionReport`
+    /// distinguishing matches, insufficient data, quota exhaustion, read errors, and true negatives.
+    pub fn detect_format_report(
+        &self,
+        payload: &mut dyn PayloadSource,
+    ) -> Result<ctb_formats_utilities::detection::DetectionReport> {
         let filename = self
             .identity
             .relative_path
             .file_name()
             .and_then(|n| n.to_str());
 
-        // Infer platform prior from Apple metadata, enclosing archive format, or recorded OS environment
-        let platform = if self.metadata.apple.is_some() {
-            Some(ctb_formats_utilities::format_id::FormatId::MacOs)
-        } else if let crate::file::identity::FileOrigin::Archive {
+        // Infer platform prior from archive origin (strongest), Apple metadata, or recorded environment
+        let origin_archive_os = if let crate::file::identity::FileOrigin::Archive {
             archive_format,
             ..
         } = &self.identity.origin
@@ -309,6 +320,12 @@ impl FileEntity {
             ctb_formats_utilities::FORMAT_CATALOG
                 .lookup_ident(archive_format)
                 .and_then(|m| m.os_associations.first().copied())
+        } else {
+            None
+        };
+
+        let env_platform = if self.metadata.apple.is_some() {
+            Some(ctb_formats_utilities::format_id::FormatId::MacOs)
         } else if let Some(env) = self.environment() {
             let lower_os = env.os.to_ascii_lowercase();
             if lower_os.contains("darwin")
@@ -329,35 +346,175 @@ impl FileEntity {
             ctb_formats_utilities::detection::current_platform_os()
         };
 
+        let base_platform = origin_archive_os.or(env_platform);
+
+        // Extract Apple Type code from FinderInfo if present
+        let apple_type_code = self.metadata.apple.as_ref().and_then(|app| {
+            app.finder_info.as_ref().and_then(|info| {
+                let bytes = info.file_type.as_bytes();
+                if bytes.len() == 4 && bytes != b"\0\0\0\0" && bytes != b"    " {
+                    let mut code = [0u8; 4];
+                    code.copy_from_slice(bytes);
+                    Some(code)
+                } else {
+                    None
+                }
+            })
+        });
+
+        // Inspect attached streams / forks as rich detection signals
+        let mut stream_candidates = Vec::new();
+        let mut stream_platform = None;
+        for stream in &self.streams {
+            match stream.kind {
+                crate::file::StreamKind::MacOsResourceFork => {
+                    stream_platform = Some(ctb_formats_utilities::format_id::FormatId::MacOs);
+                    if let Some(ref data) = stream.data {
+                        let type_codes =
+                            ctb_formats_utilities::extract_resource_fork_type_codes(data);
+                        for code in type_codes {
+                            if let Some(mapping) =
+                                ctb_formats_utilities::FORMAT_CATALOG.lookup_apple_type_code(&code)
+                            {
+                                stream_candidates.push(
+                                    ctb_formats_utilities::detection::DetectionCandidate {
+                                        format_id: mapping.format_id,
+                                        dc_id: Some(mapping.dc_id),
+                                        mime: mapping.mime_types.first().cloned(),
+                                        description: mapping.label.clone(),
+                                        confidence:
+                                            ctb_formats_utilities::detection::ConfidenceTier::HighestConfidence,
+                                        score: 95,
+                                        evidence: vec![
+                                            ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
+                                                stream_kind_name: "MacOsResourceFork".to_string(),
+                                                detail: format!(
+                                                    "Resource fork type code '{}'",
+                                                    String::from_utf8_lossy(&code)
+                                                ),
+                                                score: 95,
+                                            },
+                                        ],
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+                crate::file::StreamKind::NtfsAlternateDataStream => {
+                    stream_platform = Some(ctb_formats_utilities::format_id::FormatId::Windows);
+                    if let Some(ref name) = stream.name {
+                        let name_lossy = name.to_string_lossy();
+                        if name_lossy.contains("Zone.Identifier") {
+                            stream_candidates.push(
+                                ctb_formats_utilities::detection::DetectionCandidate {
+                                    format_id: None,
+                                    dc_id: None,
+                                    mime: None,
+                                    description: "Windows Internet Zone Transfer Identifier"
+                                        .to_string(),
+                                    confidence:
+                                        ctb_formats_utilities::detection::ConfidenceTier::Moderate,
+                                    score: 40,
+                                    evidence: vec![
+                                        ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
+                                            stream_kind_name: "NtfsAlternateDataStream".to_string(),
+                                            detail: "Zone.Identifier".to_string(),
+                                            score: 40,
+                                        },
+                                    ],
+                                },
+                            );
+                        }
+                    }
+                }
+                crate::file::StreamKind::ExtendedAttribute => {
+                    if let Some(ref name) = stream.name {
+                        let name_lossy = name.to_string_lossy();
+                        if name_lossy == "user.mime_type" || name_lossy == "xdg.mime.type" {
+                            if let Some(ref data) = stream.data {
+                                if let Ok(mime_str) = std::str::from_utf8(data) {
+                                    let clean_mime = mime_str.trim().trim_matches('\0');
+                                    if let Some(mapping) =
+                                        ctb_formats_utilities::FORMAT_CATALOG.lookup_mime(clean_mime)
+                                    {
+                                        stream_candidates.push(
+                                            ctb_formats_utilities::detection::DetectionCandidate {
+                                                format_id: mapping.format_id,
+                                                dc_id: Some(mapping.dc_id),
+                                                mime: Some(clean_mime.to_string()),
+                                                description: mapping.label.clone(),
+                                                confidence:
+                                                    ctb_formats_utilities::detection::ConfidenceTier::Strong,
+                                                score: 85,
+                                                evidence: vec![
+                                                    ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
+                                                        stream_kind_name: "ExtendedAttribute".to_string(),
+                                                        detail: format!(
+                                                            "Explicit xattr MIME '{}'",
+                                                            clean_mime
+                                                        ),
+                                                        score: 85,
+                                                    },
+                                                ],
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let effective_platform = stream_platform.or(base_platform);
+
         let hint = ctb_formats_utilities::detection::DetectionHint {
             filename: filename.map(|s| s.to_string()),
             extension: None,
-            platform,
+            platform: effective_platform,
             expected_category: None,
+            apple_type_code,
+            stream_candidates,
         };
 
         // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.
         if let FileEntityKind::Directory = self.kind {
             if let Some(name) = filename {
-                if name.ends_with(".app") || name.ends_with(".framework") || name.ends_with(".bundle") {
-                    return vec![ctb_formats_utilities::detection::DetectionCandidate {
+                if name.ends_with(".app")
+                    || name.ends_with(".framework")
+                    || name.ends_with(".bundle")
+                {
+                    let candidate = ctb_formats_utilities::detection::DetectionCandidate {
                         format_id: None,
                         dc_id: None,
                         mime: Some("application/x-apple-application".to_string()),
                         description: "macOS Application Bundle".to_string(),
                         confidence: ctb_formats_utilities::detection::ConfidenceTier::Strong,
                         score: 75,
-                        evidence: vec![ctb_formats_utilities::detection::DetectionEvidence::Extension {
-                            ext: "app".to_string(),
-                            is_primary: true,
-                            score: 75,
-                        }],
-                    }];
+                        evidence: vec![
+                            ctb_formats_utilities::detection::DetectionEvidence::Extension {
+                                ext: "app".to_string(),
+                                is_primary: true,
+                                score: 75,
+                            },
+                        ],
+                    };
+                    return Ok(ctb_formats_utilities::detection::DetectionReport {
+                        outcome: ctb_formats_utilities::detection::DetectionOutcome::Matched(vec![
+                            candidate.clone(),
+                        ]),
+                        candidates: vec![candidate],
+                        bytes_evaluated: 0,
+                        stream_signals_used: false,
+                    });
                 }
             }
         }
 
-        ctb_formats_utilities::detection::guess_format_candidates(payload, Some(&hint))
+        ctb_formats_utilities::detection::guess_format_report(payload, Some(&hint))
     }
 
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`),
@@ -1405,6 +1562,43 @@ mod tests {
         assert_eq!(
             top.confidence,
             ctb_formats_utilities::detection::ConfidenceTier::HighestConfidence
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_file_entity_detect_format_report_with_resource_fork() {
+        let temp = tempfile::tempdir().unwrap();
+        let empty_path = temp.path().join("mac_sound");
+        std::fs::write(&empty_path, []).unwrap();
+
+        let mut entity = FileEntity::from_filesystem(&empty_path, None).unwrap();
+
+        // Construct mock resource fork with 'alis' OSType (MacAlias)
+        let mut fork = vec![0u8; 100];
+        fork[0..4].copy_from_slice(&256u32.to_be_bytes());
+        fork[4..8].copy_from_slice(&16u32.to_be_bytes());
+        fork[8..12].copy_from_slice(&0u32.to_be_bytes());
+        fork[12..16].copy_from_slice(&60u32.to_be_bytes());
+        fork[40..42].copy_from_slice(&28u16.to_be_bytes());
+        fork[44..46].copy_from_slice(&0u16.to_be_bytes()); // 1 type
+        fork[46..50].copy_from_slice(b"alis");
+
+        let stream_entity = entity.clone();
+        entity.streams.push(crate::file::streams::AttachedStream {
+            name: None,
+            kind: crate::file::streams::StreamKind::MacOsResourceFork,
+            entity: Box::new(stream_entity),
+            data: Some(fork),
+        });
+
+        let mut source = crate::file::payload::DiskPayloadSource::open(&empty_path).unwrap();
+        let report = entity.detect_format_report(&mut source).unwrap();
+
+        assert!(report.stream_signals_used);
+        assert!(!report.candidates.is_empty());
+        assert_eq!(
+            report.candidates[0].format_id,
+            Some(ctb_formats_utilities::format_id::FormatId::MacAlias)
         );
     }
 }

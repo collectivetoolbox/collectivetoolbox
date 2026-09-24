@@ -88,6 +88,14 @@ pub struct FormatMapping {
     pub mime_types: Vec<String>,
     /// Associated operating systems extracted from `@os(...)` format shorthands.
     pub os_associations: Vec<FormatId>,
+    /// Associated Apple Uniform Type Identifiers (UTIs) from column 8.
+    pub apple_utis: Vec<String>,
+    /// Associated 4-character Apple Type / OSType codes from column 9.
+    pub apple_type_codes: Vec<[u8; 4]>,
+    /// Parent formats inherited from `@based_on(...)` or `@implies(...)`.
+    pub parent_formats: Vec<FormatId>,
+    /// Parent format names or shorthands inherited from `@based_on(...)` or `@implies(...)`.
+    pub parent_idents: Vec<String>,
 }
 
 impl FormatMapping {
@@ -100,6 +108,212 @@ impl FormatMapping {
     }
 }
 
+/// Universal directed inheritance graph representing format specialization
+/// and MIME inheritance relationships (`sub-class-of`).
+///
+/// Models subtype hierarchies across all workspace formats (whether or not
+/// they have an associated MIME type) as well as MIME media type hierarchies.
+#[derive(Debug, Default, Clone)]
+pub struct FormatInheritanceGraph {
+    parents_by_format: HashMap<FormatId, Vec<FormatId>>,
+    parents_by_ident: HashMap<String, Vec<String>>,
+    parents_by_mime: HashMap<String, Vec<String>>,
+}
+
+impl FormatInheritanceGraph {
+    /// Registers a parent format for a child format.
+    pub fn add_format_parent(&mut self, child: FormatId, parent: FormatId) {
+        if child == parent {
+            return;
+        }
+        let entry = self.parents_by_format.entry(child).or_default();
+        if !entry.contains(&parent) {
+            entry.push(parent);
+        }
+    }
+
+    /// Registers a parent format identity for a child format identity.
+    /// This works with inheritance relationships between formats with no MIME type.
+    pub fn add_ident_parent(&mut self, child: &str, parent: &str) {
+        let child_norm = child.trim().to_ascii_lowercase();
+        let parent_norm = parent.trim().to_ascii_lowercase();
+        if child_norm.is_empty() || parent_norm.is_empty() || child_norm == parent_norm {
+            return;
+        }
+        let entry = self.parents_by_ident.entry(child_norm).or_default();
+        if !entry.contains(&parent_norm) {
+            entry.push(parent_norm);
+        }
+    }
+
+    /// Registers a parent MIME type for a child MIME type.
+    pub fn add_mime_parent(&mut self, child_mime: String, parent_mime: String) {
+        let child_norm = child_mime.trim().to_ascii_lowercase();
+        let parent_norm = parent_mime.trim().to_ascii_lowercase();
+        if child_norm.is_empty() || parent_norm.is_empty() || child_norm == parent_norm {
+            return;
+        }
+        let entry = self.parents_by_mime.entry(child_norm).or_default();
+        if !entry.contains(&parent_norm) {
+            entry.push(parent_norm);
+        }
+    }
+
+    /// Checks whether `child` is a subclass/specialization of `parent`
+    /// (either directly or transitively).
+    #[must_use]
+    pub fn is_subclass_of(&self, child: FormatId, parent: FormatId) -> bool {
+        if child == parent {
+            return true;
+        }
+        let mut visited = Vec::new();
+        let mut queue = vec![child];
+        while let Some(current) = queue.pop() {
+            if visited.contains(&current) {
+                continue;
+            }
+            visited.push(current);
+            if let Some(parents) = self.parents_by_format.get(&current) {
+                for &p in parents {
+                    if p == parent {
+                        return true;
+                    }
+                    if !visited.contains(&p) {
+                        queue.push(p);
+                    }
+                }
+            }
+        }
+        let child_ident = format!("{child:?}");
+        let parent_ident = format!("{parent:?}");
+        self.is_ident_subclass_of(&child_ident, &parent_ident)
+    }
+
+    /// Checks whether `child` format identity is a subclass/specialization of `parent` format identity
+    /// (either directly or transitively). Works for formats with or without MIME types.
+    #[must_use]
+    pub fn is_ident_subclass_of(&self, child: &str, parent: &str) -> bool {
+        let child_norm = child.trim().to_ascii_lowercase();
+        let parent_norm = parent.trim().to_ascii_lowercase();
+        if child_norm == parent_norm {
+            return true;
+        }
+        let mut visited = Vec::new();
+        let mut queue = vec![child_norm];
+        while let Some(current) = queue.pop() {
+            if visited.contains(&current) {
+                continue;
+            }
+            visited.push(current.clone());
+            if let Some(parents) = self.parents_by_ident.get(&current) {
+                for p in parents {
+                    if p == &parent_norm {
+                        return true;
+                    }
+                    if !visited.contains(p) {
+                        queue.push(p.clone());
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Checks whether `child_mime` is a subclass of `parent_mime`
+    /// (either directly or transitively).
+    #[must_use]
+    pub fn is_mime_subclass_of(&self, child_mime: &str, parent_mime: &str) -> bool {
+        let child_norm = child_mime.trim().to_ascii_lowercase();
+        let parent_norm = parent_mime.trim().to_ascii_lowercase();
+        if child_norm == parent_norm {
+            return true;
+        }
+        let mut visited = Vec::new();
+        let mut queue = vec![child_norm];
+        while let Some(current) = queue.pop() {
+            if visited.contains(&current) {
+                continue;
+            }
+            visited.push(current.clone());
+
+            let mut dynamic_parents = Vec::new();
+            if current.ends_with("+xml") && current != "application/xml" {
+                dynamic_parents.push("application/xml".to_string());
+            }
+            if current == "application/xml"
+                || current == "text/xml"
+                || (current.starts_with("text/") && current != "text/plain")
+                || current.ends_with("+json")
+            {
+                dynamic_parents.push("text/plain".to_string());
+            }
+            if current.ends_with("+zip") && current != "application/zip" {
+                dynamic_parents.push("application/zip".to_string());
+            }
+            if current.ends_with("+json") && current != "application/json" {
+                dynamic_parents.push("application/json".to_string());
+            }
+
+            for dp in dynamic_parents {
+                if dp == parent_norm {
+                    return true;
+                }
+                if !visited.contains(&dp) {
+                    queue.push(dp);
+                }
+            }
+
+            if let Some(parents) = self.parents_by_mime.get(&current) {
+                for p in parents {
+                    if p == &parent_norm {
+                        return true;
+                    }
+                    if !visited.contains(p) {
+                        queue.push(p.clone());
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    /// Returns direct and indirect ancestors of a format.
+    #[must_use]
+    pub fn ancestors(&self, format: FormatId) -> Vec<FormatId> {
+        let mut ancestors = Vec::new();
+        let mut queue = vec![format];
+        while let Some(current) = queue.pop() {
+            if let Some(parents) = self.parents_by_format.get(&current) {
+                for &p in parents {
+                    if !ancestors.contains(&p) {
+                        ancestors.push(p);
+                        queue.push(p);
+                    }
+                }
+            }
+        }
+        ancestors
+    }
+
+    /// Returns direct and indirect ancestors of a format by ident string.
+    #[must_use]
+    pub fn ident_ancestors(&self, ident: &str) -> Vec<String> {
+        let mut ancestors = Vec::new();
+        let mut queue = vec![ident.trim().to_ascii_lowercase()];
+        while let Some(current) = queue.pop() {
+            if let Some(parents) = self.parents_by_ident.get(&current) {
+                for p in parents {
+                    if !ancestors.contains(p) {
+                        ancestors.push(p.clone());
+                        queue.push(p.clone());
+                    }
+                }
+            }
+        }
+        ancestors
+    }
+}
+
 /// Consolidated lookup table mapping MIME types, extensions, and idents to
 /// format mappings.
 #[derive(Debug, Default)]
@@ -107,6 +321,10 @@ pub struct FormatCatalog {
     by_mime: HashMap<String, FormatMapping>,
     by_ident: HashMap<String, FormatMapping>,
     by_extension: HashMap<String, Vec<FormatMapping>>,
+    by_apple_type: HashMap<[u8; 4], FormatMapping>,
+    by_apple_uti: HashMap<String, FormatMapping>,
+    by_format_id: HashMap<FormatId, FormatMapping>,
+    inheritance: FormatInheritanceGraph,
 }
 
 impl FormatCatalog {
@@ -189,6 +407,8 @@ impl FormatCatalog {
                     .collect();
 
                 let mut os_associations = Vec::new();
+                let mut parent_formats = Vec::new();
+                let mut parent_idents = Vec::new();
                 if !aliases_base_field.is_empty() {
                     let mut report =
                         ctb_formats_dcdata::report::ValidationReport::default();
@@ -207,7 +427,55 @@ impl FormatCatalog {
                             }
                         }
                     }
+                    for parent_expr in parsed.implies.iter().chain(parsed.based_on.iter()) {
+                        for token in parent_expr.split(['&', '|', ',', ' ']) {
+                            let trimmed = token.trim();
+                            if trimmed.is_empty() {
+                                continue;
+                            }
+                            if !parent_idents.contains(&trimmed.to_string()) {
+                                parent_idents.push(trimmed.to_string());
+                            }
+                            if let Some(parent_fid) = FormatId::from_shorthand(trimmed) {
+                                if !parent_formats.contains(&parent_fid) {
+                                    parent_formats.push(parent_fid);
+                                }
+                            }
+                        }
+                    }
                 }
+
+                let uti_field = get_cell(8);
+                let apple_type_field = get_cell(9);
+
+                let apple_utis: Vec<String> = uti_field
+                    .split(',')
+                    .map(|s| s.trim().trim_matches('"').to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+
+                let apple_type_codes: Vec<[u8; 4]> = apple_type_field
+                    .split(',')
+                    .filter_map(|s| {
+                        let trimmed = s.trim().trim_matches('"').trim_matches('\'');
+                        let bytes = trimmed.as_bytes();
+                        if bytes.len() == 4 {
+                            let mut arr = [0u8; 4];
+                            arr.copy_from_slice(bytes);
+                            Some(arr)
+                        } else if !bytes.is_empty() && bytes.len() < 4 {
+                            let mut arr = [b' '; 4];
+                            if let Some(target) = arr.get_mut(..bytes.len()) {
+                                target.copy_from_slice(bytes);
+                                Some(arr)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
 
                 let nicknames_field = get_cell(10);
                 let nicknames: Vec<String> = nicknames_field
@@ -232,6 +500,10 @@ impl FormatCatalog {
                     extensions: extensions.clone(),
                     mime_types: mime_types.clone(),
                     os_associations,
+                    apple_utis: apple_utis.clone(),
+                    apple_type_codes: apple_type_codes.clone(),
+                    parent_formats,
+                    parent_idents,
                 };
 
                 if !ident.is_empty() {
@@ -257,6 +529,24 @@ impl FormatCatalog {
                         .entry(ext.to_ascii_lowercase())
                         .or_default()
                         .push(mapping.clone());
+                }
+
+                for &type_code in &apple_type_codes {
+                    catalog
+                        .by_apple_type
+                        .entry(type_code)
+                        .or_insert_with(|| mapping.clone());
+                }
+
+                for uti in &apple_utis {
+                    catalog
+                        .by_apple_uti
+                        .entry(uti.to_ascii_lowercase())
+                        .or_insert_with(|| mapping.clone());
+                }
+
+                if let Some(fid) = format_id {
+                    catalog.by_format_id.insert(fid, mapping.clone());
                 }
             }
         }
@@ -296,7 +586,103 @@ impl FormatCatalog {
             }
         }
 
+        // Populate inheritance graph edges from format relationships and MIME subtypes
+        for mapping in catalog.by_ident.values() {
+            for parent_ident in &mapping.parent_idents {
+                catalog
+                    .inheritance
+                    .add_ident_parent(&mapping.ident, parent_ident);
+            }
+            if let Some(child_id) = mapping.format_id {
+                for &parent_id in &mapping.parent_formats {
+                    catalog.inheritance.add_format_parent(child_id, parent_id);
+                }
+            }
+            if let Some(child_mime) = mapping.mime_types.first() {
+                for &parent_id in &mapping.parent_formats {
+                    if let Some(parent_mapping) = catalog.by_format_id.get(&parent_id) {
+                        if let Some(parent_mime) = parent_mapping.mime_types.first() {
+                            catalog
+                                .inheritance
+                                .add_mime_parent(child_mime.clone(), parent_mime.clone());
+                        }
+                    }
+                }
+                if child_mime.ends_with("+xml") && child_mime != "application/xml" {
+                    catalog
+                        .inheritance
+                        .add_mime_parent(child_mime.clone(), "application/xml".to_string());
+                }
+                if child_mime == "application/xml"
+                    || child_mime == "text/xml"
+                    || (child_mime.starts_with("text/") && child_mime != "text/plain")
+                    || child_mime.ends_with("+json")
+                {
+                    catalog
+                        .inheritance
+                        .add_mime_parent(child_mime.clone(), "text/plain".to_string());
+                }
+                if child_mime.ends_with("+zip") && child_mime != "application/zip" {
+                    catalog
+                        .inheritance
+                        .add_mime_parent(child_mime.clone(), "application/zip".to_string());
+                }
+            }
+        }
+
         catalog
+    }
+
+    /// Looks up a format mapping by 4-byte Apple Type / OSType code.
+    #[must_use]
+    pub fn lookup_apple_type_code(&self, code: &[u8; 4]) -> Option<&FormatMapping> {
+        self.by_apple_type.get(code)
+    }
+
+    /// Looks up a format mapping by Apple Uniform Type Identifier (UTI).
+    #[must_use]
+    pub fn lookup_apple_uti(&self, uti: &str) -> Option<&FormatMapping> {
+        self.by_apple_uti.get(&uti.trim().to_ascii_lowercase())
+    }
+
+    /// Looks up a format mapping by its authoritative `FormatId`.
+    #[must_use]
+    pub fn lookup_format_id(&self, format_id: FormatId) -> Option<&FormatMapping> {
+        self.by_format_id.get(&format_id)
+    }
+
+    /// Reference to the global format inheritance graph.
+    #[must_use]
+    pub const fn inheritance(&self) -> &FormatInheritanceGraph {
+        &self.inheritance
+    }
+
+    /// Checks whether `child` is a subclass of `parent` in the inheritance graph.
+    #[must_use]
+    pub fn is_subclass_of(&self, child: FormatId, parent: FormatId) -> bool {
+        self.inheritance.is_subclass_of(child, parent)
+    }
+
+    /// Checks whether `child` format identity is a subclass of `parent` format identity.
+    /// Works for formats with or without MIME types.
+    #[must_use]
+    pub fn is_ident_subclass_of(&self, child: &str, parent: &str) -> bool {
+        self.inheritance.is_ident_subclass_of(child, parent)
+    }
+
+    /// Checks whether `child_mime` is a subclass of `parent_mime`.
+    #[must_use]
+    pub fn is_mime_subclass_of(&self, child_mime: &str, parent_mime: &str) -> bool {
+        if self.inheritance.is_mime_subclass_of(child_mime, parent_mime) {
+            return true;
+        }
+        if let (Some(c_fmt), Some(p_fmt)) = (
+            self.lookup_mime(child_mime).and_then(|m| m.format_id),
+            self.lookup_mime(parent_mime).and_then(|m| m.format_id),
+        ) {
+            return self.is_subclass_of(c_fmt, p_fmt);
+        }
+        false
     }
 
     /// Looks up a format mapping by exact MIME type.
@@ -344,6 +730,53 @@ impl FormatCatalog {
 /// Global shared format catalog instance.
 pub static FORMAT_CATALOG: LazyLock<FormatCatalog> =
     LazyLock::new(FormatCatalog::build);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[ctb_test]
+    fn test_format_inheritance_graph_non_mime() {
+        let mut graph = FormatInheritanceGraph::default();
+        // Models relationships between formats that have NO MIME type
+        graph.add_ident_parent("U32", "Integer");
+        graph.add_ident_parent("Integer", "AbstractNumber");
+
+        assert!(graph.is_ident_subclass_of("U32", "Integer"));
+        assert!(graph.is_ident_subclass_of("U32", "AbstractNumber"));
+        assert!(graph.is_ident_subclass_of("Integer", "AbstractNumber"));
+        assert!(!graph.is_ident_subclass_of("Integer", "U32"));
+        assert!(!graph.is_ident_subclass_of("AbstractNumber", "U32"));
+        assert_eq!(
+            graph.ident_ancestors("U32"),
+            vec!["integer".to_string(), "abstractnumber".to_string()]
+        );
+    }
+
+    #[ctb_test]
+    fn test_format_inheritance_graph_mime_structural() {
+        let graph = &FORMAT_CATALOG.inheritance;
+        // SVG specializes XML
+        assert!(graph.is_mime_subclass_of("image/svg+xml", "application/xml"));
+        // XML specializes text/plain
+        assert!(graph.is_mime_subclass_of("application/xml", "text/plain"));
+        // Transitive: SVG specializes text/plain
+        assert!(graph.is_mime_subclass_of("image/svg+xml", "text/plain"));
+    }
+
+    #[ctb_test]
+    fn test_format_catalog_apple_type_lookup() {
+        // Confirm dynamic catalog lookups without hardcoded mappings in code
+        let text_res = FORMAT_CATALOG.lookup_apple_type_code(b"TEXT");
+        if let Some(m) = text_res {
+            assert!(
+                m.ident.contains("text")
+                    || m.category.contains("text")
+                    || m.mime_types.contains(&"text/plain".to_string())
+            );
+        }
+    }
+}
 /*
 
 Text of LICENSE from DROID:
