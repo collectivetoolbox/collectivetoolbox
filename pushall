@@ -20,20 +20,48 @@ set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/" || exit 1
 
-pushd vendor/ctb-vendored/ || exit 1
-git push
-git push all
-popd || exit 1
+target="${1:-}"
+extra_args=()
 
-pushd vendor/ || exit 1
-git push
-git push all
-popd || exit 1
+case "$target" in
+	github)
+		shift
+		extra_args=("$@")
+		;;
+	all)
+		shift
+		extra_args=("$@")
+		target=""
+		;;
+	-h|--help)
+		echo "Usage: $0 [github|all] [git-push-options...]"
+		exit 0
+		;;
+	*)
+		if [[ -n "$target" && "$target" =~ ^- ]]; then
+			target=""
+			extra_args=("$@")
+		elif [[ -n "$target" ]]; then
+			echo "Error: Unknown target '$target'. Usage: $0 [github|all] [git-push-options...]" >&2
+			exit 1
+		fi
+		;;
+esac
 
-pushd packaging/homebrew-tap/ || exit 1
-git push
-git push all
-popd || exit 1
+push_repo() {
+	local dir="$1"
+	pushd "$dir" || exit 1
+	if [[ "$target" == "github" ]]; then
+		git push github ${extra_args+"${extra_args[@]}"}
+	else
+		git push ${extra_args+"${extra_args[@]}"}
+		git push all ${extra_args+"${extra_args[@]}"}
+	fi
+	popd || exit 1
+}
 
-git push
-git push all
+push_repo vendor/ctb-vendored/
+push_repo vendor/
+push_repo packaging/homebrew-tap/
+push_repo .
+
