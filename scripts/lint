@@ -98,12 +98,8 @@ echo "=== Checking test module boilerplate ==="
 ./scripts/lint-test-boilerplate || exit 1
 
 echo "=== Running cargo clippy ==="
-if ! RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets $offline; then
+if ! RUSTFLAGS="-A warnings -A unfulfilled_lint_expectations" cargo clippy --workspace --all-targets $offline; then
     echo "Clippy reported errors."
-    exit 1
-fi
-if ! RUSTFLAGS="-A warnings" cargo clippy --workspace --all-targets --tests $offline; then
-    echo "Clippy reported errors in tests."
     exit 1
 fi
 

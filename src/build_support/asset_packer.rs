@@ -101,6 +101,22 @@ fn symlink_in_dir(path: &Path, dir: &Path) -> Result<PathBuf> {
     Ok(path.to_path_buf())
 }
 
+fn should_copy(src: &Path, dst: &Path) -> bool {
+    let Ok(src_meta) = fs::metadata(src) else {
+        return true;
+    };
+    let Ok(dst_meta) = fs::metadata(dst) else {
+        return true;
+    };
+    if src_meta.len() != dst_meta.len() {
+        return true;
+    }
+    match (src_meta.modified(), dst_meta.modified()) {
+        (Ok(src_time), Ok(dst_time)) => src_time > dst_time,
+        _ => true,
+    }
+}
+
 /// Recursively copies a directory from `src` to `dst`.
 fn copy_dir_recursive(
     src: &Path,
@@ -120,10 +136,13 @@ fn copy_dir_recursive(
 
     if canonical_src.is_dir() {
         fs::create_dir_all(dst)?;
+        let mut src_names = HashSet::new();
         for entry in fs::read_dir(&canonical_src)? {
             let entry = entry?;
             let src_path = entry.path();
-            let dst_path = dst.join(entry.file_name());
+            let file_name = entry.file_name();
+            let dst_path = dst.join(&file_name);
+            src_names.insert(file_name);
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
                 copy_dir_recursive(
                     &src_path,
@@ -134,14 +153,31 @@ fn copy_dir_recursive(
             } else {
                 // For files (including symlink files), validate target before copying
                 symlink_in_dir(&src_path, workspace_root_canon)?;
-                fs::copy(&src_path, &dst_path)?;
+                if should_copy(&src_path, &dst_path) {
+                    fs::copy(&src_path, &dst_path)?;
+                }
+            }
+        }
+        // Prune entries in dst that no longer exist in src
+        if let Ok(entries) = fs::read_dir(dst) {
+            for entry in entries.flatten() {
+                if !src_names.contains(&entry.file_name()) {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        let _ = fs::remove_dir_all(&path);
+                    } else {
+                        let _ = fs::remove_file(&path);
+                    }
+                }
             }
         }
     } else {
         // single file
         symlink_in_dir(&canonical_src, workspace_root_canon)?;
         fs::create_dir_all(dst.parent().unwrap_or_else(|| Path::new(".")))?;
-        fs::copy(&canonical_src, dst)?;
+        if should_copy(&canonical_src, dst) {
+            fs::copy(&canonical_src, dst)?;
+        }
     }
     Ok(())
 }
@@ -432,6 +468,23 @@ fn write_resource_bundle(
     stage_dir: &Path,
     bundle_path: &Path,
 ) -> Result<(String, String)> {
+    if bundle_path.is_file() {
+        if let Ok(meta) = fs::metadata(bundle_path) {
+            if let Ok(bundle_mtime) = meta.modified() {
+                if !is_any_file_newer(stage_dir, bundle_mtime).unwrap_or(true) {
+                    if let Some(existing_header) =
+                        read_existing_asset_bundle_header(bundle_path)?
+                    {
+                        let sha256_hex = asset_bundle_format::format_sha256_hex(
+                            &existing_header.content_sha256,
+                        );
+                        return Ok((existing_header.bundle_uuid.to_string(), sha256_hex));
+                    }
+                }
+            }
+        }
+    }
+
     let mut entries = Vec::new();
     collect_bundle_entries(stage_dir, stage_dir, &mut entries)?;
 
@@ -700,7 +753,7 @@ fn prepare_runtime_assets(
     options: &PrepareOptions,
 ) -> Result<RuntimeAssetsResult> {
     let runtime_assets = project_root.join("built/assets");
-    reset_dir(&runtime_assets)?;
+    fs::create_dir_all(&runtime_assets)?;
 
     let workspace_root_canon = fs::canonicalize(project_root)
         .unwrap_or_else(|_| project_root.to_path_buf());

@@ -13,7 +13,6 @@ ProductName = "Collective Toolbox"
 LegalCopyright = "Licensed under the AGPL 3+. See license text in application for details."
 
 [profile.dev]
-incremental = false
 debug = 1
 split-debuginfo = "unpacked"
 
