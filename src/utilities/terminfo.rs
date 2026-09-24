@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See full license details at end of this file.
 
-//! Embedded pure-Rust terminfo database parser and query interface.
+//! Embedded terminfo database parser and query interface.
 //!
 //! Parses bundled ncurses and xterm terminfo source files
 //! (`terminfo.src.ncurses` and `terminfo.xterm`), resolves entry inheritance
