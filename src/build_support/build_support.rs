@@ -21,6 +21,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod asset_packer;
 pub mod fnv;
+pub mod format_id_codegen;
 pub mod ipc_codegen;
 pub mod license_consts;
 pub mod seabios_builder;

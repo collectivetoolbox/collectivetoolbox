@@ -442,10 +442,11 @@ pub fn detect_terminal_capabilities_for(
             Terminfo::from_name(term)
         };
 
+        // Reason for fallback: unconfirmed terminals lacking cursor addressing capability default to teleprinter mode
         let is_teleprinter = term == "dumb"
             || term_info
                 .as_ref()
-                .map_or(false, |info| !info.can_cursor_address());
+                .map_or(true, |info| !info.can_cursor_address());
 
         if is_teleprinter {
             device_caps.push(FormatId::Teleprinter);
@@ -456,20 +457,23 @@ pub fn detect_terminal_capabilities_for(
             device_caps.push(FormatId::Videoterminal);
             terminal_caps.push(FormatId::Videoterminal);
 
+            // Reason for fallback: unconfirmed cursor addressing capability defaults to false to avoid sending unsupported escape sequences
             let can_edit_past_lines = term_info
                 .as_ref()
-                .map_or(true, Terminfo::can_cursor_address);
+                .map_or(false, Terminfo::can_cursor_address);
             if can_edit_past_lines {
                 terminal_caps.push(FormatId::TerminalCanEditPastLines);
             }
 
+            // Reason for fallback: unconfirmed line editing capability defaults to false to avoid sending unsupported escape sequences
             let can_edit = term_info
                 .as_ref()
-                .map_or(true, Terminfo::can_edit_line);
+                .map_or(false, Terminfo::can_edit_line);
             if can_edit {
                 terminal_caps.push(FormatId::TerminalCanEdit);
             }
 
+            // Reason for fallback: unconfirmed VT100 compatibility defaults to false to avoid sending unsupported control sequences
             let is_vt100 = term_info
                 .as_ref()
                 .map_or(false, Terminfo::is_vt100_compatible);
@@ -478,6 +482,7 @@ pub fn detect_terminal_capabilities_for(
             }
 
             // Note: User-facing CLI or pc_settings configuration may be added later.
+            // Reason for fallback: unconfirmed mouse reporting capability defaults to false to avoid sending unsupported escape sequences
             let has_mouse = term_info
                 .as_ref()
                 .map_or(false, Terminfo::has_mouse);
@@ -489,6 +494,7 @@ pub fn detect_terminal_capabilities_for(
             let colorterm = env::var("COLORTERM")
                 .unwrap_or_default()
                 .to_ascii_lowercase();
+            // Reason for fallback: unconfirmed 24-bit color capability defaults to false to avoid emitting unhandled escape sequences
             let is_truecolor = colorterm == "truecolor"
                 || colorterm == "24bit"
                 || term_info
@@ -498,9 +504,10 @@ pub fn detect_terminal_capabilities_for(
             if is_truecolor {
                 terminal_caps.push(FormatId::TerminalColors24bit);
             } else {
+                // Reason for fallback: unconfirmed color count defaults to 0 monochrome baseline to avoid printing unsupported color sequences
                 let max_colors = term_info
                     .as_ref()
-                    .map_or(8, Terminfo::max_colors);
+                    .map_or(0, Terminfo::max_colors);
                 if max_colors >= 256 {
                     terminal_caps.push(FormatId::TerminalColors8bit);
                 } else if max_colors >= 8 {
@@ -510,18 +517,159 @@ pub fn detect_terminal_capabilities_for(
                 }
             }
 
-            if env::var_os("KITTY_WINDOW_ID").is_some() || term == "xterm-kitty" {
-                terminal_caps.push(FormatId::TerminalKittyGraphics);
+            let is_interactive = is_stdout_terminal && is_stdin_terminal;
+
+            if detect_sixel_support(term_info.as_ref(), is_interactive) == Some(true) {
+                terminal_caps.push(FormatId::TerminalSixelGraphics);
+                device_caps.push(FormatId::TerminalSixelGraphics);
             }
-            // Reason for fallback: unset TERM_PROGRAM defaults to empty string baseline
-            let term_prog = env::var("TERM_PROGRAM").unwrap_or_default();
-            if term_prog == "iTerm.app" || term_prog == "WezTerm" {
+            if detect_kitty_support(term_info.as_ref(), is_interactive, term) == Some(true) {
+                terminal_caps.push(FormatId::TerminalKittyGraphics);
+                device_caps.push(FormatId::TerminalKittyGraphics);
+            }
+            if detect_iterm_support(term_info.as_ref(), is_interactive) == Some(true) {
                 terminal_caps.push(FormatId::TerminalIterm2Graphics);
+                device_caps.push(FormatId::TerminalIterm2Graphics);
             }
         }
     }
 
     (terminal_caps, device_caps)
+}
+
+fn parse_konsole_version(val: &str) -> Option<u64> {
+    let trimmed = val.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.contains('.') {
+        let mut parts = trimmed.split('.');
+        let major: u64 = parts.next()?.parse().ok()?;
+        let minor: u64 = parts.next()?.parse().ok()?;
+        // Reason for fallback: omitted patch version in dotted string defaults to 0
+        let patch: u64 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+        major
+            .checked_mul(10_000)?
+            .checked_add(minor.checked_mul(100)?)?
+            .checked_add(patch)
+    } else {
+        trimmed.parse::<u64>().ok()
+    }
+}
+
+/// Detect whether the terminal supports Sixel graphics.
+///
+/// First checks the terminfo database. If terminfo does not confirm or refute
+/// support (`None`), verifies that the session is interactive and supports
+/// Primary Device Attributes (DA1) queries according to terminfo before
+/// performing an in-band DA1 probe. Returns `None` if support is unknown.
+#[must_use]
+pub fn detect_sixel_support(
+    term_info: Option<&Terminfo>,
+    is_interactive: bool,
+) -> Option<bool> {
+    if let Some(info) = term_info {
+        if let Some(supported) = info.supports_sixel() {
+            return Some(supported);
+        }
+    }
+
+    let can_query_da1 = is_interactive
+        && !cfg!(test)
+        && std::io::stdin().is_terminal()
+        && std::io::stdout().is_terminal()
+        // Reason for fallback: absent terminfo cannot confirm DA1 query support
+        && term_info.map_or(false, Terminfo::supports_da1);
+
+    if can_query_da1 {
+        Some(viuer::is_sixel_supported())
+    } else {
+        None
+    }
+}
+
+/// Detect whether the terminal supports the Kitty graphics protocol.
+///
+/// Checks terminal capabilities, environment hints, and in-band APC
+/// querying via `viuer`. Returns `None` if support is unknown.
+#[must_use]
+pub fn detect_kitty_support(
+    term_info: Option<&Terminfo>,
+    is_interactive: bool,
+    term: &str,
+) -> Option<bool> {
+    // Reason for fallback: absent terminfo cannot refute video terminal capabilities
+    if term_info.map_or(false, |info| !info.can_cursor_address() || info.name == "dumb") {
+        return Some(false);
+    }
+
+    if env::var_os("KITTY_WINDOW_ID").is_some() || term == "xterm-kitty" {
+        return Some(true);
+    }
+
+    if let Ok(konsole_ver) = env::var("KONSOLE_VERSION") {
+        if let Some(ver) = parse_konsole_version(&konsole_ver) {
+            if ver >= 220400 {
+                return Some(true);
+            }
+        }
+    }
+
+    let can_query = is_interactive
+        && !cfg!(test)
+        && std::io::stdin().is_terminal()
+        && std::io::stdout().is_terminal()
+        // Reason for fallback: absent terminfo cannot confirm escape query support
+        && term_info.map_or(false, Terminfo::supports_da1);
+
+    if can_query {
+        match viuer::get_kitty_support() {
+            viuer::KittySupport::Local | viuer::KittySupport::Remote => Some(true),
+            viuer::KittySupport::None => Some(false),
+        }
+    } else {
+        None
+    }
+}
+
+/// Detect whether the terminal supports the iTerm2 graphics protocol.
+///
+/// Checks environment and terminal capabilities via `viuer`, ensuring
+/// older Konsole versions (prior to 22.04) return `false`.
+#[must_use]
+pub fn detect_iterm_support(
+    term_info: Option<&Terminfo>,
+    is_interactive: bool,
+) -> Option<bool> {
+    // Reason for fallback: absent terminfo cannot refute video terminal capabilities
+    if term_info.map_or(false, |info| !info.can_cursor_address() || info.name == "dumb") {
+        return Some(false);
+    }
+
+    if let Ok(konsole_ver) = env::var("KONSOLE_VERSION") {
+        if let Some(ver) = parse_konsole_version(&konsole_ver) {
+            if ver < 220400 {
+                return Some(false);
+            }
+        }
+    }
+
+    if viuer::is_iterm_supported() {
+        return Some(true);
+    }
+
+    let can_query = is_interactive
+        && !cfg!(test)
+        && std::io::stdin().is_terminal()
+        && std::io::stdout().is_terminal()
+        // Reason for fallback: absent terminfo cannot confirm escape query support
+        && term_info.map_or(false, Terminfo::supports_da1);
+
+    if can_query {
+        Some(false)
+    } else {
+        None
+    }
 }
 
 /// Collect and deduplicate all [`FormatId`] elements representing an
@@ -834,7 +982,11 @@ pub fn format_environment_summary(
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
-    reason = "Standard test boilerplate"
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
 )]
 mod tests {
     use super::*;
@@ -891,5 +1043,47 @@ mod tests {
         assert!(term_caps.contains(&FormatId::TerminalMouse));
         assert!(term_caps.contains(&FormatId::TerminalColors8bit));
         assert!(dev_caps.contains(&FormatId::Videoterminal));
+    }
+
+    #[crate::ctb_test]
+    fn test_sixel_detection() {
+        let vt340 = Terminfo::from_name("vt340");
+        assert_eq!(detect_sixel_support(vt340.as_ref(), false), Some(true));
+        assert_eq!(detect_sixel_support(vt340.as_ref(), true), Some(true));
+
+        let dumb = Terminfo::from_name("dumb");
+        assert_eq!(detect_sixel_support(dumb.as_ref(), false), Some(false));
+        assert_eq!(detect_sixel_support(dumb.as_ref(), true), Some(false));
+
+        let xterm = Terminfo::from_name("xterm-256color");
+        // Non-interactive cannot query DA1, returning None (unknown)
+        assert_eq!(detect_sixel_support(xterm.as_ref(), false), None);
+
+        let (term_caps, dev_caps) =
+            detect_terminal_capabilities_for("vt340", true, true, true);
+        assert!(term_caps.contains(&FormatId::TerminalSixelGraphics));
+        assert!(dev_caps.contains(&FormatId::TerminalSixelGraphics));
+    }
+
+    #[crate::ctb_test]
+    fn test_konsole_version_parsing() {
+        assert_eq!(parse_konsole_version("220400"), Some(220400));
+        assert_eq!(parse_konsole_version("22.04.0"), Some(220400));
+        assert_eq!(parse_konsole_version("20.12.0"), Some(201200));
+        assert_eq!(parse_konsole_version("190800"), Some(190800));
+        assert_eq!(parse_konsole_version(""), None);
+    }
+
+    #[crate::ctb_test]
+    fn test_kitty_and_iterm_detection() {
+        let dumb = Terminfo::from_name("dumb");
+        assert_eq!(detect_kitty_support(dumb.as_ref(), false, "dumb"), Some(false));
+        assert_eq!(detect_iterm_support(dumb.as_ref(), false), Some(false));
+
+        let xterm_kitty = Terminfo::from_name("xterm-kitty");
+        assert_eq!(
+            detect_kitty_support(xterm_kitty.as_ref(), false, "xterm-kitty"),
+            Some(true)
+        );
     }
 }

@@ -103,6 +103,7 @@ impl Terminfo {
     /// Maximum number of colors supported by the terminal (`colors`).
     #[must_use]
     pub fn max_colors(&self) -> i32 {
+        // Reason for fallback: absent or negative colors capability indicates monochrome/no color support
         self.get_num("colors").unwrap_or(0)
     }
 
@@ -166,6 +167,48 @@ impl Terminfo {
             }
         }
         false
+    }
+
+    /// Whether the terminal supports Primary Device Attributes (DA1) query (`\x1b[c`).
+    #[must_use]
+    pub fn supports_da1(&self) -> bool {
+        if !self.can_cursor_address() || self.name == "dumb" {
+            return false;
+        }
+        if let Some(u9) = self.get_str("u9") {
+            if u9.starts_with(b"\x1b[") || u9 == b"\x1bZ" {
+                return true;
+            }
+        }
+        self.is_vt100_compatible()
+    }
+
+    /// Whether the terminfo definition explicitly reports support for Sixel graphics.
+    ///
+    /// Returns:
+    /// - `Some(true)` if terminfo explicitly specifies Sixel capability or describes a known Sixel terminal.
+    /// - `Some(false)` if the terminal is a teleprinter or dumb terminal incapable of graphics.
+    /// - `None` if terminfo neither confirms nor refutes Sixel support.
+    #[must_use]
+    pub fn supports_sixel(&self) -> Option<bool> {
+        if !self.can_cursor_address() || self.name == "dumb" {
+            return Some(false);
+        }
+        if self.get_bool("sixel") {
+            return Some(true);
+        }
+        let is_sixel_name = |s: &str| {
+            s.contains("sixel")
+                || s.starts_with("vt340")
+                || s.starts_with("vt330")
+                || s.starts_with("vt240")
+                || s.starts_with("vt241")
+                || s.starts_with("vt382")
+        };
+        if is_sixel_name(&self.name) || self.aliases.iter().any(|a| is_sixel_name(a)) {
+            return Some(true);
+        }
+        None
     }
 }
 
@@ -586,8 +629,11 @@ fn get_cached_or_parse_entry(name: &str) -> Option<Terminfo> {
     clippy::panic,
     clippy::expect_used,
     clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
     clippy::indexing_slicing,
-    reason = "Standard test boilerplate"
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
 )]
 mod tests {
     use super::{Terminfo, unescape_terminfo_string};
@@ -625,6 +671,24 @@ mod tests {
         assert!(!info.has_mouse(), "Standard vt100 does not support mouse");
         assert!(info.can_cursor_address(), "vt100 has cursor address (cup)");
         assert!(info.is_vt100_compatible(), "vt100 is vt100 compatible");
+    }
+
+    #[crate::ctb_test]
+    fn test_da1_and_sixel_detection() {
+        let vt340 = Terminfo::from_name("vt340")
+            .expect("vt340 must exist in bundled terminfo");
+        assert!(vt340.supports_da1());
+        assert_eq!(vt340.supports_sixel(), Some(true));
+
+        let xterm = Terminfo::from_name("xterm-256color")
+            .expect("xterm-256color must exist in bundled terminfo");
+        assert!(xterm.supports_da1());
+        assert_eq!(xterm.supports_sixel(), None);
+
+        let dumb = Terminfo::from_name("dumb")
+            .expect("dumb must exist in bundled terminfo");
+        assert!(!dumb.supports_da1());
+        assert_eq!(dumb.supports_sixel(), Some(false));
     }
 
     #[crate::ctb_test]

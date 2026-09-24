@@ -72,6 +72,7 @@ fn find_files(
                 || name == Some("reference-implementations")
                 || name == Some("patches")
                 || name == Some("construct")
+                || name.is_some_and(|n| n.starts_with("viuer"))
             {
                 continue;
             }

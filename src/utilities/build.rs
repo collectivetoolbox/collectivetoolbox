@@ -43,6 +43,11 @@ fn main() -> Result<()> {
         &manifest_dir,
     )?;
 
+    println!("cargo:rerun-if-changed=../formats/dcdata/data/categories/formats");
+    ctb_build_support::format_id_codegen::generate_format_id_file(
+        &manifest_dir,
+    )?;
+
     let filter = workspace_filter_build::build();
     if filter.is_err() {
         let Some(err) = filter.err() else {

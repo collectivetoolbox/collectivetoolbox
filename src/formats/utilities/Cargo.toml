@@ -1,7 +1,6 @@
 [package]
 name = "ctb-formats-utilities"
 edition = "2024"
-build = "build.rs"
 
 [lib]
 path="utilities.rs"
@@ -12,9 +11,6 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
 serde = { version = "1.0", features = ["derive"] }
 
-[build-dependencies]
-anyhow = "1.0"
-ctb-formats-dcdata = { path = "../dcdata" }
-
 [lints]
 workspace = true
+
