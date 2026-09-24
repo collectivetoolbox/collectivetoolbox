@@ -14,9 +14,9 @@ Please note: this is currently a hobby project provided "as is" (see the license
 
 This is licensed primarily under AGPL-3+. Parts of the code are reused under MIT and other license terms, see individual files for details.
 
-The soccer.* files in the docs/eite/implementation/platform-support/web/ folder are used under a mix of CC-BY-SA 3.0 Unported and SIL OFL 1.1+. See docs/eite/implementation/platform-support/web/soccer-license.txt for attribution and license text.
-
 The files in `build_support/bin/seabios_tool.rs` and `build_suppport/seabios_build.rs` are derived from SeaBIOS. Unfortunately, I don't see any "or later" note for the licensing of the scripts they're based on, so it appears that to use the combined ctoolbox source under later AGPL versions, those files would need to be discarded and replaced with new implementations, as I understand it.
+
+The standard ncurses terminfo database is included here under its own historically messy terms; see src/utilities/data/terminfo.
 
 ## Dev notes
 
