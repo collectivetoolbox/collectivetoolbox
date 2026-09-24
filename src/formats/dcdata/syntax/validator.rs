@@ -133,7 +133,7 @@ fn validate_pattern_node(
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
-    known_scripts: &HashSet<String>,
+    known_scripts: Option<&HashSet<String>>,
     known_syntax_targets: &HashSet<CharTarget>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
@@ -188,7 +188,7 @@ fn validate_syntax_element(
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
-    known_scripts: &HashSet<String>,
+    known_scripts: Option<&HashSet<String>>,
     known_syntax_targets: &HashSet<CharTarget>,
     bound_vars: &mut HashSet<String>,
     report: &mut ValidationReport,
@@ -301,7 +301,11 @@ fn validate_syntax_element(
                     );
                 } else if let Some(st) = subtype {
                     let is_valid = if st.starts_with('.') {
-                        known_scripts.is_empty() || known_scripts.contains(st)
+                        if let Some(scripts) = known_scripts {
+                            scripts.contains(st)
+                        } else {
+                            true
+                        }
                     } else {
                         ctb_formats_unicode::is_valid_unicode_script(st)
                     };
@@ -357,7 +361,7 @@ pub fn validate_dc_syntax(
     known_dc_ids: &HashSet<u32>,
     known_format_ids: &HashSet<usize>,
     known_named_types: &HashSet<String>,
-    known_scripts: &HashSet<String>,
+    known_scripts: Option<&HashSet<String>>,
     known_syntax_targets: &HashSet<CharTarget>,
     report: &mut ValidationReport,
     source_file: &str,

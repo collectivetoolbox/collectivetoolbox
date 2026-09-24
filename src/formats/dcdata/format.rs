@@ -636,11 +636,10 @@ where
         .collect();
     let empty_dcs = HashSet::new();
     let empty_named_types = HashSet::new();
-    let default_scripts = HashSet::new();
-    let scripts_ref = known_scripts.unwrap_or(&default_scripts);
 
     for row in &all_rows {
         if let Some(syntax_rule) = &row.syntax {
+            // Reason for fallback: format short id absent or out of u32 range falls back to dummy 0 for self-reference validation
             let self_id = row
                 .short_id
                 .and_then(|sid| u32::try_from(sid).ok())
@@ -651,7 +650,7 @@ where
                 &empty_dcs,
                 &known_fmt_ids,
                 &empty_named_types,
-                scripts_ref,
+                known_scripts,
                 &known_syntax_targets,
                 report,
                 &row.source_file,

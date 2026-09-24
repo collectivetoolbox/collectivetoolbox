@@ -63,23 +63,8 @@ pub fn validate_all_data_tables_embedded() -> ValidationReport {
     );
 
     // 2. Validate Scripts Registry table
-    let known_scripts = if let Some(scripts_bytes) =
-        crate::get_dc_data_file("README.scripts.csv")
-    {
-        validate_scripts_table(
-            &scripts_bytes,
-            "data/README.scripts.csv",
-            &mut report,
-        )
-    } else {
-        report.add_error(
-            "data/README.scripts.csv",
-            None,
-            None,
-            "Could not locate embedded README.scripts.csv",
-            None,
-        );
-        HashSet::new()
+    let Some(known_scripts) = load_embedded_known_scripts(&mut report) else {
+        return report;
     };
 
     // 3. Validate Formats category files
@@ -226,13 +211,7 @@ pub fn validate_all_data_tables_from_repo(
 
     // 2. Validate Scripts Registry table
     let scripts_path = repo_root.join("src/formats/dcdata/data/README.scripts.csv");
-    let known_scripts = if let Ok(bytes) = std::fs::read(&scripts_path) {
-        validate_scripts_table(
-            &bytes,
-            "src/formats/dcdata/data/README.scripts.csv",
-            &mut report,
-        )
-    } else {
+    let Ok(bytes) = std::fs::read(&scripts_path) else {
         report.add_error(
             "src/formats/dcdata/data/README.scripts.csv",
             None,
@@ -240,8 +219,16 @@ pub fn validate_all_data_tables_from_repo(
             "Could not locate README.scripts.csv on disk",
             Some("Ensure file exists in src/formats/dcdata/data/"),
         );
-        HashSet::new()
+        return report;
     };
+    let known_scripts = validate_scripts_table(
+        &bytes,
+        "src/formats/dcdata/data/README.scripts.csv",
+        &mut report,
+    );
+    if report.has_errors() && known_scripts.is_empty() {
+        return report;
+    }
 
     // 3. Validate Formats category files
     let formats_dir = repo_root.join("src/formats/dcdata/data/categories/formats");
@@ -400,6 +387,7 @@ pub fn validate_scripts_table(
             continue;
         }
 
+        // Reason for fallback: absent or unpopulated script column defaults to empty string and triggers empty script validation error below
         let script = row.get(0).map_or("", |s| s.trim());
         if script.is_empty() {
             report.add_error(
@@ -429,6 +417,28 @@ pub fn validate_scripts_table(
     }
 
     valid_scripts
+}
+
+/// Loads and validates the known scripts table from embedded assets.
+///
+/// Returns `None` if the file could not be found or if validation failed.
+pub fn load_embedded_known_scripts(report: &mut ValidationReport) -> Option<HashSet<String>> {
+    let Some(scripts_bytes) = crate::get_dc_data_file("README.scripts.csv") else {
+        report.add_error(
+            "data/README.scripts.csv",
+            None,
+            None,
+            "Could not locate embedded README.scripts.csv",
+            None,
+        );
+        return None;
+    };
+    let scripts = validate_scripts_table(&scripts_bytes, "data/README.scripts.csv", report);
+    if report.has_errors() && scripts.is_empty() {
+        None
+    } else {
+        Some(scripts)
+    }
 }
 
 /// Validates the README-decompositions.csv table, verifying schema and uniqueness,
@@ -585,9 +595,8 @@ pub fn validate_named_types_table(
         }
     };
 
-    let default_scripts = HashSet::new();
-    let scripts = known_scripts.unwrap_or(&default_scripts);
     let default_syntax_targets = HashSet::new();
+    // Reason for fallback: optional known syntax targets registry defaults to empty set when omitted
     let syntax_targets = known_syntax_targets.unwrap_or(&default_syntax_targets);
 
     let mut seen_names = HashSet::new();
@@ -648,7 +657,7 @@ pub fn validate_named_types_table(
                         known_dc_ids,
                         known_format_ids,
                         &all_known_names,
-                        scripts,
+                        known_scripts,
                         syntax_targets,
                         report,
                         file_path,
@@ -1519,8 +1528,6 @@ where
             let default_named_types = HashSet::new();
             // Reason for fallback: optional named types registry defaults to empty set when omitted
             let named_types = known_named_types.unwrap_or(&default_named_types);
-            let default_scripts = HashSet::new();
-            let scripts = known_scripts.unwrap_or(&default_scripts);
 
             validate_dc_syntax(
                 syntax_rule,
@@ -1528,7 +1535,7 @@ where
                 &known_dc_ids,
                 known_format_ids,
                 named_types,
-                scripts,
+                known_scripts,
                 &known_syntax_targets,
                 report,
                 &row.source_file,
@@ -2213,7 +2220,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report,
             "test/syntax.csv",
@@ -2229,7 +2236,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report,
             "test/syntax.csv",
@@ -2248,7 +2255,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report2,
             "test/syntax.csv",
@@ -2266,7 +2273,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report3,
             "test/syntax.csv",
@@ -2284,7 +2291,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report4,
             "test/syntax.csv",
@@ -2302,7 +2309,7 @@ mod tests {
             &known_dcs,
             &known_fmts,
             &known_named_types,
-            &known_scripts,
+            Some(&known_scripts),
             &known_syntax_targets,
             &mut report5,
             "test/syntax.csv",

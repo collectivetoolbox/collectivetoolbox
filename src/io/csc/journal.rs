@@ -1777,10 +1777,11 @@ mod tests {
         let stored_env = row.get_value(0).expect("get value");
         if let Value::Text(json_str) = stored_env {
             assert!(json_str.contains("\"os\":"), "Stored JSON should contain os");
-            assert!(
-                json_str.contains("\"is_linux\":") || json_str.contains("\"is_windows\":"),
-                "Stored JSON should contain platform flags"
-            );
+            let decoded = ctb_io_environment::EnvDescription::from_json(&json_str)
+                .expect("valid environment JSON");
+            assert_eq!(decoded.os, snap_env.os);
+            assert_eq!(decoded.is_linux(), snap_env.is_linux());
+            assert_eq!(decoded.is_windows(), snap_env.is_windows());
         } else {
             panic!("Expected Value::Text for sources.environment");
         }
