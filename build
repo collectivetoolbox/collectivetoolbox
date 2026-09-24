@@ -76,7 +76,7 @@ cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || exit 1
 release="release"
 selected_release=""
 build_docs=""
-platform=""
+requested_platforms=()
 run_tests="true"
 js_test="true"
 build_binaries="true"
@@ -86,6 +86,60 @@ branding="false"
 offline=""
 clean_targets=""
 clean_generated="false"
+
+supported_platforms=(
+    "linux-x64"
+    "linux-x86"
+    "linux-x64-gnu"
+    "linux-x86-gnu"
+    "windows-x64"
+    # Future:
+    # "mac-x64"
+    # "mac-arm64"
+)
+
+list_platforms() {
+    printf '%s\n' "${supported_platforms[@]}"
+}
+
+detect_platform() {
+    local os arch
+    os="$(uname -s)"
+    arch="$(uname -m)"
+
+    if [[ "$os" =~ ^(MINGW|MSYS|CYGWIN) || "$os" == "Windows_NT" ]]; then
+        case "$arch" in
+            x86_64|amd64)
+                printf '%s' "windows-x64"
+                return 0
+                ;;
+            *)
+                echo "Unsupported Windows architecture for auto-detect: $arch" >&2
+                exit 1
+                ;;
+        esac
+    fi
+
+    if [[ "$os" != "Linux" ]]; then
+        echo "Unsupported host OS for auto-detect: $os" >&2
+        echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
+        exit 1
+    fi
+
+    case "$arch" in
+        x86_64|amd64)
+            printf '%s' "linux-x64"
+            ;;
+        i386|i486|i586|i686)
+            printf '%s' "linux-x86"
+            ;;
+        *)
+            echo "Unsupported host architecture for auto-detect: $arch" >&2
+            echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
+            exit 1
+            ;;
+    esac
+}
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -193,27 +247,31 @@ while [[ $# -gt 0 ]]; do
             echo "Unknown option: $1" >&2
             exit 1
             ;;
+        --platforms|--list-platforms|list-platforms|platforms)
+            list_platforms
+            exit 0
+            ;;
         windows-amd64)
-            if [[ -n "$platform" ]]; then
-                echo "Only one platform argument is supported." >&2
-                exit 1
-            fi
-            platform="windows-x64"
+            requested_platforms+=("windows-x64")
             ;;
         *)
-            if [[ -n "$platform" ]]; then
-                echo "Only one platform argument is supported." >&2
-                exit 1
-            fi
-            platform="$1"
+            requested_platforms+=("$1")
             ;;
     esac
 
     shift
 done
 
+has_all_platform="false"
+for req in "${requested_platforms[@]}"; do
+    if [[ "$req" == "all" ]]; then
+        has_all_platform="true"
+        break
+    fi
+done
+
 if [[ -z "$clean_targets" ]]; then
-    if [[ "$platform" == "all" ]]; then
+    if [[ "$has_all_platform" == "true" ]]; then
         clean_targets="true"
     else
         clean_targets="false"
@@ -235,15 +293,11 @@ if [[ -f ~/"ctb-deploy.branding-enabled" ]]; then
 fi
 
 if [[ -z "$build_docs" ]]; then
-    if [[ "$release" == "release" ]]; then
-        build_docs="true"
+    # Skip building docs if already present, unless explicitly requested
+    if [[ -f "target/x86_64-unknown-linux-musl/doc/index.html" || -f "built/docs/index.html" ]]; then
+        build_docs="false"
     else
-        # Debug build; skip building docs if possible
-        if [[ -f "target/x86_64-unknown-linux-musl/doc/index.html" || -f "built/docs/index.html" ]]; then
-            build_docs="false"
-        else
-            build_docs="true"
-        fi
+        build_docs="true"
     fi
 fi
 
@@ -264,72 +318,13 @@ if [[ "$build_docs" == "true" ]]; then
     fi
 fi
 
-supported_platforms=(
-    "linux-x64"
-    "linux-x86"
-    "linux-x64-gnu"
-    "linux-x86-gnu"
-    "windows-x64"
-    # Future:
-    # "mac-x64"
-    # "mac-arm64"
-)
-
-list_platforms() {
-    printf '%s\n' "${supported_platforms[@]}"
-}
-
-detect_platform() {
-    local os arch
-    os="$(uname -s)"
-    arch="$(uname -m)"
-
-    if [[ "$os" =~ ^(MINGW|MSYS|CYGWIN) || "$os" == "Windows_NT" ]]; then
-        case "$arch" in
-            x86_64|amd64)
-                printf '%s' "windows-x64"
-                return 0
-                ;;
-            *)
-                echo "Unsupported Windows architecture for auto-detect: $arch" >&2
-                exit 1
-                ;;
-        esac
-    fi
-
-    if [[ "$os" != "Linux" ]]; then
-        echo "Unsupported host OS for auto-detect: $os" >&2
-        echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
-        exit 1
-    fi
-
-    case "$arch" in
-        x86_64|amd64)
-            printf '%s' "linux-x64"
-            ;;
-        i386|i486|i586|i686)
-            printf '%s' "linux-x86"
-            ;;
-        *)
-            echo "Unsupported host architecture for auto-detect: $arch" >&2
-            echo "Pass an explicit platform (e.g. linux-x64) or extend ./build" >&2
-            exit 1
-            ;;
-    esac
-}
-
-if [[ "$platform" == "--list-platforms" || "$platform" == "list-platforms" || "$platform" == "platforms" ]]; then
-    list_platforms
-    exit 0
-fi
-
 declare -a platforms
-if [[ -z "$platform" ]]; then
+if [[ "${#requested_platforms[@]}" -eq 0 ]]; then
     platforms=("$(detect_platform)")
-elif [[ "$platform" == "all" ]]; then
+elif [[ "$has_all_platform" == "true" ]]; then
     platforms=("${supported_platforms[@]}")
 else
-    platforms=("$platform")
+    platforms=("${requested_platforms[@]}")
 fi
 
 if [[ "$js_test" == "true" ]]; then
@@ -526,9 +521,14 @@ for p in "${platforms[@]}"; do
             cp "target/$target/$release/ctoolbox-installer${exe_suffix}" built/"$p"/
         fi
         echo "Built for platform $p"
-        cp built/ctoolbox.rsrc built/"$p"/
-        if [[ -f built/v86_images.rsrc ]]; then
-            cp built/v86_images.rsrc built/"$p"/
+        # Note: Resource bundles (built/ctoolbox.rsrc and built/v86_images.rsrc)
+        # reside at the root of built/ and are shared across all platforms to
+        # avoid duplicating large bundles and preserve identical bundle UUIDs.
+        if [[ -f "built/$p/ctoolbox.rsrc" ]]; then
+            rm "built/$p/ctoolbox.rsrc"
+        fi
+        if [[ -f "built/$p/v86_images.rsrc" ]]; then
+            rm "built/$p/v86_images.rsrc"
         fi
 
         # Run CLI compression tests against the built binary if it is runnable by host

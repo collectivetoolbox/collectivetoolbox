@@ -188,14 +188,7 @@ if [[ "${#targets[@]}" -eq 0 ]]; then
     exit 1
 fi
 
-for target in "${targets[@]}"; do
-    # Only build docs on first target; it'll be reused
-    if [[ "$target" == "${targets[0]}" ]]; then
-        ./build --release --docs "$target"
-    else
-        ./build --release "$target"
-    fi
-done
+./build --release --docs "${targets[@]}"
 
 cd "$repository/vendor/ctb-vendored" || exit 1
 "$repository/scripts/vendor-dependencies"
@@ -227,11 +220,9 @@ for target in "${targets[@]}"; do
     input_dir="$base_input_dir/$target"
     mkdir "$input_dir" || exit 1
     cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
-    cp "built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
-    if [[ -f "built/$target/v86_images.rsrc" ]]; then
-        cp "built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
-    elif [[ -f "built/v86_images.rsrc" ]]; then
-        cp "built/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
+    ln -s "$repository/built/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
+    if [[ -f "$repository/built/v86_images.rsrc" ]]; then
+        ln -s "$repository/built/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
     fi
     cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
     # IMPORTANT: keep this artifact uncompressed so fastcdc chunking can
@@ -328,7 +319,7 @@ class Ctoolbox < Formula
 
     # Install the binaries
     bin.install "built/linux-x64/ctoolbox"
-    bin.install "built/linux-x64/ctoolbox.rsrc"
+    bin.install "built/ctoolbox.rsrc"
   end
 
   test do
@@ -450,7 +441,7 @@ SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz --chmod=0750 \
     "${user}@${server}:/home/${server_user}/deploy/ctoolbox-${commit}"
 
 SSHPASS="$PASS" sshpass -e rsync -e "ssh -p ${port}" -avz \
-    "$base_input_dir"/linux-x64/ctoolbox.rsrc \
+    "$repository"/built/ctoolbox.rsrc \
     "${user}@${server}:/home/${server_user}/deploy/ctoolbox-${commit}.rsrc"
 
 today="$(date +%Y%m%d_%H%M%S)"
