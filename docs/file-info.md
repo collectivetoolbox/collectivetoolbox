@@ -4,7 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Declarative File Type Detection Engine & Universal Source Trait:** Completed (`ctb_formats_utilities::detection`, `DetectionSource`, `FileEntity`/`AttachedStream` integration, `FormatInheritanceGraph`, and `DetectionOutcome`)
+- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, and confidence tiers completed; modular refactoring and full `file` parity underway)
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
 - **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
@@ -42,7 +42,7 @@
 - [x] **Extended Grammar Constructs:** Formalize explicit syntax for routine arguments, list/map element framing, and nested executable blocks before inclusion in `statement` / `value`.
 - [x] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
 
-### Phase 5: Declarative File Type Detection Engine
+### Phase 5: Declarative File Type Detection Engine & Parity with `file`
 - [x] **Basic Multi-Signal Detection Prototype:** Initial prototype combining static magic byte matching (`MAGIC_REGISTRY`), preliminary extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
 - [x] **Probabilistic Multipart Extension Parsing & Candidate Chains; old/filedetect/ ports:**
   - Note: Reusing/porting algorithms from the packages in old/filedetect/ (which should all be compatibly licensed), or using standard Rust crates, is encouraged, rather than reinventing things wholesale. We'll want to reuse existing databases, perhaps mapping them to Dcs, so that the data maintained directly in this crate (`src/formats/dcdata/data/categories/formats/` and as-yet-unimplemented `src/formats/dcdata/data/categories/formats/magic/`) can be relatively limited.
@@ -59,14 +59,76 @@
   - [x] Implement bounded immediate-child probing for directory packages / application bundles (`FileEntityKind::Bundle` or `Directory`, e.g., macOS `.app`) using `SandboxedDir` / `read_dir_safe`, restricted to bounded depth (1-2) and strict entry/byte quotas without following arbitrary symlinks.
   - [x] Leverage attached streams / forks (`AttachedStream`, e.g., AppleDouble `._` companion metadata and resource forks) as rich detection signals.
   - [x] Explicitly distinguish between insufficient data / quota exhaustion, read errors, and true negative matches.
-- [x] **Declarative Detection Rules Engine & Preexisting Engine Integration (`old/filedetect`):**
-  - [x] **libmagic Engine Port & Rule Compilation:** Port the hierarchical `softmagic` interpreter from BSD-2-Clause `file` (`old/filedetect/file/`) into safe Rust, supporting test trees (`>` hierarchy), endian types, bitmasks, indirect offsets (`FILE_INDIRECT`), relative offsets, and search/regex patterns.
-  - [x] **Magdir Rule Compilation:** Build an ingestion and compilation pipeline for libmagic's extensive `Magdir/` rule database (15,000+ rules), mapping libmagic MIME/description outputs to authoritative Dc format IDs.
-  - [x] **Priority/Weight Mechanics & MIME Inheritance:** Implement an explicit 0–100 priority/weight scale for resolving rule conflicts, along with MIME inheritance graphs (`sub-class-of`).
-  - [x] **DROID / PRONOM Container Signatures & Anchors:** Support dual-anchored byte matching (BOF - Beginning of File, and EOF - End of File offsets) and declarative container inspection (probing internal entry paths in ZIP, OLE2, and ISO containers without full extraction).
-  - [x] **Multi-Candidate Scoring & Confidence Calibration:** Port point-based evidence weighting and PolyFyle-style byte-range attribution to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
-  - [ ] **Nested file parsing** like and/or ported from polyfile.
-  - [ ] Integrate DROID database?
+- [x] **Priority/Weight Mechanics & MIME Inheritance:**
+  - [x] Implement an explicit 0–100 priority/weight scale for resolving rule conflicts.
+  - [x] Implement MIME inheritance graphs (`sub-class-of`) and parent/child candidate subsumption in `resolve_candidate_conflicts`.
+  - [x] Port point-based evidence weighting to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
+
+- [ ] **Sub-Phase 5A: Modularization of `detection.rs` (Decoupling Monolith into Clean Submodules):**
+  - [ ] Extract `src/formats/utilities/detection/types.rs`: isolate `ConfidenceTier`, `DetectionHint`, `DetectionQuotaType`, `DetectionOutcome`, `DetectionEvidence`, `DetectionCandidate`, and `DetectionReport`.
+  - [ ] Extract `src/formats/utilities/detection/source.rs`: isolate `DetectionSource` trait and implementations for byte slices (`&[u8]`), `Vec<u8>`, `Cursor<T>`, and `EmptySource`.
+  - [ ] Extract `src/formats/utilities/detection/platform.rs`: isolate `is_os_match`, `current_platform_os`, and OS platform prior scoring logic.
+  - [ ] Extract `src/formats/utilities/detection/conflict.rs`: isolate `resolve_candidate_conflicts`, ancestor subsumption, MIME specialization boosts, and multi-candidate demotion.
+  - [ ] Extract `src/formats/utilities/detection/chain.rs`: isolate `ProbableFormatChain`, `FormatChain`, `guess_format_chains`, and `parse_format_chain`.
+  - [ ] Refactor `src/formats/utilities/detection.rs` to serve as a clean, concise pipeline coordinator (~200-250 lines) re-exporting all submodules for backward compatibility.
+
+- [ ] **Sub-Phase 5B: Text & Character Encoding Detection Subsystem (`detection/text.rs` ported from `ascmagic.c` & `encoding.c`):**
+  - [ ] Character set identification engine:
+    - [ ] UTF-8 detection (with and without BOM, strict sequence validation).
+    - [ ] UTF-16LE and UTF-16BE detection (with and without BOM, surrogate pair checking).
+    - [ ] UTF-32LE and UTF-32BE detection (with and without BOM).
+    - [ ] 7-bit ASCII text validation (printable ASCII + standard whitespace / C0 controls).
+    - [ ] ISO-8859 series detection (ISO-8859-1 through ISO-8859-15).
+    - [ ] Non-ISO 8-bit extended ASCII encodings (CP437, MacRoman, Windows-1252) using existing `CharEncoding`.
+    - [ ] EBCDIC detection (standard IBM US / international EBCDIC codepages).
+  - [ ] Text line convention & layout profiling:
+    - [ ] Line terminator counting and convention profiling (POSIX LF, Classic Mac CR, Windows CRLF, EBCDIC NEL) via `LineEndingKind`.
+    - [ ] Line length analysis and long line tracking (>300 characters).
+    - [ ] Control character and ANSI escape sequence detection.
+  - [ ] Text language & syntax heuristics:
+    - [ ] Shebang (`#!`) interpreter extraction (e.g. `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/perl`).
+    - [ ] Programming language heuristics (C/C++, Python, Shell, Perl, Ruby, Lisp, Assembler).
+    - [ ] Markup heuristics (HTML tags, XML declaration `<?xml`, SGML, roff/troff commands `.TH`/`.so`, TeX `\documentclass`).
+    - [ ] Mail and news header heuristics (RFC 822 `From:`, `Subject:`, `Date:`).
+  - [ ] Pipeline integration:
+    - [ ] Integrate text detection pass in `guess_format_report` as fallback when binary magic does not match, eliminating false `TrueNegative` results on plain text files.
+    - [ ] Output character set encoding and line ending style in candidate evidence (`DetectionEvidence::Encoding`, `DetectionEvidence::TextProperties`).
+
+- [ ] **Sub-Phase 5C: Hierarchical Magic Engine Feature Parity & Magdir Compilation (`magic_parser.rs` & `magic.rs`):**
+  - [ ] Relative offset support: parse and evaluate relative offsets (`&<offset>`) relative to the end of the previous match level.
+  - [ ] Indirect offset pointer dereferencing: parse and evaluate `(<offset>.<type>+<adjustment>)` (e.g., `(0x3c.l)` for MS-DOS PE headers, `(&4.s)` relative indirect pointers).
+  - [ ] Comprehensive data type parity:
+    - [ ] Fix 64-bit quad integers (`quad`, `lequad`, `bequad`, `ulequad`, `ubequad`) in `MagicTest` (distinguish from 32-bit `long`).
+    - [ ] Date types (`date`, `ldate`, `qdate`, `medate`, `bedate`, `ledate`).
+    - [ ] Regex patterns (`regex` with flags `/c`, `/s`, `/l`).
+    - [ ] Pascal strings (`pstring` with length variants `/B`, `/H`, `/h`, `/L`, `/l`, `/J`).
+    - [ ] String matching flags (`/c` case-insensitive, `/b` blank-insensitive, `/t` trim whitespace, `/W` compact whitespace).
+  - [ ] Formatted description strings:
+    - [ ] Parse printf-style format specifiers (`%s`, `%d`, `%u`, `%x`, etc.) in rule descriptions and format extracted values dynamically.
+    - [ ] Handle backspace `\b` space-suppression and punctuation formatting in child rules.
+  - [ ] Macro subroutines: parse and execute named rule templates (`name` declaration and `use` invocation).
+  - [ ] Ingestion & compilation pipeline for full upstream `Magdir/` database:
+    - [ ] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
+    - [ ] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
+
+- [ ] **Sub-Phase 5D: Specialized Deep Parsers & Container Inspection (`detection/container.rs`):**
+  - [ ] TAR archive verification: validate octal checksums across the 512-byte header block (V7, ustar, GNU, pax) without full extraction (`is_tar.c`).
+  - [ ] Fast JSON heuristic parser: state-machine scanner validating balanced objects/arrays/literals without eager allocation (`is_json.c`).
+  - [ ] Tabular CSV/TSV validator: column consistency scoring across sample lines (`is_csv.c`).
+  - [ ] OLE2 Compound Document File (CDF) inspector: traverse internal directory streams to classify Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and MSI installers (`readcdf.c`).
+  - [ ] ELF binary inspector: parse ELF header, 32/64-bit, endianness, machine architecture, dynamic linker interpreter (`/lib64/ld-linux-x86-64.so.2`), OS ABI, and notes (`readelf.c`).
+  - [ ] Transparent payload decompression: probe inside gzip, bzip2, xz, and zstd byte streams to inspect inner payload magic (`compress.c`).
+
+- [ ] **Sub-Phase 5E: Filesystem & Inode Special File Detection (`detection/special.rs` from `fsmagic.c`):**
+  - [ ] Explicit detection and candidate generation for 0-byte `Empty` files and 1-3 byte `VeryShort` files.
+  - [ ] Reporting special filesystem entities: directory packages/bundles, symlinks, FIFOs, sockets, block and character devices.
+
+- [ ] **Sub-Phase 5F: DROID / PRONOM Signatures & PolyFile Attribution:**
+  - [ ] Container signatures for ZIP-based formats (DOCX, XLSX, PPTX, EPUB, JAR, APK, ODF) via central directory inspection without extraction.
+  - [ ] Dual-anchored BOF / EOF signatures with variable offset windows.
+  - [ ] PolyFile-style byte-range attribution and polyglot container detection.
+  - [ ] Nested file parsing like and/or ported from polyfile.
+  - [ ] Integrate DROID database.
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
@@ -534,6 +596,108 @@ literals is separate from treating quoted payloads as executable code.
     point-weighted scoring to compute calibrated confidence percentages across
     candidates, and support polyglot/composite awareness where multiple valid format
     signatures legitimately co-exist in one stream.
+
+### Detection Engine Modularization Architecture
+
+[`detection.rs`](file:///workspaces/ctoolbox/src/formats/utilities/detection.rs) has accumulated multiple responsibilities (data transfer types, source adapters, platform matching, candidate subsumption, extension peeling, and primary orchestration), growing to over 1,500 lines. To keep the codebase maintainable and narrowly scoped, it will be refactored into focused submodules under `src/formats/utilities/detection/`:
+
+```
+src/formats/utilities/
+├── detection.rs                      <-- Public facade & staged pipeline coordinator (~200 lines)
+└── detection/
+    ├── types.rs                      <-- ConfidenceTier, DetectionHint, DetectionOutcome,
+    │                                     DetectionEvidence, DetectionCandidate, DetectionReport
+    ├── source.rs                     <-- DetectionSource trait & slice, Vec, Cursor, EmptySource impls
+    ├── platform.rs                   <-- is_os_match, current_platform_os, platform prior heuristics
+    ├── conflict.rs                   <-- resolve_candidate_conflicts, MIME/format subsumption & demotion
+    ├── chain.rs                      <-- ProbableFormatChain, FormatChain, multi-layer extension peeling
+    ├── text.rs                       <-- ascmagic & encoding.c port: charsets, line terminators, shebang, syntax
+    ├── special.rs                    <-- fsmagic port: empty file, directory, symlink, device, socket
+    └── container.rs                  <-- Specialized deep inspectors: TAR, OLE2/CDF, ELF, JSON, CSV, uncompress
+```
+
+The top-level `src/formats/utilities/detection.rs` will re-export all public types and functions (`pub use detection::types::*;`, etc.) ensuring complete backward compatibility with existing callers across `src/io/file/entity.rs`, `src/io/file/payload.rs`, and `src/formats/compression/`.
+
+### Subsystem Porting Details from BSD `file` (`old/filedetect/file/`)
+
+#### 1. Text & Character Encoding Detection Subsystem (`detection/text.rs`)
+Ported from [`ascmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/ascmagic.c) and [`encoding.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/encoding.c):
+- **Character set identification:**
+  - UTF-8 validation (checking strict UTF-8 byte sequences and optional BOM `0xEF, 0xBB, 0xBF`).
+  - UTF-16LE / UTF-16BE validation (checking BOM `0xFF, 0xFE` / `0xFE, 0xFF`, surrogate pairs `0xD800`–`0xDFFF`, and absence of null bytes in odd/even positions).
+  - UTF-32LE / UTF-32BE validation (checking 4-byte BOMs and valid Unicode scalar code point bounds).
+  - 7-bit ASCII validation (all bytes in `0x07`–`0x0D` or `0x20`–`0x7E`).
+  - ISO-8859 series heuristics (distinguishing printable Latin-1 / 8-bit European codes from control bytes `0x80`–`0x9F`).
+  - Extended 8-bit DOS/Mac encodings (using existing `CharEncoding::Cp437` and `CharEncoding::MacRoman`).
+  - EBCDIC detection (checking frequency of EBCDIC space `0x40` and common alphanumeric patterns).
+- **Line ending profiling & text geometry:**
+  - Count occurrences of `\n` (LF), `\r` (CR), `\r\n` (CRLF), and `\u{0085}` (NEL) to determine the predominant `LineEndingKind` and whether lines are terminated or separated.
+  - Track maximum line length; flag files with very long lines (>300 characters, indicating minified JS/JSON or embedded data).
+  - Track control codes, ANSI terminal escapes (`\x1b`), and backspaces (`\b`).
+- **Language & shebang heuristics:**
+  - Shebang parser: scan initial line for `#!` and extract interpreter command (e.g., `/bin/sh`, `/usr/bin/env python3`, `/usr/bin/perl`, `/bin/bash`).
+  - Syntax patterns: identify C source (`#include`, `/*`), Python (`def `, `import `, `class `), Shell (`if [`, `case `, `then`), HTML (`<!DOCTYPE html`, `<html`), XML (`<?xml`), roff/man pages (`.TH `, `.so `, `.\"`), and RFC 822 mail headers (`From:`, `Subject:`).
+- **Pipeline fallback:**
+  - When binary magic yields no matches, `guess_format_report` invokes `detection/text.rs` before returning `TrueNegative`. A script like `#!/bin/sh\necho hi` without an extension is identified as `FormatId::Sh` / `FormatId::Ascii` rather than an unknown binary.
+
+#### 2. Hierarchical Magic Engine Parity (`magic_parser.rs` & `magic.rs`)
+Ported from [`softmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/softmagic.c) and [`apprentice.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/apprentice.c):
+- **Relative offsets (`&<offset>`):**
+  - In `file`, `>&0 string ...` evaluates an offset relative to the end of the byte sequence matched by the parent test level.
+  - `magic.rs` must track match end positions through the evaluation context and evaluate relative offsets accordingly.
+- **Indirect offsets (`(<offset>.<type>+<adjustment>)`):**
+  - Evaluates pointer dereferencing in headers (e.g. `(0x3c.l)` reads a 32-bit LE pointer at offset 60 to locate the PE header in an MS-DOS stub).
+  - Supports indirect offsets with sign, endianness, and arithmetic adjustments (`+`, `-`, `*`).
+- **Data type parity:**
+  - Fix 64-bit integer tests (`quad`, `lequad`, `bequad`) so they operate on 64-bit words rather than truncating to 32 bits.
+  - Implement date types (`date`, `ldate`, `medate`, `bedate`, `ledate`).
+  - Implement regex patterns (`regex` with search bounds).
+  - Implement Pascal strings (`pstring` with length variants `/B`, `/H`, `/h`, `/L`, `/l`, `/J`).
+  - Implement string modifier flags (`/c` case-insensitive, `/b` ignore whitespace, `/t` trim, `/W` compact).
+- **Printf format string interpolation:**
+  - Support `%s`, `%d`, `%u`, `%x`, `%o` in description strings to format matched integer, string, or date values dynamically (e.g. `version %d.%d`).
+  - Support backspace `\b` space suppression when concatenating child descriptions.
+- **Full Magdir database compilation:**
+  - Provide an ingestion tool to precompile all 359 files in `src/formats/dcdata/data/magic/upstream/magic/Magdir/` into a binary lookup structure, eliminating runtime string parsing while activating the complete 15,000+ rule catalog.
+
+#### 3. Specialized Deep Parsers & Container Inspection (`detection/container.rs`)
+Ported from specialized C inspection routines in `file`:
+- **TAR archive verification ([`is_tar.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/is_tar.c)):**
+  - Verify octal checksum at byte offset 148 across the 512-byte header block.
+  - Distinguish POSIX ustar, GNU tar, old V7 tar, and star variants.
+- **Fast JSON parser ([`is_json.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/is_json.c)):**
+  - Bounded state-machine scanner that skips leading whitespace and verifies valid top-level object `{`, array `[`, or literal structures.
+- **CSV/TSV consistency scoring ([`is_csv.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/is_csv.c)):**
+  - Sample initial lines, count candidate delimiters (`,`, `\t`, `;`, `|`), and check column-count consistency across rows with quote escaping.
+- **OLE2 Compound Document File (CDF) inspector ([`readcdf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readcdf.c)):**
+  - Parse OLE header and traverse internal directory sector entries without full extraction.
+  - Differentiate Word Document (`.doc`), Excel Spreadsheet (`.xls`), PowerPoint Presentation (`.ppt`), and Windows Installer (`.msi`).
+- **ELF binary inspector ([`readelf.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/readelf.c)):**
+  - Parse ELF header for machine architecture (x86, x86-64, ARM, RISC-V, etc.), 32/64-bit class, endianness, OS ABI, dynamic linker interpreter path, and `.note` sections.
+- **Transparent payload decompression ([`compress.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/compress.c)):**
+  - Decompress the first 4–8 KB of gzip, bzip2, xz, and zstd byte streams to inspect the encapsulated payload format, enabling reporting of outer compression and inner payload (e.g. `Tar > Gzip`).
+
+#### 4. Filesystem & Inode Special File Magic (`detection/special.rs`)
+Ported from [`fsmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/fsmagic.c):
+- Detect 0-byte streams and emit `Empty` file format candidate.
+- Detect 1–3 byte non-matching streams and emit `VeryShort` format candidate.
+- Report special filesystem entities: directory packages (macOS `.app`), symlinks, FIFOs / named pipes, UNIX domain sockets, block special devices, and character devices.
+
+### Staged Detection Pipeline Execution Order
+
+When `guess_format_report` executes, it will process candidate signals through the following staged order:
+
+1. **Filesystem & Inode Probing (`special.rs`):** Check for empty streams, very short streams, directory bundles, or special inode types.
+2. **Attached Stream & Fork Probing:** Check AppleDouble `._` files, resource fork type codes (`extract_resource_fork_type_codes`), and creator codes.
+3. **Static Fast Magic Matching (`MAGIC_REGISTRY`):** Fast byte matching for common binary signatures.
+4. **Compiled Hierarchical Magic Rules (`COMPILED_MAGIC_RULES`):** Evaluate hierarchical test trees with relative/indirect offsets and value interpolation.
+5. **Specialized Container & Archive Inspection (`container.rs`):** Evaluate procedural inspectors (TAR checksum, OLE2 CDF streams, ELF headers, JSON/CSV, bounded decompression).
+6. **Text & Character Encoding Fallback (`text.rs`):** If binary checks yield no matches, evaluate text encoding (UTF-8, UTF-16, ASCII, ISO-8859), line endings, shebang interpreter, and language syntax.
+7. **Extension Hints & Platform Priors (`chain.rs`, `platform.rs`):** Evaluate extension candidates ([resolve_extension_candidates](file:///workspaces/ctoolbox/src/formats/utilities/extension.rs#L243)) and apply platform context boosts.
+8. **Candidate Subsumption & Conflict Resolution (`conflict.rs`):** Apply MIME and format inheritance hierarchy demotions, detect unresolvable conflicts, and produce the sorted [DetectionCandidate](file:///workspaces/ctoolbox/src/formats/utilities/detection.rs#L259) list with calibrated [ConfidenceTier](file:///workspaces/ctoolbox/src/formats/utilities/detection.rs#L75).
+
+---
+
 - Lossless archive representation must preserve raw path bytes, metadata,
   multiple streams, links, sparse extents, timestamp precision and unknown fields.
   Logical entry round-tripping is not necessarily byte-for-byte archive

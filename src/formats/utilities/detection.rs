@@ -27,7 +27,7 @@
  */
 
 // SPDX-License-Identifier: AGPL-3.0-or-later AND BSD-2-Clause-Darwin AND Apache-2.0 AND MIT AND BSD-3-Clause
-// SPDX-License-Identifier for parts derived from `file` (libmagic): BSD-2-Clause-Darwin
+// SPDX-License-Identifier for parts derived from `file` (libmagic): BSD-2-Clause-Darwin AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from polyfile: Apache-2.0
 // SPDX-License-Identifier for parts derived from fileid and binwalk: MIT
 // SPDX-License-Identifier for parts derived from DROID: BSD-3-Clause
@@ -49,7 +49,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// See license text at the beginning of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
+// The Collective Toolbox file detection tools combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
+// See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 //! Combined multi-signal format detection, hierarchical pattern matching,
