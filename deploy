@@ -264,7 +264,6 @@ class Ctoolbox < Formula
   desc "Collective Toolbox: A graph‑based workspace for linking documents and data"
   homepage "https://collectivetoolbox.com/"
   url "https://collectivetoolbox.com/releases/src/ctoolbox-src-$version-$commit.tar.gz"
-  version "$version"
   sha256 "$src_sha"
 
   # We use env :userpaths to preserve the host's rustup and musl-tools paths in CI.
