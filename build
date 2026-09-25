@@ -519,14 +519,27 @@ for p in "${platforms[@]}"; do
             cp "target/$target/$release/ctoolbox-installer${exe_suffix}" built/"$p"/
         fi
         echo "Built for platform $p"
-        # Note: Resource bundles (built/ctoolbox.rsrc and built/v86_images.rsrc)
-        # reside at the root of built/ and are shared across all platforms to
-        # avoid duplicating large bundles and preserve identical bundle UUIDs.
-        if [[ -f "built/$p/ctoolbox.rsrc" ]]; then
-            rm "built/$p/ctoolbox.rsrc"
+        # Hardlink resource bundles into the platform directory so the binary finds
+        # them directly in exe_dir without duplicating disk space or bundle UUIDs.
+        if [[ -f "built/ctoolbox.rsrc" ]]; then
+            if [[ -e "built/$p/ctoolbox.rsrc" || -L "built/$p/ctoolbox.rsrc" ]]; then
+                if [[ ! "built/$p/ctoolbox.rsrc" -ef "built/ctoolbox.rsrc" ]]; then
+                    rm "built/$p/ctoolbox.rsrc"
+                    ln "built/ctoolbox.rsrc" "built/$p/ctoolbox.rsrc" 2>/dev/null || cp "built/ctoolbox.rsrc" "built/$p/ctoolbox.rsrc"
+                fi
+            else
+                ln "built/ctoolbox.rsrc" "built/$p/ctoolbox.rsrc" 2>/dev/null || cp "built/ctoolbox.rsrc" "built/$p/ctoolbox.rsrc"
+            fi
         fi
-        if [[ -f "built/$p/v86_images.rsrc" ]]; then
-            rm "built/$p/v86_images.rsrc"
+        if [[ -f "built/v86_images.rsrc" ]]; then
+            if [[ -e "built/$p/v86_images.rsrc" || -L "built/$p/v86_images.rsrc" ]]; then
+                if [[ ! "built/$p/v86_images.rsrc" -ef "built/v86_images.rsrc" ]]; then
+                    rm "built/$p/v86_images.rsrc"
+                    ln "built/v86_images.rsrc" "built/$p/v86_images.rsrc" 2>/dev/null || cp "built/v86_images.rsrc" "built/$p/v86_images.rsrc"
+                fi
+            else
+                ln "built/v86_images.rsrc" "built/$p/v86_images.rsrc" 2>/dev/null || cp "built/v86_images.rsrc" "built/$p/v86_images.rsrc"
+            fi
         fi
 
         # Run CLI compression tests against the built binary if it is runnable by host

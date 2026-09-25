@@ -363,11 +363,6 @@ fn resource_bundle_candidates_for_exe(exe_path: &Path) -> Vec<PathBuf> {
 
     if let Some(parent) = exe_path.parent() {
         candidates.push(parent.join("ctoolbox.rsrc"));
-        if let Some(grandparent) = parent.parent() {
-            if grandparent.file_name() == Some(std::ffi::OsStr::new("built")) {
-                candidates.push(grandparent.join("ctoolbox.rsrc"));
-            }
-        }
     }
 
     if let Some(workspace_root) = workspace_root_for_cargo_target_exe(exe_path)
@@ -826,16 +821,13 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn built_platform_binary_uses_workspace_built_bundle() {
+    fn built_platform_binary_uses_exe_dir_bundle() {
         let exe_path = Path::new("/repo/built/linux-x64/ctoolbox");
 
         assert_eq!(workspace_root_for_cargo_target_exe(exe_path), None);
         assert_eq!(
             resource_bundle_candidates_for_exe(exe_path),
-            vec![
-                PathBuf::from("/repo/built/linux-x64/ctoolbox.rsrc"),
-                PathBuf::from("/repo/built/ctoolbox.rsrc"),
-            ]
+            vec![PathBuf::from("/repo/built/linux-x64/ctoolbox.rsrc")]
         );
     }
 

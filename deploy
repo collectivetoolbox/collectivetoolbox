@@ -220,9 +220,17 @@ for target in "${targets[@]}"; do
     input_dir="$base_input_dir/$target"
     mkdir "$input_dir" || exit 1
     cp "built/$target/ctoolbox" "$input_dir/ctoolbox" || exit 1
-    ln -s "$repository/built/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
-    if [[ -f "$repository/built/v86_images.rsrc" ]]; then
-        ln -s "$repository/built/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
+    if [[ -e "$input_dir/ctoolbox.rsrc" || -L "$input_dir/ctoolbox.rsrc" ]]; then
+        rm "$input_dir/ctoolbox.rsrc"
+    fi
+    ln "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" 2>/dev/null || \
+        cp "$repository/built/$target/ctoolbox.rsrc" "$input_dir/ctoolbox.rsrc" || exit 1
+    if [[ -f "$repository/built/$target/v86_images.rsrc" ]]; then
+        if [[ -e "$input_dir/v86_images.rsrc" || -L "$input_dir/v86_images.rsrc" ]]; then
+            rm "$input_dir/v86_images.rsrc"
+        fi
+        ln "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" 2>/dev/null || \
+            cp "$repository/built/$target/v86_images.rsrc" "$input_dir/v86_images.rsrc" || exit 1
     fi
     cp "built/$target/ctoolbox-installer" "$input_dir/ctoolbox-installer" || exit 1
     # IMPORTANT: keep this artifact uncompressed so fastcdc chunking can
