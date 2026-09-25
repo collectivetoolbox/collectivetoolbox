@@ -144,25 +144,8 @@ impl Terminfo {
     /// Whether the terminal description matches standard VT100 / ANSI.
     #[must_use]
     pub fn is_vt100_compatible(&self) -> bool {
-        let is_vt_name = |s: &str| {
-            s.starts_with("vt100")
-                || s.starts_with("vt102")
-                || s.starts_with("vt220")
-                || s.starts_with("xterm")
-                || s.starts_with("rxvt")
-                || s.starts_with("screen")
-                || s.starts_with("tmux")
-                || s.starts_with("linux")
-                || s.starts_with("alacritty")
-                || s.starts_with("kitty")
-                || s.starts_with("ms-terminal")
-                || s == "ansi"
-        };
-        if is_vt_name(&self.name) || self.aliases.iter().any(|a| is_vt_name(a)) {
-            return true;
-        }
         if let Some(cup) = self.get_str("cup") {
-            if cup.starts_with(b"\x1b[") {
+            if cup.starts_with(b"\x1b[") || cup.starts_with(b"\x9b") {
                 return true;
             }
         }
@@ -720,6 +703,44 @@ mod tests {
 
         let oct_str = unescape_terminfo_string(r"\033");
         assert_eq!(oct_str, b"\x1b");
+    }
+
+    #[crate::ctb_test]
+    fn test_vt100_compatibility_capability_detection() {
+        let compatible_terms = [
+            "screen",
+            "screen-256color",
+            "tmux",
+            "tmux-256color",
+            "linux",
+            "alacritty",
+            "kitty",
+            "rxvt-256color",
+            "xterm",
+            "vt100",
+            "vt220",
+            "vt220-8bit",
+            "ms-terminal",
+            "ansi",
+        ];
+        for term in compatible_terms {
+            let info = Terminfo::from_name(term)
+                .unwrap_or_else(|| panic!("terminal {term} must exist in terminfo"));
+            assert!(
+                info.is_vt100_compatible(),
+                "terminal {term} must be recognized as VT100 compatible"
+            );
+        }
+
+        let non_compatible_terms = ["dumb", "xterm-vt52"];
+        for term in non_compatible_terms {
+            let info = Terminfo::from_name(term)
+                .unwrap_or_else(|| panic!("terminal {term} must exist in terminfo"));
+            assert!(
+                !info.is_vt100_compatible(),
+                "terminal {term} must not be VT100 compatible"
+            );
+        }
     }
 }
 
