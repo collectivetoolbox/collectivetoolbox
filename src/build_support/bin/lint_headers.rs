@@ -28,8 +28,9 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result, bail};
 use ctb_build_support::license_consts::{
     AGPL_3_0_ONLY_COPYRIGHT_BLOCK, AGPL_COPYRIGHT_BLOCK, DEFAULT_AGPL_HEADER,
+    DESCRIPTION_DETECTION, DETECTION_LICENSES_OTHER, FILE_ADDITIONAL_LICENSES,
     HASH_AGPL_HEADER, HASH_BSD_DARWIN_HEADER, PAN_MIT_HEADER,
-    SCHEME_GPL_HEADER,
+    SCHEME_GPL_HEADER, SPDX_HEADERS_DETECTION,
 };
 
 #[derive(Debug)]
@@ -144,6 +145,15 @@ fn is_pan_file(file_path: &Path) -> bool {
         .components()
         .any(|c| c.as_os_str() == "pan" || c.as_os_str() == "pan.rs")
         && file_path.to_string_lossy().contains("formats/pan")
+}
+
+/// Determine whether a file is `utilities/detection.rs` or in
+/// `utilities/detection/`.
+fn is_detection_file(file_path: &Path) -> bool {
+    let normalized = file_path.to_string_lossy().replace('\\', "/");
+    (normalized.ends_with("utilities/detection.rs")
+        || normalized.contains("utilities/detection/"))
+        && normalized.ends_with(".rs")
 }
 
 /// Determine whether a file is permitted to use an `AGPL-3.0-only` header.
@@ -278,13 +288,16 @@ fn comment_contains_licensing_keywords(content: &str) -> bool {
     false
 }
 
+#[derive(Debug)]
 enum HeaderKind {
     DefaultAgpl,
     PanMit,
     DerivedThirdParty,
     AllowNonAgpl,
+    Detection,
 }
 
+#[derive(Debug)]
 struct ParsedHeader {
     kind: HeaderKind,
     header_end_line: usize,
@@ -411,15 +424,201 @@ fn parse_derived_third_party_header(
     }))
 }
 
+/// Check if the initial lines of `lines` match `expected` line by line,
+/// ignoring trailing whitespace.
+fn matches_line_block(lines: &[&str], expected: &[&str]) -> bool {
+    if lines.len() < expected.len() {
+        return false;
+    }
+    lines
+        .iter()
+        .take(expected.len())
+        .zip(expected)
+        .all(|(a, b)| a.trim_end() == b.trim_end())
+}
+
+/// Parse and validate the new header pattern for `utilities/detection.rs` and
+/// `utilities/detection/*`:
+/// 1. HASH_BSD_DARWIN_HEADER
+/// 2. SPDX_HEADERS_DETECTION
+/// 3. AGPL_COPYRIGHT_BLOCK
+/// 4. DESCRIPTION_DETECTION
+fn parse_detection_header(
+    lines: &[&str],
+) -> Result<ParsedHeader, (usize, String)> {
+    let darwin_lines: Vec<&str> =
+        HASH_BSD_DARWIN_HEADER.trim_end_matches('\n').lines().collect();
+    if !matches_line_block(lines, &darwin_lines) {
+        return Err((
+            1,
+            "Missing or invalid HASH_BSD_DARWIN_HEADER at top of utilities/detection file"
+                .to_string(),
+        ));
+    }
+    let mut idx = darwin_lines.len();
+
+    // Skip empty lines between HASH_BSD_DARWIN_HEADER and SPDX_HEADERS_DETECTION
+    while let Some(line) = lines.get(idx) {
+        if line.trim().is_empty() {
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    let spdx_lines: Vec<&str> =
+        SPDX_HEADERS_DETECTION.trim_end_matches('\n').lines().collect();
+    let remaining_from_spdx = lines.get(idx..).unwrap_or_default();
+    if !matches_line_block(remaining_from_spdx, &spdx_lines) {
+        return Err((
+            idx.saturating_add(1),
+            "Missing or invalid SPDX_HEADERS_DETECTION in utilities/detection header"
+                .to_string(),
+        ));
+    }
+    idx = idx.saturating_add(spdx_lines.len());
+
+    // Skip empty lines between SPDX_HEADERS_DETECTION and AGPL_COPYRIGHT_BLOCK
+    while let Some(line) = lines.get(idx) {
+        if line.trim().is_empty() {
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    let agpl_lines: Vec<&str> =
+        AGPL_COPYRIGHT_BLOCK.trim_end_matches('\n').lines().collect();
+    let remaining_from_agpl = lines.get(idx..).unwrap_or_default();
+    if !matches_line_block(remaining_from_agpl, &agpl_lines) {
+        return Err((
+            idx.saturating_add(1),
+            "Missing or invalid AGPL_COPYRIGHT_BLOCK in utilities/detection header"
+                .to_string(),
+        ));
+    }
+    idx = idx.saturating_add(agpl_lines.len());
+
+    // Skip empty lines between AGPL_COPYRIGHT_BLOCK and DESCRIPTION_DETECTION
+    while let Some(line) = lines.get(idx) {
+        if line.trim().is_empty() {
+            idx = idx.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    let desc_lines: Vec<&str> =
+        DESCRIPTION_DETECTION.trim_end_matches('\n').lines().collect();
+    let remaining_from_desc = lines.get(idx..).unwrap_or_default();
+    if !matches_line_block(remaining_from_desc, &desc_lines) {
+        return Err((
+            idx.saturating_add(1),
+            "Missing or invalid DESCRIPTION_DETECTION in utilities/detection header"
+                .to_string(),
+        ));
+    }
+    idx = idx.saturating_add(desc_lines.len());
+
+    Ok(ParsedHeader {
+        kind: HeaderKind::Detection,
+        header_end_line: idx,
+        has_darwin_header: true,
+    })
+}
+
+/// Check that utilities/detection files end with:
+/// - FILE_ADDITIONAL_LICENSES
+/// - DETECTION_LICENSES_OTHER
+fn check_detection_footer(
+    file_path: &Path,
+    content: &str,
+    violations: &mut Vec<Violation>,
+) {
+    let normalized = normalize_newlines(content);
+    let lines: Vec<&str> = normalized.lines().collect();
+
+    let other_lines: Vec<&str> =
+        DETECTION_LICENSES_OTHER.trim_end_matches('\n').lines().collect();
+    let addl_lines: Vec<&str> =
+        FILE_ADDITIONAL_LICENSES.trim_end_matches('\n').lines().collect();
+
+    // Find end without trailing empty lines
+    let mut end_idx = lines.len();
+    while end_idx > 0
+        && lines
+            .get(end_idx.saturating_sub(1))
+            .is_some_and(|l| l.trim().is_empty())
+    {
+        end_idx = end_idx.saturating_sub(1);
+    }
+
+    let Some(other_start) = end_idx.checked_sub(other_lines.len()) else {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: lines.len().max(1),
+            message:
+                "utilities/detection file missing expected DETECTION_LICENSES_OTHER block at end of file"
+                    .to_string(),
+        });
+        return;
+    };
+
+    let remaining_for_other =
+        lines.get(other_start..end_idx).unwrap_or_default();
+    if !matches_line_block(remaining_for_other, &other_lines) {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: other_start.saturating_add(1),
+            message:
+                "utilities/detection file missing expected DETECTION_LICENSES_OTHER block at end of file"
+                    .to_string(),
+        });
+        return;
+    }
+
+    let mut before_other_idx = other_start;
+    while before_other_idx > 0
+        && lines
+            .get(before_other_idx.saturating_sub(1))
+            .is_some_and(|l| l.trim().is_empty())
+    {
+        before_other_idx = before_other_idx.saturating_sub(1);
+    }
+
+    let Some(addl_start) = before_other_idx.checked_sub(addl_lines.len()) else {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: before_other_idx.max(1),
+            message:
+                "utilities/detection file missing expected FILE_ADDITIONAL_LICENSES block immediately preceding DETECTION_LICENSES_OTHER"
+                    .to_string(),
+        });
+        return;
+    };
+
+    let remaining_for_addl =
+        lines.get(addl_start..before_other_idx).unwrap_or_default();
+    if !matches_line_block(remaining_for_addl, &addl_lines) {
+        violations.push(Violation {
+            file: file_path.to_path_buf(),
+            line: addl_start.saturating_add(1),
+            message:
+                "utilities/detection file missing expected FILE_ADDITIONAL_LICENSES block immediately preceding DETECTION_LICENSES_OTHER"
+                    .to_string(),
+        });
+    }
+}
+
 /// Try parsing a valid header at the top of the file.
 fn parse_license_header(
     content: &str,
     file_path: &Path,
-) -> Result<ParsedHeader, String> {
+) -> Result<ParsedHeader, (usize, String)> {
     let normalized = normalize_newlines(content);
     let trimmed_start = normalized.trim_start();
     if trimmed_start.is_empty() {
-        return Err("File is empty".to_string());
+        return Err((1, "File is empty".to_string()));
     }
 
     let is_pan = is_pan_file(file_path);
@@ -434,10 +633,22 @@ fn parse_license_header(
                 has_darwin_header: false,
             });
         }
-        return Err("File in src/formats/pan/ does not have expected PAN MIT license header".to_string());
+        return Err((
+            1,
+            "File in src/formats/pan/ does not have expected PAN MIT license header"
+                .to_string(),
+        ));
     }
 
-    // Case 2: Default AGPL Header
+    let lines: Vec<&str> = normalized.lines().collect();
+
+    // Case 2: Utilities Detection Header
+    let is_detection = is_detection_file(file_path);
+    if is_detection {
+        return parse_detection_header(&lines);
+    }
+
+    // Case 3: Default AGPL Header
     if normalized.starts_with(DEFAULT_AGPL_HEADER) {
         let line_count = DEFAULT_AGPL_HEADER.lines().count();
         return Ok(ParsedHeader {
@@ -446,8 +657,6 @@ fn parse_license_header(
             has_darwin_header: false,
         });
     }
-
-    let lines: Vec<&str> = normalized.lines().collect();
 
     let (darwin_prefix_lines, has_darwin_header) =
         if normalized.starts_with(HASH_BSD_DARWIN_HEADER) {
@@ -480,7 +689,7 @@ fn parse_license_header(
         }
     }
 
-    // Case 3: Allow non-AGPL directive following SPDX lines
+    // Case 4: Allow non-AGPL directive following SPDX lines
     if let Some(mut header) = parse_allow_non_agpl_header(remaining_lines) {
         header.header_end_line =
             darwin_prefix_lines.saturating_add(header.header_end_line);
@@ -488,9 +697,10 @@ fn parse_license_header(
         return Ok(header);
     }
 
-    // Case 4: Derived Third-Party Header
+    // Case 5: Derived Third-Party Header
     if let Some(mut header) =
-        parse_derived_third_party_header(remaining_lines, file_path)?
+        parse_derived_third_party_header(remaining_lines, file_path)
+            .map_err(|err| (1, err))?
     {
         header.header_end_line =
             darwin_prefix_lines.saturating_add(header.header_end_line);
@@ -498,7 +708,7 @@ fn parse_license_header(
         return Ok(header);
     }
 
-    Err("Missing or invalid license header at top of file".to_string())
+    Err((1, "Missing or invalid license header at top of file".to_string()))
 }
 
 /// Check that a module docblock (`//!` or `/*!`) exists following the header.
@@ -518,7 +728,8 @@ fn check_module_docblock(
     // For third-party derived files, allow additional unstructured licensing comments
     // (e.g. `// Header comment from original ...` or `/* ... */`) before the module docblock.
     if matches!(header_info.kind, HeaderKind::DerivedThirdParty)
-        || header_info.has_darwin_header
+        || (header_info.has_darwin_header
+            && !matches!(header_info.kind, HeaderKind::Detection))
     {
         let mut in_block_comment = false;
         while let Some(line) = lines.get(idx) {
@@ -705,15 +916,38 @@ fn lint_file(
     let content = fs::read_to_string(file_path)
         .with_context(|| format!("failed to read {}", file_path.display()))?;
 
-    let header_result = parse_license_header(&content, file_path);
-    let parsed_header = match header_result {
-        Ok(h) => h,
-        Err(err) => {
+    let is_detection = is_detection_file(file_path);
+    let is_build_support = file_path
+        .to_string_lossy()
+        .replace('\\', "/")
+        .contains("src/build_support");
+    if !is_detection && !is_build_support {
+        if content.contains(DESCRIPTION_DETECTION.trim())
+            || content.contains(DETECTION_LICENSES_OTHER.trim())
+            || content.contains(FILE_ADDITIONAL_LICENSES.trim())
+        {
             violations.push(Violation {
                 file: file_path.to_path_buf(),
                 line: 1,
+                message:
+                    "Detection license blocks are only permitted in utilities/detection.rs and utilities/detection/*"
+                        .to_string(),
+            });
+        }
+    }
+
+    let header_result = parse_license_header(&content, file_path);
+    let parsed_header = match header_result {
+        Ok(h) => h,
+        Err((line, err)) => {
+            violations.push(Violation {
+                file: file_path.to_path_buf(),
+                line,
                 message: err,
             });
+            if is_detection {
+                check_detection_footer(file_path, &content, violations);
+            }
             return Ok(());
         }
     };
@@ -732,6 +966,10 @@ fn lint_file(
             line,
             message: msg,
         });
+    }
+
+    if is_detection {
+        check_detection_footer(file_path, &content, violations);
     }
 
     Ok(())
@@ -1463,5 +1701,153 @@ fn main() -> Result<()> {
         "header and docblock lint failed with {} violations",
         violations.len()
     );
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_detection_file() {
+        assert!(is_detection_file(Path::new("src/formats/utilities/detection.rs")));
+        assert!(is_detection_file(Path::new("src/formats/utilities/detection/magic.rs")));
+        assert!(is_detection_file(Path::new("src/formats/utilities/detection/mime_derivation.rs")));
+        assert!(is_detection_file(Path::new("/workspaces/ctoolbox/src/formats/utilities/detection/resource_fork.rs")));
+        assert!(!is_detection_file(Path::new("src/formats/utilities/utilities.rs")));
+        assert!(!is_detection_file(Path::new("src/io/environment/detection.rs")));
+        assert!(!is_detection_file(Path::new("src/build_support/license_consts.rs")));
+    }
+
+    #[test]
+    fn test_parse_detection_header_valid() {
+        let valid_header = format!(
+            "{HASH_BSD_DARWIN_HEADER}\n\n{SPDX_HEADERS_DETECTION}\n{AGPL_COPYRIGHT_BLOCK}\n\n{DESCRIPTION_DETECTION}\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&valid_header);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let result = parse_detection_header(&lines);
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        assert!(matches!(parsed.kind, HeaderKind::Detection));
+        assert!(parsed.has_darwin_header);
+
+        let docblock_result = check_module_docblock(&valid_header, &parsed);
+        assert!(docblock_result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_detection_header_missing_darwin() {
+        let invalid_header = format!(
+            "{SPDX_HEADERS_DETECTION}\n{AGPL_COPYRIGHT_BLOCK}\n\n{DESCRIPTION_DETECTION}\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&invalid_header);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let result = parse_detection_header(&lines);
+        assert!(result.is_err());
+        let (line, msg) = result.unwrap_err();
+        assert_eq!(line, 1);
+        assert!(msg.contains("HASH_BSD_DARWIN_HEADER"));
+    }
+
+    #[test]
+    fn test_parse_detection_header_missing_spdx() {
+        let invalid_header = format!(
+            "{HASH_BSD_DARWIN_HEADER}\n\n{AGPL_COPYRIGHT_BLOCK}\n\n{DESCRIPTION_DETECTION}\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&invalid_header);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let result = parse_detection_header(&lines);
+        assert!(result.is_err());
+        let (_, msg) = result.unwrap_err();
+        assert!(msg.contains("SPDX_HEADERS_DETECTION"));
+    }
+
+    #[test]
+    fn test_parse_detection_header_missing_agpl() {
+        let invalid_header = format!(
+            "{HASH_BSD_DARWIN_HEADER}\n\n{SPDX_HEADERS_DETECTION}\n\n{DESCRIPTION_DETECTION}\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&invalid_header);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let result = parse_detection_header(&lines);
+        assert!(result.is_err());
+        let (_, msg) = result.unwrap_err();
+        assert!(msg.contains("AGPL_COPYRIGHT_BLOCK"));
+    }
+
+    #[test]
+    fn test_parse_detection_header_missing_desc() {
+        let invalid_header = format!(
+            "{HASH_BSD_DARWIN_HEADER}\n\n{SPDX_HEADERS_DETECTION}\n{AGPL_COPYRIGHT_BLOCK}\n\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&invalid_header);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let result = parse_detection_header(&lines);
+        assert!(result.is_err());
+        let (_, msg) = result.unwrap_err();
+        assert!(msg.contains("DESCRIPTION_DETECTION"));
+    }
+
+    #[test]
+    fn test_check_detection_footer_valid() {
+        let content = format!(
+            "fn dummy() {{}}\n\n{FILE_ADDITIONAL_LICENSES}\n\n{DETECTION_LICENSES_OTHER}\n"
+        );
+        let mut violations = Vec::new();
+        check_detection_footer(
+            Path::new("utilities/detection/dummy.rs"),
+            &content,
+            &mut violations,
+        );
+        assert!(violations.is_empty(), "Violations found: {violations:?}");
+    }
+
+    #[test]
+    fn test_check_detection_footer_missing_other() {
+        let content = format!("fn dummy() {{}}\n\n{FILE_ADDITIONAL_LICENSES}\n");
+        let mut violations = Vec::new();
+        check_detection_footer(
+            Path::new("utilities/detection/dummy.rs"),
+            &content,
+            &mut violations,
+        );
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("DETECTION_LICENSES_OTHER"));
+    }
+
+    #[test]
+    fn test_check_detection_footer_missing_additional() {
+        let content = format!("fn dummy() {{}}\n\n{DETECTION_LICENSES_OTHER}\n");
+        let mut violations = Vec::new();
+        check_detection_footer(
+            Path::new("utilities/detection/dummy.rs"),
+            &content,
+            &mut violations,
+        );
+        assert_eq!(violations.len(), 1);
+        assert!(violations[0].message.contains("FILE_ADDITIONAL_LICENSES"));
+    }
+
+    #[test]
+    fn test_detection_file_rejects_default_agpl() {
+        let content = format!("{DEFAULT_AGPL_HEADER}\n\n//! Docblock\n");
+        let result = parse_license_header(
+            &content,
+            Path::new("src/formats/utilities/detection.rs"),
+        );
+        assert!(result.is_err());
+        let (_, msg) = result.unwrap_err();
+        assert!(msg.contains("HASH_BSD_DARWIN_HEADER"));
+    }
 }
 

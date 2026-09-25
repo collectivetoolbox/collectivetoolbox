@@ -557,7 +557,7 @@ The preceding notice is from src/missing/vasprintf.c in `file`.
 The preceding notice is from src/tar.h in `file`.
 */"#;
 
-pub const FILE_ADDITIONAL_LICENSES: &str = r#"/*/*
+pub const FILE_ADDITIONAL_LICENSES: &str = r#"/*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the
  * file_public domain
  *
