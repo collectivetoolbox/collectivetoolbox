@@ -102,18 +102,21 @@ pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
                             if trimmed.is_empty() {
                                 continue;
                             }
-                            if trimmed.starts_with('~') && trimmed.ends_with('~') {
+                            let (ext_str, case_sensitive) = if let Some(rest) =
+                                trimmed.strip_prefix("case:")
+                            {
+                                (rest.trim(), true)
+                            } else {
+                                (trimmed, false)
+                            };
+
+                            if ext_str.starts_with('~') && ext_str.ends_with('~') {
                                 continue;
                             }
-                            let clean = trimmed.trim_start_matches('.');
+                            let clean = ext_str.trim_start_matches('.');
                             if clean.is_empty() {
                                 continue;
                             }
-
-                            let case_sensitive = clean
-                                .chars()
-                                .any(|c| c.is_ascii_uppercase())
-                                || clean == "z";
 
                             if seen.insert((format_ident.clone(), clean.to_string())) {
                                 records.push(ExtensionRecord {

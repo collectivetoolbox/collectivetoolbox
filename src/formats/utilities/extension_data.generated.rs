@@ -249,7 +249,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::TarZ,
-        rule: ExtensionRule::sensitive("tar.Z"),
+        rule: ExtensionRule::insensitive("tar.Z"),
     },
     ExtensionEntry {
         format_id: FormatId::TarZ,
@@ -529,7 +529,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::AppleDouble,
-        rule: ExtensionRule::sensitive("ADF"),
+        rule: ExtensionRule::insensitive("ADF"),
     },
     ExtensionEntry {
         format_id: FormatId::AppleDouble,
@@ -629,7 +629,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
     },
     ExtensionEntry {
         format_id: FormatId::Elf,
-        rule: ExtensionRule::sensitive("AppImage"),
+        rule: ExtensionRule::insensitive("AppImage"),
     },
     ExtensionEntry {
         format_id: FormatId::Pe,

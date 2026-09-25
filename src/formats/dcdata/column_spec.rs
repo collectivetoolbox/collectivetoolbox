@@ -78,6 +78,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub os_associations: Vec<String>,
     /// Canonical title / true name extracted from `@title(...)`.
     pub title: Option<String>,
+    /// Default line ending extracted from `@default_line_ending(...)`.
+    pub default_line_ending: Option<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -641,13 +643,44 @@ fn process_column_item(
                     Some("Ensure '@title(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@default_line_ending(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let val = stripped.trim().trim_matches('"').to_ascii_lowercase();
+                if val.is_empty() {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Empty '@default_line_ending()' in '{item_trimmed}'"),
+                        Some("Specify a line ending name (e.g. 'crlf', 'cr', 'lf') inside '@default_line_ending(...)'"),
+                    );
+                } else if !matches!(val.as_str(), "lf" | "cr" | "crlf" | "lfcr" | "rs" | "nl") {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Unknown line ending '{val}' in '{item_trimmed}'"),
+                        Some("Supported line endings are 'lf', 'cr', 'crlf', 'lfcr', 'rs', 'nl'"),
+                    );
+                } else {
+                    parsed.default_line_ending = Some(val);
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@default_line_ending(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@default_line_ending(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', and '@title(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', and '@default_line_ending(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {

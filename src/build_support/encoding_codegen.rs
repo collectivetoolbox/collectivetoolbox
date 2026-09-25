@@ -43,10 +43,40 @@ fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
     Ok(true)
 }
 
+/// Converts a PascalCase or camelCase identifier string to snake_case.
+fn to_snake_case(s: &str) -> String {
+    let mut res = String::new();
+    let mut prev_is_upper = false;
+    let mut prev_is_digit = false;
+    for (i, c) in s.chars().enumerate() {
+        if c.is_uppercase() {
+            if i > 0 && !prev_is_upper {
+                res.push('_');
+            }
+            res.push(c.to_ascii_lowercase());
+            prev_is_upper = true;
+            prev_is_digit = false;
+        } else if c.is_ascii_digit() {
+            if i > 0 && !prev_is_digit {
+                res.push('_');
+            }
+            res.push(c);
+            prev_is_upper = false;
+            prev_is_digit = true;
+        } else {
+            res.push(c);
+            prev_is_upper = false;
+            prev_is_digit = false;
+        }
+    }
+    res
+}
+
 /// Extracts `@default_line_ending(...)` annotation from a string.
 fn extract_default_line_ending_annotation(s: &str) -> Option<String> {
-    if let Some(pos) = s.find("@default_line_ending(") {
-        let rest = s.get(pos.saturating_add(21)..)?;
+    let prefix = "@default_line_ending(";
+    if let Some(pos) = s.find(prefix) {
+        let rest = s.get(pos.saturating_add(prefix.len())..)?;
         if let Some(end) = rest.find(')') {
             let inner = rest.get(..end).unwrap_or("").trim().trim_matches('"');
             if !inner.is_empty() {
@@ -55,6 +85,48 @@ fn extract_default_line_ending_annotation(s: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// Parses a line ending string/identifier into the corresponding Rust `LineEndingKind` path.
+fn parse_line_ending_kind_path(s: &str) -> Option<&'static str> {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "lf" | "line_ending_lf" | "lineendinglf" => Some("LineEndingKind::Lf"),
+        "cr" | "line_ending_cr" | "lineendingcr" => Some("LineEndingKind::Cr"),
+        "crlf" | "line_ending_crlf" | "lineendingcrlf" => Some("LineEndingKind::CrLf"),
+        "lfcr" | "line_ending_lfcr" | "lineendinglfcr" => Some("LineEndingKind::LfCr"),
+        "rs" | "line_ending_rs" | "lineendingrs" => Some("LineEndingKind::Rs"),
+        "nl" | "line_ending_nl" | "lineendingnl" => Some("LineEndingKind::Nl"),
+        _ => None,
+    }
+}
+
+/// Delimiter literal and documentation for a line ending kind.
+fn delimiter_for_kind(kind: &str) -> (&'static str, &'static str) {
+    match kind {
+        "Lf" => ("\\n", "POSIX / Unix newline (`\\n`, LF, 0x0A)"),
+        "Cr" => ("\\r", "Classic Macintosh newline (`\\r`, CR, 0x0D)"),
+        "CrLf" => ("\\r\\n", "Windows / DOS newline (`\\r\\n`, CRLF, 0x0D 0x0A)"),
+        "LfCr" => ("\\n\\r", "Acorn / RISC OS newline (`\\n\\r`, LFCR, 0x0A 0x0D)"),
+        "Rs" => ("\\x1E", "QNX traditional Record Separator (`\\x1E`, RS, 0x1E)"),
+        "Nl" => ("\\u{0085}", "IBM / EBCDIC Next Line (`\\u{0085}`, NEL)"),
+        _ => ("\\n", "Newline delimiter"),
+    }
+}
+
+/// A parsed record from `v.lineEndings.csv`.
+#[derive(Debug, Clone)]
+struct LineEndingRecord {
+    ident: String,
+    mode: &'static str,
+    kind: String,
+}
+
+/// Simple single-byte format entry parsed from `encoding.csv`.
+#[derive(Debug, Clone)]
+struct SimpleEncodingRecord {
+    ident: String,
+    label: String,
+    default_line_ending: &'static str,
 }
 
 /// Generates the contents of `encoding.generated.rs` from format category CSV tables.
@@ -76,8 +148,49 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
         encoding_csv.display()
     );
 
-    // Read default line ending annotations from encoding.csv
-    let mut default_endings: HashMap<String, String> = HashMap::new();
+    // 1. Parse line ending records from v.lineEndings.csv
+    let mut line_ending_records = Vec::new();
+    let mut line_ending_kinds = Vec::new();
+    let mut le_rdr = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_path(&line_endings_csv)
+        .with_context(|| {
+            format!("Failed to open CSV file {}", line_endings_csv.display())
+        })?;
+
+    for result in le_rdr.records() {
+        let record = result.with_context(|| {
+            format!("Failed to read record in {}", line_endings_csv.display())
+        })?;
+        let ident = record.get(2).unwrap_or("").trim().to_string();
+        if ident.is_empty() {
+            continue;
+        }
+
+        let (mode, kind) = if let Some(k) = ident.strip_prefix("LineEnding") {
+            ("Terminated", k.to_string())
+        } else if let Some(k) = ident.strip_prefix("LineSeparator") {
+            ("Separated", k.to_string())
+        } else {
+            continue;
+        };
+
+        if !line_ending_kinds.contains(&kind) {
+            line_ending_kinds.push(kind.clone());
+        }
+
+        line_ending_records.push(LineEndingRecord {
+            ident,
+            mode,
+            kind,
+        });
+    }
+
+    // 2. Parse encoding records from encoding.csv
+    let mut default_endings: HashMap<String, &'static str> = HashMap::new();
+    let mut simple_encodings = Vec::new();
+
     let mut encoding_rdr = csv::ReaderBuilder::new()
         .has_headers(true)
         .flexible(true)
@@ -94,36 +207,37 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
         if ident.is_empty() {
             continue;
         }
+        let category = record.get(4).unwrap_or("").trim();
+        if category != "encoding" {
+            continue;
+        }
+
+        let label = record.get(3).unwrap_or("").trim().to_string();
         let col5 = record.get(5).unwrap_or("");
-        let col8 = record.get(8).unwrap_or("");
-        if let Some(ann) = extract_default_line_ending_annotation(col5)
-            .or_else(|| extract_default_line_ending_annotation(col8))
-        {
-            default_endings.insert(ident, ann);
+        let comments = record.get(15).unwrap_or("");
+
+        let ending_path = extract_default_line_ending_annotation(col5)
+            .or_else(|| extract_default_line_ending_annotation(comments))
+            .and_then(|raw| parse_line_ending_kind_path(&raw))
+            .unwrap_or("LineEndingKind::Lf");
+
+        default_endings.insert(ident.clone(), ending_path);
+
+        // Simple single-byte / 7-bit encodings (excluding multi-byte and configurable families)
+        if matches!(
+            ident.as_str(),
+            "MacRoman" | "Win1252" | "Iso88591" | "Ascii"
+        ) {
+            simple_encodings.push(SimpleEncodingRecord {
+                ident,
+                label,
+                default_line_ending: ending_path,
+            });
         }
     }
 
-    // Default line ending map per encoding
-    let cp437_ending = match default_endings.get("Cp437").map(String::as_str) {
-        Some("cr") => "LineEndingKind::Cr",
-        Some("lf") => "LineEndingKind::Lf",
-        _ => "LineEndingKind::CrLf",
-    };
-    let mac_roman_ending = match default_endings.get("MacRoman").map(String::as_str) {
-        Some("crlf") => "LineEndingKind::CrLf",
-        Some("lf") => "LineEndingKind::Lf",
-        _ => "LineEndingKind::Cr",
-    };
-    let win1252_ending = match default_endings.get("Win1252").map(String::as_str) {
-        Some("cr") => "LineEndingKind::Cr",
-        Some("lf") => "LineEndingKind::Lf",
-        _ => "LineEndingKind::CrLf",
-    };
-    let neo_ending = match default_endings.get("AlphaSmartNeo").map(String::as_str) {
-        Some("crlf") => "LineEndingKind::CrLf",
-        Some("lf") => "LineEndingKind::Lf",
-        _ => "LineEndingKind::Cr",
-    };
+    let cp437_ending = default_endings.get("Cp437").copied().unwrap_or("LineEndingKind::CrLf");
+    let neo_ending = default_endings.get("AlphaSmartNeo").copied().unwrap_or("LineEndingKind::Cr");
 
     let mut out = String::new();
     out.push_str(DEFAULT_AGPL_HEADER);
@@ -137,7 +251,9 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
             clippy::wildcard_imports,\n\
             reason = \"Standard workspace module prelude\"\n\
         )]\n\
-        use crate::utilities::*;\n\n\
+        use crate::utilities::*;\n\
+        use ctb_utilities::FormatId;\n\
+        use ctb_utilities::dc_char::DcChar;\n\n\
         /// Mode for handling low character codes (0x00..=0x1F) in single-byte encodings.\n\
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]\n\
         pub enum LowArea {\n\
@@ -158,40 +274,82 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
             /// Ukrainian PC layout.\n\
             UaPc,\n\
         }\n\n\
+        impl NeoRegion {\n\
+            /// Returns the dedicated `FormatId` for this Neo regional variant and low-area mode.\n\
+            #[must_use]\n\
+            pub const fn to_format_id(self, low_area: LowArea) -> FormatId {\n\
+                match (self, low_area) {\n\
+                    (Self::Us, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUs,\n\
+                    (Self::UaMac, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUaMac,\n\
+                    (Self::UaPc, LowArea::Graphical) => FormatId::AlphaSmartNeoLowGrUaPc,\n\
+                    (Self::Us, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUs,\n\
+                    (Self::UaMac, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUaMac,\n\
+                    (Self::UaPc, LowArea::Control) => FormatId::AlphaSmartNeoLowCtlUaPc,\n\
+                }\n\
+            }\n\n\
+            /// Returns the dedicated `DcChar` constant for this Neo variant if known.\n\
+            #[must_use]\n\
+            pub const fn dc_char(self, low_area: LowArea) -> Option<DcChar> {\n\
+                self.to_format_id(low_area).dc_char()\n\
+            }\n\
+        }\n\n\
         /// Line ending delimiter pattern.\n\
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]\n\
-        pub enum LineEndingKind {\n\
-            /// POSIX / Unix newline (`\\n`, LF, 0x0A).\n\
-            #[default]\n\
-            Lf,\n\
-            /// Classic Macintosh newline (`\\r`, CR, 0x0D).\n\
-            Cr,\n\
-            /// Windows / DOS newline (`\\r\\n`, CRLF, 0x0D 0x0A).\n\
-            CrLf,\n\
-            /// Acorn / RISC OS newline (`\\n\\r`, LFCR, 0x0A 0x0D).\n\
-            LfCr,\n\
-            /// QNX traditional Record Separator (`\\x1E`, RS, 0x1E).\n\
-            Rs,\n\
-            /// IBM / EBCDIC Next Line (`\\u{0085}`, NEL).\n\
-            Nl,\n\
-        }\n\n\
+        pub enum LineEndingKind {\n",
+    );
+
+    for kind in &line_ending_kinds {
+        let (_, doc) = delimiter_for_kind(kind);
+        if kind == "Lf" {
+            out.push_str("    /// ");
+            out.push_str(doc);
+            out.push_str(".\n    #[default]\n    Lf,\n");
+        } else {
+            out.push_str(&format!("    /// {doc}.\n    {kind},\n"));
+        }
+    }
+
+    out.push_str(
+        "}\n\n\
         impl LineEndingKind {\n\
             /// Returns the string representation of this line ending delimiter.\n\
             #[must_use]\n\
             pub const fn as_str(self) -> &'static str {\n\
-                match self {\n\
-                    Self::Lf => \"\\n\",\n\
-                    Self::Cr => \"\\r\",\n\
-                    Self::CrLf => \"\\r\\n\",\n\
-                    Self::LfCr => \"\\n\\r\",\n\
-                    Self::Rs => \"\\x1E\",\n\
-                    Self::Nl => \"\\u{0085}\",\n\
-                }\n\
+                match self {\n",
+    );
+
+    for kind in &line_ending_kinds {
+        let (del, _) = delimiter_for_kind(kind);
+        out.push_str(&format!("                    Self::{kind} => \"{del}\",\n"));
+    }
+
+    out.push_str(
+        "                }\n\
             }\n\n\
             /// Returns the byte sequence for this line ending in UTF-8.\n\
             #[must_use]\n\
             pub const fn as_bytes(self) -> &'static [u8] {\n\
                 self.as_str().as_bytes()\n\
+            }\n\n\
+            /// Creates a `LineEndingFormat` with terminated mode for this delimiter kind.\n\
+            #[must_use]\n\
+            pub const fn terminated(self) -> LineEndingFormat {\n\
+                LineEndingFormat::terminated(self)\n\
+            }\n\n\
+            /// Creates a `LineEndingFormat` with separated mode for this delimiter kind.\n\
+            #[must_use]\n\
+            pub const fn separated(self) -> LineEndingFormat {\n\
+                LineEndingFormat::separated(self)\n\
+            }\n\n\
+            /// Maps this terminated line ending kind to its corresponding `FormatId`.\n\
+            #[must_use]\n\
+            pub const fn to_format_id(self) -> FormatId {\n\
+                self.terminated().to_format_id()\n\
+            }\n\n\
+            /// Returns the dedicated `DcChar` for this line ending in terminated mode.\n\
+            #[must_use]\n\
+            pub const fn dc_char(self) -> Option<DcChar> {\n\
+                self.to_format_id().dc_char()\n\
             }\n\
         }\n\n\
         /// Mode defining whether newlines terminate every line or only separate lines.\n\
@@ -227,6 +385,45 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
                     kind,\n\
                     mode: TerminationMode::Separated,\n\
                 }\n\
+            }\n\n\
+            /// Maps this line ending format to its canonical `FormatId`.\n\
+            #[must_use]\n\
+            pub const fn to_format_id(self) -> FormatId {\n\
+                match (self.mode, self.kind) {\n",
+    );
+
+    for r in &line_ending_records {
+        out.push_str(&format!(
+            "                    (TerminationMode::{}, LineEndingKind::{}) => FormatId::{},\n",
+            r.mode, r.kind, r.ident
+        ));
+    }
+
+    out.push_str(
+        "                }\n\
+            }\n\n\
+            /// Converts a `FormatId` to the corresponding `LineEndingFormat` if it represents a line ending.\n\
+            #[must_use]\n\
+            pub const fn from_format_id(id: FormatId) -> Option<Self> {\n\
+                match id {\n",
+    );
+
+    for r in &line_ending_records {
+        let ctor = if r.mode == "Terminated" { "terminated" } else { "separated" };
+        out.push_str(&format!(
+            "                    FormatId::{} => Some(Self::{}(LineEndingKind::{})),\n",
+            r.ident, ctor, r.kind
+        ));
+    }
+
+    out.push_str(
+        "                    _ => None,\n\
+                }\n\
+            }\n\n\
+            /// Returns the dedicated `DcChar` for this line ending format if known.\n\
+            #[must_use]\n\
+            pub const fn dc_char(self) -> Option<DcChar> {\n\
+                self.to_format_id().dc_char()\n\
             }\n\
         }\n\n\
         /// Option controlling line ending conversion during encoding, decoding, and transcoding.\n\
@@ -256,12 +453,17 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
                 region: NeoRegion,\n\
                 /// Low-area mode.\n\
                 low_area: LowArea,\n\
-            },\n\
-            /// Mac OS Roman character encoding.\n\
-            MacRoman,\n\
-            /// Windows-1252 (ANSI) character encoding.\n\
-            Windows1252,\n\
-        }\n\n\
+            },\n",
+    );
+
+    // Simple single-byte variants
+    for s in &simple_encodings {
+        let variant_name = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+        out.push_str(&format!("            /// {}.\n            {variant_name},\n", s.label));
+    }
+
+    out.push_str(
+        "        }\n\n\
         impl CharEncoding {\n\
             /// Default CP437 encoding with graphical dingbats and variant aliases.\n\
             #[must_use]\n\
@@ -291,32 +493,100 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
             #[must_use]\n\
             pub const fn neo(region: NeoRegion, low_area: LowArea) -> Self {\n\
                 Self::Neo { region, low_area }\n\
-            }\n\n\
-            /// Mac OS Roman encoding.\n\
+            }\n\n",
+    );
+
+    // Generate constructor methods dynamically for simple encodings
+    for s in &simple_encodings {
+        let variant_name = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+        let fn_name = to_snake_case(variant_name);
+        out.push_str(&format!(
+            "            /// {}.\n\
             #[must_use]\n\
-            pub const fn mac_roman() -> Self {\n\
-                Self::MacRoman\n\
-            }\n\n\
-            /// Windows-1252 (ANSI) encoding.\n\
+            pub const fn {fn_name}() -> Self {{\n\
+                Self::{variant_name}\n\
+            }}\n\n",
+            s.label
+        ));
+        if s.ident == "Win1252" {
+            out.push_str(
+                "            /// Windows-1252 (\"ANSI\") encoding alias.\n\
             #[must_use]\n\
-            pub const fn windows_1252() -> Self {\n\
+            pub const fn win1252() -> Self {\n\
                 Self::Windows1252\n\
+            }\n\n",
+            );
+        } else if s.ident == "Iso88591" {
+            out.push_str(
+                "            /// ISO 8859-1 encoding alias.\n\
+            #[must_use]\n\
+            pub const fn iso_8859_1() -> Self {\n\
+                Self::Iso88591\n\
+            }\n\n",
+            );
+        }
+    }
+
+    out.push_str(
+        "            /// Maps this character encoding to its canonical `FormatId`.\n\
+            #[must_use]\n\
+            pub const fn to_format_id(self) -> FormatId {\n\
+                match self {\n\
+                    Self::Cp437 { .. } => FormatId::Cp437,\n\
+                    Self::Neo { region, low_area } => region.to_format_id(low_area),\n",
+    );
+
+    for s in &simple_encodings {
+        let variant_name = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+        out.push_str(&format!("                    Self::{variant_name} => FormatId::{},\n", s.ident));
+    }
+
+    out.push_str(
+        "                }\n\
+            }\n\n\
+            /// Converts a `FormatId` to the corresponding `CharEncoding` if it represents an encoding.\n\
+            #[must_use]\n\
+            pub const fn from_format_id(id: FormatId) -> Option<Self> {\n\
+                match id {\n\
+                    FormatId::Cp437 => Some(Self::cp437()),\n\
+                    FormatId::AlphaSmartNeo => Some(Self::neo_us()),\n\
+                    FormatId::AlphaSmartNeoLowGrUs => Some(Self::neo(NeoRegion::Us, LowArea::Graphical)),\n\
+                    FormatId::AlphaSmartNeoLowGrUaMac => Some(Self::neo(NeoRegion::UaMac, LowArea::Graphical)),\n\
+                    FormatId::AlphaSmartNeoLowGrUaPc => Some(Self::neo(NeoRegion::UaPc, LowArea::Graphical)),\n\
+                    FormatId::AlphaSmartNeoLowCtlUs => Some(Self::neo(NeoRegion::Us, LowArea::Control)),\n\
+                    FormatId::AlphaSmartNeoLowCtlUaMac => Some(Self::neo(NeoRegion::UaMac, LowArea::Control)),\n\
+                    FormatId::AlphaSmartNeoLowCtlUaPc => Some(Self::neo(NeoRegion::UaPc, LowArea::Control)),\n",
+    );
+
+    for s in &simple_encodings {
+        let variant_name = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+        out.push_str(&format!("                    FormatId::{} => Some(Self::{variant_name}),\n", s.ident));
+    }
+
+    out.push_str(
+        "                    _ => None,\n\
+                }\n\
+            }\n\n\
+            /// Returns the dedicated `DcChar` constant for this character encoding if known.\n\
+            #[must_use]\n\
+            pub const fn dc_char(self) -> Option<DcChar> {\n\
+                self.to_format_id().dc_char()\n\
             }\n\n\
             /// Returns the idiomatic / natural default line ending for this character encoding.\n\
             #[must_use]\n\
             pub const fn default_line_ending(self) -> LineEndingKind {\n\
-                match self {\n\
-                    Self::MacRoman => ",
+                match self {\n",
     );
-    out.push_str(mac_roman_ending);
-    out.push_str(",\n                    Self::Neo { .. } => ");
-    out.push_str(neo_ending);
-    out.push_str(",\n                    Self::Cp437 { .. } => ");
-    out.push_str(cp437_ending);
-    out.push_str(",\n                    Self::Windows1252 => ");
-    out.push_str(win1252_ending);
+
+    out.push_str(&format!("                    Self::Cp437 {{ .. }} => {cp437_ending},\n"));
+    out.push_str(&format!("                    Self::Neo {{ .. }} => {neo_ending},\n"));
+    for s in &simple_encodings {
+        let variant_name = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+        out.push_str(&format!("                    Self::{variant_name} => {},\n", s.default_line_ending));
+    }
+
     out.push_str(
-        ",\n                }\n\
+        "                }\n\
             }\n\n\
             /// Checks whether the specified line ending can be encoded in this character encoding.\n\
             #[must_use]\n\
@@ -326,9 +596,21 @@ pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
                     | LineEndingKind::Cr\n\
                     | LineEndingKind::CrLf\n\
                     | LineEndingKind::LfCr => true,\n\
-                    LineEndingKind::Rs => match self {\n\
-                        Self::MacRoman | Self::Windows1252 => true,\n\
-                        Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {\n\
+                    LineEndingKind::Rs => match self {\n",
+    );
+
+    let simple_variant_patterns = simple_encodings
+        .iter()
+        .map(|s| {
+            let var = if s.ident == "Win1252" { "Windows1252" } else { &s.ident };
+            format!("Self::{var}")
+        })
+        .collect::<Vec<_>>()
+        .join(" | ");
+
+    out.push_str(&format!("                        {simple_variant_patterns} => true,\n"));
+    out.push_str(
+        "                        Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {\n\
                             matches!(low_area, LowArea::Control)\n\
                         }\n\
                     },\n\

@@ -57,6 +57,36 @@ pub(crate) static MACROMAN_MAPPING: LazyLock<SingleByteMapping> =
 pub(crate) static WINDOWS_1252_MAPPING: LazyLock<SingleByteMapping> =
     LazyLock::new(|| build_mapping_from_encoding_rs(encoding_rs::WINDOWS_1252));
 
+/// Pre-initialized `SingleByteMapping` for ISO 8859-1 (Latin-1) encoding.
+pub(crate) static ISO_8859_1_MAPPING: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        let mut decode_table = ['\0'; 256];
+        let mut encode_table = HashMap::new();
+        for i in 0u8..=255 {
+            let ch = char::from(i);
+            if let Some(slot) = decode_table.get_mut(usize::from(i)) {
+                *slot = ch;
+            }
+            encode_table.insert(ch, i);
+        }
+        SingleByteMapping::from_raw(decode_table, encode_table)
+    });
+
+/// Pre-initialized `SingleByteMapping` for standard 7-bit ASCII encoding.
+pub(crate) static ASCII_MAPPING: LazyLock<SingleByteMapping> =
+    LazyLock::new(|| {
+        let mut decode_table = ['\0'; 256];
+        let mut encode_table = HashMap::new();
+        for i in 0u8..=127 {
+            let ch = char::from(i);
+            if let Some(slot) = decode_table.get_mut(usize::from(i)) {
+                *slot = ch;
+            }
+            encode_table.insert(ch, i);
+        }
+        SingleByteMapping::from_raw(decode_table, encode_table)
+    });
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -89,6 +119,28 @@ mod tests {
     fn test_windows_1252_encoding() {
         let enc = CharEncoding::windows_1252();
         let original = "Hello, World! ñ ü á";
+        let encoded = crate::encode(enc, original).unwrap();
+        let decoded = crate::decode(enc, &encoded).unwrap();
+        assert_eq!(original, decoded);
+    }
+
+    #[crate::ctb_test]
+    fn test_iso88591_encoding() {
+        let enc = CharEncoding::iso_8859_1();
+        let original = "Hello, World! ñ ü á caf\u{e9}";
+        let encoded = crate::encode(enc, original).unwrap();
+        let decoded = crate::decode(enc, &encoded).unwrap();
+        assert_eq!(original, decoded);
+        assert_eq!(
+            crate::encode(enc, "caf\u{e9}").unwrap(),
+            vec![99, 97, 102, 0xe9]
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_ascii_encoding() {
+        let enc = CharEncoding::ascii();
+        let original = "Hello, World! 123";
         let encoded = crate::encode(enc, original).unwrap();
         let decoded = crate::decode(enc, &encoded).unwrap();
         assert_eq!(original, decoded);

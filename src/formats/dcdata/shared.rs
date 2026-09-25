@@ -348,6 +348,16 @@ pub fn validate_extension_entry(entry: &str) -> Result<()> {
         bail!("Extension entry cannot be blank");
     }
 
+    let trimmed = if let Some(stripped) = trimmed.strip_prefix("case:") {
+        stripped.trim()
+    } else {
+        trimmed
+    };
+
+    if trimmed.is_empty() {
+        bail!("Extension entry cannot be blank after case prefix");
+    }
+
     if trimmed.starts_with('~') && trimmed.ends_with('~') && trimmed.len() >= 2
     {
         let pattern = if let Some(stripped) =

@@ -1764,6 +1764,14 @@ mod tests {
         validate_extension_entry(r"~^\._~").unwrap();
         validate_extension_entry(r"~/\.AppleDouble/~").unwrap();
         assert!(validate_extension_entry(r"~[invalid regex(+~").is_err());
+
+        // Case-sensitive prefix syntax
+        validate_extension_entry("case:.Z").unwrap();
+        validate_extension_entry("case:.C").unwrap();
+        validate_extension_entry("case:.z").unwrap();
+        assert!(validate_extension_entry("case:").is_err());
+        assert!(validate_extension_entry("case:txt").is_err());
+        assert!(validate_extension_entry("sensitive:.C").is_err());
     }
 
     #[crate::ctb_test]

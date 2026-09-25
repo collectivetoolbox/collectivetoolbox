@@ -151,6 +151,8 @@ pub fn mapping(enc: CharEncoding) -> &'static SingleByteMapping {
         }
         CharEncoding::MacRoman => &crate::standard::MACROMAN_MAPPING,
         CharEncoding::Windows1252 => &crate::standard::WINDOWS_1252_MAPPING,
+        CharEncoding::Iso88591 => &crate::standard::ISO_8859_1_MAPPING,
+        CharEncoding::Ascii => &crate::standard::ASCII_MAPPING,
     }
 }
 
