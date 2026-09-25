@@ -939,7 +939,7 @@ pub fn guess_format_report(
         let mut buf = vec![0u8; req_len];
         match source.read_at(0, &mut buf) {
             Ok(n) => {
-                let n_u64 = u64::try_from(n).unwrap_or(0);
+                let n_u64 = u64::try_from(n)?;
                 bytes_evaluated = bytes_evaluated.max(n_u64);
                 let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
                 if is_match {
@@ -1267,6 +1267,7 @@ pub fn guess_format_candidates(
     source: &mut dyn DetectionSource,
     hint: Option<&DetectionHint>,
 ) -> Vec<DetectionCandidate> {
+    // Reason for fallback: best-effort format candidate discovery defaults to an empty candidate list if report generation fails
     guess_format_report(source, hint)
         .map(|rep| rep.candidates)
         .unwrap_or_default()

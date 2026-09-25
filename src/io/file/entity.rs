@@ -294,6 +294,7 @@ impl FileEntity {
         &self,
         payload: &mut dyn PayloadSource,
     ) -> Vec<ctb_formats_utilities::detection::DetectionCandidate> {
+        // Reason for fallback: best-effort entity format guessing defaults to empty candidate list if report evaluation fails
         self.detect_format_report(payload)
             .map(|rep| rep.candidates)
             .unwrap_or_default()
