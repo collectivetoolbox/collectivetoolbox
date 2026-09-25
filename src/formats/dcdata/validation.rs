@@ -2025,7 +2025,9 @@ mod tests {
         assert_eq!(fmt_gen_rows[1][0], "2228225");
         assert_eq!(fmt_gen_rows[1][1], "f1");
 
-        // Verify generated unicode.generated.csv
+        // FIXME Readd this but not included in the binary.
+        /*
+                // Verify generated unicode.generated.csv
         let (uni_gen_hdr, uni_gen_rows) = read_csv_file(
             &repo.join("src/formats/dcdata/data/unicode.generated.csv"),
         )
@@ -2042,6 +2044,15 @@ mod tests {
         .unwrap();
         assert_eq!(all_gen_hdr, canonical_header);
         assert_eq!(all_gen_rows.len(), gen_stats.total_records_merged);
+
+        */
+        // Verify unicode and all tables are NOT generated
+        let uni_csv_path =
+            repo.join("src/formats/dcdata/data/unicode.generated.csv");
+        assert!(!uni_csv_path.exists());
+        let all_csv_path =
+            repo.join("src/formats/dcdata/data/all.generated.csv");
+        assert!(!all_csv_path.exists());
 
         // Verify JSON files are NOT generated
         let dc_json_path = repo.join("src/formats/dcdata/data/DcList.generated.json");
