@@ -452,11 +452,18 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::extension::resolve_extension_candidates;
+pub mod extension;
+pub mod magic;
+pub mod magic_data;
+pub mod magic_parser;
+pub mod mime_derivation;
+pub mod resource_fork;
+
+use self::extension::resolve_extension_candidates;
+use self::magic::evaluate_rule;
+use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
+use self::mime_derivation::FORMAT_CATALOG;
 use crate::format_id::FormatId;
-use crate::magic::evaluate_rule;
-use crate::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
-use crate::mime_derivation::FORMAT_CATALOG;
 
 pub use ctb_utilities::format_id::FormatCategory;
 

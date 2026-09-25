@@ -539,7 +539,7 @@ pub fn resolve_extension_candidates(
     let mut results = Vec::new();
 
     for mapping in
-        crate::mime_derivation::FORMAT_CATALOG.lookup_extension(&trimmed)
+        super::mime_derivation::FORMAT_CATALOG.lookup_extension(&trimmed)
     {
         if let Some(fmt) = mapping.format_id {
             if !results.iter().any(|(f, _)| *f == fmt) {

@@ -452,8 +452,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate::format_id::FormatId;
-use crate::magic::MagicPattern;
-use crate::magic_parser::{HierarchicalMagicRule, parse_magic_content};
+use super::magic::MagicPattern;
+use super::magic_parser::{HierarchicalMagicRule, parse_magic_content};
 use std::sync::LazyLock;
 
 /// An entry associating a `FormatId` with a `MagicPattern` (legacy compatibility).

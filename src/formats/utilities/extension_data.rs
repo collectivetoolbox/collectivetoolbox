@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Centralized registry of file extension rules across format types.
 
-use crate::extension::ExtensionRule;
+use crate::detection::extension::ExtensionRule;
 use crate::format_id::FormatId;
 #[expect(
     unused_imports,

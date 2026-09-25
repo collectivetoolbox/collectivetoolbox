@@ -317,7 +317,7 @@ impl FileEntity {
             ..
         } = &self.identity.origin
         {
-            ctb_formats_utilities::FORMAT_CATALOG
+            ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG
                 .lookup_ident(archive_format)
                 .and_then(|m| m.os_associations.first().copied())
         } else {
@@ -371,10 +371,10 @@ impl FileEntity {
                     stream_platform = Some(ctb_formats_utilities::format_id::FormatId::MacOs);
                     if let Some(ref data) = stream.data {
                         let type_codes =
-                            ctb_formats_utilities::extract_resource_fork_type_codes(data);
+                            ctb_formats_utilities::detection::resource_fork::extract_resource_fork_type_codes(data);
                         for code in type_codes {
                             if let Some(mapping) =
-                                ctb_formats_utilities::FORMAT_CATALOG.lookup_apple_type_code(&code)
+                                ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG.lookup_apple_type_code(&code)
                             {
                                 stream_candidates.push(
                                     ctb_formats_utilities::detection::DetectionCandidate {
@@ -436,7 +436,7 @@ impl FileEntity {
                                 if let Ok(mime_str) = std::str::from_utf8(data) {
                                     let clean_mime = mime_str.trim().trim_matches('\0');
                                     if let Some(mapping) =
-                                        ctb_formats_utilities::FORMAT_CATALOG.lookup_mime(clean_mime)
+                                        ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG.lookup_mime(clean_mime)
                                     {
                                         stream_candidates.push(
                                             ctb_formats_utilities::detection::DetectionCandidate {

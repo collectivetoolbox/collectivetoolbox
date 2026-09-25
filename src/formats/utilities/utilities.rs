@@ -21,23 +21,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub mod detection;
 pub mod encoding;
-pub mod extension;
 pub mod extension_data;
 pub mod format_info;
-pub mod magic;
-pub mod magic_data;
-pub mod magic_parser;
-pub mod mime_derivation;
-pub mod resource_fork;
 
 pub use ctb_utilities::format_id;
 pub use ctb_utilities::FormatId;
 pub use format_info::{FormatInfo, describe_format, get_format_info};
-pub use magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
-pub use mime_derivation::{
-    FORMAT_CATALOG, FormatCatalog, FormatInheritanceGraph, FormatMapping,
-};
-pub use resource_fork::extract_resource_fork_type_codes;
 
 #[expect(
     unused_imports,

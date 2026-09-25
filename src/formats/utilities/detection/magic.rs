@@ -451,8 +451,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::detection::DetectionSource;
-use crate::magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
+use super::DetectionSource;
+use super::magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
 
 /// Result of evaluating a hierarchical magic rule against a payload source.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -781,7 +781,7 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
-    use crate::magic_parser::parse_magic_content;
+    use super::super::magic_parser::parse_magic_content;
 
     #[ctb_test]
     fn test_magic_pattern_matching() {
