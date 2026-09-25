@@ -1,0 +1,376 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Codegen for character encoding definitions, line ending mappings, and
+//! `encoding.generated.rs` from format category CSV data tables.
+
+use anyhow::{Context, Result, ensure};
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+
+use crate::find_repository_root_from;
+use crate::license_consts::DEFAULT_AGPL_HEADER;
+
+fn write_if_changed(path: &Path, content: &str) -> Result<bool> {
+    if path.is_file() {
+        if let Ok(existing) = fs::read_to_string(path) {
+            if existing == content {
+                return Ok(false);
+            }
+        }
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, content)?;
+    Ok(true)
+}
+
+/// Extracts `@default_line_ending(...)` annotation from a string.
+fn extract_default_line_ending_annotation(s: &str) -> Option<String> {
+    if let Some(pos) = s.find("@default_line_ending(") {
+        let rest = s.get(pos.saturating_add(21)..)?;
+        if let Some(end) = rest.find(')') {
+            let inner = rest.get(..end).unwrap_or("").trim().trim_matches('"');
+            if !inner.is_empty() {
+                return Some(inner.to_ascii_lowercase());
+            }
+        }
+    }
+    None
+}
+
+/// Generates the contents of `encoding.generated.rs` from format category CSV tables.
+///
+/// # Errors
+/// Returns an error if reading CSV tables fails.
+pub fn generate_encoding_code(formats_dir: &Path) -> Result<String> {
+    let line_endings_csv = formats_dir.join("v.lineEndings.csv");
+    ensure!(
+        line_endings_csv.is_file(),
+        "Could not locate v.lineEndings.csv at {}",
+        line_endings_csv.display()
+    );
+
+    let encoding_csv = formats_dir.join("encoding.csv");
+    ensure!(
+        encoding_csv.is_file(),
+        "Could not locate encoding.csv at {}",
+        encoding_csv.display()
+    );
+
+    // Read default line ending annotations from encoding.csv
+    let mut default_endings: HashMap<String, String> = HashMap::new();
+    let mut encoding_rdr = csv::ReaderBuilder::new()
+        .has_headers(true)
+        .flexible(true)
+        .from_path(&encoding_csv)
+        .with_context(|| {
+            format!("Failed to open CSV file {}", encoding_csv.display())
+        })?;
+
+    for result in encoding_rdr.records() {
+        let record = result.with_context(|| {
+            format!("Failed to read record in {}", encoding_csv.display())
+        })?;
+        let ident = record.get(2).unwrap_or("").trim().to_string();
+        if ident.is_empty() {
+            continue;
+        }
+        let col5 = record.get(5).unwrap_or("");
+        let col8 = record.get(8).unwrap_or("");
+        if let Some(ann) = extract_default_line_ending_annotation(col5)
+            .or_else(|| extract_default_line_ending_annotation(col8))
+        {
+            default_endings.insert(ident, ann);
+        }
+    }
+
+    // Default line ending map per encoding
+    let cp437_ending = match default_endings.get("Cp437").map(String::as_str) {
+        Some("cr") => "LineEndingKind::Cr",
+        Some("lf") => "LineEndingKind::Lf",
+        _ => "LineEndingKind::CrLf",
+    };
+    let mac_roman_ending = match default_endings.get("MacRoman").map(String::as_str) {
+        Some("crlf") => "LineEndingKind::CrLf",
+        Some("lf") => "LineEndingKind::Lf",
+        _ => "LineEndingKind::Cr",
+    };
+    let win1252_ending = match default_endings.get("Win1252").map(String::as_str) {
+        Some("cr") => "LineEndingKind::Cr",
+        Some("lf") => "LineEndingKind::Lf",
+        _ => "LineEndingKind::CrLf",
+    };
+    let neo_ending = match default_endings.get("AlphaSmartNeo").map(String::as_str) {
+        Some("crlf") => "LineEndingKind::CrLf",
+        Some("lf") => "LineEndingKind::Lf",
+        _ => "LineEndingKind::Cr",
+    };
+
+    let mut out = String::new();
+    out.push_str(DEFAULT_AGPL_HEADER);
+    out.push_str("\n\n");
+    out.push_str(
+        "//! Character encoding definitions and settings for table-driven single-byte encodings.\n\
+        //! @generated by ctb-build-support::encoding_codegen from format category data tables.\n\
+        //! Do not edit by hand.\n\n\
+        #[expect(\n\
+            unused_imports,\n\
+            clippy::wildcard_imports,\n\
+            reason = \"Standard workspace module prelude\"\n\
+        )]\n\
+        use crate::utilities::*;\n\n\
+        /// Mode for handling low character codes (0x00..=0x1F) in single-byte encodings.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]\n\
+        pub enum LowArea {\n\
+            /// Graphical symbols (e.g. Neo graphical symbols, CP437 dingbats).\n\
+            #[default]\n\
+            Graphical,\n\
+            /// Control characters (standard C0 control codes).\n\
+            Control,\n\
+        }\n\n\
+        /// Regional character layout for Neo encodings.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Hash)]\n\
+        pub enum NeoRegion {\n\
+            /// United States layout.\n\
+            #[default]\n\
+            Us,\n\
+            /// Ukrainian Macintosh layout.\n\
+            UaMac,\n\
+            /// Ukrainian PC layout.\n\
+            UaPc,\n\
+        }\n\n\
+        /// Line ending delimiter pattern.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]\n\
+        pub enum LineEndingKind {\n\
+            /// POSIX / Unix newline (`\\n`, LF, 0x0A).\n\
+            #[default]\n\
+            Lf,\n\
+            /// Classic Macintosh newline (`\\r`, CR, 0x0D).\n\
+            Cr,\n\
+            /// Windows / DOS newline (`\\r\\n`, CRLF, 0x0D 0x0A).\n\
+            CrLf,\n\
+            /// Acorn / RISC OS newline (`\\n\\r`, LFCR, 0x0A 0x0D).\n\
+            LfCr,\n\
+            /// QNX traditional Record Separator (`\\x1E`, RS, 0x1E).\n\
+            Rs,\n\
+            /// IBM / EBCDIC Next Line (`\\u{0085}`, NEL).\n\
+            Nl,\n\
+        }\n\n\
+        impl LineEndingKind {\n\
+            /// Returns the string representation of this line ending delimiter.\n\
+            #[must_use]\n\
+            pub const fn as_str(self) -> &'static str {\n\
+                match self {\n\
+                    Self::Lf => \"\\n\",\n\
+                    Self::Cr => \"\\r\",\n\
+                    Self::CrLf => \"\\r\\n\",\n\
+                    Self::LfCr => \"\\n\\r\",\n\
+                    Self::Rs => \"\\x1E\",\n\
+                    Self::Nl => \"\\u{0085}\",\n\
+                }\n\
+            }\n\n\
+            /// Returns the byte sequence for this line ending in UTF-8.\n\
+            #[must_use]\n\
+            pub const fn as_bytes(self) -> &'static [u8] {\n\
+                self.as_str().as_bytes()\n\
+            }\n\
+        }\n\n\
+        /// Mode defining whether newlines terminate every line or only separate lines.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]\n\
+        pub enum TerminationMode {\n\
+            /// Every line including the last line is terminated by the newline sequence.\n\
+            #[default]\n\
+            Terminated,\n\
+            /// Newline sequences only appear between lines; no trailing terminator on final line.\n\
+            Separated,\n\
+        }\n\n\
+        /// Full specification of line ending style and termination mode.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]\n\
+        pub struct LineEndingFormat {\n\
+            /// The line ending delimiter pattern.\n\
+            pub kind: LineEndingKind,\n\
+            /// Whether the delimiter terminates all lines or only separates them.\n\
+            pub mode: TerminationMode,\n\
+        }\n\n\
+        impl LineEndingFormat {\n\
+            /// Creates a new `LineEndingFormat` with terminated mode.\n\
+            #[must_use]\n\
+            pub const fn terminated(kind: LineEndingKind) -> Self {\n\
+                Self {\n\
+                    kind,\n\
+                    mode: TerminationMode::Terminated,\n\
+                }\n\
+            }\n\n\
+            /// Creates a new `LineEndingFormat` with separated mode.\n\
+            #[must_use]\n\
+            pub const fn separated(kind: LineEndingKind) -> Self {\n\
+                Self {\n\
+                    kind,\n\
+                    mode: TerminationMode::Separated,\n\
+                }\n\
+            }\n\
+        }\n\n\
+        /// Option controlling line ending conversion during encoding, decoding, and transcoding.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]\n\
+        pub enum LineEndingOption {\n\
+            /// Keep line endings as they are (no conversion / pure character conversion).\n\
+            #[default]\n\
+            Preserve,\n\
+            /// Convert to the idiomatic line ending for the target character encoding.\n\
+            EncodingDefault,\n\
+            /// Convert to a specific line ending format.\n\
+            Specific(LineEndingFormat),\n\
+        }\n\n\
+        /// Structured single-byte character encoding settings.\n\
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\n\
+        pub enum CharEncoding {\n\
+            /// Code Page 437 (DOS Latin US).\n\
+            Cp437 {\n\
+                /// Low-area mode (graphical dingbats vs control codes).\n\
+                low_area: LowArea,\n\
+                /// Whether alternative Unicode variants are included in reverse encoding.\n\
+                include_variants: bool,\n\
+            },\n\
+            /// Neo character encoding.\n\
+            Neo {\n\
+                /// Regional layout variant.\n\
+                region: NeoRegion,\n\
+                /// Low-area mode.\n\
+                low_area: LowArea,\n\
+            },\n\
+            /// Mac OS Roman character encoding.\n\
+            MacRoman,\n\
+            /// Windows-1252 (ANSI) character encoding.\n\
+            Windows1252,\n\
+        }\n\n\
+        impl CharEncoding {\n\
+            /// Default CP437 encoding with graphical dingbats and variant aliases.\n\
+            #[must_use]\n\
+            pub const fn cp437() -> Self {\n\
+                Self::Cp437 {\n\
+                    low_area: LowArea::Graphical,\n\
+                    include_variants: true,\n\
+                }\n\
+            }\n\n\
+            /// CP437 encoding with control characters in low area.\n\
+            #[must_use]\n\
+            pub const fn cp437_control() -> Self {\n\
+                Self::Cp437 {\n\
+                    low_area: LowArea::Control,\n\
+                    include_variants: true,\n\
+                }\n\
+            }\n\n\
+            /// Standard Neo US layout with graphical low area.\n\
+            #[must_use]\n\
+            pub const fn neo_us() -> Self {\n\
+                Self::Neo {\n\
+                    region: NeoRegion::Us,\n\
+                    low_area: LowArea::Graphical,\n\
+                }\n\
+            }\n\n\
+            /// Neo encoding with custom region and low area.\n\
+            #[must_use]\n\
+            pub const fn neo(region: NeoRegion, low_area: LowArea) -> Self {\n\
+                Self::Neo { region, low_area }\n\
+            }\n\n\
+            /// Mac OS Roman encoding.\n\
+            #[must_use]\n\
+            pub const fn mac_roman() -> Self {\n\
+                Self::MacRoman\n\
+            }\n\n\
+            /// Windows-1252 (ANSI) encoding.\n\
+            #[must_use]\n\
+            pub const fn windows_1252() -> Self {\n\
+                Self::Windows1252\n\
+            }\n\n\
+            /// Returns the idiomatic / natural default line ending for this character encoding.\n\
+            #[must_use]\n\
+            pub const fn default_line_ending(self) -> LineEndingKind {\n\
+                match self {\n\
+                    Self::MacRoman => ",
+    );
+    out.push_str(mac_roman_ending);
+    out.push_str(",\n                    Self::Neo { .. } => ");
+    out.push_str(neo_ending);
+    out.push_str(",\n                    Self::Cp437 { .. } => ");
+    out.push_str(cp437_ending);
+    out.push_str(",\n                    Self::Windows1252 => ");
+    out.push_str(win1252_ending);
+    out.push_str(
+        ",\n                }\n\
+            }\n\n\
+            /// Checks whether the specified line ending can be encoded in this character encoding.\n\
+            #[must_use]\n\
+            pub const fn supports_line_ending(self, ending: LineEndingKind) -> bool {\n\
+                match ending {\n\
+                    LineEndingKind::Lf\n\
+                    | LineEndingKind::Cr\n\
+                    | LineEndingKind::CrLf\n\
+                    | LineEndingKind::LfCr => true,\n\
+                    LineEndingKind::Rs => match self {\n\
+                        Self::MacRoman | Self::Windows1252 => true,\n\
+                        Self::Cp437 { low_area, .. } | Self::Neo { low_area, .. } => {\n\
+                            matches!(low_area, LowArea::Control)\n\
+                        }\n\
+                    },\n\
+                    LineEndingKind::Nl => false,\n\
+                }\n\
+            }\n\
+        }\n\n\
+        impl Default for CharEncoding {\n\
+            fn default() -> Self {\n\
+                Self::cp437()\n\
+            }\n\
+        }\n",
+    );
+
+    Ok(out)
+}
+
+/// Generates or updates `src/formats/utilities/encoding.generated.rs` if contents changed.
+///
+/// # Errors
+/// Returns an error if directory resolution, generation, or writing fails.
+pub fn generate_encoding_file(base_dir: &Path) -> Result<bool> {
+    let repo_root = find_repository_root_from(base_dir)?;
+    let formats_dir = repo_root
+        .join("src")
+        .join("formats")
+        .join("dcdata")
+        .join("data")
+        .join("categories")
+        .join("formats");
+    ensure!(
+        formats_dir.is_dir(),
+        "Could not locate formats directory at {}",
+        formats_dir.display()
+    );
+
+    let target_file = repo_root
+        .join("src")
+        .join("formats")
+        .join("utilities")
+        .join("encoding.generated.rs");
+
+    let code = generate_encoding_code(&formats_dir)?;
+    write_if_changed(&target_file, &code)
+}

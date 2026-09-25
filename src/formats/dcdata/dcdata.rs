@@ -29,6 +29,7 @@ pub(crate) use ctb_utilities::*;
 
 pub use crate as ctb_formats_dc_data;
 
+#[path = "dc.generated.rs"]
 pub mod dc;
 pub mod dc_char;
 pub mod dc_def;

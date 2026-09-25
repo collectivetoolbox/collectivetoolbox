@@ -20,7 +20,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! File format detection, magic number lookup, and extension mapping tools.
 
 pub mod detection;
+#[path = "encoding.generated.rs"]
 pub mod encoding;
+#[path = "extension_data.generated.rs"]
 pub mod extension_data;
 pub mod format_info;
 

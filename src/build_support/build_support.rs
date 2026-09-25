@@ -20,6 +20,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Build support library for ctoolbox build process.
 
 pub mod asset_packer;
+pub mod dc_codegen;
+pub mod encoding_codegen;
+pub mod extension_codegen;
 pub mod fnv;
 pub mod format_id_codegen;
 pub mod ipc_codegen;

@@ -1936,7 +1936,7 @@ impl FormatId {
             "bzip" | "bz" => Some(Self::Bzip),
             "zstd" | "zst" => Some(Self::Zstd),
             "lzip" | "lz" => Some(Self::Lzip),
-            "xz" | "xzip" => Some(Self::Xz),
+            "xz" => Some(Self::Xz),
             "scocompress" | "sco_compress" | "sco" | "sco-compress" | "compress-sco" | "compress-h" => Some(Self::ScoCompress),
             "compresslzw" | "compress_lzw" | "compress" | "compress4" | "compress3" | "compress-4.0" | "compress-3.0" => Some(Self::CompressLzw),
             "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1.0" => Some(Self::CompressLzw1),

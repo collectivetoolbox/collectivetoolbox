@@ -123,14 +123,38 @@ fn main() -> ExitCode {
         }
     }
 
-    match ctb_formats_dcdata::updater::generate_dc_file(&repo_root) {
+    match ctb_build_support::dc_codegen::generate_dc_file(&repo_root) {
         Ok(updated) => {
             if updated {
-                println!("Successfully updated dcdata/dc.rs from category tables with @ident annotations.");
+                println!("Successfully updated dcdata/dc.generated.rs from category tables with @ident annotations.");
             }
         }
         Err(e) => {
-            eprintln!("Error generating dcdata/dc.rs: {e}");
+            eprintln!("Error generating dcdata/dc.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::extension_codegen::generate_extension_data_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated extension_data.generated.rs from formats category tables.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating extension_data.generated.rs: {e}");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match ctb_build_support::encoding_codegen::generate_encoding_file(&repo_root) {
+        Ok(updated) => {
+            if updated {
+                println!("Successfully updated encoding.generated.rs from formats category tables.");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error generating encoding.generated.rs: {e}");
             return ExitCode::FAILURE;
         }
     }

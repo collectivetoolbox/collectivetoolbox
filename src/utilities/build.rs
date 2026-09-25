@@ -43,8 +43,17 @@ fn main() -> Result<()> {
         &manifest_dir,
     )?;
 
-    println!("cargo:rerun-if-changed=../formats/dcdata/data/categories/formats");
+    println!("cargo:rerun-if-changed=../formats/dcdata/data/categories");
     ctb_build_support::format_id_codegen::generate_format_id_file(
+        &manifest_dir,
+    )?;
+    ctb_build_support::dc_codegen::generate_dc_file(
+        &manifest_dir,
+    )?;
+    ctb_build_support::extension_codegen::generate_extension_data_file(
+        &manifest_dir,
+    )?;
+    ctb_build_support::encoding_codegen::generate_encoding_file(
         &manifest_dir,
     )?;
 
