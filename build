@@ -294,7 +294,7 @@ fi
 
 if [[ -z "$build_docs" ]]; then
     # Skip building docs if already present, unless explicitly requested
-    if [[ -f "target/x86_64-unknown-linux-musl/doc/index.html" || -f "built/docs/index.html" ]]; then
+    if [[ -f "target/x86_64-unknown-linux-musl/doc/help.html" || -f "built/docs/help.html" ]]; then
         build_docs="false"
     else
         build_docs="true"
