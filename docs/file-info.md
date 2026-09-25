@@ -72,27 +72,27 @@
   - [x] Extract `src/formats/utilities/detection/chain.rs`: isolate `ProbableFormatChain`, `FormatChain`, `guess_format_chains`, and `parse_format_chain`.
   - [x] Refactor `src/formats/utilities/detection.rs` to serve as a clean, concise pipeline coordinator (~200-250 lines) re-exporting all submodules for backward compatibility.
 
-- [ ] **Sub-Phase 5B: Text & Character Encoding Detection Subsystem (`detection/text.rs` ported from `ascmagic.c` & `encoding.c`):**
-  - [ ] Character set identification engine:
-    - [ ] UTF-8 detection (with and without BOM, strict sequence validation).
-    - [ ] UTF-16LE and UTF-16BE detection (with and without BOM, surrogate pair checking).
-    - [ ] UTF-32LE and UTF-32BE detection (with and without BOM).
-    - [ ] 7-bit ASCII text validation (printable ASCII + standard whitespace / C0 controls).
-    - [ ] ISO-8859 series detection (ISO-8859-1 through ISO-8859-15).
-    - [ ] Non-ISO 8-bit extended ASCII encodings (CP437, MacRoman, Windows-1252) using existing `CharEncoding`.
-    - [ ] EBCDIC detection (standard IBM US / international EBCDIC codepages).
-  - [ ] Text line convention & layout profiling:
-    - [ ] Line terminator counting and convention profiling (POSIX LF, Classic Mac CR, Windows CRLF, EBCDIC NEL) via `LineEndingKind`.
-    - [ ] Line length analysis and long line tracking (>300 characters).
-    - [ ] Control character and ANSI escape sequence detection.
-  - [ ] Text language & syntax heuristics:
-    - [ ] Shebang (`#!`) interpreter extraction (e.g. `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/perl`).
-    - [ ] Programming language heuristics (C/C++, Python, Shell, Perl, Ruby, Lisp, Assembler).
-    - [ ] Markup heuristics (HTML tags, XML declaration `<?xml`, SGML, roff/troff commands `.TH`/`.so`, TeX `\documentclass`).
-    - [ ] Mail and news header heuristics (RFC 822 `From:`, `Subject:`, `Date:`).
-  - [ ] Pipeline integration:
-    - [ ] Integrate text detection pass in `guess_format_report` as fallback when binary magic does not match, eliminating false `TrueNegative` results on plain text files.
-    - [ ] Output character set encoding and line ending style in candidate evidence (`DetectionEvidence::Encoding`, `DetectionEvidence::TextProperties`).
+- [x] **Sub-Phase 5B: Text & Character Encoding Detection Subsystem (`detection/text.rs` ported from `ascmagic.c` & `encoding.c`):**
+  - [x] Character set identification engine:
+    - [x] UTF-8 detection (with and without BOM, strict sequence validation).
+    - [x] UTF-16LE and UTF-16BE detection (with and without BOM, surrogate pair checking).
+    - [x] UTF-32LE and UTF-32BE detection (with and without BOM).
+    - [x] 7-bit ASCII text validation (printable ASCII + standard whitespace / C0 controls).
+    - [x] ISO-8859 series detection (ISO-8859-1 through ISO-8859-15).
+    - [x] Non-ISO 8-bit extended ASCII encodings (CP437, MacRoman, Windows-1252) using existing `CharEncoding`.
+    - [x] EBCDIC detection (standard IBM US / international EBCDIC codepages).
+  - [x] Text line convention & layout profiling:
+    - [x] Line terminator counting and convention profiling (POSIX LF, Classic Mac CR, Windows CRLF, EBCDIC NEL) via `LineEndingKind`.
+    - [x] Line length analysis and long line tracking (>300 characters).
+    - [x] Control character and ANSI escape sequence detection.
+  - [x] Text language & syntax heuristics:
+    - [x] Shebang (`#!`) interpreter extraction (e.g. `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/perl`).
+    - [x] Programming language heuristics (C/C++, Python, Shell, Perl, Ruby, Lisp, Assembler).
+    - [x] Markup heuristics (HTML tags, XML declaration `<?xml`, SGML, roff/troff commands `.TH`/`.so`, TeX `\documentclass`).
+    - [x] Mail and news header heuristics (RFC 822 `From:`, `Subject:`, `Date:`).
+  - [x] Pipeline integration:
+    - [x] Integrate text detection pass in `guess_format_report` as fallback when binary magic does not match, eliminating false `TrueNegative` results on plain text files.
+    - [x] Output character set encoding and line ending style in candidate evidence (`DetectionEvidence::Encoding`, `DetectionEvidence::TextProperties`).
 
 - [ ] **Sub-Phase 5C: Hierarchical Magic Engine Feature Parity & Magdir Compilation (`magic_parser.rs` & `magic.rs`):**
   - [ ] Relative offset support: parse and evaluate relative offsets (`&<offset>`) relative to the end of the previous match level.

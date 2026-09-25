@@ -463,12 +463,14 @@ pub mod mime_derivation;
 pub mod platform;
 pub mod resource_fork;
 pub mod source;
+pub mod text;
 pub mod types;
 
 pub use chain::*;
 pub use conflict::*;
 pub use platform::*;
 pub use source::*;
+pub use text::*;
 pub use types::*;
 
 use self::extension::resolve_extension_candidates;
@@ -729,6 +731,32 @@ pub fn guess_format_report(
                     score,
                     evidence,
                 });
+            }
+        }
+    }
+
+    // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
+    let has_strong_magic = candidates.iter().any(|c| c.confidence >= ConfidenceTier::Strong);
+    if !has_strong_magic {
+        if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
+            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
+            bytes_evaluated = bytes_evaluated.max(inspect_size);
+
+            let mut merged = false;
+            for existing in &mut candidates {
+                if text_cand.format_id.is_some() && existing.format_id == text_cand.format_id {
+                    if text_cand.score > existing.score {
+                        existing.score = text_cand.score;
+                        existing.confidence = text_cand.confidence;
+                        existing.description = text_cand.description.clone();
+                    }
+                    existing.evidence.extend(text_cand.evidence.clone());
+                    merged = true;
+                    break;
+                }
+            }
+            if !merged {
+                candidates.push(text_cand);
             }
         }
     }
@@ -1004,6 +1032,52 @@ mod tests {
         assert!(report.stream_signals_used);
         assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
         assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
+    }
+
+    #[ctb_test]
+    fn test_detect_plain_text_report() {
+        let text_data = b"Hello, world! This is a plain ASCII text file.\nWith standard LF lines.\n";
+        let mut slice: &[u8] = text_data;
+        let report = guess_format_report(&mut slice, None).unwrap();
+        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
+        assert!(!report.candidates.is_empty());
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::Ascii));
+        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::Encoding { .. })));
+        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::TextProperties { .. })));
+    }
+
+    #[ctb_test]
+    fn test_detect_c_source() {
+        let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
+        let mut slice: &[u8] = c_data;
+        let report = guess_format_report(&mut slice, None).unwrap();
+        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::C));
+        assert_eq!(top.mime.as_deref(), Some("text/x-c"));
+    }
+
+    #[ctb_test]
+    fn test_detect_python_shebang() {
+        let py_data = b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
+        let mut slice: &[u8] = py_data;
+        let report = guess_format_report(&mut slice, None).unwrap();
+        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
+        let top = &report.candidates[0];
+        assert_eq!(top.mime.as_deref(), Some("text/x-python"));
+        assert!(top.description.contains("Python script"));
+    }
+
+    #[ctb_test]
+    fn test_detect_html_document() {
+        let html_data = b"<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
+        let mut slice: &[u8] = html_data;
+        let report = guess_format_report(&mut slice, None).unwrap();
+        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
+        let top = &report.candidates[0];
+        assert_eq!(top.format_id, Some(FormatId::Html));
+        assert_eq!(top.mime.as_deref(), Some("text/html"));
     }
 }
 /*
