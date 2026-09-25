@@ -1662,7 +1662,7 @@ pub const SPDX_HEADERS_DETECTION: &str = "// SPDX-License-Identifier: AGPL-3.0-o
 // SPDX-License-Identifier for parts derived from fileid and binwalk: MIT
 // SPDX-License-Identifier for parts derived from DROID: BSD-3-Clause";
 
-pub const DESCRIPTION_DETECTION: &str = "// The Collective Toolbox file detection tools combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
+pub const DESCRIPTION_DETECTION: &str = "// The Collective Toolbox file detection tools, of which this file is a part, combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 ";

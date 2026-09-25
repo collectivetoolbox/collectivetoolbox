@@ -438,7 +438,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// The Collective Toolbox file detection tools combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
+// The Collective Toolbox file detection tools, of which this file is a part, combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
