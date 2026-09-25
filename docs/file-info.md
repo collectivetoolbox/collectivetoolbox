@@ -4,7 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, and confidence tiers completed; modular refactoring and full `file` parity underway)
+- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, confidence tiers, modular refactoring, text encoding subsystem, and upstream `file` test suite harness with differential testing completed; hierarchical magic parity and specialized deep parsers underway)
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
 - **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
@@ -129,6 +129,13 @@
   - [ ] PolyFile-style byte-range attribution and polyglot container detection.
   - [ ] Nested file parsing like and/or ported from polyfile.
   - [ ] Integrate DROID database.
+
+- [x] **Sub-Phase 5G: Automated Upstream `file` Test Suite Harness & Differential Verification (`detection/upstream_suite.rs`):**
+  - [x] Test suite discovery & loader: parse and index all 88 canonical test files and `.result` expectations in `src/formats/dcdata/data/magic/upstream/magic/tests/`.
+  - [x] Execution safety & denial-of-service verification: execute all 88 test cases through `guess_format_report` asserting zero panics, crashes, or hangs (verifying recursion protection on `CVE-2014-1943.testfile`).
+  - [x] Ground-truth parity on supported formats: assert exact format and MIME detection for currently implemented format classes (Zstandard frames `zstd-v0.8-*`, shebang scripts `cmd1`/`cmd2`, UTF-16 text `utf16xmlsvg`, `gedcom`, `jpeg-text`, etc.).
+  - [x] Live differential testing with system `file`: implement host `file` probing (`query_real_file`), comparing MIME types and format classifications with semantic alias tolerance (`application/xml` <-> `text/plain`, `text/x-shellscript` <-> `text/plain`, `application/zstd` <-> `application/x-zstd`).
+  - [x] Dynamic roadmap tracking & progress categorization: classify every upstream test case into either `Passing` or mapped to its blocking phase (`PendingSubPhase5C` for hierarchical rules/quad ints/indirect offsets/custom magic, `PendingSubPhase5D` for deep container inspection, `PendingSubPhase5E` for inode types, `PendingSubPhase5F` for container signatures) so the suite tracks roadmap progress continuously.
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
