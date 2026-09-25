@@ -55,7 +55,7 @@
 - If you make changes in troubleshooting that don't work, remove them later.
 - Use the newtype pattern whenever it may reduce confusion.
 - Do not add backticks around actual words/names of tools in docblocks just because Clippy complains about them (like MathML or StageL); add them to clippy.toml. Only add backticks for code, variable names, and similar.
-- When you have multiple choices of a name for something in a new format, pick the best one, rather than implementing multiple ones (e.g. don't support "case:" and "case-sensitive:" tags in a database, or "u" and "U" prefix formats; don't add multiple CLI commands that do the same thing unless asked to; etc.).
+- When you have multiple choices of a name for something in a new format, pick the best one, rather than implementing multiple (e.g. don't support "case:" and "case-sensitive:" tags in a database, or "u" and "U" prefix formats; don't add multiple CLI commands that do the same thing unless asked to; etc.).
 
 - Never add non-layout Tailwind/EncreCSS styles (such as text size, font weight, letter spacing, background/text colors, e.g. text-xs, font-bold, text-gray-500, tracking-wider) to templates. Never use faux-headers (such as span elements with utility styling classes) in templates; use proper semantic HTML tags (like h2, h3) and ensure high-contrast accessible text styling. Project-wide stylesheet is preferred for most uses. Use semantic HTML markup.
   - For the vast majority of use cases you shouldn't need to add new CSS other than positioning of widgets, unless you're adding specifically a new themeable widget component.

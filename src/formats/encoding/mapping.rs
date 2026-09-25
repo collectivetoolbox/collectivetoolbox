@@ -278,4 +278,59 @@ mod tests {
 
         Ok(())
     }
+
+    #[crate::ctb_test]
+    fn test_format_id_and_dc_char_integration() -> Result<()> {
+        use ctb_utilities::format_id::{
+            DC_ALPHA_SMART_NEO_LOW_CTL_US, DC_ALPHA_SMART_NEO_LOW_GR_US,
+            DC_LINE_ENDING_CR_LF, DC_MAC_ROMAN, FormatId,
+        };
+
+        // Neo variants to dedicated FormatIds and Dcs
+        let neo_gr_us = CharEncoding::neo(NeoRegion::Us, LowArea::Graphical);
+        assert_eq!(neo_gr_us.to_format_id(), FormatId::AlphaSmartNeoLowGrUs);
+        assert_eq!(neo_gr_us.dc_char(), Some(DC_ALPHA_SMART_NEO_LOW_GR_US));
+        assert_eq!(
+            CharEncoding::from_format_id(FormatId::AlphaSmartNeoLowGrUs),
+            Some(neo_gr_us)
+        );
+
+        let neo_ctl_us = CharEncoding::neo(NeoRegion::Us, LowArea::Control);
+        assert_eq!(neo_ctl_us.to_format_id(), FormatId::AlphaSmartNeoLowCtlUs);
+        assert_eq!(neo_ctl_us.dc_char(), Some(DC_ALPHA_SMART_NEO_LOW_CTL_US));
+
+        // Simple encodings
+        let mac = CharEncoding::mac_roman();
+        assert_eq!(mac.to_format_id(), FormatId::MacRoman);
+        assert_eq!(mac.dc_char(), Some(DC_MAC_ROMAN));
+        assert_eq!(
+            CharEncoding::from_format_id(FormatId::MacRoman),
+            Some(mac)
+        );
+
+        let iso = CharEncoding::iso_8859_1();
+        assert_eq!(iso.to_format_id(), FormatId::Iso88591);
+        assert_eq!(
+            CharEncoding::from_format_id(FormatId::Iso88591),
+            Some(iso)
+        );
+
+        // Line ending formats to FormatIds and Dcs
+        let crlf = LineEndingFormat::terminated(LineEndingKind::CrLf);
+        assert_eq!(crlf.to_format_id(), FormatId::LineEndingCrLf);
+        assert_eq!(crlf.dc_char(), Some(DC_LINE_ENDING_CR_LF));
+        assert_eq!(
+            LineEndingFormat::from_format_id(FormatId::LineEndingCrLf),
+            Some(crlf)
+        );
+
+        let cr_sep = LineEndingFormat::separated(LineEndingKind::Cr);
+        assert_eq!(cr_sep.to_format_id(), FormatId::LineSeparatorCr);
+        assert_eq!(
+            LineEndingFormat::from_format_id(FormatId::LineSeparatorCr),
+            Some(cr_sep)
+        );
+
+        Ok(())
+    }
 }
