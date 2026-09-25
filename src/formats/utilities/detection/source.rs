@@ -443,7 +443,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Hierarchical magic byte pattern evaluation engine for format identification.
+//! Streamed and buffered payload abstractions for format detection.
 
 #[allow(
     unused_imports,
@@ -452,320 +452,109 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::DetectionSource;
-use super::magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
+/// Abstraction for streamed or buffered payload access during format detection.
+pub trait DetectionSource {
+    /// Reads up to `buf.len()` bytes at the specified offset.
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize>;
 
-/// Result of evaluating a hierarchical magic rule against a payload source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuleMatchResult {
-    /// Specialized description formatted from matching root and child rules.
-    pub description: String,
-    /// MIME type associated with the match (child rule takes precedence).
-    pub mime: Option<String>,
-    /// File extension(s) associated with the match.
-    pub ext: Option<String>,
-    /// Apple type code if available.
-    pub apple: Option<String>,
-    /// Accumulated strength/confidence score.
-    pub score: u32,
-}
-
-/// Evaluates a relational comparison operator.
-fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
-    val: T,
-    op: RelOp,
-    target: T,
-) -> bool {
-    match op {
-        RelOp::Eq => val == target,
-        RelOp::Ne => val != target,
-        RelOp::Gt => val > target,
-        RelOp::Lt => val < target,
-        RelOp::BitAnd => (val & target) == target,
-        RelOp::Any => true,
-    }
-}
-
-/// Evaluates a single `HierarchicalMagicRule` and its child tree against a `DetectionSource`.
-pub fn evaluate_rule<S: DetectionSource + ?Sized>(
-    rule: &HierarchicalMagicRule,
-    source: &mut S,
-) -> Option<RuleMatchResult> {
-    let pos = match &rule.offset {
-        Offset::Bof(off) => *off,
-        Offset::Eof(off) => {
-            let total = source.total_len()?;
-            total.checked_sub(*off)?
-        }
-        Offset::Search { start, .. } => *start,
-    };
-
-    let matched = match &rule.test {
-        MagicTest::ExactBytes(expected) => {
-            let mut buf = vec![0u8; expected.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            n >= expected.len() && buf == *expected
-        }
-        MagicTest::MaskedBytes { bytes, mask } => {
-            let mut buf = vec![0u8; bytes.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < bytes.len() {
-                false
-            } else {
-                let mut ok = true;
-                for i in 0..bytes.len() {
-                    let actual = *buf.get(i)?;
-                    let m = *mask.get(i)?;
-                    let exp = *bytes.get(i)?;
-                    if (actual & m) != exp {
-                        ok = false;
-                        break;
-                    }
-                }
-                ok
-            }
-        }
-        MagicTest::U8 { value, op, mask } => {
-            let mut buf = [0u8; 1];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 1 {
-                false
-            } else {
-                let mut val = buf[0];
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U16Le { value, op, mask } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U16Be { value, op, mask } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U32Le { value, op, mask } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U32Be { value, op, mask } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U64Le { value, op, mask } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U64Be { value, op, mask } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::Search { pattern, max_bytes } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if let Some(slice) = buf.get(..n) {
-                if pattern.is_empty() {
-                    true
-                } else {
-                    slice.windows(pattern.len()).any(|w| w == pattern.as_slice())
-                }
-            } else {
-                false
-            }
-        }
-    };
-
-    if !matched {
-        return None;
+    /// Reads up to `max_len` bytes from the beginning of the file (BOF).
+    fn read_bof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let mut buf = vec![0u8; max_len];
+        let n = self.read_at(0, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
     }
 
-    // Reason for fallback: intermediate magic rule nodes may omit descriptions and act purely as branching tests
-    let mut description = rule.description.clone().unwrap_or_default();
-    let mut mime = rule.mime.clone();
-    let mut ext = rule.ext.clone();
-    let mut apple = rule.apple.clone();
-    let mut score = rule.strength;
-
-    // Recursively evaluate children to specialize description and boost score
-    for child in &rule.children {
-        if let Some(child_match) = evaluate_rule(child, source) {
-            if !child_match.description.is_empty() {
-                if child_match.description.starts_with('\u{8}') {
-                    // Backspace suppresses preceding space
-                    let stripped = child_match.description.trim_start_matches('\u{8}');
-                    description.push_str(stripped);
-                } else {
-                    if !description.is_empty() {
-                        description.push(' ');
-                    }
-                    description.push_str(&child_match.description);
-                }
-            }
-            if child_match.mime.is_some() {
-                mime = child_match.mime;
-            }
-            if child_match.ext.is_some() {
-                ext = child_match.ext;
-            }
-            if child_match.apple.is_some() {
-                apple = child_match.apple;
-            }
-            score = score.saturating_add(15);
-        }
-    }
-
-    if description.trim().is_empty()
-        && mime.is_none()
-        && ext.is_none()
-        && apple.is_none()
-    {
-        return None;
-    }
-
-    Some(RuleMatchResult {
-        description,
-        mime,
-        ext,
-        apple,
-        score,
-    })
-}
-
-/// A signature rule defining magic bytes to inspect in a file header (legacy compatibility).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MagicPattern {
-    /// Byte offset where signature starts in file header (typically 0).
-    pub offset: usize,
-    /// Byte pattern expected at offset.
-    pub bytes: &'static [u8],
-    /// Optional byte mask (same length as bytes).
-    pub mask: Option<&'static [u8]>,
-    /// Confidence or priority score when pattern matches (default: 100).
-    pub priority: u32,
-}
-
-impl MagicPattern {
-    /// Constructs an exact byte sequence magic pattern at offset 0.
-    pub const fn exact(bytes: &'static [u8]) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: None,
-            priority: 100,
-        }
-    }
-
-    /// Constructs an exact byte sequence magic pattern at a specific offset and priority.
-    pub const fn exact_at(
-        offset: usize,
-        bytes: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset,
-            bytes,
-            mask: None,
-            priority,
-        }
-    }
-
-    /// Constructs a masked byte magic pattern at offset 0.
-    pub const fn masked(
-        bytes: &'static [u8],
-        mask: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: Some(mask),
-            priority,
-        }
-    }
-
-    /// Checks if a byte slice matches this magic pattern.
-    pub fn matches(&self, data: &[u8]) -> bool {
-        let end = self.offset.saturating_add(self.bytes.len());
-        if data.len() < end {
-            return false;
-        }
-        let slice = match data.get(self.offset..end) {
-            Some(s) => s,
-            None => return false,
+    /// Reads up to `max_len` bytes backwards from the end of the file (EOF).
+    fn read_eof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let Some(total) = self.total_len() else {
+            return Ok(Vec::new());
         };
+        // Reason for fallback: max_len conversion to u64 defaults to 0 on conversion overflow
+        let u_max = u64::try_from(max_len).unwrap_or(0);
+        let start = total.saturating_sub(u_max);
+        // Reason for fallback: remaining byte count conversion to usize defaults to 0 on 32-bit overflow
+        let to_read = usize::try_from(total.saturating_sub(start)).unwrap_or(0);
+        let mut buf = vec![0u8; to_read];
+        let n = self.read_at(start, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
+    }
 
-        match self.mask {
-            Some(mask) => {
-                if mask.len() != self.bytes.len() {
-                    return false;
-                }
-                for ((&byte, &m), &expected) in
-                    slice.iter().zip(mask).zip(self.bytes)
-                {
-                    if (byte & m) != expected {
-                        return false;
-                    }
-                }
-                true
-            }
-            None => slice == self.bytes,
+    /// Total logical length of payload in bytes if known.
+    fn total_len(&self) -> Option<u64>;
+}
+
+impl DetectionSource for &[u8] {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= self.len() {
+            return Ok(0);
         }
+        // Reason for fallback: start offset beyond slice bounds returns empty slice
+        let available = self.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
+    }
+}
+
+impl DetectionSource for Vec<u8> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let mut slice = self.as_slice();
+        slice.read_at(offset, buf)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
+    }
+}
+
+impl<T: AsRef<[u8]> + Send> DetectionSource for std::io::Cursor<T> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let slice = self.get_ref().as_ref();
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= slice.len() {
+            return Ok(0);
+        }
+        // Reason for fallback: start offset beyond cursor slice bounds returns empty slice
+        let available = slice.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.get_ref().as_ref().len()).ok()
+    }
+}
+
+/// An empty detection source for filename/extension-only detection when no bytes are available.
+pub struct EmptySource;
+
+impl DetectionSource for EmptySource {
+    fn read_at(&mut self, _offset: u64, _buf: &mut [u8]) -> Result<usize> {
+        Ok(0)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(0)
     }
 }
 
@@ -782,44 +571,39 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
-    use super::super::magic_parser::parse_magic_content;
 
     #[ctb_test]
-    fn test_magic_pattern_matching() {
-        let gzip_magic = MagicPattern::exact(&[0x1F, 0x8B]);
-        assert!(gzip_magic.matches(&[0x1F, 0x8B, 0x08, 0x00]));
-        assert!(!gzip_magic.matches(&[0x1F, 0xA0, 0x08, 0x00]));
+    fn test_slice_detection_source() {
+        let data = b"Hello, World!";
+        let mut slice = data.as_slice();
+        assert_eq!(slice.total_len(), Some(13));
 
-        let lzw_block_magic =
-            MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
-        assert!(lzw_block_magic.matches(&[0x1F, 0x9D, 0x90]));
-        assert!(!lzw_block_magic.matches(&[0x1F, 0x9D, 0x10]));
+        let bof = slice.read_bof(5).unwrap();
+        assert_eq!(bof, b"Hello");
+
+        let eof = slice.read_eof(6).unwrap();
+        assert_eq!(eof, b"World!");
     }
 
     #[ctb_test]
-    fn test_hierarchical_evaluation() {
-        let content = r#"
-0	belong		0x00051600	AppleSingle encoded Macintosh file
-!:mime	application/x-apple-single
-!:ext	as
->4	belong		0x00020000	\b, version 2.0
->4	belong		0x00010000	\b, version 1.0
-"#;
-        let rules = parse_magic_content(content);
-        assert_eq!(rules.len(), 1);
+    fn test_cursor_detection_source() {
+        let data = b"0123456789";
+        let mut cursor = std::io::Cursor::new(data.to_vec());
+        assert_eq!(cursor.total_len(), Some(10));
 
-        let apple_single_v2 = [
-            0x00, 0x05, 0x16, 0x00, // Magic
-            0x00, 0x02, 0x00, 0x00, // Version 2.0
-            0x00, 0x00, 0x00, 0x00,
-        ];
+        let mut buf = [0u8; 4];
+        let n = cursor.read_at(2, &mut buf).unwrap();
+        assert_eq!(n, 4);
+        assert_eq!(&buf, b"2345");
+    }
 
-        let mut slice: &[u8] = &apple_single_v2;
-        let result = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert_eq!(result.mime, Some("application/x-apple-single".to_string()));
-        assert_eq!(result.ext, Some("as".to_string()));
-        assert!(result.description.contains("version 2.0"));
-        assert!(result.score > 50);
+    #[ctb_test]
+    fn test_empty_source() {
+        let mut empty = EmptySource;
+        assert_eq!(empty.total_len(), Some(0));
+        let mut buf = [0u8; 10];
+        let n = empty.read_at(0, &mut buf).unwrap();
+        assert_eq!(n, 0);
     }
 }
 /*

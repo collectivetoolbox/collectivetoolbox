@@ -442,6 +442,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
+
 //! Centralized registry of magic header signatures across format types.
 
 #[expect(

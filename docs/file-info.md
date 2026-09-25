@@ -64,13 +64,13 @@
   - [x] Implement MIME inheritance graphs (`sub-class-of`) and parent/child candidate subsumption in `resolve_candidate_conflicts`.
   - [x] Port point-based evidence weighting to produce calibrated multi-candidate confidence tiers (`HighestConfidence`, `Strong`, `Moderate`, `Weak/Heuristic`, `Conflicted`).
 
-- [ ] **Sub-Phase 5A: Modularization of `detection.rs` (Decoupling Monolith into Clean Submodules):**
-  - [ ] Extract `src/formats/utilities/detection/types.rs`: isolate `ConfidenceTier`, `DetectionHint`, `DetectionQuotaType`, `DetectionOutcome`, `DetectionEvidence`, `DetectionCandidate`, and `DetectionReport`.
-  - [ ] Extract `src/formats/utilities/detection/source.rs`: isolate `DetectionSource` trait and implementations for byte slices (`&[u8]`), `Vec<u8>`, `Cursor<T>`, and `EmptySource`.
-  - [ ] Extract `src/formats/utilities/detection/platform.rs`: isolate `is_os_match`, `current_platform_os`, and OS platform prior scoring logic.
-  - [ ] Extract `src/formats/utilities/detection/conflict.rs`: isolate `resolve_candidate_conflicts`, ancestor subsumption, MIME specialization boosts, and multi-candidate demotion.
-  - [ ] Extract `src/formats/utilities/detection/chain.rs`: isolate `ProbableFormatChain`, `FormatChain`, `guess_format_chains`, and `parse_format_chain`.
-  - [ ] Refactor `src/formats/utilities/detection.rs` to serve as a clean, concise pipeline coordinator (~200-250 lines) re-exporting all submodules for backward compatibility.
+- [x] **Sub-Phase 5A: Modularization of `detection.rs` (Decoupling Monolith into Clean Submodules):**
+  - [x] Extract `src/formats/utilities/detection/types.rs`: isolate `ConfidenceTier`, `DetectionHint`, `DetectionQuotaType`, `DetectionOutcome`, `DetectionEvidence`, `DetectionCandidate`, and `DetectionReport`.
+  - [x] Extract `src/formats/utilities/detection/source.rs`: isolate `DetectionSource` trait and implementations for byte slices (`&[u8]`), `Vec<u8>`, `Cursor<T>`, and `EmptySource`.
+  - [x] Extract `src/formats/utilities/detection/platform.rs`: isolate `is_os_match`, `current_platform_os`, and OS platform prior scoring logic.
+  - [x] Extract `src/formats/utilities/detection/conflict.rs`: isolate `resolve_candidate_conflicts`, ancestor subsumption, MIME specialization boosts, and multi-candidate demotion.
+  - [x] Extract `src/formats/utilities/detection/chain.rs`: isolate `ProbableFormatChain`, `FormatChain`, `guess_format_chains`, and `parse_format_chain`.
+  - [x] Refactor `src/formats/utilities/detection.rs` to serve as a clean, concise pipeline coordinator (~200-250 lines) re-exporting all submodules for backward compatibility.
 
 - [ ] **Sub-Phase 5B: Text & Character Encoding Detection Subsystem (`detection/text.rs` ported from `ascmagic.c` & `encoding.c`):**
   - [ ] Character set identification engine:

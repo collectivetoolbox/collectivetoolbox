@@ -443,7 +443,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Hierarchical magic byte pattern evaluation engine for format identification.
+//! Platform association, operating system compatibility matching, and
+//! environment prior scoring for format detection.
 
 #[allow(
     unused_imports,
@@ -452,320 +453,104 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use super::DetectionSource;
-use super::magic_parser::{HierarchicalMagicRule, MagicTest, Offset, RelOp};
+use crate::detection::mime_derivation::FORMAT_CATALOG;
+use crate::format_id::FormatId;
 
-/// Result of evaluating a hierarchical magic rule against a payload source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuleMatchResult {
-    /// Specialized description formatted from matching root and child rules.
-    pub description: String,
-    /// MIME type associated with the match (child rule takes precedence).
-    pub mime: Option<String>,
-    /// File extension(s) associated with the match.
-    pub ext: Option<String>,
-    /// Apple type code if available.
-    pub apple: Option<String>,
-    /// Accumulated strength/confidence score.
-    pub score: u32,
-}
+/// Bonus score awarded when a format candidate matches the target platform OS.
+pub const PLATFORM_PRIOR_BONUS: u32 = 15;
 
-/// Evaluates a relational comparison operator.
-fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
-    val: T,
-    op: RelOp,
-    target: T,
-) -> bool {
-    match op {
-        RelOp::Eq => val == target,
-        RelOp::Ne => val != target,
-        RelOp::Gt => val > target,
-        RelOp::Lt => val < target,
-        RelOp::BitAnd => (val & target) == target,
-        RelOp::Any => true,
+/// Determines whether a format's associated operating system is compatible
+/// with a target operating system context.
+#[must_use]
+pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
+    if candidate_os == target_os {
+        return true;
+    }
+    match (candidate_os, target_os) {
+        (
+            FormatId::MacOs | FormatId::MacOsDarwin,
+            FormatId::MacOs | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+        ) => true,
+        (
+            FormatId::Unix,
+            FormatId::Unix
+                | FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd
+                | FormatId::MacOs
+                | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd,
+            FormatId::Unix,
+        ) => true,
+        (
+            FormatId::Linux | FormatId::GnuLinux,
+            FormatId::Linux | FormatId::GnuLinux,
+        ) => true,
+        _ => false,
     }
 }
 
-/// Evaluates a single `HierarchicalMagicRule` and its child tree against a `DetectionSource`.
-pub fn evaluate_rule<S: DetectionSource + ?Sized>(
-    rule: &HierarchicalMagicRule,
-    source: &mut S,
-) -> Option<RuleMatchResult> {
-    let pos = match &rule.offset {
-        Offset::Bof(off) => *off,
-        Offset::Eof(off) => {
-            let total = source.total_len()?;
-            total.checked_sub(*off)?
-        }
-        Offset::Search { start, .. } => *start,
-    };
-
-    let matched = match &rule.test {
-        MagicTest::ExactBytes(expected) => {
-            let mut buf = vec![0u8; expected.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            n >= expected.len() && buf == *expected
-        }
-        MagicTest::MaskedBytes { bytes, mask } => {
-            let mut buf = vec![0u8; bytes.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < bytes.len() {
-                false
-            } else {
-                let mut ok = true;
-                for i in 0..bytes.len() {
-                    let actual = *buf.get(i)?;
-                    let m = *mask.get(i)?;
-                    let exp = *bytes.get(i)?;
-                    if (actual & m) != exp {
-                        ok = false;
-                        break;
-                    }
-                }
-                ok
-            }
-        }
-        MagicTest::U8 { value, op, mask } => {
-            let mut buf = [0u8; 1];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 1 {
-                false
-            } else {
-                let mut val = buf[0];
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U16Le { value, op, mask } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U16Be { value, op, mask } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U32Le { value, op, mask } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U32Be { value, op, mask } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U64Le { value, op, mask } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::U64Be { value, op, mask } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                eval_rel_op(val, *op, *value)
-            }
-        }
-        MagicTest::Search { pattern, max_bytes } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if let Some(slice) = buf.get(..n) {
-                if pattern.is_empty() {
-                    true
-                } else {
-                    slice.windows(pattern.len()).any(|w| w == pattern.as_slice())
-                }
-            } else {
-                false
-            }
-        }
-    };
-
-    if !matched {
-        return None;
-    }
-
-    // Reason for fallback: intermediate magic rule nodes may omit descriptions and act purely as branching tests
-    let mut description = rule.description.clone().unwrap_or_default();
-    let mut mime = rule.mime.clone();
-    let mut ext = rule.ext.clone();
-    let mut apple = rule.apple.clone();
-    let mut score = rule.strength;
-
-    // Recursively evaluate children to specialize description and boost score
-    for child in &rule.children {
-        if let Some(child_match) = evaluate_rule(child, source) {
-            if !child_match.description.is_empty() {
-                if child_match.description.starts_with('\u{8}') {
-                    // Backspace suppresses preceding space
-                    let stripped = child_match.description.trim_start_matches('\u{8}');
-                    description.push_str(stripped);
-                } else {
-                    if !description.is_empty() {
-                        description.push(' ');
-                    }
-                    description.push_str(&child_match.description);
-                }
-            }
-            if child_match.mime.is_some() {
-                mime = child_match.mime;
-            }
-            if child_match.ext.is_some() {
-                ext = child_match.ext;
-            }
-            if child_match.apple.is_some() {
-                apple = child_match.apple;
-            }
-            score = score.saturating_add(15);
-        }
-    }
-
-    if description.trim().is_empty()
-        && mime.is_none()
-        && ext.is_none()
-        && apple.is_none()
+/// Infers the host platform operating system as an authoritative `FormatId`.
+#[must_use]
+pub fn current_platform_os() -> Option<FormatId> {
+    #[cfg(target_os = "macos")]
     {
-        return None;
+        Some(FormatId::MacOs)
     }
-
-    Some(RuleMatchResult {
-        description,
-        mime,
-        ext,
-        apple,
-        score,
-    })
+    #[cfg(target_os = "windows")]
+    {
+        Some(FormatId::Windows)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Some(FormatId::GnuLinux)
+    }
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+    {
+        Some(FormatId::Unix)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
+    {
+        None
+    }
 }
 
-/// A signature rule defining magic bytes to inspect in a file header (legacy compatibility).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MagicPattern {
-    /// Byte offset where signature starts in file header (typically 0).
-    pub offset: usize,
-    /// Byte pattern expected at offset.
-    pub bytes: &'static [u8],
-    /// Optional byte mask (same length as bytes).
-    pub mask: Option<&'static [u8]>,
-    /// Confidence or priority score when pattern matches (default: 100).
-    pub priority: u32,
+/// Checks whether a candidate format has recorded OS associations compatible
+/// with the specified target operating system.
+#[must_use]
+pub fn format_matches_platform(format_id: FormatId, target_os: FormatId) -> bool {
+    if let Some(mapping) = FORMAT_CATALOG.lookup_ident(format_id.ident()) {
+        mapping
+            .os_associations
+            .iter()
+            .any(|&cand_os| is_os_match(cand_os, target_os))
+    } else {
+        false
+    }
 }
 
-impl MagicPattern {
-    /// Constructs an exact byte sequence magic pattern at offset 0.
-    pub const fn exact(bytes: &'static [u8]) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: None,
-            priority: 100,
-        }
-    }
-
-    /// Constructs an exact byte sequence magic pattern at a specific offset and priority.
-    pub const fn exact_at(
-        offset: usize,
-        bytes: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset,
-            bytes,
-            mask: None,
-            priority,
-        }
-    }
-
-    /// Constructs a masked byte magic pattern at offset 0.
-    pub const fn masked(
-        bytes: &'static [u8],
-        mask: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: Some(mask),
-            priority,
-        }
-    }
-
-    /// Checks if a byte slice matches this magic pattern.
-    pub fn matches(&self, data: &[u8]) -> bool {
-        let end = self.offset.saturating_add(self.bytes.len());
-        if data.len() < end {
-            return false;
-        }
-        let slice = match data.get(self.offset..end) {
-            Some(s) => s,
-            None => return false,
-        };
-
-        match self.mask {
-            Some(mask) => {
-                if mask.len() != self.bytes.len() {
-                    return false;
-                }
-                for ((&byte, &m), &expected) in
-                    slice.iter().zip(mask).zip(self.bytes)
-                {
-                    if (byte & m) != expected {
-                        return false;
-                    }
-                }
-                true
-            }
-            None => slice == self.bytes,
-        }
+/// Evaluates the platform prior score bonus for a candidate format against a
+/// target operating system, returning `Some(score)` if compatible.
+#[must_use]
+pub fn evaluate_platform_prior(format_id: FormatId, target_os: FormatId) -> Option<u32> {
+    if format_matches_platform(format_id, target_os) {
+        Some(PLATFORM_PRIOR_BONUS)
+    } else {
+        None
     }
 }
 
@@ -782,44 +567,25 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
-    use super::super::magic_parser::parse_magic_content;
 
     #[ctb_test]
-    fn test_magic_pattern_matching() {
-        let gzip_magic = MagicPattern::exact(&[0x1F, 0x8B]);
-        assert!(gzip_magic.matches(&[0x1F, 0x8B, 0x08, 0x00]));
-        assert!(!gzip_magic.matches(&[0x1F, 0xA0, 0x08, 0x00]));
-
-        let lzw_block_magic =
-            MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
-        assert!(lzw_block_magic.matches(&[0x1F, 0x9D, 0x90]));
-        assert!(!lzw_block_magic.matches(&[0x1F, 0x9D, 0x10]));
+    fn test_os_match_matrix() {
+        assert!(is_os_match(FormatId::Linux, FormatId::Unix));
+        assert!(is_os_match(FormatId::Unix, FormatId::Linux));
+        assert!(is_os_match(FormatId::MacOs, FormatId::MacOsDarwin));
+        assert!(is_os_match(FormatId::WinClassic, FormatId::Windows));
+        assert!(!is_os_match(FormatId::Windows, FormatId::Linux));
     }
 
     #[ctb_test]
-    fn test_hierarchical_evaluation() {
-        let content = r#"
-0	belong		0x00051600	AppleSingle encoded Macintosh file
-!:mime	application/x-apple-single
-!:ext	as
->4	belong		0x00020000	\b, version 2.0
->4	belong		0x00010000	\b, version 1.0
-"#;
-        let rules = parse_magic_content(content);
-        assert_eq!(rules.len(), 1);
-
-        let apple_single_v2 = [
-            0x00, 0x05, 0x16, 0x00, // Magic
-            0x00, 0x02, 0x00, 0x00, // Version 2.0
-            0x00, 0x00, 0x00, 0x00,
-        ];
-
-        let mut slice: &[u8] = &apple_single_v2;
-        let result = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert_eq!(result.mime, Some("application/x-apple-single".to_string()));
-        assert_eq!(result.ext, Some("as".to_string()));
-        assert!(result.description.contains("version 2.0"));
-        assert!(result.score > 50);
+    fn test_current_platform_os_is_consistent() {
+        let os = current_platform_os();
+        #[cfg(target_os = "linux")]
+        assert_eq!(os, Some(FormatId::GnuLinux));
+        #[cfg(target_os = "macos")]
+        assert_eq!(os, Some(FormatId::MacOs));
+        #[cfg(target_os = "windows")]
+        assert_eq!(os, Some(FormatId::Windows));
     }
 }
 /*
