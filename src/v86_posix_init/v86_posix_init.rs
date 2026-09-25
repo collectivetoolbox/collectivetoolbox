@@ -23,7 +23,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! mounts 9pfs root filesystem, and executes X11 + Openbox inside chroot.
 
 #![no_std]
-#![no_main]
+#![cfg_attr(not(test), no_main)]
 #![expect(
     unsafe_code,
     reason = "Bare-metal no_std init binary using raw Linux int 0x80 syscalls and C memory functions"
@@ -46,6 +46,7 @@ static COPY_BUF: RawBuffer<{ 64 * 1024 }> =
 ///
 /// # Safety
 /// `s` must point to a valid writable buffer of at least `n` bytes.
+#[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8 {
     let mut i: usize = 0;
@@ -66,6 +67,7 @@ pub unsafe extern "C" fn memset(s: *mut u8, c: i32, n: usize) -> *mut u8 {
 ///
 /// # Safety
 /// `dest` and `src` must point to valid buffers of at least `n` bytes.
+#[cfg(not(test))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn memcpy(
     dest: *mut u8,
@@ -136,6 +138,7 @@ unsafe fn enable_vbe_lfb_1024x768() {
     }
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {
@@ -477,6 +480,7 @@ fn load_module(path: &CStr) {
 }
 
 /// Entry point for 32-bit v86 POSIX Rust init process.
+#[cfg(not(test))]
 #[unsafe(no_mangle)]
 #[expect(
     clippy::too_many_lines,
