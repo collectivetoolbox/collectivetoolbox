@@ -421,6 +421,10 @@ for p in "${platforms[@]}"; do
             fi
         fi
 
+        # Build workspace examples so example-based integration tests (which
+        # spawn standalone example binaries) have their targets available.
+        CTB_BRANDING="$branding" RUSTFLAGS="$RUSTFLAGS" cargo build $offline --workspace "${test_exclude[@]}" --examples --target "$target"
+
         # Run tests if RUST_LOG is set (to get more verbose output). By default
         # even debug tests are quiet.
         if [[ -n "${RUST_LOG-}" ]]; then

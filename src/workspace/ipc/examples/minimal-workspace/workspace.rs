@@ -288,7 +288,6 @@ mod tests {
     use super::*;
 
     #[crate::ctb_test("tokio")]
-    #[ignore]
     async fn workspace_example_runs() -> Result<()> {
         run_workspace_example().await
     }
