@@ -1849,5 +1849,45 @@ mod tests {
         let (_, msg) = result.unwrap_err();
         assert!(msg.contains("HASH_BSD_DARWIN_HEADER"));
     }
+
+    #[test]
+    fn test_detection_header_satisfies_normal_derived_agpl_rules() {
+        let header_after_darwin = format!(
+            "{SPDX_HEADERS_DETECTION}\n{AGPL_COPYRIGHT_BLOCK}\n\n{DESCRIPTION_DETECTION}\n//! Module docblock\n"
+        );
+        let normalized = normalize_newlines(&header_after_darwin);
+        let lines: Vec<&str> = normalized.lines().collect();
+        let parsed = parse_derived_third_party_header(
+            &lines,
+            Path::new("src/formats/utilities/detection.rs"),
+        );
+        assert!(parsed.is_ok());
+        let parsed_header = parsed.unwrap().expect("Should match derived header");
+        assert!(matches!(parsed_header.kind, HeaderKind::DerivedThirdParty));
+
+        let mut allowed = BTreeSet::new();
+        for lic in [
+            "AGPL-3.0-or-later",
+            "BSD-2-Clause-Darwin",
+            "Apache-2.0",
+            "MIT",
+            "BSD-3-Clause",
+        ] {
+            allowed.insert(lic.to_string());
+        }
+        let mut violations = Vec::new();
+        check_header_licenses(
+            Path::new("src/formats/utilities/detection.rs"),
+            &header_after_darwin,
+            &parsed_header,
+            &allowed,
+            &mut violations,
+        );
+        assert!(violations.is_empty(), "Violations: {violations:?}");
+
+        let doc_result =
+            check_module_docblock(&header_after_darwin, &parsed_header);
+        assert!(doc_result.is_ok());
+    }
 }
 
