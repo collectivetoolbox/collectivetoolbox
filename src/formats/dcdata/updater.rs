@@ -790,7 +790,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 
     let unicode_target_path =
         repo_root.join("src/formats/dcdata/data/unicode.generated.csv");
-    write_csv_file(&unicode_target_path, &canonical_header, &all_unicode_rows)?;
+    // write_csv_file(&unicode_target_path, &canonical_header, &all_unicode_rows)?;
     stats.unicode_records_merged = all_unicode_rows.len();
 
     // 5. Generate all.generated.csv
@@ -821,7 +821,7 @@ pub fn generate_merged_csvs(repo_root: &Path) -> Result<MergedGenerationStats> {
 
     let all_target_path =
         repo_root.join("src/formats/dcdata/data/all.generated.csv");
-    write_csv_file(&all_target_path, &canonical_header, &combined_rows)?;
+    // write_csv_file(&all_target_path, &canonical_header, &combined_rows)?;
     stats.total_records_merged = combined_rows.len();
 
     // 5. Clean up old .generated.json files if present

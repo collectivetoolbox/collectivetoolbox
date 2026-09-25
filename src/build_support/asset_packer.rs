@@ -136,13 +136,11 @@ fn copy_dir_recursive(
 
     if canonical_src.is_dir() {
         fs::create_dir_all(dst)?;
-        let mut src_names = HashSet::new();
         for entry in fs::read_dir(&canonical_src)? {
             let entry = entry?;
             let src_path = entry.path();
             let file_name = entry.file_name();
             let dst_path = dst.join(&file_name);
-            src_names.insert(file_name);
             if fs::metadata(&src_path).map(|m| m.is_dir()).unwrap_or(false) {
                 copy_dir_recursive(
                     &src_path,
@@ -155,19 +153,6 @@ fn copy_dir_recursive(
                 symlink_in_dir(&src_path, workspace_root_canon)?;
                 if should_copy(&src_path, &dst_path) {
                     fs::copy(&src_path, &dst_path)?;
-                }
-            }
-        }
-        // Prune entries in dst that no longer exist in src
-        if let Ok(entries) = fs::read_dir(dst) {
-            for entry in entries.flatten() {
-                if !src_names.contains(&entry.file_name()) {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        let _ = fs::remove_dir_all(&path);
-                    } else {
-                        let _ = fs::remove_file(&path);
-                    }
                 }
             }
         }
