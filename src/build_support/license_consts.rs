@@ -140,7 +140,8 @@ pub const HASH_AGPL_HEADER: &str = r"# SPDX-License-Identifier: AGPL-3.0-or-late
 # with this program.  If not, see <https://www.gnu.org/licenses/>.";
 
 /// BSD-2-Clause-Darwin header. MUST be the very first thing in a file.
-pub const HASH_BSD_DARWIN_HEADER: &str = r#"$File: COPYING,v 1.2 2018/09/09 20:33:28 christos Exp $
+pub const HASH_BSD_DARWIN_HEADER: &str = r#"/*
+$File: COPYING,v 1.2 2018/09/09 20:33:28 christos Exp $
 Copyright (c) Ian F. Darwin 1986, 1987, 1989, 1990, 1991, 1992, 1994, 1995.
 Software written by Ian F. Darwin and others;
 maintained 1994- Christos Zoulas.
@@ -554,9 +555,9 @@ The preceding notice is from src/missing/vasprintf.c in `file`.
  */
 
 The preceding notice is from src/tar.h in `file`.
-"#;
+*/"#;
 
-pub const FILE_ADDITIONAL_LICENSES = r#"/*
+pub const FILE_ADDITIONAL_LICENSES: &str = r#"/*/*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the
  * file_public domain
  *
@@ -1353,9 +1354,9 @@ The preceding notice is from src/readcdf.c in `file`.
  */
 
 The preceding notice is from src/regex-bsd.h in `file`.
-"#;
+*/"#;
 
-pub const DETECTION_LICENSES_OTHER = r#"/*
+pub const DETECTION_LICENSES_OTHER: &str = r#"/*
 
 Text of LICENSE from DROID:
 
@@ -1654,13 +1655,13 @@ Text of LICENSE from polyfile:
 
 */"#;
 
-pub const SPDX_HEADERS_DETECTION = "// SPDX-License-Identifier: AGPL-3.0-or-later AND BSD-2-Clause-Darwin AND Apache-2.0 AND MIT AND BSD-3-Clause
+pub const SPDX_HEADERS_DETECTION: &str = "// SPDX-License-Identifier: AGPL-3.0-or-later AND BSD-2-Clause-Darwin AND Apache-2.0 AND MIT AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from `file` (libmagic): BSD-2-Clause-Darwin AND BSD-3-Clause
 // SPDX-License-Identifier for parts derived from polyfile: Apache-2.0
 // SPDX-License-Identifier for parts derived from fileid and binwalk: MIT
 // SPDX-License-Identifier for parts derived from DROID: BSD-3-Clause";
 
-pub const DESCRIPTION_DETECTION="// The Collective Toolbox file detection tools combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
+pub const DESCRIPTION_DETECTION: &str = "// The Collective Toolbox file detection tools combine elements from several other similar tools: `file`, polyfile, binwalk, fileid, and DROID.
 // See license texts at the beginning and end of this file for full license details for parts derived from `file` <https://www.darwinsys.com/file/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 ";
