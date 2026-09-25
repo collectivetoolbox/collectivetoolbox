@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+This file is part of Collective Toolbox, a database and document workspace and utilities.
+Copyright (C) 2026 Collective Toolbox Developers
+Contact: info@collectivetoolbox.com
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+//! Build and version metadata for Collective Toolbox.
+
+#[allow(clippy::wildcard_imports)]
+pub(crate) use ctb_utilities::*;
+
+use serde::Serialize;
+
+#[derive(Clone, Debug, Serialize)]
+pub struct BuildInfo {
+    pub name: String,
+    pub version: String,
+    pub build_date: String,
+    pub commit: String,
+}
+
+impl BuildInfo {
+    /// Returns the build date timestamp string.
+    ///
+    /// Note: This timestamp reflects the git commit time, not the true build
+    /// time, in order to preserve build caching across incremental builds.
+    #[must_use]
+    pub fn build_date(&self) -> &str {
+        &self.build_date
+    }
+}
+
+/// Returns the build and version metadata for Collective Toolbox.
+///
+/// Note: The `build_date` field contains the commit timestamp rather than the
+/// true build time to ensure reproducible builds and preserve build caching.
+#[must_use]
+pub fn build_info() -> BuildInfo {
+    // Reason for fallback: builds without git repository context (e.g. from
+    // a source tarball) lack VERGEN_GIT_COMMIT_TIMESTAMP and fallback to the
+    // build timestamp.
+    let build_date = option_env!("VERGEN_GIT_COMMIT_TIMESTAMP")
+        .unwrap_or(env!("VERGEN_BUILD_TIMESTAMP"))
+        .to_string();
+
+    BuildInfo {
+        name: "ctoolbox".to_string(),
+        version: env!("CTB_VERSION").to_string(),
+        build_date,
+        commit: env!("VERGEN_GIT_SHA").to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn test_build_info() {
+        let info = build_info();
+        assert_eq!(info.name, "ctoolbox");
+        assert!(!info.version.is_empty());
+        assert!(!info.build_date.is_empty());
+        assert!(!info.commit.is_empty());
+        assert_eq!(info.build_date(), &info.build_date);
+    }
+}

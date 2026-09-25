@@ -30,6 +30,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_build_info::build_info;
+
 use axum::{Json, extract::Query};
 use chrono::Utc;
 use serde::{Deserialize, Serialize};

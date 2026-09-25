@@ -2616,6 +2616,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-build-info"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "cargo_metadata 0.23.1",
+ "ctb-utilities",
+ "serde",
+ "vergen-gix",
+]
+
+[[package]]
 name = "ctb-build-support"
 version = "0.0.0"
 dependencies = [
@@ -3519,6 +3530,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "chrono",
+ "ctb-build-info",
  "ctb-build-support",
  "ctb-formats-dcstring",
  "ctb-formats-eite",
@@ -3752,7 +3764,6 @@ dependencies = [
  "tracing-subscriber",
  "unicode-segmentation",
  "uuid",
- "vergen-gix",
  "voprf",
  "webpki-root-certs",
  "windows-sys 0.61.2",
@@ -3777,6 +3788,7 @@ dependencies = [
  "backtrace",
  "chrono",
  "clap",
+ "ctb-build-info",
  "ctb-cli",
  "ctb-formats",
  "ctb-formats-base64",
@@ -3881,6 +3893,7 @@ version = "0.1.49"
 dependencies = [
  "anyhow",
  "ctb-api-client",
+ "ctb-build-info",
  "ctb-build-support",
  "ctb-cli",
  "ctb-dc-macro",

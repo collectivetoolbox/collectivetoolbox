@@ -638,11 +638,11 @@ pub fn wait_for_ctoolbox_exit_and_clean_up(pid: u32) {
 }
 
 pub fn package_short_name() -> String {
-    build_info().name.clone()
+    "ctoolbox".to_string()
 }
 
 pub fn package_version() -> String {
-    build_info().version.clone()
+    env!("CTB_VERSION").to_string()
 }
 
 pub fn generate_authentication_key() -> Result<String> {
@@ -848,22 +848,6 @@ pub fn get_all_bytes() -> Result<Vec<u8>> {
         .ok_or_else(|| anyhow::anyhow!("Failed to get all_bytes"))
 }
 
-#[derive(Serialize)]
-pub struct BuildInfo {
-    pub name: String,
-    pub version: String,
-    pub build_date: String,
-    pub commit: String,
-}
-
-pub fn build_info() -> BuildInfo {
-    BuildInfo {
-        name: "ctoolbox".to_string(),
-        version: env!("CTB_VERSION").to_string(),
-        build_date: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
-        commit: env!("VERGEN_GIT_SHA").to_string(),
-    }
-}
 
 #[expect(
     clippy::panic,

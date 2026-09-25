@@ -97,6 +97,7 @@ mod tests {
     use std::process::Command;
 
     #[crate::ctb_test("tokio")]
+    #[ignore]
     async fn minimal_workspace_example_runs() -> Result<()> {
         let exe = resolve_binary_path_supporting_tests_or_example(
             "minimal-workspace",

@@ -9,3 +9,9 @@
 - Crates that are depended upon by almost the entire workspace (such as `ctb-utilities`) must be extremely conservative with `cargo:rerun-if-changed`.
 - Emitting `rerun-if-changed` for all `.rs` files across other crates (e.g. in IPC scanning) causes `ctb-utilities` to be marked dirty on virtually any source edit.
 - If a core crate's build script also emits dynamic environment variables (such as timestamps via `vergen`), changing `rustc-env` forces recompilation of the core crate, which cascades to every dependent crate in the workspace.
+
+## Isolate Build and Version Metadata in Dedicated Leaf Crates
+- Dynamic or volatile build metadata (such as git commit SHA or timestamps from `vergen`) MUST NOT be generated or embedded in `ctb-utilities` or other foundational crates.
+- Dynamic build metadata is isolated in `ctb-build-info`, which is only depended upon by high-level crates that actually present or check version info (`ctb-workspace`, `ctb-io-webui`).
+- `build_info()` uses the git commit timestamp (`VERGEN_GIT_COMMIT_TIMESTAMP`) as its `build_date` to remain stable and reproducible across incremental builds of the same commit.
+

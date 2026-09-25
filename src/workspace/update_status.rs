@@ -32,6 +32,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use ctb_build_info::build_info;
+
 use std::path::PathBuf;
 use std::sync::LazyLock;
 use std::time::Duration;

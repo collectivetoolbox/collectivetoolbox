@@ -33,7 +33,8 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 
 use crate::{AppState, RequestState, error_400, error_404, render_view};
-use crate::{respond_markdown_unsafe, utilities::build_info};
+use crate::respond_markdown_unsafe;
+use ctb_build_info::build_info;
 use ctb_installer::chunking::{
     compute_sha256_hex, read_chunk_from_directory_compressed,
 };

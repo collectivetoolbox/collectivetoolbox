@@ -8,6 +8,7 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../utilities" }
+ctb-build-info = { path = "../build_info" }
 ctb-cli = { path = "../cli" }
 ctb-formats = { path = "../formats" }
 ctb-formats-base64 = { path = "../formats/base64" }

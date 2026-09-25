@@ -33,7 +33,7 @@ use serde_json::{Map, Value};
 use crate::controllers::base::redirect_temporary;
 use crate::error::{WebErr, WebError, WebResult};
 use crate::extractors::request_state::RequestState;
-use crate::utilities::build_info;
+use ctb_build_info::build_info;
 use crate::utilities::password::{Password, hash, verify};
 use crate::utilities::*;
 use crate::{AppState, error_400, error_403, respond_page};

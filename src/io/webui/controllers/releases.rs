@@ -1197,7 +1197,7 @@ pub async fn calculate_download_sizes(
                     );
                 }
 
-                let build_info = crate::utilities::build_info();
+                let build_info = ctb_build_info::build_info();
                 let src_name = format!(
                     "ctoolbox-src-{}-{}.tar",
                     manifest.ctoolbox_version, build_info.commit

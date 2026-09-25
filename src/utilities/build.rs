@@ -24,14 +24,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // See additional licensing details at end of file.
 
-//! Build script emitting version metadata and git build information.
+//! Build script for ctb-utilities code generation and version metadata.
 
 use anyhow::{Result, bail};
 use cargo_metadata::MetadataCommand;
-use vergen_gix::{
-    BuildBuilder, CargoBuilder, Emitter, GixBuilder, RustcBuilder,
-    SysinfoBuilder,
-};
 
 fn main() -> Result<()> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")?;
@@ -77,22 +73,6 @@ fn main() -> Result<()> {
     };
 
     println!("cargo:rustc-env=CTB_VERSION={ctb_version}");
-
-    // NOTE: This will output everything, and requires all features enabled.
-    // NOTE: See the specific builder documentation for configuration options.
-    let build = BuildBuilder::all_build()?;
-    let cargo = CargoBuilder::all_cargo()?;
-    let gix = GixBuilder::all_git()?;
-    let rustc = RustcBuilder::all_rustc()?;
-    let si = SysinfoBuilder::all_sysinfo()?;
-
-    Emitter::default()
-        .add_instructions(&build)?
-        .add_instructions(&cargo)?
-        .add_instructions(&gix)?
-        .add_instructions(&rustc)?
-        .add_instructions(&si)?
-        .emit()?;
 
     Ok(())
 }

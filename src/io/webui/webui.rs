@@ -26,6 +26,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
+use ctb_build_info::build_info;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 

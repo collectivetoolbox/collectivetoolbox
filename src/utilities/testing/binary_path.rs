@@ -263,7 +263,7 @@ fn cargo_bin_env_key(binary_name: &str) -> String {
 ///   use it
 /// - Otherwise, try to replace the current executable with a sibling named
 ///   `target/.../examples/<name>` (useful when running under libtest harness)
-/// - Otherwise, return `current_exe()`
+/// - Otherwise, return an error if in a test (to prevent test runner recursion)
 pub fn resolve_binary_path_supporting_tests_or_example(
     example_name: &str,
     override_env: Option<&str>,
@@ -300,6 +300,37 @@ pub fn resolve_binary_path_supporting_tests_or_example(
             let sibling = parent.join(format!("{example_name}.exe"));
             if candidate_exists(&sibling) {
                 return Ok(sibling);
+            }
+        }
+
+        // If running from a subfolder like `deps/`, check sibling `examples/`
+        // or parent directory.
+        if let Some(grandparent) = parent.parent() {
+            let candidate =
+                grandparent.join("examples").join(example_name);
+            if candidate_exists(&candidate) {
+                return Ok(candidate);
+            }
+
+            let candidate = grandparent.join(example_name);
+            if candidate_exists(&candidate) {
+                return Ok(candidate);
+            }
+
+            #[cfg(windows)]
+            {
+                let candidate = grandparent
+                    .join("examples")
+                    .join(format!("{example_name}.exe"));
+                if candidate_exists(&candidate) {
+                    return Ok(candidate);
+                }
+
+                let candidate =
+                    grandparent.join(format!("{example_name}.exe"));
+                if candidate_exists(&candidate) {
+                    return Ok(candidate);
+                }
             }
         }
     }
@@ -342,7 +373,7 @@ pub fn resolve_binary_path_supporting_tests_or_example(
         }
     }
 
-    Ok(exe)
+    bail!("failed to resolve binary path for '{example_name}': executable not found")
 }
 
 /*

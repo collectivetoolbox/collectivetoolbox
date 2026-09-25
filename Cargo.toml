@@ -77,6 +77,7 @@ winresource = "0.1.30"
 # These are also included in this repository. They have their own Cargo.toml
 # files and dependencies.
 
+ctb-build-info = { path = "src/build_info" }
 ctb-build-support = { path = "src/build_support" }
 ctb-cli = { path = "src/cli" }
 ctb-formats = { path = "src/formats" }
