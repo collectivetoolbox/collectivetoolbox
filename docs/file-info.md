@@ -42,7 +42,7 @@
 - [x] **Extended Grammar Constructs:** Formalize explicit syntax for routine arguments, list/map element framing, and nested executable blocks before inclusion in `statement` / `value`.
 - [x] **Typed Literal Headers:** Extend literal type headers beyond String marker 264.
 
-### Phase 5: Declarative File Type Detection Engine & Parity with `file`
+### Phase 5: Declarative File Type Detection Engine & Parity with `file`/polyfile/DROID
 - [x] **Basic Multi-Signal Detection Prototype:** Initial prototype combining static magic byte matching (`MAGIC_REGISTRY`), preliminary extension rules (`EXTENSION_REGISTRY`), and `FormatCategory` domain filtering (`ctb_formats_utilities::detection`).
 - [x] **Probabilistic Multipart Extension Parsing & Candidate Chains; old/filedetect/ ports:**
   - Note: Reusing/porting algorithms from the packages in old/filedetect/ (which should all be compatibly licensed), or using standard Rust crates, is encouraged, rather than reinventing things wholesale. We'll want to reuse existing databases, perhaps mapping them to Dcs, so that the data maintained directly in this crate (`src/formats/dcdata/data/categories/formats/` and as-yet-unimplemented `src/formats/dcdata/data/categories/formats/magic/`) can be relatively limited.
