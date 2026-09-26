@@ -57,6 +57,9 @@ pub fn is_lightweight_command(command: &str) -> bool {
             | "csum"
             | "compress"
             | "decompress"
+            | "file"
+            | "detect"
+            | "file-detect"
             | "base2base"
             | "hex2dec"
             | "dec2hex"
@@ -589,6 +592,9 @@ pub enum Command {
         #[arg(long = "force")]
         force: bool,
     },
+    /// Detect format, MIME type, and characteristics of files (like `file`)
+    #[command(name = "file", alias = "detect", alias = "file-detect")]
+    File(ctb_formats_detection::cli::FileDetectionArgs),
     /// Process a file using wfparser logic
     #[command(name = "wfparser")]
     Wfparser {
@@ -1248,6 +1254,9 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             read_file_or_stdin,
             check_overwrite_prompt,
         ),
+        Command::File(args) => {
+            ctb_formats_detection::cli::run_file_detection(args)
+        }
         Command::Wfparser { file } => {
             ctb_formats_wfscan::cli::wfparser(file.as_path(), read_file_or_stdin)
         }
@@ -1468,6 +1477,8 @@ mod tests {
             "validate-docker-image",
             "compress",
             "decompress",
+            "file",
+            "detect",
             "base2base",
             "hex2dec",
             "dec2hex",

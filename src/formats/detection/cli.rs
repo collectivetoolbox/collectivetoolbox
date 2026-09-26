@@ -443,1332 +443,377 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Combined multi-signal format detection, hierarchical pattern matching,
-//! and multipart extension chain parsing.
-//!
-//! This crate (partial/incomplete but seems to be working for basic cases)
-//! provides file format guessing by synthesizing multiple orthogonal signals:
-//! - **Magic pattern matching**: Hierarchical, bitmask-aware rules compiled
-//!   from file signatures and fine-grained offsets.
-//! - **PRONOM / DROID signatures**: Dual-anchored header and trailer patterns
-//!   with variable-length gaps.
-//! - **Extension analysis**: Multipart extension chains (e.g. `.tar.gz`) with
-//!   case sensitivity rules and path classification.
-//! - **Structural inspection**: Container and polyglot detection for ZIP,
-//!   OLE2, AppleSingle/Double, and archive structures.
-//! - **Text encoding heuristics**: Multi-encoding validation (UTF-8, UTF-16,
-//!   ASCII, Latin-1) and XML/HTML markup pattern scoring.
-//! - **Platform knowledge**: Target operating system compatibility scoring
-//!   to resolve format ambiguities.
-//!
-//! # High-Level Convenience Functions
-//!
-//! For most use cases, convenience functions provide quick format guessing or
-//! full diagnostic reporting across common input types:
-//!
-//! - Filesystem paths: [`guess_path`] and [`guess_and_report_path`]
-//! - UTF-8 / String data: [`guess_string`] and [`guess_and_report_string`]
-//! - Document strings: [`guess_dcs`] and [`guess_and_report_dcs`]
-//! - Raw byte buffers: [`guess_vec`] and [`guess_and_report_vec`]
-//! - Structured `File` entities: [`guess_file`] and [`guess_and_report_file`]
-//!
-//! # Examples
-//!
-//! ### Inspecting a Filesystem Path
-//!
-//! Identify a format directly from an on-disk path or generate a report:
-//!
-//! ```rust,no_run
-//! use ctb_formats_detection::{
-//!     guess_and_report_path, guess_path, FormatId, OsPath,
-//! };
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let dir = tempfile::tempdir()?;
-//! let path: OsPath = dir.path().join("archive.tar.gz");
-//! let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-//! std::fs::write(&path, gz_header)?;
-//!
-//! // Fast authoritative format identification:
-//! let format = guess_path(&path)?;
-//! assert_eq!(format, FormatId::Gzip);
-//!
-//! // Comprehensive detection report with ranked candidates:
-//! let report = guess_and_report_path(&path)?;
-//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ### Inspecting a String
-//!
-//! Detect markup, source code, or text formats from a `String` or `&str`:
-//!
-//! ```
-//! use ctb_formats_detection::{
-//!     guess_and_report_string, guess_string, FormatId,
-//! };
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let html = String::from(
-//!     "<!DOCTYPE html><html><body><h1>Header</h1></body></html>",
-//! );
-//!
-//! let format = guess_string(html.clone())?;
-//! assert_eq!(format, FormatId::Html);
-//!
-//! let report = guess_and_report_string(html)?;
-//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ### Inspecting a Document Character String (`DcString`)
-//!
-//! Detect formats directly from a [`DcString`]:
-//!
-//! ```
-//! use ctb_formats_detection::{
-//!     guess_and_report_dcs, guess_dcs, DcString, FormatId,
-//! };
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let dcs = DcString::from_dcutf(
-//!     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
-//! )?;
-//!
-//! let format = guess_dcs(&dcs)?;
-//! assert_eq!(format, FormatId::Html);
-//!
-//! let report = guess_and_report_dcs(&dcs)?;
-//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ### Inspecting Raw Byte Vectors
-//!
-//! Detect binary or text formats from an in-memory `Vec<u8>`:
-//!
-//! ```
-//! use ctb_formats_detection::{guess_and_report_vec, guess_vec, FormatId};
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let gz_bytes: Vec<u8> =
-//!     vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-//!
-//! let format = guess_vec(gz_bytes.clone())?;
-//! assert_eq!(format, FormatId::Gzip);
-//!
-//! let report = guess_and_report_vec(gz_bytes)?;
-//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ### Inspecting an `io/file` `File` Entity
-//!
-//! Detect formats when working with structured [`File`] entities:
-//!
-//! ```rust,no_run
-//! use ctb_formats_detection::{
-//!     guess_and_report_file, guess_file, File, FormatId,
-//! };
-//!
-//! # fn main() -> anyhow::Result<()> {
-//! let dir = tempfile::tempdir()?;
-//! let path = dir.path().join("archive.tar.gz");
-//! let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-//! std::fs::write(&path, gz_header)?;
-//!
-//! let file = File::from_filesystem(&path, None)?;
-//!
-//! let format = guess_file(&file)?;
-//! assert_eq!(format, FormatId::Gzip);
-//!
-//! let report = guess_and_report_file(&file)?;
-//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-//! # Ok(())
-//! # }
-//! ```
+//! Command-line interface runner and reporting for file format detection.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
-    reason = "Standard workspace crate prelude"
+    reason = "Standard workspace module prelude"
 )]
-pub(crate) use ctb_utilities::*;
+use crate::utilities::*;
 
-pub use crate as detection;
-pub use ctb_formats_dcstring::DcString;
-pub use ctb_formats_utilities::encoding;
-pub use ctb_formats_utilities::extension_rule::{CaseSensitivity, ExtensionRule};
-pub use ctb_utilities::format_id;
-pub use ctb_utilities::FormatId;
-pub use ctb_io_file::{
-    DiskPayloadSource, Extent, File, FileEntity, FileEntityKind, FileEntityType,
-    FileOrigin, InodeKey, MemoryPayloadSource, PayloadSource, ReaderPayloadSource,
-};
-pub type OsPath = std::path::PathBuf;
+use anyhow::{Context, Result};
+use clap::Args;
+use std::fmt::Write as _;
+use std::io::{self, Read};
+use std::path::{Path, PathBuf};
 
-pub mod chain;
-pub mod conflict;
-pub mod extension;
-pub mod magic;
-pub mod magic_data;
-pub mod magic_parser;
-pub mod mime_derivation;
-pub mod platform;
-pub mod resource_fork;
-pub mod container;
-pub mod droid;
-pub mod polyfile;
-pub mod source;
-pub mod special;
-pub mod text;
-pub mod extra_rules;
-pub mod types;
-pub mod file_upstream_suite;
-pub mod cli;
+use crate::chain::guess_format_chains;
+use crate::detection::{guess_and_report_path, guess_and_report_vec};
+use crate::types::{DetectionEvidence, DetectionOutcome, DetectionReport};
 
-pub use platform::{current_platform_os, format_matches_platform, is_os_match};
-pub use source::{DetectionSource, EmptySource};
-pub use types::*;
+/// Command-line arguments for file detection (`ctoolbox file` / `detect`).
+#[derive(Args, Debug, Clone)]
+pub struct FileDetectionArgs {
+    /// Files to inspect and detect format for (pass '-' for stdin)
+    #[arg(value_name = "FILE", default_value = "-")]
+    pub files: Vec<PathBuf>,
 
-use self::conflict::resolve_candidate_conflicts;
-use self::container::detect_container_candidates;
-use self::droid::{evaluate_dual_anchored_signatures, evaluate_pronom_signatures};
-use self::extension::resolve_extension_candidates;
-use self::magic::evaluate_rule;
-use self::magic_data::{COMPILED_CTB_MAGIC_RULES, COMPILED_FILE_MAGIC_RULES};
-use self::mime_derivation::FORMAT_CATALOG;
-use self::polyfile::detect_polyglots;
-use self::extra_rules::detect_small_format_candidates;
-use self::special::detect_special_entity;
-use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
+    /// Produce output strictly compatible with the standard UNIX `file` command
+    #[arg(long)]
+    pub compat: bool,
 
-/// Bonus score awarded when a format candidate matches the target platform OS.
-const PLATFORM_PRIOR_BONUS: u32 = 15;
+    /// Output MIME type string instead of human-readable description (like `file -i`)
+    #[arg(long, short = 'i', alias = "mime-type")]
+    pub mime: bool,
 
-/// Primary format detection function returning a comprehensive report.
-pub fn guess_format_report(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Result<DetectionReport> {
-    let mut candidates = Vec::new();
-    let mut bytes_evaluated = 0u64;
-    let mut read_error: Option<String> = None;
+    /// Do not prepend filenames to output lines (like `file -b`)
+    #[arg(long, short = 'b')]
+    pub brief: bool,
 
-    // 0. Evaluate special filesystem entity hints (special.rs)
-    if let Some(special_cand) = detect_special_entity(hint) {
-        candidates.push(special_cand);
-    }
+    /// Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
+    #[arg(long, short = 'k')]
+    pub all: bool,
+}
 
-    if let Some(h) = hint {
-        if let Some(code) = h.apple_type_code {
-            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code) {
-                candidates.push(DetectionCandidate {
-                    format_id: mapping.format_id,
-                    dc_id: Some(mapping.dc_id),
-                    mime: mapping.mime_types.first().cloned(),
-                    description: mapping.label.clone(),
-                    confidence: ConfidenceTier::Strong,
-                    score: 90,
-                    evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
-                });
-            }
-        }
-        for sc in &h.stream_candidates {
-            candidates.push(sc.clone());
-        }
-    }
+/// Executes file detection across the specified file paths or standard input.
+pub fn run_file_detection(args: &FileDetectionArgs) -> Result<ToolResult> {
+    let mut output = String::new();
 
-    let hint_ext = hint.and_then(|h| {
-        h.extension.as_deref().or_else(|| {
-            h.filename.as_deref().and_then(|f| {
-                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
-            })
-        })
-    });
+    let files = if args.files.is_empty() {
+        vec![PathBuf::from("-")]
+    } else {
+        args.files.clone()
+    };
 
-    let platform = hint.and_then(|h| h.platform);
-    let expected_cat = hint.and_then(|h| h.expected_category);
+    let total_files = files.len();
 
+    for (idx, path) in files.iter().enumerate() {
+        let is_stdin = path.as_os_str() == "-";
+        let display_name = if is_stdin {
+            "/dev/stdin".to_string()
+        } else {
+            path.display().to_string()
+        };
 
-    // 1.5. Evaluate DROID PRONOM and dual-anchored BOF / EOF signatures (droid.rs)
-    if let Ok(pronom_cands) = evaluate_pronom_signatures(source, hint) {
-        for cand in pronom_cands {
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
-                let matches_desc = !cand.description.is_empty()
-                    && (existing.description.eq_ignore_ascii_case(&cand.description)
-                        || existing
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&cand.description.to_ascii_lowercase())
-                        || cand
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&existing.description.to_ascii_lowercase()));
-                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
-                if matches_fmt || matches_desc || matches_mime {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
-                        existing.format_id = cand.format_id;
+        let report_res = if is_stdin {
+            let mut stdin_bytes = Vec::new();
+            io::stdin()
+                .read_to_end(&mut stdin_bytes)
+                .context("Failed to read from standard input")?;
+            guess_and_report_vec(stdin_bytes)
+        } else {
+            guess_and_report_path(path)
+        };
+
+        let report = match report_res {
+            Ok(r) => r,
+            Err(e) => {
+                if args.compat {
+                    if args.brief {
+                        let _ = writeln!(output, "cannot open (Error: {e:#})");
+                    } else {
+                        let _ = writeln!(output, "{display_name}: cannot open (Error: {e:#})");
                     }
-                    if cand.score > existing.score {
-                        existing.score = cand.score;
-                        existing.confidence = cand.confidence;
-                        existing.description = cand.description.clone();
-                    }
-                    if existing.mime.is_none() && cand.mime.is_some() {
-                        existing.mime = cand.mime.clone();
-                    }
-                    existing.evidence.extend(cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(cand);
-            }
-        }
-    }
-
-    if let Ok(dual_cands) = evaluate_dual_anchored_signatures(source) {
-        for cand in dual_cands {
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
-                let matches_desc = !cand.description.is_empty()
-                    && (existing.description.eq_ignore_ascii_case(&cand.description)
-                        || existing
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&cand.description.to_ascii_lowercase())
-                        || cand
-                            .description
-                            .to_ascii_lowercase()
-                            .contains(&existing.description.to_ascii_lowercase()));
-                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
-                if matches_fmt || matches_desc || matches_mime {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
-                        existing.format_id = cand.format_id;
-                    }
-                    if cand.score > existing.score {
-                        existing.score = cand.score;
-                        existing.confidence = cand.confidence;
-                        existing.description = cand.description.clone();
-                    }
-                    if existing.mime.is_none() && cand.mime.is_some() {
-                        existing.mime = cand.mime.clone();
-                    }
-                    existing.evidence.extend(cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(cand);
-            }
-        }
-    }
-
-    // 2. Evaluate compiled hierarchical magic rules (ctoolbox.magic -> CtbMagic, Magdir -> FileMagic)
-    for (rule_set, is_ctb) in [
-        (&*COMPILED_CTB_MAGIC_RULES, true),
-        (&*COMPILED_FILE_MAGIC_RULES, false),
-    ] {
-        for rule in rule_set.iter() {
-            if let Some(match_res) = evaluate_rule(rule, source) {
-                bytes_evaluated = bytes_evaluated.max(match_res.match_end);
-                if match_res.description.trim().is_empty() && match_res.mime.is_none() {
-                    continue;
-                }
-                let mut score = if is_ctb {
-                    match_res.score.max(90)
                 } else {
-                    match_res.score
-                };
-                let mut evidence = Vec::new();
-                if is_ctb {
-                    evidence.push(DetectionEvidence::CtbMagic {
-                        description: match_res.description.clone(),
-                        score: match_res.score,
-                    });
-                } else {
-                    evidence.push(DetectionEvidence::FileMagic {
-                        description: match_res.description.clone(),
-                        score: match_res.score,
-                    });
-                }
-
-                // Map MIME or description or extension to format catalog
-                let mapping = match_res
-                    .mime
-                    .as_deref()
-                    .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
-                    .or_else(|| {
-                        FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
-                    })
-                    .or_else(|| {
-                        match_res.ext.as_deref().and_then(|ext| {
-                            ext.split(['/', ','])
-                                .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
-                        })
-                    });
-
-                let format_id = mapping.and_then(|m| m.format_id);
-                let dc_id = mapping.map(|m| m.dc_id);
-                let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
-                // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
-                let description = if match_res.description.is_empty() {
-                    mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
-                } else {
-                    match_res.description
-                };
-
-                // Concordance with extension hint
-                if let Some(ext) = hint_ext {
-                    let ext_normalized = ext.to_ascii_lowercase();
-                    // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                    let rule_ext_match = match_res.ext.as_deref().map(|e| {
-                        e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                    }).unwrap_or(false);
-
-                    // Reason for fallback: unmapped format evaluates to false for extension concordance
-                    let mapping_ext_match = mapping.map(|m| {
-                        m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
-                    }).unwrap_or(false);
-
-                    if rule_ext_match || mapping_ext_match {
-                        score = score.saturating_add(25);
-                        evidence.push(DetectionEvidence::Extension {
-                            ext: ext.to_string(),
-                            is_primary: true,
-                            score: 25,
-                        });
-                    }
-                }
-
-                // Platform prior boost from format dataset OS associations
-                if let Some(target_os) = platform {
-                    let is_matched = format_id.is_some_and(|fid| {
-                        format_matches_platform(fid, target_os)
-                    });
-
-                    if is_matched {
-                        score = score.saturating_add(PLATFORM_PRIOR_BONUS);
-                        evidence.push(DetectionEvidence::PlatformPrior {
-                            platform: target_os,
-                            score: PLATFORM_PRIOR_BONUS,
-                        });
-                    }
-                }
-
-                // Expected category boost
-                if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
-                    if fid.category() == exp_cat {
-                        score = score.saturating_add(20);
-                        evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                    }
-                }
-
-                let confidence = if score >= 85 {
-                    ConfidenceTier::HighestConfidence
-                } else if score >= 65 {
-                    ConfidenceTier::Strong
-                } else if score >= 40 {
-                    ConfidenceTier::Moderate
-                } else {
-                    ConfidenceTier::Weak
-                };
-
-                // Deduplicate and merge with any existing candidate for the same format or description
-                let mut merged = false;
-                for existing in &mut candidates {
-                    let matches_fmt = format_id.is_some()
-                        && (existing.format_id == format_id
-                            || existing
-                                .mime
-                                .as_deref()
-                                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
-                                .and_then(|m| m.format_id)
-                                == format_id);
-                    let matches_desc = !description.is_empty()
-                        && (existing.description.eq_ignore_ascii_case(&description)
-                            || existing
-                                .description
-                                .to_ascii_lowercase()
-                                .contains(&description.to_ascii_lowercase())
-                            || description
-                                .to_ascii_lowercase()
-                                .contains(&existing.description.to_ascii_lowercase()));
-                    let matches_mime = mime.is_some() && existing.mime == mime;
-                    if matches_fmt || matches_desc || matches_mime {
-                        if existing.format_id.is_none() && format_id.is_some() {
-                            existing.format_id = format_id;
-                        }
-                        if existing.dc_id.is_none() && dc_id.is_some() {
-                            existing.dc_id = dc_id;
-                        }
-                        if existing.mime.is_none() && mime.is_some() {
-                            existing.mime = mime.clone();
-                        }
-                        if score > existing.score {
-                            existing.score = score;
-                            existing.confidence = confidence;
-                        }
-                        if description.len() > existing.description.len() {
-                            existing.description = description.clone();
-                        }
-                        existing.evidence.extend(evidence.clone());
-                        merged = true;
-                        break;
-                    }
-                }
-
-                if !merged {
-                    candidates.push(DetectionCandidate {
-                        format_id,
-                        dc_id,
-                        mime,
-                        description,
-                        confidence,
-                        score,
-                        evidence,
-                    });
-                }
-            }
-        }
-    }
-
-    // 2.3. Evaluate specialized deep parsers and container inspection (container.rs)
-    if let Ok(container_cands) = detect_container_candidates(source, hint) {
-        for cand in container_cands {
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
-                let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
-                        existing.format_id = cand.format_id;
-                    }
-                    if cand.score > existing.score {
-                        existing.score = cand.score;
-                        existing.confidence = cand.confidence;
-                        existing.description = cand.description.clone();
-                    }
-                    if existing.mime.is_none() && cand.mime.is_some() {
-                        existing.mime = cand.mime.clone();
-                    }
-                    existing.evidence.extend(cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(cand);
-            }
-        }
-    }
-
-    // 2.4. Evaluate PolyFile polyglot container detection (polyfile.rs)
-    if let Ok(Some(poly_cand)) = detect_polyglots(source, &candidates) {
-        candidates.push(poly_cand);
-    }
-
-    // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
-    let has_strong_binary_magic = candidates.iter().any(|c| {
-        (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
-            && !c.description.contains("text")
-            && !c.description.contains("script")
-            && !c.description.contains("source")
-            && !c.mime.as_deref().is_some_and(|m| m.starts_with("text/"))
-            && c.format_id != Some(FormatId::Ascii)
-    });
-    if !has_strong_binary_magic {
-        if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
-            // Reason for fallback: default to 4096 byte inspection limit if arithmetic conversion overflows
-            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
-            bytes_evaluated = bytes_evaluated.max(inspect_size);
-
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = text_cand.format_id.is_some() && existing.format_id == text_cand.format_id;
-                let matches_desc = (!existing.description.is_empty()
-                    && !text_cand.description.is_empty()
-                    && (existing.description.contains(&text_cand.description)
-                        || text_cand.description.contains(&existing.description)))
-                    || (existing.description.contains("Python") && text_cand.description.contains("Python"))
-                    || (existing.description.contains("script") && text_cand.description.contains("script"));
-
-                if matches_fmt || matches_desc {
-                    if text_cand.score > existing.score {
-                        existing.score = text_cand.score;
-                        existing.confidence = text_cand.confidence;
-                        existing.description = text_cand.description.clone();
-                    }
-                    if existing.mime.is_none() && text_cand.mime.is_some() {
-                        existing.mime = text_cand.mime.clone();
-                    }
-                    if existing.format_id.is_none() && text_cand.format_id.is_some() {
-                        existing.format_id = text_cand.format_id;
-                    }
-                    existing.evidence.extend(text_cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(text_cand);
-            }
-        }
-    }
-
-    // 2.6. Evaluate small specialized textual formats (IP addresses, UUIDs, checksums, math expressions)
-    if !has_strong_binary_magic {
-        let mut sample_buf = vec![0u8; 4096];
-        if let Ok(n) = source.read_at(0, &mut sample_buf) {
-            if n > 0 {
-                let sample_slice = sample_buf.get(..n).unwrap_or(&sample_buf);
-                let small_cands = detect_small_format_candidates(sample_slice, source.total_len(), hint);
-                for sc in small_cands {
-                    candidates.push(sc);
-                }
-            }
-        }
-    }
-
-    // 3. If extension hint is present, evaluate extension candidates
-    if let Some(ext) = hint_ext {
-        let ext_candidates = resolve_extension_candidates(ext, platform);
-        for (fmt, ext_score) in ext_candidates {
-            // Check if already found via magic
-            if let Some(existing) = candidates.iter_mut().find(|c| c.format_id == Some(fmt)) {
-                let has_ext = existing.evidence.iter().any(|e| matches!(e, DetectionEvidence::Extension { .. }));
-                if !has_ext {
-                    existing.score = existing.score.saturating_add(25);
-                    existing.evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
-                    });
-                    if existing.score >= 85 {
-                        existing.confidence = ConfidenceTier::HighestConfidence;
-                    } else if existing.score >= 65 {
-                        existing.confidence = ConfidenceTier::Strong;
-                    }
+                    let _ = writeln!(output, "=== {display_name} ===");
+                    let _ = writeln!(output, "Error inspecting file: {e:#}");
                 }
                 continue;
             }
+        };
 
-            let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-            let dc_id = mapping.map(|m| m.dc_id);
-            // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
-            let description = mapping
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| fmt.ident().to_string());
-            let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-
-            let mut final_score = ext_score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Extension {
-                ext: ext.to_string(),
-                is_primary: true,
-                score: ext_score,
-            });
-
-            if let Some(exp_cat) = expected_cat {
-                if fmt.category() == exp_cat {
-                    final_score = final_score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
+        if args.compat {
+            render_compat_output(&mut output, &display_name, &report, args);
+        } else {
+            if idx > 0 {
+                output.push('\n');
             }
-
-            let confidence = if final_score >= 65 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-
-            candidates.push(DetectionCandidate {
-                format_id: Some(fmt),
-                dc_id,
-                mime,
-                description,
-                confidence,
-                score: final_score,
-                evidence,
-            });
+            render_rich_output(&mut output, &display_name, path, &report, args);
         }
     }
 
-    // 4. Resolve candidate conflicts and subsumption hierarchies
-    let mut resolved = resolve_candidate_conflicts(candidates);
-    if let Some(h) = hint {
-        if h.limit_to_categories {
-            resolved.retain(|c| {
-                // Reason for fallback: candidates lacking a format_id are excluded when restricting by category
-                c.format_id
-                    .map(|fid| h.allows_category(fid.category()))
-                    .unwrap_or(false)
-            });
-        }
-    }
+    Ok(ToolResult::immediate_ok(output.into_bytes()))
+}
 
-    let stream_signals_used = hint.is_some_and(|h| {
-        !h.stream_candidates.is_empty() || h.apple_type_code.is_some()
-    });
-
-    let outcome = if let Some(err) = read_error {
-        DetectionOutcome::ReadError {
-            offset: 0,
-            message: err,
+fn render_compat_output(
+    output: &mut String,
+    display_name: &str,
+    report: &DetectionReport,
+    args: &FileDetectionArgs,
+) {
+    let candidates = if args.all {
+        report.candidates.as_slice()
+    } else {
+        match report.candidates.first() {
+            Some(cand) => std::slice::from_ref(cand),
+            None => &[],
         }
-    } else if !resolved.is_empty() {
-        DetectionOutcome::Matched(resolved.clone())
-    } else if let Some(total) = source.total_len() {
-        if total < 4 && hint.is_none() {
+    };
+
+    if candidates.is_empty() {
+        let (desc, mime) = match &report.outcome {
             DetectionOutcome::InsufficientData {
-                available_bytes: total,
-                required_bytes: 4,
-            }
-        } else {
-            DetectionOutcome::TrueNegative {
-                bytes_inspected: bytes_evaluated,
-            }
-        }
-    } else {
-        DetectionOutcome::TrueNegative {
-            bytes_inspected: bytes_evaluated,
-        }
-    };
-
-    let file_origin = hint.and_then(|h| h.file_origin.clone());
-
-    Ok(DetectionReport {
-        outcome,
-        candidates: resolved,
-        bytes_evaluated,
-        stream_signals_used,
-        file_origin,
-    })
-}
-
-/// Evaluates magic byte rules, extensions, and environment priors to produce
-/// ranked format candidates.
-pub fn guess_format_candidates(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Vec<DetectionCandidate> {
-    // Reason for fallback: best-effort format candidate discovery defaults to an empty candidate list if report generation fails
-    guess_format_report(source, hint)
-        .map(|rep| rep.candidates)
-        .unwrap_or_default()
-}
-
-/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
-pub fn guess_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    detect_format_id(data, filename_or_ext, expected_category)
-}
-
-/// Backward-compatible detection function picking the top candidate's `FormatId`.
-pub fn detect_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| {
-        let mut h = DetectionHint {
-            filename: Some(name.to_string()),
-            ..Default::default()
+                available_bytes, ..
+            } if *available_bytes == 0 => ("empty", "application/x-empty"),
+            _ => ("data", "application/octet-stream"),
         };
-        if let Some(cat) = expected_category {
-            h = h.with_category(cat);
+
+        let text = if args.mime { mime } else { desc };
+        if args.brief {
+            let _ = writeln!(output, "{text}");
+        } else {
+            let _ = writeln!(output, "{display_name}: {text}");
         }
-        h
-    }).or_else(|| {
-        expected_category.map(DetectionHint::for_category)
-    });
+        return;
+    }
 
-    let candidates = if let Some(bytes) = data {
-        let mut slice = bytes;
-        guess_format_candidates(&mut slice, hint.as_ref())
-    } else {
-        let mut empty = EmptySource;
-        guess_format_candidates(&mut empty, hint.as_ref())
-    };
+    for (cand_idx, cand) in candidates.iter().enumerate() {
+        // Reason for fallback: format candidates without an explicit MIME subtype fall back to standard application/octet-stream in compat mode
+        let text = if args.mime {
+            cand.mime.as_deref().unwrap_or("application/octet-stream")
+        } else {
+            &cand.description
+        };
 
-    if let Some(cat) = expected_category {
-        if let Some(fmt) = candidates
-            .iter()
-            .filter_map(|c| c.format_id)
-            .find(|fmt| fmt.category() == cat)
-        {
-            return Some(fmt);
+        if args.brief {
+            let _ = writeln!(output, "{text}");
+        } else if cand_idx == 0 || !args.all {
+            let _ = writeln!(output, "{display_name}: {text}");
+        } else {
+            // Continuation line for file -k
+            let _ = writeln!(output, "-: {text}");
+        }
+    }
+}
+
+fn render_rich_output(
+    output: &mut String,
+    display_name: &str,
+    path: &Path,
+    report: &DetectionReport,
+    args: &FileDetectionArgs,
+) {
+    let _ = writeln!(output, "=== {display_name} ===");
+
+    match &report.outcome {
+        DetectionOutcome::Matched(candidates) => {
+            let _ = writeln!(
+                output,
+                "Outcome:          Matched ({} candidate{}) | Bytes Evaluated: {}",
+                candidates.len(),
+                if candidates.len() == 1 { "" } else { "s" },
+                report.bytes_evaluated
+            );
+        }
+        DetectionOutcome::InsufficientData {
+            available_bytes,
+            required_bytes,
+        } => {
+            let _ = writeln!(
+                output,
+                "Outcome:          Insufficient Data (available: {available_bytes}, required: {required_bytes}) | Bytes Evaluated: {}",
+                report.bytes_evaluated
+            );
+        }
+        DetectionOutcome::QuotaExhausted { quota_type, limit } => {
+            let _ = writeln!(
+                output,
+                "Outcome:          Quota Exhausted ({quota_type:?}, limit: {limit}) | Bytes Evaluated: {}",
+                report.bytes_evaluated
+            );
+        }
+        DetectionOutcome::ReadError { offset, message } => {
+            let _ = writeln!(
+                output,
+                "Outcome:          Read Error at offset {offset}: {message} | Bytes Evaluated: {}",
+                report.bytes_evaluated
+            );
+        }
+        DetectionOutcome::TrueNegative { bytes_inspected } => {
+            let _ = writeln!(
+                output,
+                "Outcome:          True Negative (unidentified data, bytes inspected: {bytes_inspected}) | Bytes Evaluated: {}",
+                report.bytes_evaluated
+            );
         }
     }
 
-    candidates.into_iter().find_map(|c| c.format_id)
-}
+    if let Some(top) = report.candidates.first() {
+        let _ = writeln!(output, "\nTop Detection:");
+        if let Some(fid) = top.format_id {
+            let _ = writeln!(
+                output,
+                "  Format:         {fid:?} [{}]",
+                fid.shorthand()
+            );
+        } else {
+            let _ = writeln!(output, "  Format:         Unassigned");
+        }
 
-/// Detects `FormatId` restricting candidates strictly to the provided categories.
-pub fn detect_format_id_in_categories(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    categories: &[FormatCategory],
-) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| {
-        let h = DetectionHint {
-            filename: Some(name.to_string()),
-            ..Default::default()
-        };
-        h.with_categories(categories)
-    }).or_else(|| {
-        Some(DetectionHint::for_categories(categories))
-    });
+        if let Some(dc) = top.dc_id {
+            let _ = writeln!(output, "  Dc ID:          {dc}");
+        }
 
-    let candidates = if let Some(bytes) = data {
-        let mut slice = bytes;
-        guess_format_candidates(&mut slice, hint.as_ref())
-    } else {
-        let mut empty = EmptySource;
-        guess_format_candidates(&mut empty, hint.as_ref())
-    };
+        if let Some(mime) = &top.mime {
+            let _ = writeln!(output, "  MIME Type:      {mime}");
+        }
 
-    candidates
-        .into_iter()
-        .filter_map(|c| c.format_id)
-        .find(|fmt| categories.contains(&fmt.category()))
-}
+        let _ = writeln!(
+            output,
+            "  Confidence:     {:?} (Score: {}/100)",
+            top.confidence, top.score
+        );
+        let _ = writeln!(output, "  Description:    {}", top.description);
 
-struct PayloadSourceAdapter<'a>(&'a mut (dyn ctb_io_file::PayloadSource + 'a));
-
-impl DetectionSource for PayloadSourceAdapter<'_> {
-    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        use std::io::{Read, Seek, SeekFrom};
-        self.0.seek(SeekFrom::Start(offset))?;
-        let mut read_bytes = 0;
-        while read_bytes < buf.len() {
-            let Some(tail) = buf.get_mut(read_bytes..) else {
-                break;
+        let _ = writeln!(output, "\nCandidates Ranked by Likelihood:");
+        for (idx, cand) in report.candidates.iter().enumerate() {
+            let label = if let Some(fid) = cand.format_id {
+                format!("{fid:?} ({})", fid.shorthand())
+            } else {
+                cand.description.clone()
             };
-            let n = self.0.read(tail)?;
-            if n == 0 {
-                break;
-            }
-            read_bytes = read_bytes.saturating_add(n);
-        }
-        Ok(read_bytes)
-    }
 
-    fn total_len(&self) -> Option<u64> {
-        Some(self.0.total_size())
-    }
-}
+            // Reason for fallback: candidates lacking a registered MIME type display a placeholder dash in the candidates summary
+            let mime_str = cand.mime.as_deref().unwrap_or("-");
+            let _ = writeln!(
+                output,
+                "  {}. {} (Confidence: {:?}, Score: {}/100, MIME: {})",
+                idx.saturating_add(1),
+                label,
+                cand.confidence,
+                cand.score,
+                mime_str
+            );
 
-/// Evaluates multiple detection signals for an `io/file` `File` (i.e.
-/// `FileEntity`) and its payload, inspecting file identity, Apple Type codes,
-/// attached streams, and container bundles, and populating `file_origin`.
-pub fn detect_file_report(
-    file: &File,
-    payload: &mut dyn ctb_io_file::PayloadSource,
-) -> Result<DetectionReport> {
-    let filename = file
-        .identity
-        .relative_path
-        .as_deref()
-        .and_then(|p| p.file_name())
-        .and_then(|n| n.to_str());
-
-    // Infer platform prior from archive origin (strongest), Apple metadata,
-    // or recorded environment.
-    let origin_archive_os = if let FileOrigin::Archive {
-        archive_format,
-        ..
-    } = &file.identity.origin
-    {
-        FORMAT_CATALOG
-            .lookup_ident(archive_format)
-            .and_then(|m| m.os_associations.first().copied())
-    } else {
-        None
-    };
-
-    let env_platform = if file.metadata.apple.is_some() {
-        Some(FormatId::MacOs)
-    } else if let Some(env) = file.environment() {
-        let lower_os = env.os.to_ascii_lowercase();
-        if lower_os.contains("darwin")
-            || lower_os.contains("macos")
-            || env.looks_like_gnustep()
-        {
-            Some(FormatId::MacOs)
-        } else if lower_os.contains("windows") {
-            Some(FormatId::Windows)
-        } else if lower_os.contains("linux") {
-            Some(FormatId::GnuLinux)
-        } else if lower_os.contains("bsd") || lower_os.contains("unix") {
-            Some(FormatId::Unix)
-        } else {
-            current_platform_os()
-        }
-    } else {
-        current_platform_os()
-    };
-
-    let base_platform = origin_archive_os.or(env_platform);
-
-    // Extract Apple Type code from FinderInfo if present.
-    let apple_type_code = file.metadata.apple.as_ref().and_then(|app| {
-        app.finder_info.as_ref().and_then(|info| {
-            let bytes = info.file_type.as_bytes();
-            if bytes.len() == 4 && bytes != b"\0\0\0\0" && bytes != b"    " {
-                let mut code = [0u8; 4];
-                code.copy_from_slice(bytes);
-                Some(code)
-            } else {
-                None
-            }
-        })
-    });
-
-    // Inspect attached streams / forks as rich detection signals.
-    let mut stream_candidates = Vec::new();
-    let mut stream_platform = None;
-    for stream in &file.streams {
-        match stream.kind {
-            ctb_io_file::StreamKind::MacOsResourceFork => {
-                stream_platform = Some(FormatId::MacOs);
-                if let Some(ref data) = stream.data {
-                    let type_codes =
-                        resource_fork::extract_resource_fork_type_codes(data);
-                    for code in type_codes {
-                        if let Some(mapping) =
-                            FORMAT_CATALOG.lookup_apple_type_code(&code)
-                        {
-                            stream_candidates.push(DetectionCandidate {
-                                format_id: mapping.format_id,
-                                dc_id: Some(mapping.dc_id),
-                                mime: mapping.mime_types.first().cloned(),
-                                description: mapping.label.clone(),
-                                confidence: ConfidenceTier::HighestConfidence,
-                                score: 95,
-                                evidence: vec![DetectionEvidence::AttachedStream {
-                                    stream_kind_name: "MacOsResourceFork".to_string(),
-                                    detail: format!(
-                                        "Resource fork type code '{}'",
-                                        String::from_utf8_lossy(&code)
-                                    ),
-                                    score: 95,
-                                }],
-                            });
-                        }
-                    }
+            if !cand.evidence.is_empty() {
+                let _ = writeln!(output, "     Evidence:");
+                for ev in &cand.evidence {
+                    let _ = writeln!(output, "       • {}", format_evidence(ev));
                 }
             }
-            ctb_io_file::StreamKind::NtfsAlternateDataStream => {
-                stream_platform = Some(FormatId::Windows);
-                if let Some(ref name) = stream.name {
-                    let name_lossy = name.to_string_lossy();
-                    if name_lossy.contains("Zone.Identifier") {
-                        stream_candidates.push(DetectionCandidate {
-                            format_id: None,
-                            dc_id: None,
-                            mime: None,
-                            description: "Windows Internet Zone Transfer Identifier".to_string(),
-                            confidence: ConfidenceTier::Moderate,
-                            score: 40,
-                            evidence: vec![DetectionEvidence::AttachedStream {
-                                stream_kind_name: "NtfsAlternateDataStream".to_string(),
-                                detail: "Zone.Identifier".to_string(),
-                                score: 40,
-                            }],
-                        });
-                    }
-                }
-            }
-            ctb_io_file::StreamKind::ExtendedAttribute => {
-                if let Some(ref name) = stream.name {
-                    let name_lossy = name.to_string_lossy();
-                    if name_lossy == "user.mime_type" || name_lossy == "xdg.mime.type" {
-                        if let Some(ref data) = stream.data {
-                            if let Ok(mime_str) = std::str::from_utf8(data) {
-                                let clean_mime = mime_str.trim().trim_matches('\0');
-                                if let Some(mapping) = FORMAT_CATALOG.lookup_mime(clean_mime) {
-                                    stream_candidates.push(DetectionCandidate {
-                                        format_id: mapping.format_id,
-                                        dc_id: Some(mapping.dc_id),
-                                        mime: Some(clean_mime.to_string()),
-                                        description: mapping.label.clone(),
-                                        confidence: ConfidenceTier::Strong,
-                                        score: 85,
-                                        evidence: vec![DetectionEvidence::AttachedStream {
-                                            stream_kind_name: "ExtendedAttribute".to_string(),
-                                            detail: format!(
-                                                "Explicit xattr MIME '{}'",
-                                                clean_mime
-                                            ),
-                                            score: 85,
-                                        }],
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
-    }
-
-    let effective_platform = stream_platform.or(base_platform);
-
-    let special_kind = match &file.kind {
-        FileEntityKind::Directory => Some("directory".to_string()),
-        FileEntityKind::Symlink { .. } => Some("symlink".to_string()),
-        FileEntityKind::Fifo => Some("fifo".to_string()),
-        FileEntityKind::CharDevice { .. } => Some("char".to_string()),
-        FileEntityKind::BlockDevice { .. } => Some("block".to_string()),
-        FileEntityKind::Socket => Some("socket".to_string()),
-        _ => None,
-    };
-
-    let hint = DetectionHint {
-        filename: filename.map(|s| s.to_string()),
-        extension: None,
-        platform: effective_platform,
-        expected_category: None,
-        apple_type_code,
-        stream_candidates,
-        special_kind,
-        file_origin: Some(file.identity.origin.clone()),
-        ..Default::default()
-    };
-
-    // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.
-    if let FileEntityKind::Directory = file.kind {
-        if let Some(name) = filename {
-            if name.ends_with(".app")
-                || name.ends_with(".framework")
-                || name.ends_with(".bundle")
-            {
-                let candidate = DetectionCandidate {
-                    format_id: None,
-                    dc_id: None,
-                    mime: Some("application/x-apple-application".to_string()),
-                    description: "macOS Application Bundle".to_string(),
-                    confidence: ConfidenceTier::Strong,
-                    score: 75,
-                    evidence: vec![DetectionEvidence::Extension {
-                        ext: "app".to_string(),
-                        is_primary: true,
-                        score: 75,
-                    }],
-                };
-                return Ok(DetectionReport {
-                    outcome: DetectionOutcome::Matched(vec![candidate.clone()]),
-                    candidates: vec![candidate],
-                    bytes_evaluated: 0,
-                    stream_signals_used: false,
-                    file_origin: Some(file.identity.origin.clone()),
-                });
-            }
-        }
-    }
-
-    let mut adapter = PayloadSourceAdapter(payload);
-    guess_format_report(&mut adapter, Some(&hint))
-}
-
-/// Evaluates multiple detection signals for an `io/file` `File` and produces
-/// the top matching `FormatId`, optionally restricted to a specific category.
-pub fn detect_file_format(
-    file: &File,
-    payload: &mut dyn ctb_io_file::PayloadSource,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    let report = detect_file_report(file, payload).ok()?;
-    if let Some(cat) = expected_category {
-        report.candidates.into_iter().find_map(|c| {
-            c.format_id.filter(|fid| fid.category() == cat)
-        })
     } else {
-        report.candidates.into_iter().find_map(|c| c.format_id)
+        let _ = writeln!(output, "  Description:    data");
     }
-}
 
-/// Guesses format candidates and generates a detection report for a filesystem
-/// path.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use ctb_formats_detection::{guess_and_report_path, FormatId, OsPath};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dir = tempfile::tempdir()?;
-/// let path: OsPath = dir.path().join("archive.tar.gz");
-/// std::fs::write(&path, [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00])?;
-///
-/// let report = guess_and_report_path(&path)?;
-/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_and_report_path(path: impl AsRef<std::path::Path>) -> Result<DetectionReport> {
-    let p = path.as_ref();
-    let file = File::from_filesystem(p, None)?;
-    if file.kind.entity_type() == FileEntityType::Regular {
-        let mut source = DiskPayloadSource::open(p)?;
-        detect_file_report(&file, &mut source)
-    } else {
-        let mut source = MemoryPayloadSource::new(Vec::new())?;
-        detect_file_report(&file, &mut source)
-    }
-}
-
-/// Guesses the authoritative format for a given filesystem path.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use ctb_formats_detection::{guess_path, FormatId, OsPath};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dir = tempfile::tempdir()?;
-/// let path: OsPath = dir.path().join("archive.tar.gz");
-/// std::fs::write(&path, [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00])?;
-///
-/// let format = guess_path(&path)?;
-/// assert_eq!(format, FormatId::Gzip);
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_path(path: impl AsRef<std::path::Path>) -> Result<FormatId> {
-    let p = path.as_ref();
-    let report = guess_and_report_path(p)?;
-    report
-        .candidates
-        .into_iter()
-        .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for path '{}'", p.display()))
-}
-
-/// Guesses format candidates and generates a detection report from a String.
-/// The report populates `file_origin` as `FileOrigin::Synthetic`.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_and_report_string, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let html = "<!DOCTYPE html><html><body><h1>Header</h1></body></html>";
-/// let report = guess_and_report_string(html)?;
-/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_and_report_string(content: impl Into<String>) -> Result<DetectionReport> {
-    let s = content.into();
-    let bytes = s.into_bytes();
-    let file = File::from_vec(bytes.clone());
-    let mut source = MemoryPayloadSource::new(bytes)?;
-    detect_file_report(&file, &mut source)
-}
-
-/// Guesses the authoritative format for a given String content.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_string, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let html = "<!DOCTYPE html><html><body><h1>Header</h1></body></html>";
-/// let format = guess_string(html)?;
-/// assert_eq!(format, FormatId::Html);
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_string(content: impl Into<String>) -> Result<FormatId> {
-    let report = guess_and_report_string(content)?;
-    report
-        .candidates
-        .into_iter()
-        .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for string"))
-}
-
-/// Guesses format candidates and generates a detection report from a
-/// `DcString`.
-/// The report populates `file_origin` as `FileOrigin::Synthetic`.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_and_report_dcs, DcString, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dcs = DcString::from_dcutf(
-///     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
-/// )?;
-/// let report = guess_and_report_dcs(&dcs)?;
-/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_and_report_dcs(
-    dcs: impl std::borrow::Borrow<ctb_formats_dcstring::DcString>,
-) -> Result<DetectionReport> {
-    let bytes = dcs.borrow().as_bytes().to_vec();
-    let file = File::from_vec(bytes.clone());
-    let mut source = MemoryPayloadSource::new(bytes)?;
-    detect_file_report(&file, &mut source)
-}
-
-/// Guesses the authoritative format for a given `DcString`.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_dcs, DcString, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dcs = DcString::from_dcutf(
-///     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
-/// )?;
-/// let format = guess_dcs(&dcs)?;
-/// assert_eq!(format, FormatId::Html);
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_dcs(
-    dcs: impl std::borrow::Borrow<ctb_formats_dcstring::DcString>,
-) -> Result<FormatId> {
-    let report = guess_and_report_dcs(dcs)?;
-    report
-        .candidates
-        .into_iter()
-        .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for DcString"))
-}
-
-/// Guesses format candidates and generates a detection report from raw bytes.
-/// The report populates `file_origin` as `FileOrigin::Synthetic`.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_and_report_vec, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let gz_bytes = vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-/// let report = guess_and_report_vec(gz_bytes)?;
-/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_and_report_vec(bytes: Vec<u8>) -> Result<DetectionReport> {
-    let file = File::from_vec(bytes.clone());
-    let mut source = MemoryPayloadSource::new(bytes)?;
-    detect_file_report(&file, &mut source)
-}
-
-/// Guesses the authoritative format for raw bytes.
-///
-/// # Examples
-///
-/// ```
-/// use ctb_formats_detection::{guess_vec, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let gz_bytes = vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-/// let format = guess_vec(gz_bytes)?;
-/// assert_eq!(format, FormatId::Gzip);
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
-    let report = guess_and_report_vec(bytes)?;
-    report
-        .candidates
-        .into_iter()
-        .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for byte vector"))
-}
-
-/// Guesses format candidates and generates a detection report directly from an
-/// `io/file` `File`.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use ctb_formats_detection::{guess_and_report_file, File, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dir = tempfile::tempdir()?;
-/// let path = dir.path().join("archive.tar.gz");
-/// let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-/// std::fs::write(&path, gz_header)?;
-///
-/// let file = File::from_filesystem(&path, None)?;
-/// let report = guess_and_report_file(&file)?;
-/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_and_report_file(file: &File) -> Result<DetectionReport> {
-    match &file.identity.origin {
-        FileOrigin::Filesystem { canonical_path, .. } => {
-            if file.kind.entity_type() == FileEntityType::Regular {
-                let mut source = DiskPayloadSource::open(canonical_path)?;
-                detect_file_report(file, &mut source)
-            } else {
-                let mut source = MemoryPayloadSource::new(Vec::new())?;
-                detect_file_report(file, &mut source)
-            }
-        }
-        _ => {
-            let mut source = MemoryPayloadSource::new(Vec::new())?;
-            detect_file_report(file, &mut source)
+    // Format chains if available
+    let path_str = path.to_string_lossy();
+    let chains = guess_format_chains(&path_str, None);
+    if !chains.is_empty() {
+        let _ = writeln!(output, "\nFormat Chain(s):");
+        for chain in chains {
+            let layers_str: Vec<String> =
+                chain.layers.iter().map(|f| format!("{f:?}")).collect();
+            let _ = writeln!(
+                output,
+                "  • {} (score: {})",
+                layers_str.join(" > "),
+                chain.score
+            );
         }
     }
 }
 
-/// Guesses the authoritative format directly from an `io/file` `File`.
-///
-/// # Examples
-///
-/// ```rust,no_run
-/// use ctb_formats_detection::{guess_file, File, FormatId};
-///
-/// # fn main() -> anyhow::Result<()> {
-/// let dir = tempfile::tempdir()?;
-/// let path = dir.path().join("archive.tar.gz");
-/// let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-/// std::fs::write(&path, gz_header)?;
-///
-/// let file = File::from_filesystem(&path, None)?;
-/// let format = guess_file(&file)?;
-/// assert_eq!(format, FormatId::Gzip);
-/// # Ok(())
-/// # }
-/// ```
-pub fn guess_file(file: &File) -> Result<FormatId> {
-    let report = guess_and_report_file(file)?;
-    report
-        .candidates
-        .into_iter()
-        .find_map(|c| c.format_id)
-        .ok_or_else(|| anyhow::anyhow!("No matching file format detected for FileEntity"))
+fn format_evidence(ev: &DetectionEvidence) -> String {
+    match ev {
+        DetectionEvidence::FileMagic { description, score } => {
+            format!("FileMagic (upstream Magdir): {description} (score: {score})")
+        }
+        DetectionEvidence::CtbMagic { description, score } => {
+            format!("CtbMagic (ctoolbox.magic): {description} (score: {score})")
+        }
+        DetectionEvidence::CtbRule { description, score } => {
+            format!("CtbRule: {description} (score: {score})")
+        }
+        DetectionEvidence::Extension {
+            ext,
+            is_primary,
+            score,
+        } => {
+            format!(
+                "Extension: .{ext} (primary: {is_primary}, score: {score})"
+            )
+        }
+        DetectionEvidence::PlatformPrior { platform, score } => {
+            format!("PlatformPrior: {platform:?} (score: {score})")
+        }
+        DetectionEvidence::CategoryMatch { category, score } => {
+            format!("CategoryMatch: {category:?} (score: {score})")
+        }
+        DetectionEvidence::AppleTypeCode { code, score } => {
+            let code_str = String::from_utf8_lossy(code);
+            format!("AppleTypeCode: '{code_str}' (score: {score})")
+        }
+        DetectionEvidence::Encoding { encoding, score } => {
+            format!("Encoding: {encoding} (score: {score})")
+        }
+        DetectionEvidence::TextProperties {
+            line_ending,
+            has_long_lines,
+            has_escapes,
+            score,
+        } => {
+            format!(
+                "TextProperties: line_ending={line_ending:?}, long_lines={has_long_lines}, escapes={has_escapes} (score: {score})"
+            )
+        }
+        DetectionEvidence::SpecialFile { kind, score } => {
+            format!("SpecialFile: {kind} (score: {score})")
+        }
+        DetectionEvidence::ContainerStructure { detail, score } => {
+            format!("ContainerStructure: {detail} (score: {score})")
+        }
+        DetectionEvidence::DualAnchored {
+            bof_offset,
+            eof_offset,
+            score,
+        } => {
+            format!("DualAnchored: BOF={bof_offset}, EOF={eof_offset:?} (score: {score})")
+        }
+        DetectionEvidence::ByteRange {
+            start,
+            end,
+            label,
+            score,
+        } => {
+            format!("ByteRange: [{start}..{end}] {label} (score: {score})")
+        }
+        DetectionEvidence::Polyglot {
+            formats,
+            detail,
+            score,
+        } => {
+            format!("Polyglot: formats={formats:?}, {detail} (score: {score})")
+        }
+        DetectionEvidence::Pronom { puid, score } => {
+            format!("Pronom (DROID): {puid} (score: {score})")
+        }
+        DetectionEvidence::AttachedStream {
+            stream_kind_name,
+            detail,
+            score,
+        } => {
+            format!("AttachedStream: {stream_kind_name} ({detail}, score: {score})")
+        }
+        DetectionEvidence::SubsumedAncestor {
+            parent_id,
+            parent_mime,
+            score,
+        } => {
+            format!("SubsumedAncestor: parent_id={parent_id:?}, mime={parent_mime:?} (score: {score})")
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1784,259 +829,80 @@ pub fn guess_file(file: &File) -> Result<FormatId> {
 )]
 mod tests {
     use super::*;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
 
-    #[ctb_test]
-    fn test_detect_format_id() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = detect_format_id(
-            Some(&gzip_data),
-            Some("doc.gz"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Gzip));
-    }
+    #[crate::ctb_test]
+    fn test_cli_compat_output_regular_file() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "Hello, world! This is plain text.").unwrap();
 
-    #[ctb_test]
-    fn test_guess_format_candidates() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut slice: &[u8] = &gzip_data;
-        let hint = DetectionHint {
-            filename: Some("archive.gz".to_string()),
-            ..Default::default()
-        };
-        let candidates = guess_format_candidates(&mut slice, Some(&hint));
-        assert!(!candidates.is_empty());
-        let top = &candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Gzip));
-        assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
-    }
-
-    #[ctb_test]
-    fn test_detect_brotli() {
-        let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
-        let mut slice: &[u8] = &brotli_data;
-        let hint = DetectionHint {
-            filename: Some("/tmp/system_in.br".to_string()),
-            expected_category: Some(FormatCategory::Compression),
-            ..Default::default()
-        };
-        let fmt = detect_format_id(
-            Some(&brotli_data),
-            Some("/tmp/system_in.br"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Brotli));
-    }
-
-    #[ctb_test]
-    fn test_detection_report_outcomes() {
-        // Insufficient data
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let report_insufficient = guess_format_report(&mut empty_slice, None).unwrap();
-        assert!(matches!(
-            report_insufficient.outcome,
-            DetectionOutcome::InsufficientData { available_bytes: 0, required_bytes: 4 }
-        ));
-
-        // True negative (random non-matching bytes with no hint)
-        let random_data = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
-        let mut rand_slice: &[u8] = &random_data;
-        let report_neg = guess_format_report(&mut rand_slice, None).unwrap();
-        assert!(
-            matches!(report_neg.outcome, DetectionOutcome::TrueNegative { .. }),
-            "Expected TrueNegative, got: {:?}",
-            report_neg.outcome
-        );
-
-        // Matched
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut gz_slice: &[u8] = &gzip_data;
-        let report_matched = guess_format_report(&mut gz_slice, None).unwrap();
-        assert!(matches!(report_matched.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report_matched.candidates[0].format_id, Some(FormatId::Gzip));
-    }
-
-    #[ctb_test]
-    fn test_detection_with_stream_and_apple_type_hint() {
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let hint = DetectionHint {
-            apple_type_code: Some(*b"TEXT"),
-            stream_candidates: vec![DetectionCandidate {
-                format_id: Some(FormatId::Ascii),
-                dc_id: None,
-                mime: Some("text/plain".to_string()),
-                description: "Mac resource fork plain text".to_string(),
-                confidence: ConfidenceTier::Strong,
-                score: 75,
-                evidence: vec![DetectionEvidence::AttachedStream {
-                    stream_kind_name: "MacResourceFork".to_string(),
-                    detail: "Resource type TEXT".to_string(),
-                    score: 75,
-                }],
-            }],
-            ..Default::default()
+        let args = FileDetectionArgs {
+            files: vec![file.path().to_path_buf()],
+            compat: true,
+            mime: false,
+            brief: false,
+            all: false,
         };
 
-        let report = guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
-        assert!(report.stream_signals_used);
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
+        let res = run_file_detection(&args).unwrap();
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out_str = String::from_utf8(stdout).unwrap();
+                assert!(out_str.contains("ASCII text") || out_str.contains("text"));
+                assert!(out_str.starts_with(&file.path().display().to_string()));
+            }
+            _ => panic!("Expected ToolResult::Immediate"),
+        }
     }
 
-    #[ctb_test]
-    fn test_detect_plain_text_report() {
-        let text_data = b"Hello, world! This is a plain ASCII text file.\nWith standard LF lines.\n";
-        let mut slice: &[u8] = text_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert!(!report.candidates.is_empty());
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Ascii));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::Encoding { .. })));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::TextProperties { .. })));
+    #[crate::ctb_test]
+    fn test_cli_compat_brief_mime_output() {
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "Hello, world!").unwrap();
+
+        let args = FileDetectionArgs {
+            files: vec![file.path().to_path_buf()],
+            compat: true,
+            mime: true,
+            brief: true,
+            all: false,
+        };
+
+        let res = run_file_detection(&args).unwrap();
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out_str = String::from_utf8(stdout).unwrap();
+                assert!(out_str.starts_with("text/plain"));
+                assert!(!out_str.contains(&file.path().display().to_string()));
+            }
+            _ => panic!("Expected ToolResult::Immediate"),
+        }
     }
 
-    #[ctb_test]
-    fn test_detect_c_source() {
-        let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
-        let mut slice: &[u8] = c_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::C));
-        assert_eq!(top.mime.as_deref(), Some("text/x-c"));
-    }
+    #[crate::ctb_test]
+    fn test_cli_rich_output() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"{\"name\": \"test\", \"value\": 42}").unwrap();
 
-    #[ctb_test]
-    fn test_detect_python_shebang() {
-        let py_data = b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
-        let mut slice: &[u8] = py_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.mime.as_deref(), Some("text/x-python"));
-        assert!(top.description.contains("Python script"));
-    }
+        let args = FileDetectionArgs {
+            files: vec![file.path().to_path_buf()],
+            compat: false,
+            mime: false,
+            brief: false,
+            all: false,
+        };
 
-    #[ctb_test]
-    fn test_detect_html_document() {
-        let html_data = b"<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
-        let mut slice: &[u8] = html_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Html));
-        assert_eq!(top.mime.as_deref(), Some("text/html"));
-    }
-
-    #[ctb_test]
-    fn test_detect_convenience_string() {
-        let html = "<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
-        let report = guess_and_report_string(html).unwrap();
-        assert_eq!(report.file_origin, Some(FileOrigin::Synthetic));
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-
-        let fmt = guess_string(html).unwrap();
-        assert_eq!(fmt, FormatId::Html);
-    }
-
-    #[ctb_test]
-    fn test_detect_convenience_dcs() {
-        let dcs = ctb_formats_dcstring::DcString::from_dcutf(
-            b"<!DOCTYPE html>\n<html><body>test</body></html>".to_vec(),
-        ).unwrap();
-        let report = guess_and_report_dcs(&dcs).unwrap();
-        assert_eq!(report.file_origin, Some(FileOrigin::Synthetic));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
-
-        let fmt = guess_dcs(&dcs).unwrap();
-        assert_eq!(fmt, FormatId::Html);
-    }
-
-    #[ctb_test]
-    fn test_detect_convenience_vec() {
-        let gz_header = vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-        let report = guess_and_report_vec(gz_header.clone()).unwrap();
-        assert_eq!(report.file_origin, Some(FileOrigin::Synthetic));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-
-        let fmt = guess_vec(gz_header).unwrap();
-        assert_eq!(fmt, FormatId::Gzip);
-    }
-
-    #[ctb_test]
-    fn test_detect_convenience_path() {
-        let temp = tempfile::tempdir().unwrap();
-        let gz_path = temp.path().join("archive.tar.gz");
-        let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-        std::fs::write(&gz_path, gz_header).unwrap();
-
-        let report = guess_and_report_path(&gz_path).unwrap();
-        assert!(matches!(report.file_origin, Some(FileOrigin::Filesystem { .. })));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-
-        let fmt = guess_path(&gz_path).unwrap();
-        assert_eq!(fmt, FormatId::Gzip);
-    }
-
-    #[ctb_test]
-    fn test_detect_convenience_file() {
-        let temp = tempfile::tempdir().unwrap();
-        let gz_path = temp.path().join("archive.tar.gz");
-        let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-        std::fs::write(&gz_path, gz_header).unwrap();
-
-        let file = File::from_filesystem(&gz_path, None).unwrap();
-        let report = guess_and_report_file(&file).unwrap();
-        assert!(matches!(report.file_origin, Some(FileOrigin::Filesystem { .. })));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
-
-        let fmt = guess_file(&file).unwrap();
-        assert_eq!(fmt, FormatId::Gzip);
-
-        // Also test synthetic file
-        let syn_file = File::from_vec(gz_header.to_vec());
-        let mut syn_source = MemoryPayloadSource::new(gz_header.to_vec()).unwrap();
-        let syn_report = detect_file_report(&syn_file, &mut syn_source).unwrap();
-        assert_eq!(syn_report.file_origin, Some(FileOrigin::Synthetic));
-        assert_eq!(syn_report.candidates[0].format_id, Some(FormatId::Gzip));
-    }
-
-    #[ctb_test]
-    fn test_file_entity_detect_format_report_with_resource_fork() {
-        let temp = tempfile::tempdir().unwrap();
-        let empty_path = temp.path().join("mac_sound");
-        std::fs::write(&empty_path, []).unwrap();
-
-        let mut entity = File::from_filesystem(&empty_path, None).unwrap();
-
-        // Construct mock resource fork with 'alis' OSType (MacAlias)
-        let mut fork = vec![0u8; 100];
-        fork[0..4].copy_from_slice(&256u32.to_be_bytes());
-        fork[4..8].copy_from_slice(&16u32.to_be_bytes());
-        fork[8..12].copy_from_slice(&0u32.to_be_bytes());
-        fork[12..16].copy_from_slice(&60u32.to_be_bytes());
-        fork[40..42].copy_from_slice(&28u16.to_be_bytes());
-        fork[44..46].copy_from_slice(&0u16.to_be_bytes()); // 1 type
-        fork[46..50].copy_from_slice(b"alis");
-
-        let stream_entity = entity.clone();
-        entity.streams.push(ctb_io_file::AttachedStream {
-            name: None,
-            kind: ctb_io_file::StreamKind::MacOsResourceFork,
-            entity: Box::new(stream_entity),
-            data: Some(fork),
-        });
-
-        let mut source = DiskPayloadSource::open(&empty_path).unwrap();
-        let report = detect_file_report(&entity, &mut source).unwrap();
-
-        assert!(report.stream_signals_used);
-        assert!(!report.candidates.is_empty());
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::MacAlias));
+        let res = run_file_detection(&args).unwrap();
+        match res {
+            ToolResult::Immediate { stdout, .. } => {
+                let out_str = String::from_utf8(stdout).unwrap();
+                assert!(out_str.contains("Top Detection:"));
+                assert!(out_str.contains("Candidates Ranked by Likelihood:"));
+                assert!(out_str.contains("Score:"));
+            }
+            _ => panic!("Expected ToolResult::Immediate"),
+        }
     }
 }
 /*

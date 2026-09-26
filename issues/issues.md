@@ -130,6 +130,8 @@ from_code_point: unknown code point [63489]
   - [x] Move logic for matching small formats that are currently implemented directly within small_formats into other crates (TBD sure where would be best)
   - [x] Move hardcoded magic data from magic_data.rs into ctoolbox.magic and remove it from magic_data.rs; correct matches from ctoolbox.magic being assigned DetectionEvidence FileMagic when they should be CtbMagic.
 
+- Potentially merge MIME types databases in mime crate, and also load the MIME data from Magdir.
+
 Hi! I'd like you to work on some issues in the installer:
 
 - Keyboard input is still somewhat laggy, and frequently keys "stick" when pressed. (Mouse input, by contrast, is relatively smooth, and un-"stick"s the stuck keyboard event - keyboard events work smoothly if I'm continuously moving the mouse.)

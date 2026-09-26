@@ -2660,6 +2660,7 @@ dependencies = [
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
+ "ctb-formats-detection",
  "ctb-formats-docker",
  "ctb-formats-eite",
  "ctb-formats-hexdump",
@@ -2935,6 +2936,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "clap",
  "ctb-formats-apple-types",
  "ctb-formats-checksum",
  "ctb-formats-dcdata",
@@ -3184,6 +3186,7 @@ version = "0.0.0"
 dependencies = [
  "ctb-formats-utilities",
  "ctb-utilities",
+ "include_dir",
 ]
 
 [[package]]

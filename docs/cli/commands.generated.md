@@ -57,6 +57,7 @@ Commands:
   csum                       Calculate checksum for a file or stdin
   compress                   Compress a file or stdin using single-stream compression format
   decompress                 Decompress a compressed file or stdin
+  file                       Detect format, MIME type, and characteristics of files (like `file`)
   wfparser                   Process a file using wfparser logic
   wfscan                     Process a file using wfscan logic
   dceutils_php_to_csv        Convert PHP data file arrays to CSV files
@@ -752,6 +753,24 @@ Supported compression formats:
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+```
+
+### `ctoolbox file`
+
+```text
+Detect format, MIME type, and characteristics of files (like `file`)
+
+Usage: ctoolbox file [OPTIONS] [FILE]...
+
+Arguments:
+  [FILE]...  Files to inspect and detect format for (pass '-' for stdin) [default: -]
+
+Options:
+      --compat  Produce output strictly compatible with the standard UNIX `file` command
+  -i, --mime    Output MIME type string instead of human-readable description (like `file -i`)
+  -b, --brief   Do not prepend filenames to output lines (like `file -b`)
+  -k, --all     Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
+  -h, --help    Print help
 ```
 
 ### `ctoolbox file2metadatajson`

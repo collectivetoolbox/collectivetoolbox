@@ -619,6 +619,9 @@ impl FormatInheritanceGraph {
         if child_norm == parent_norm {
             return true;
         }
+        if ctb_formats_mime::is_mime_subclass_of(&child_norm, &parent_norm) {
+            return true;
+        }
         let mut visited = Vec::new();
         let mut queue = vec![child_norm];
         while let Some(current) = queue.pop() {
@@ -965,32 +968,18 @@ impl FormatCatalog {
         }
 
         // Ingest supplementary MIME-to-extension mappings from the embedded
-        // Apache HTTPD MIME database.
-        if let Some(httpd_bytes) =
-            ctb_formats_dcdata::get_dc_data_file("mimes/httpd/mime.types")
-        {
-            if let Ok(content) = std::str::from_utf8(&httpd_bytes) {
-                for line in content.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() || trimmed.starts_with('#') {
-                        continue;
-                    }
-                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
-                    if parts.len() >= 2 {
-                        if let Some(mime) = parts.first() {
-                            let mime_lower = mime.to_ascii_lowercase();
-                            if !catalog.by_mime.contains_key(&mime_lower) {
-                                for ext in parts.iter().skip(1) {
-                                    if let Some(candidates) =
-                                        catalog.by_extension.get(*ext)
-                                    {
-                                        if let Some(m) = candidates.first() {
-                                            catalog
-                                                .by_mime
-                                                .insert(mime_lower.clone(), m.clone());
-                                            break;
-                                        }
-                                    }
+        // Apache HTTPD MIME database via ctb-formats-mime.
+        if let Some(httpd_bytes) = ctb_formats_mime::get_httpd_mime_types() {
+            if let Ok(content) = std::str::from_utf8(httpd_bytes) {
+                for (mime_lower, exts) in ctb_formats_mime::parse_apache_mime_types(content) {
+                    if !catalog.by_mime.contains_key(&mime_lower) {
+                        for ext in &exts {
+                            if let Some(candidates) = catalog.by_extension.get(ext) {
+                                if let Some(m) = candidates.first() {
+                                    catalog
+                                        .by_mime
+                                        .insert(mime_lower.clone(), m.clone());
+                                    break;
                                 }
                             }
                         }

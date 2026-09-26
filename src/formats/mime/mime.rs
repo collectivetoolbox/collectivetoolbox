@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! MIME media type string parsing, syntax validation, and structure.
+//! MIME media type string parsing, syntax validation, embedded datasets,
+//! extension lookup, and MIME inheritance graph relationships.
 
 #[expect(
     unused_imports,
@@ -25,6 +26,36 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace crate prelude"
 )]
 pub(crate) use ctb_utilities::*;
+
+use include_dir::{Dir, include_dir};
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+static MIME_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
+
+/// Returns the embedded raw bytes of the Apache HTTPD `mime.types` file.
+#[must_use]
+pub fn get_httpd_mime_types() -> Option<&'static [u8]> {
+    MIME_DATA_DIR
+        .get_file("httpd/mime.types")
+        .map(|f| f.contents())
+}
+
+/// Returns the embedded raw bytes of the IANA `media-types.txt` registry.
+#[must_use]
+pub fn get_iana_media_types() -> Option<&'static [u8]> {
+    MIME_DATA_DIR
+        .get_file("iana/media-types.txt")
+        .map(|f| f.contents())
+}
+
+/// Returns the embedded raw bytes of the `mime-db/db.json` dataset.
+#[must_use]
+pub fn get_mime_db_json() -> Option<&'static [u8]> {
+    MIME_DATA_DIR
+        .get_file("mime-db/db.json")
+        .map(|f| f.contents())
+}
 
 /// Standard IANA and widely recognized top-level media type trees.
 pub const STANDARD_TOP_LEVEL_TYPES: &[&str] = &[
@@ -146,6 +177,149 @@ pub fn parse_mime_type(s: &str) -> Option<MimeDetection> {
     })
 }
 
+/// Parses lines of an Apache HTTPD `mime.types` configuration file into a list
+/// of `(mime_type, Vec<extension>)` pairs.
+#[must_use]
+pub fn parse_apache_mime_types(content: &str) -> Vec<(String, Vec<String>)> {
+    let mut results = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        if parts.len() >= 2 {
+            if let Some(mime) = parts.first() {
+                let mime_lower = mime.to_ascii_lowercase();
+                let exts: Vec<String> = parts
+                    .iter()
+                    .skip(1)
+                    .map(|e| e.to_ascii_lowercase())
+                    .collect();
+                results.push((mime_lower, exts));
+            }
+        }
+    }
+    results
+}
+
+/// Precompiled bidirectional lookup database mapping MIME types to file
+/// extensions and extensions to primary MIME types.
+#[derive(Debug, Clone, Default)]
+pub struct MimeDatabase {
+    by_mime: HashMap<String, Vec<String>>,
+    by_extension: HashMap<String, String>,
+}
+
+impl MimeDatabase {
+    /// Builds the database from embedded Apache `mime.types`.
+    #[must_use]
+    pub fn new() -> Self {
+        let mut by_mime = HashMap::new();
+        let mut by_extension = HashMap::new();
+
+        if let Some(bytes) = get_httpd_mime_types() {
+            if let Ok(content) = std::str::from_utf8(bytes) {
+                for (mime, exts) in parse_apache_mime_types(content) {
+                    for ext in &exts {
+                        by_extension
+                            .entry(ext.clone())
+                            .or_insert_with(|| mime.clone());
+                    }
+                    by_mime.entry(mime).or_insert(exts);
+                }
+            }
+        }
+
+        Self {
+            by_mime,
+            by_extension,
+        }
+    }
+
+    /// Looks up associated file extensions for a MIME media type.
+    #[must_use]
+    pub fn lookup_extensions(&self, mime: &str) -> Option<&[String]> {
+        let lower = mime.trim().to_ascii_lowercase();
+        self.by_mime.get(&lower).map(Vec::as_slice)
+    }
+
+    /// Looks up primary MIME media type for a file extension (without leading dot).
+    #[must_use]
+    pub fn lookup_mime(&self, extension: &str) -> Option<&str> {
+        let clean = extension.trim().trim_start_matches('.').to_ascii_lowercase();
+        self.by_extension.get(&clean).map(String::as_str)
+    }
+}
+
+/// Global lazy-initialized MIME lookup database.
+pub static MIME_DATABASE: LazyLock<MimeDatabase> = LazyLock::new(MimeDatabase::new);
+
+/// Checks whether a child MIME type is a subclass or specialization of a parent
+/// MIME type according to MIME taxonomy, structured suffixes, and inheritance
+/// conventions.
+///
+/// Rules evaluated:
+/// - Direct equality (case-insensitive)
+/// - `+xml` subtypes inherit from `application/xml`
+/// - `+json` subtypes inherit from `application/json`
+/// - `+zip` subtypes, OpenDocument, OpenXML, JAR, APK inherit from `application/zip`
+/// - XML, JSON, and non-plain `text/*` types inherit from `text/plain`
+#[must_use]
+pub fn is_mime_subclass_of(child_mime: &str, parent_mime: &str) -> bool {
+    let child_norm = child_mime.trim().to_ascii_lowercase();
+    let parent_norm = parent_mime.trim().to_ascii_lowercase();
+    if child_norm == parent_norm {
+        return true;
+    }
+
+    let mut visited = Vec::new();
+    let mut queue = vec![child_norm];
+
+    while let Some(current) = queue.pop() {
+        if visited.contains(&current) {
+            continue;
+        }
+        visited.push(current.clone());
+
+        let mut dynamic_parents = Vec::new();
+        if current.ends_with("+xml") && current != "application/xml" {
+            dynamic_parents.push("application/xml".to_string());
+        }
+        if current == "application/xml"
+            || current == "text/xml"
+            || (current.starts_with("text/") && current != "text/plain")
+            || current.ends_with("+json")
+            || current == "application/json"
+        {
+            dynamic_parents.push("text/plain".to_string());
+        }
+        if (current.ends_with("+zip")
+            || current.starts_with("application/vnd.openxmlformats-officedocument.")
+            || current.starts_with("application/vnd.oasis.opendocument.")
+            || current == "application/java-archive"
+            || current == "application/vnd.android.package-archive")
+            && current != "application/zip"
+        {
+            dynamic_parents.push("application/zip".to_string());
+        }
+        if current.ends_with("+json") && current != "application/json" {
+            dynamic_parents.push("application/json".to_string());
+        }
+
+        for parent in dynamic_parents {
+            if parent == parent_norm {
+                return true;
+            }
+            if !visited.contains(&parent) {
+                queue.push(parent);
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -187,5 +361,36 @@ mod tests {
         assert!(parse_mime_type("/json").is_none());
         assert!(parse_mime_type("unknown_tree/json").is_none());
         assert!(parse_mime_type("application/json with space").is_none());
+    }
+
+    #[crate::ctb_test]
+    fn test_embedded_mime_data_retrieval() {
+        assert!(get_httpd_mime_types().is_some());
+        assert!(get_iana_media_types().is_some());
+        assert!(get_mime_db_json().is_some());
+    }
+
+    #[crate::ctb_test]
+    fn test_mime_database_lookup() {
+        let db = &*MIME_DATABASE;
+        assert_eq!(db.lookup_mime("html"), Some("text/html"));
+        assert_eq!(db.lookup_mime("json"), Some("application/json"));
+        assert_eq!(db.lookup_mime(".pdf"), Some("application/pdf"));
+
+        let pdf_exts = db.lookup_extensions("application/pdf").unwrap();
+        assert!(pdf_exts.contains(&"pdf".to_string()));
+    }
+
+    #[crate::ctb_test]
+    fn test_mime_subclass_hierarchy() {
+        assert!(is_mime_subclass_of("image/svg+xml", "image/svg+xml"));
+        assert!(is_mime_subclass_of("image/svg+xml", "application/xml"));
+        assert!(is_mime_subclass_of("image/svg+xml", "text/plain"));
+        assert!(is_mime_subclass_of("application/json", "text/plain"));
+        assert!(is_mime_subclass_of("application/geo+json", "application/json"));
+        assert!(is_mime_subclass_of("application/geo+json", "text/plain"));
+        assert!(is_mime_subclass_of("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/zip"));
+        assert!(!is_mime_subclass_of("text/plain", "application/xml"));
+        assert!(!is_mime_subclass_of("image/png", "application/zip"));
     }
 }
