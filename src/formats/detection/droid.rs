@@ -1680,9 +1680,20 @@ pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
                             }
                         }
 
+                        let mapping = fmt
+                            .mime_type
+                            .as_deref()
+                            .and_then(|m| crate::mime_derivation::FORMAT_CATALOG.lookup_mime(m))
+                            .or_else(|| {
+                                crate::mime_derivation::FORMAT_CATALOG
+                                    .lookup_description_or_ident(&fmt.name)
+                            });
+                        let format_id = mapping.and_then(|m| m.format_id);
+                        let dc_id = mapping.map(|m| m.dc_id);
+
                         candidates.push(DetectionCandidate {
-                            format_id: None,
-                            dc_id: None,
+                            format_id,
+                            dc_id,
                             mime: fmt.mime_type.clone(),
                             description: fmt.name.clone(),
                             confidence: if score >= 90 {

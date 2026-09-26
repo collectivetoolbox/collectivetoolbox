@@ -455,124 +455,24 @@ use crate::utilities::*;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use crate::format_id::FormatId;
-use super::magic::MagicPattern;
 use super::magic_parser::{HierarchicalMagicRule, parse_magic_content_with_templates};
 
-/// An entry associating a `FormatId` with a `MagicPattern` (legacy compatibility).
-#[derive(Debug, Clone)]
-pub struct MagicEntry {
-    pub format_id: FormatId,
-    pub pattern: MagicPattern,
-}
-
-static GZIP_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0x8B]);
-static BZIP2_MAGIC: MagicPattern = MagicPattern::exact(&[0x42, 0x5A, 0x68]);
-static BZIP_MAGIC: MagicPattern = MagicPattern::exact(&[0x42, 0x5A, 0x30]);
-static SCO_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0xA0]);
-static LZW_MAGIC: MagicPattern =
-    MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
-static LZW2_MAGIC: MagicPattern =
-    MagicPattern::masked(&[0x1F, 0x9D, 0x00], &[0xFF, 0xFF, 0x80], 90);
-static PACK_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0x1E]);
-static OLD_PACK_MAGIC: MagicPattern = MagicPattern::exact(&[0x1F, 0x1F]);
-static COMPACT_MAGIC_LE: MagicPattern = MagicPattern::exact(&[0xFF, 0x1F]);
-static COMPACT_MAGIC_BE: MagicPattern = MagicPattern::exact(&[0x1F, 0xFF]);
-static ZLIB_MAGIC: MagicPattern =
-    MagicPattern::masked(&[0x78, 0x00], &[0xFF, 0x00], 80);
-static XZ_MAGIC: MagicPattern =
-    MagicPattern::exact(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]);
-static LZIP_MAGIC: MagicPattern =
-    MagicPattern::exact(&[0x4C, 0x5A, 0x49, 0x50]);
-static ZSTD_MAGIC: MagicPattern =
-    MagicPattern::exact(&[0x28, 0xB5, 0x2F, 0xFD]);
-static LZ4_MAGIC: MagicPattern = MagicPattern::exact(&[0x04, 0x22, 0x4D, 0x18]);
-static LZO_MAGIC: MagicPattern = MagicPattern::exact(&[
-    0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A,
-]);
-
-/// Global static table of legacy magic header signatures.
-pub static MAGIC_REGISTRY: &[MagicEntry] = &[
-    MagicEntry {
-        format_id: FormatId::Gzip,
-        pattern: GZIP_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Bzip2,
-        pattern: BZIP2_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Bzip,
-        pattern: BZIP_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::ScoCompress,
-        pattern: SCO_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::CompressLzw,
-        pattern: LZW_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::CompressLzw2,
-        pattern: LZW2_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Pack,
-        pattern: PACK_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::OldPack,
-        pattern: OLD_PACK_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Compact,
-        pattern: COMPACT_MAGIC_LE,
-    },
-    MagicEntry {
-        format_id: FormatId::Compact,
-        pattern: COMPACT_MAGIC_BE,
-    },
-    MagicEntry {
-        format_id: FormatId::Zlib,
-        pattern: ZLIB_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Xz,
-        pattern: XZ_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Lzip,
-        pattern: LZIP_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Zstd,
-        pattern: ZSTD_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Lz4,
-        pattern: LZ4_MAGIC,
-    },
-    MagicEntry {
-        format_id: FormatId::Lzo,
-        pattern: LZO_MAGIC,
-    },
-];
-
-/// Global compiled hierarchical magic database (rules and named templates) loaded from
-/// in-repo custom definitions and upstream Magdir rule files.
+/// Global compiled hierarchical magic database loaded from in-repo custom definitions (`ctoolbox.magic`)
+/// and upstream Magdir rule files.
 pub static COMPILED_MAGIC_DATABASE: LazyLock<(
+    Vec<HierarchicalMagicRule>,
     Vec<HierarchicalMagicRule>,
     HashMap<String, HierarchicalMagicRule>,
 )> = LazyLock::new(|| {
-    let mut all_rules = Vec::new();
+    let mut ctb_rules = Vec::new();
+    let mut file_rules = Vec::new();
     let mut all_templates = HashMap::new();
 
     // 1. In-repo custom rules (ctoolbox.magic)
     if let Some(bytes) = ctb_formats_dcdata::get_dc_data_file("magic/ctoolbox.magic") {
         if let Ok(content) = std::str::from_utf8(&bytes) {
             let (rules, tpls) = parse_magic_content_with_templates(content);
-            all_rules.extend(rules);
+            ctb_rules.extend(rules);
             all_templates.extend(tpls);
         }
     }
@@ -581,21 +481,32 @@ pub static COMPILED_MAGIC_DATABASE: LazyLock<(
     for (_path, bytes) in ctb_formats_dcdata::get_dc_magdir_files() {
         if let Ok(content) = std::str::from_utf8(bytes) {
             let (rules, tpls) = parse_magic_content_with_templates(content);
-            all_rules.extend(rules);
+            file_rules.extend(rules);
             all_templates.extend(tpls);
         }
     }
 
-    (all_rules, all_templates)
+    (ctb_rules, file_rules, all_templates)
 });
 
-/// Global compiled hierarchical magic rules.
-pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
+/// Global compiled hierarchical magic rules defined specifically by ctoolbox (`ctoolbox.magic`).
+pub static COMPILED_CTB_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
     LazyLock::new(|| COMPILED_MAGIC_DATABASE.0.clone());
+
+/// Global compiled hierarchical magic rules from upstream `file` / Magdir.
+pub static COMPILED_FILE_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
+    LazyLock::new(|| COMPILED_MAGIC_DATABASE.1.clone());
 
 /// Global compiled named template subroutines.
 pub static COMPILED_MAGIC_TEMPLATES: LazyLock<HashMap<String, HierarchicalMagicRule>> =
-    LazyLock::new(|| COMPILED_MAGIC_DATABASE.1.clone());
+    LazyLock::new(|| COMPILED_MAGIC_DATABASE.2.clone());
+
+/// Legacy alias providing all rules combined.
+pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> = LazyLock::new(|| {
+    let mut combined = COMPILED_CTB_MAGIC_RULES.clone();
+    combined.extend(COMPILED_FILE_MAGIC_RULES.clone());
+    combined
+});
 /*
 /*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the

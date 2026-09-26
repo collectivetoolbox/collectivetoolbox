@@ -639,10 +639,10 @@ use self::container::detect_container_candidates;
 use self::droid::{evaluate_dual_anchored_signatures, evaluate_pronom_signatures};
 use self::extension::resolve_extension_candidates;
 use self::magic::evaluate_rule;
-use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
+use self::magic_data::{COMPILED_CTB_MAGIC_RULES, COMPILED_FILE_MAGIC_RULES};
 use self::mime_derivation::FORMAT_CATALOG;
 use self::polyfile::detect_polyglots;
-use self::small_formats::detect_small_format_candidates;
+use self::extra_rules::detect_small_format_candidates;
 use self::special::detect_special_entity;
 use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
 
@@ -693,86 +693,6 @@ pub fn guess_format_report(
     let platform = hint.and_then(|h| h.platform);
     let expected_cat = hint.and_then(|h| h.expected_category);
 
-    // 1. Evaluate static fast magic patterns (MAGIC_REGISTRY)
-    for entry in MAGIC_REGISTRY {
-        let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
-        let mut buf = vec![0u8; req_len];
-        match source.read_at(0, &mut buf) {
-            Ok(n) => {
-                let n_u64 = u64::try_from(n)?;
-                bytes_evaluated = bytes_evaluated.max(n_u64);
-                let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
-                if is_match {
-                    let fmt = entry.format_id;
-                    let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-                    let dc_id = mapping.map(|m| m.dc_id);
-                    // Reason for fallback: unmapped format in static registry uses its Rust identifier as label
-                    let label = mapping
-                        .map(|m| m.label.clone())
-                        .unwrap_or_else(|| fmt.ident().to_string());
-                    let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-                    let mut score = entry.pattern.priority;
-                    let mut evidence = vec![DetectionEvidence::CtbMagic {
-                        description: label.clone(),
-                        score: entry.pattern.priority,
-                    }];
-
-                    if let Some(ext) = hint_ext {
-                        let ext_norm = ext.to_ascii_lowercase();
-                        // Reason for fallback: format without extension metadata defaults to false for concordance
-                        let match_ext = mapping
-                            .map(|m| {
-                                m.extensions
-                                    .iter()
-                                    .any(|e| e.eq_ignore_ascii_case(&ext_norm))
-                            })
-                            .unwrap_or(false);
-                        if match_ext {
-                            score = score.saturating_add(25);
-                            evidence.push(DetectionEvidence::Extension {
-                                ext: ext.to_string(),
-                                is_primary: true,
-                                score: 25,
-                            });
-                        }
-                    }
-
-                    if let Some(exp_cat) = expected_cat {
-                        if fmt.category() == exp_cat {
-                            score = score.saturating_add(20);
-                            evidence.push(DetectionEvidence::CategoryMatch {
-                                category: exp_cat,
-                                score: 20,
-                            });
-                        }
-                    }
-
-                    let confidence = if score >= 85 {
-                        ConfidenceTier::HighestConfidence
-                    } else if score >= 65 {
-                        ConfidenceTier::Strong
-                    } else if score >= 40 {
-                        ConfidenceTier::Moderate
-                    } else {
-                        ConfidenceTier::Weak
-                    };
-
-                    candidates.push(DetectionCandidate {
-                        format_id: Some(fmt),
-                        dc_id,
-                        mime,
-                        description: label,
-                        confidence,
-                        score,
-                        evidence,
-                    });
-                }
-            }
-            Err(e) => {
-                read_error = Some(e.to_string());
-            }
-        }
-    }
 
     // 1.5. Evaluate DROID PRONOM and dual-anchored BOF / EOF signatures (droid.rs)
     if let Ok(pronom_cands) = evaluate_pronom_signatures(source, hint) {
@@ -853,138 +773,171 @@ pub fn guess_format_report(
         }
     }
 
-    // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
-    for rule in COMPILED_MAGIC_RULES.iter() {
-        if let Some(match_res) = evaluate_rule(rule, source) {
-            if match_res.description.trim().is_empty() && match_res.mime.is_none() {
-                continue;
-            }
-            let mut score = match_res.score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::FileMagic {
-                description: match_res.description.clone(),
-                score: match_res.score,
-            });
+    // 2. Evaluate compiled hierarchical magic rules (ctoolbox.magic -> CtbMagic, Magdir -> FileMagic)
+    for (rule_set, is_ctb) in [
+        (&*COMPILED_CTB_MAGIC_RULES, true),
+        (&*COMPILED_FILE_MAGIC_RULES, false),
+    ] {
+        for rule in rule_set.iter() {
+            if let Some(match_res) = evaluate_rule(rule, source) {
+                bytes_evaluated = bytes_evaluated.max(match_res.match_end);
+                if match_res.description.trim().is_empty() && match_res.mime.is_none() {
+                    continue;
+                }
+                let mut score = if is_ctb {
+                    match_res.score.max(90)
+                } else {
+                    match_res.score
+                };
+                let mut evidence = Vec::new();
+                if is_ctb {
+                    evidence.push(DetectionEvidence::CtbMagic {
+                        description: match_res.description.clone(),
+                        score: match_res.score,
+                    });
+                } else {
+                    evidence.push(DetectionEvidence::FileMagic {
+                        description: match_res.description.clone(),
+                        score: match_res.score,
+                    });
+                }
 
-            // Map MIME or description or extension to format catalog
-            let mapping = match_res
-                .mime
-                .as_deref()
-                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
-                .or_else(|| {
-                    FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
-                })
-                .or_else(|| {
-                    match_res.ext.as_deref().and_then(|ext| {
-                        ext.split(['/', ','])
-                            .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
+                // Map MIME or description or extension to format catalog
+                let mapping = match_res
+                    .mime
+                    .as_deref()
+                    .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
+                    .or_else(|| {
+                        FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
                     })
-                });
+                    .or_else(|| {
+                        match_res.ext.as_deref().and_then(|ext| {
+                            ext.split(['/', ','])
+                                .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
+                        })
+                    });
 
-            let format_id = mapping.and_then(|m| m.format_id);
-            let dc_id = mapping.map(|m| m.dc_id);
-            let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
-            // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
-            let description = if match_res.description.is_empty() {
-                mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
-            } else {
-                match_res.description
-            };
+                let format_id = mapping.and_then(|m| m.format_id);
+                let dc_id = mapping.map(|m| m.dc_id);
+                let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
+                // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
+                let description = if match_res.description.is_empty() {
+                    mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
+                } else {
+                    match_res.description
+                };
 
-            // Concordance with extension hint
-            if let Some(ext) = hint_ext {
-                let ext_normalized = ext.to_ascii_lowercase();
-                // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                let rule_ext_match = match_res.ext.as_deref().map(|e| {
-                    e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
+                // Concordance with extension hint
+                if let Some(ext) = hint_ext {
+                    let ext_normalized = ext.to_ascii_lowercase();
+                    // Reason for fallback: rule without extension declaration evaluates to false for concordance
+                    let rule_ext_match = match_res.ext.as_deref().map(|e| {
+                        e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
+                    }).unwrap_or(false);
 
-                // Reason for fallback: unmapped format evaluates to false for extension concordance
-                let mapping_ext_match = mapping.map(|m| {
-                    m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
+                    // Reason for fallback: unmapped format evaluates to false for extension concordance
+                    let mapping_ext_match = mapping.map(|m| {
+                        m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
+                    }).unwrap_or(false);
 
-                if rule_ext_match || mapping_ext_match {
-                    score = score.saturating_add(25);
-                    evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
+                    if rule_ext_match || mapping_ext_match {
+                        score = score.saturating_add(25);
+                        evidence.push(DetectionEvidence::Extension {
+                            ext: ext.to_string(),
+                            is_primary: true,
+                            score: 25,
+                        });
+                    }
+                }
+
+                // Platform prior boost from format dataset OS associations
+                if let Some(target_os) = platform {
+                    let is_matched = format_id.is_some_and(|fid| {
+                        format_matches_platform(fid, target_os)
+                    });
+
+                    if is_matched {
+                        score = score.saturating_add(PLATFORM_PRIOR_BONUS);
+                        evidence.push(DetectionEvidence::PlatformPrior {
+                            platform: target_os,
+                            score: PLATFORM_PRIOR_BONUS,
+                        });
+                    }
+                }
+
+                // Expected category boost
+                if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
+                    if fid.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
+                    }
+                }
+
+                let confidence = if score >= 85 {
+                    ConfidenceTier::HighestConfidence
+                } else if score >= 65 {
+                    ConfidenceTier::Strong
+                } else if score >= 40 {
+                    ConfidenceTier::Moderate
+                } else {
+                    ConfidenceTier::Weak
+                };
+
+                // Deduplicate and merge with any existing candidate for the same format or description
+                let mut merged = false;
+                for existing in &mut candidates {
+                    let matches_fmt = format_id.is_some()
+                        && (existing.format_id == format_id
+                            || existing
+                                .mime
+                                .as_deref()
+                                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
+                                .and_then(|m| m.format_id)
+                                == format_id);
+                    let matches_desc = !description.is_empty()
+                        && (existing.description.eq_ignore_ascii_case(&description)
+                            || existing
+                                .description
+                                .to_ascii_lowercase()
+                                .contains(&description.to_ascii_lowercase())
+                            || description
+                                .to_ascii_lowercase()
+                                .contains(&existing.description.to_ascii_lowercase()));
+                    let matches_mime = mime.is_some() && existing.mime == mime;
+                    if matches_fmt || matches_desc || matches_mime {
+                        if existing.format_id.is_none() && format_id.is_some() {
+                            existing.format_id = format_id;
+                        }
+                        if existing.dc_id.is_none() && dc_id.is_some() {
+                            existing.dc_id = dc_id;
+                        }
+                        if existing.mime.is_none() && mime.is_some() {
+                            existing.mime = mime.clone();
+                        }
+                        if score > existing.score {
+                            existing.score = score;
+                            existing.confidence = confidence;
+                        }
+                        if description.len() > existing.description.len() {
+                            existing.description = description.clone();
+                        }
+                        existing.evidence.extend(evidence.clone());
+                        merged = true;
+                        break;
+                    }
+                }
+
+                if !merged {
+                    candidates.push(DetectionCandidate {
+                        format_id,
+                        dc_id,
+                        mime,
+                        description,
+                        confidence,
+                        score,
+                        evidence,
                     });
                 }
-            }
-
-            // Platform prior boost from format dataset OS associations
-            if let Some(target_os) = platform {
-                let is_matched = format_id.is_some_and(|fid| {
-                    format_matches_platform(fid, target_os)
-                });
-
-                if is_matched {
-                    score = score.saturating_add(PLATFORM_PRIOR_BONUS);
-                    evidence.push(DetectionEvidence::PlatformPrior {
-                        platform: target_os,
-                        score: PLATFORM_PRIOR_BONUS,
-                    });
-                }
-            }
-
-            // Expected category boost
-            if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
-                if fid.category() == exp_cat {
-                    score = score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
-            }
-
-            let confidence = if score >= 85 {
-                ConfidenceTier::HighestConfidence
-            } else if score >= 65 {
-                ConfidenceTier::Strong
-            } else if score >= 40 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-
-            // Deduplicate and merge with any existing candidate for the same format or description
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = format_id.is_some() && existing.format_id == format_id;
-                let matches_desc = !description.is_empty() && existing.description.eq_ignore_ascii_case(&description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && format_id.is_some() {
-                        existing.format_id = format_id;
-                    }
-                    if existing.dc_id.is_none() && dc_id.is_some() {
-                        existing.dc_id = dc_id;
-                    }
-                    if existing.mime.is_none() && mime.is_some() {
-                        existing.mime = mime.clone();
-                    }
-                    if score > existing.score {
-                        existing.score = score;
-                        existing.confidence = confidence;
-                    }
-                    if description.len() > existing.description.len() {
-                        existing.description = description.clone();
-                    }
-                    existing.evidence.extend(evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-
-            if !merged {
-                candidates.push(DetectionCandidate {
-                    format_id,
-                    dc_id,
-                    mime,
-                    description,
-                    confidence,
-                    score,
-                    evidence,
-                });
             }
         }
     }

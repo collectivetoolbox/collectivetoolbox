@@ -567,16 +567,13 @@ pub fn detect_small_format_candidates(
         return candidates;
     }
 
-    // 3. Apple Uniform Type Identifier (UTI) detection (e.g. "public.jpeg", "com.adobe.pdf")
-    if (trimmed.starts_with("public.") || trimmed.starts_with("com.apple.") || trimmed.starts_with("com.adobe."))
-        || (trimmed.contains('.') && !trimmed.contains('/') && !trimmed.contains(' ') && trimmed.split('.').all(|seg| !seg.is_empty() && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')))
-    {
-        if let Some(mapping) = FORMAT_CATALOG.lookup_apple_uti(trimmed) {
+    // 3. Apple Uniform Type Identifier (UTI) detection (via ctb-formats-apple-types)
+    if let Some(uti_det) = ctb_formats_apple_types::detect_apple_uti(trimmed) {
+        if let Some(mapping) = FORMAT_CATALOG.lookup_apple_uti(&uti_det.uti) {
             let fmt = mapping.format_id;
             let mut score = 90u32;
-            let desc = format!("Apple Uniform Type Identifier (UTI): {trimmed}");
             let mut evidence = vec![DetectionEvidence::CtbRule {
-                description: desc.clone(),
+                description: uti_det.description.clone(),
                 score: 90,
             }];
 
@@ -596,7 +593,7 @@ pub fn detect_small_format_candidates(
                 format_id: fmt,
                 dc_id: Some(mapping.dc_id),
                 mime: mapping.mime_types.first().cloned(),
-                description: desc,
+                description: uti_det.description,
                 confidence: ConfidenceTier::HighestConfidence,
                 score,
                 evidence,
@@ -605,100 +602,73 @@ pub fn detect_small_format_candidates(
         }
     }
 
-    // 4. MIME type string detection (e.g. "image/jpeg", "application/json", "text/plain")
-    if trimmed.contains('/') && !trimmed.contains(' ') {
-        let mime_base = trimmed.split(';').next().unwrap_or(trimmed).trim();
-        if let Some((top, sub)) = mime_base.split_once('/') {
-            let is_standard_top = matches!(
-                top.to_ascii_lowercase().as_str(),
-                "application"
-                    | "audio"
-                    | "font"
-                    | "example"
-                    | "image"
-                    | "message"
-                    | "model"
-                    | "multipart"
-                    | "text"
-                    | "video"
-            );
-            let is_valid_sub = !sub.is_empty()
-                && sub
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'.' || b == b'-' || b == b'_');
-            if is_standard_top && is_valid_sub {
-                if let Some(mapping) = FORMAT_CATALOG.lookup_mime(mime_base) {
-                    let fmt = mapping.format_id;
-                    let mut score = 90u32;
-                    let desc = format!("MIME type string: {trimmed}");
-                    let mut evidence = vec![DetectionEvidence::CtbRule {
-                        description: desc.clone(),
-                        score: 90,
-                    }];
+    // 4. MIME type string detection (via ctb-formats-mime)
+    if let Some(mime_det) = ctb_formats_mime::parse_mime_type(trimmed) {
+        if let Some(mapping) = FORMAT_CATALOG.lookup_mime(&mime_det.media_type) {
+            let fmt = mapping.format_id;
+            let mut score = 90u32;
+            let mut evidence = vec![DetectionEvidence::CtbRule {
+                description: mime_det.description.clone(),
+                score: 90,
+            }];
 
-                    if let (Some(h), Some(fid)) = (hint, fmt) {
-                        if let Some(exp_cat) = h.expected_category {
-                            if fid.category() == exp_cat {
-                                score = score.saturating_add(20);
-                                evidence.push(DetectionEvidence::CategoryMatch {
-                                    category: exp_cat,
-                                    score: 20,
-                                });
-                            }
-                        }
+            if let (Some(h), Some(fid)) = (hint, fmt) {
+                if let Some(exp_cat) = h.expected_category {
+                    if fid.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
                     }
-
-                    candidates.push(DetectionCandidate {
-                        format_id: fmt,
-                        dc_id: Some(mapping.dc_id),
-                        mime: Some(mime_base.to_string()),
-                        description: desc,
-                        confidence: ConfidenceTier::HighestConfidence,
-                        score,
-                        evidence,
-                    });
-                    return candidates;
                 }
             }
+
+            candidates.push(DetectionCandidate {
+                format_id: fmt,
+                dc_id: Some(mapping.dc_id),
+                mime: Some(mime_det.media_type),
+                description: mime_det.description,
+                confidence: ConfidenceTier::HighestConfidence,
+                score,
+                evidence,
+            });
+            return candidates;
         }
     }
 
-    // 5. Apple OS / Creator Type detection (exact 4-character code recognized in format database)
-    // e.g. "TEXT", "PDF ", "JPEG", "PNGf"
-    if let Ok(bytes) = <[u8; 4]>::try_from(trimmed.as_bytes()) {
-        if bytes.iter().all(|b| b.is_ascii_graphic() || *b == b' ') {
-            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&bytes) {
-                let fmt = mapping.format_id;
-                let mut score = 85u32;
-                let desc = format!("Apple OS / Creator Type: '{trimmed}'");
-                let mut evidence = vec![DetectionEvidence::CtbRule {
-                    description: desc.clone(),
-                    score: 85,
-                }];
+    // 5. Apple OS / Creator Type detection (via ctb-formats-apple-types)
+    if let Some(type_code_det) = ctb_formats_apple_types::detect_apple_type_code(trimmed) {
+        if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&type_code_det.code) {
+            let fmt = mapping.format_id;
+            let mut score = 85u32;
+            let mut evidence = vec![DetectionEvidence::CtbRule {
+                description: type_code_det.description.clone(),
+                score: 85,
+            }];
 
-                if let (Some(h), Some(fid)) = (hint, fmt) {
-                    if let Some(exp_cat) = h.expected_category {
-                        if fid.category() == exp_cat {
-                            score = score.saturating_add(20);
-                            evidence.push(DetectionEvidence::CategoryMatch {
-                                category: exp_cat,
-                                score: 20,
-                            });
-                        }
+            if let (Some(h), Some(fid)) = (hint, fmt) {
+                if let Some(exp_cat) = h.expected_category {
+                    if fid.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
                     }
                 }
-
-                candidates.push(DetectionCandidate {
-                    format_id: fmt,
-                    dc_id: Some(mapping.dc_id),
-                    mime: mapping.mime_types.first().cloned(),
-                    description: desc,
-                    confidence: ConfidenceTier::HighestConfidence,
-                    score,
-                    evidence,
-                });
-                return candidates;
             }
+
+            candidates.push(DetectionCandidate {
+                format_id: fmt,
+                dc_id: Some(mapping.dc_id),
+                mime: mapping.mime_types.first().cloned(),
+                description: type_code_det.description,
+                confidence: ConfidenceTier::HighestConfidence,
+                score,
+                evidence,
+            });
+            return candidates;
         }
     }
 

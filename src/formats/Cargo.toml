@@ -10,6 +10,7 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../utilities" }
 ctb-formats-alias = { path = "alias" }
 ctb-formats-apple-single-double = { path = "apple_single_double" }
+ctb-formats-apple-types = { path = "apple_types" }
 ctb-formats-archive = { path = "archive" }
 ctb-formats-applescript = { path = "applescript" }
 ctb-formats-base16b = { path = "base16b" }
@@ -36,6 +37,7 @@ ctb-formats-kaitai = { path = "kaitai" }
 ctb-formats-lnk = { path = "lnk" }
 ctb-formats-markdown = { path = "markdown" }
 ctb-formats-math = { path = "math" }
+ctb-formats-mime = { path = "mime" }
 ctb-formats-multipart = { path = "multipart" }
 ctb-formats-pan = { path = "pan" }
 ctb-formats-perl = { path = "perl" }

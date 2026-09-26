@@ -122,13 +122,13 @@ from_code_point: unknown code point [63489]
 ```
 
 - Detection:
-  - Small formats should use a different DetectionEvidence, maybe DetectionEvidence::CtbRule.
-  - Split DetectionEvidence Magic into DetectionEvidence FileMagic and DetectionEvidence CtbMagic (for ctoolbox additions).
-  - Add small format detection support for URIs and URI schemes (e.g. "http" is a known URI scheme), with the rules themselves implemented in formats/uri.
-  - Add small format detection support for UTIs, Creator Types, MIME types, leveraging formats database and MIME databases.
-  - IP address should not use @implies(f14). Maybe an IpV4String and IpV6String formats could be added. It is common to represent IP addresses as integer types for compact storage.
-  - Move logic for matching small formats that are currently implemented directly within small_formats into other crates (TBD sure where would be best)
-  - Move hardcoded magic data from magic_data.rs into ctoolbox.magic and remove it from magic_data.rs; correct matches from ctoolbox.magic being assigned DetectionEvidence FileMagic when they should be CtbMagic.
+  - [x] Small formats should use a different DetectionEvidence, maybe DetectionEvidence::CtbRule.
+  - [x] Split DetectionEvidence Magic into DetectionEvidence FileMagic and DetectionEvidence CtbMagic (for ctoolbox additions).
+  - [x] Add small format detection support for URIs and URI schemes (e.g. "http" is a known URI scheme), with the rules themselves implemented in formats/uri.
+  - [x] Add small format detection support for UTIs, Creator Types, MIME types, leveraging formats database and MIME databases.
+  - [x] IP address should not use @implies(f14). Maybe an IpV4String and IpV6String formats could be added. It is common to represent IP addresses as integer types for compact storage.
+  - [x] Move logic for matching small formats that are currently implemented directly within small_formats into other crates (TBD sure where would be best)
+  - [x] Move hardcoded magic data from magic_data.rs into ctoolbox.magic and remove it from magic_data.rs; correct matches from ctoolbox.magic being assigned DetectionEvidence FileMagic when they should be CtbMagic.
 
 Hi! I'd like you to work on some issues in the installer:
 

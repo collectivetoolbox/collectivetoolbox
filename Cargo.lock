@@ -2702,6 +2702,7 @@ version = "0.0.0"
 dependencies = [
  "ctb-formats-alias",
  "ctb-formats-apple-single-double",
+ "ctb-formats-apple-types",
  "ctb-formats-applescript",
  "ctb-formats-archive",
  "ctb-formats-base16b",
@@ -2728,6 +2729,7 @@ dependencies = [
  "ctb-formats-lnk",
  "ctb-formats-markdown",
  "ctb-formats-math",
+ "ctb-formats-mime",
  "ctb-formats-multipart",
  "ctb-formats-pan",
  "ctb-formats-pdf",
@@ -2775,6 +2777,14 @@ dependencies = [
  "include_dir",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "ctb-formats-apple-types"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
 ]
 
 [[package]]
@@ -2925,11 +2935,13 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "ctb-formats-apple-types",
  "ctb-formats-checksum",
  "ctb-formats-dcdata",
  "ctb-formats-dcstring",
  "ctb-formats-ipaddr",
  "ctb-formats-math",
+ "ctb-formats-mime",
  "ctb-formats-uri",
  "ctb-formats-utilities",
  "ctb-formats-uuid",
@@ -3164,6 +3176,14 @@ dependencies = [
  "ctb-formats-utilities",
  "ctb-utilities",
  "malachite",
+]
+
+[[package]]
+name = "ctb-formats-mime"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
 ]
 
 [[package]]
@@ -3950,6 +3970,7 @@ dependencies = [
  "ctb-formats",
  "ctb-formats-alias",
  "ctb-formats-apple-single-double",
+ "ctb-formats-apple-types",
  "ctb-formats-applescript",
  "ctb-formats-archive",
  "ctb-formats-base16b",
@@ -3978,6 +3999,7 @@ dependencies = [
  "ctb-formats-lnk",
  "ctb-formats-markdown",
  "ctb-formats-math",
+ "ctb-formats-mime",
  "ctb-formats-multipart",
  "ctb-formats-pan",
  "ctb-formats-pdf",

@@ -12,6 +12,11 @@
 !:mime	application/x-bzip2
 !:ext	bz2
 
+# Bzip
+0	string		BZ0		Bzip compressed data
+!:mime	application/x-bzip
+!:ext	bz
+
 # Zip
 0	string		PK\003\004	Zip archive data
 !:mime	application/zip
@@ -43,3 +48,70 @@
 0	string		\xef\xbf\xbd\xef\xbf\xbd	Document Character Stream
 !:mime	application/x-dc-stream
 !:ext	dct/dcs
+
+# SCO Compress
+0	string		\037\240	ScoCompress compressed data
+!:mime	application/x-compress
+!:ext	Z
+
+# LZW Compress (modern block)
+0	string		\037\235	CompressLzw compressed data
+!:mime	application/x-compress
+!:ext	Z
+>2	byte&0x80	>0		(block mode)
+
+# LZW Compress (non-block)
+0	string		\037\235	CompressLzw2 compressed data
+!:mime	application/x-compress
+!:ext	Z
+>2	byte&0x80	=0
+
+# Pack
+0	string		\037\036	Pack compressed data
+!:mime	application/x-pack
+!:ext	z
+
+# Old Pack
+0	string		\037\037	OldPack compressed data
+!:mime	application/x-pack
+!:ext	z
+
+# Compact (Little Endian)
+0	string		\377\037	Compact compressed data (little-endian)
+!:mime	application/x-compact
+!:ext	C
+
+# Compact (Big Endian)
+0	string		\037\377	Compact compressed data (big-endian)
+!:mime	application/x-compact
+!:ext	C
+
+# Zlib
+0	byte		0x78		Zlib compressed data
+!:mime	application/zlib
+!:ext	zz/zl
+
+# XZ
+0	string		\xfd7zXZ\0	Xz compressed data
+!:mime	application/x-xz
+!:ext	xz
+
+# Lzip
+0	string		LZIP		Lzip compressed data
+!:mime	application/x-lzip
+!:ext	lz
+
+# Zstandard
+0	string		\x28\xb5\x2f\xfd	Zstd compressed data
+!:mime	application/zstd
+!:ext	zst
+
+# LZ4
+0	string		\x04\x22\x4d\x18	Lz4 compressed data
+!:mime	application/x-lz4
+!:ext	lz4
+
+# LZO (lzop)
+0	string		\211LZO\0\r\n\032\n	Lzo compressed data
+!:mime	application/x-lzop
+!:ext	lzo
