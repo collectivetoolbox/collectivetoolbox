@@ -30,47 +30,15 @@ use crate::format_id::FormatId;
 
 /// Determines whether a format's associated operating system is compatible
 /// with a target operating system context.
+///
+/// Uses format implication hierarchies declared via `@implies(...)` directives
+/// in the format database. A candidate OS matches a target OS if they are identical
+/// or if either directly or transitively implies the other.
 #[must_use]
 pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
-    if candidate_os == target_os {
-        return true;
-    }
-    match (candidate_os, target_os) {
-        (
-            FormatId::MacOs | FormatId::MacOsDarwin,
-            FormatId::MacOs | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-        ) => true,
-        (
-            FormatId::Unix,
-            FormatId::Unix
-                | FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd
-                | FormatId::MacOs
-                | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd,
-            FormatId::Unix,
-        ) => true,
-        (
-            FormatId::Linux | FormatId::GnuLinux,
-            FormatId::Linux | FormatId::GnuLinux,
-        ) => true,
-        _ => false,
-    }
+    candidate_os == target_os
+        || candidate_os.implies().contains(&target_os)
+        || target_os.implies().contains(&candidate_os)
 }
 
 /// Infers the host platform operating system as an authoritative `FormatId`.
@@ -117,8 +85,24 @@ mod tests {
         assert!(is_os_match(FormatId::Linux, FormatId::Unix));
         assert!(is_os_match(FormatId::Unix, FormatId::Linux));
         assert!(is_os_match(FormatId::MacOs, FormatId::MacOsDarwin));
+        assert!(is_os_match(FormatId::MacOsDarwin, FormatId::MacOs));
         assert!(is_os_match(FormatId::WinClassic, FormatId::Windows));
+        assert!(is_os_match(FormatId::Windows, FormatId::WinClassic));
+        assert!(is_os_match(FormatId::WinNt, FormatId::Windows));
+        assert!(is_os_match(FormatId::Windows, FormatId::WinNt));
+        assert!(is_os_match(FormatId::Linux, FormatId::GnuLinux));
+        assert!(is_os_match(FormatId::GnuLinux, FormatId::Linux));
+        assert!(is_os_match(FormatId::GnuLinux, FormatId::Unix));
+        assert!(is_os_match(FormatId::Unix, FormatId::GnuLinux));
+        assert!(is_os_match(FormatId::FreeBsd, FormatId::Unix));
+        assert!(is_os_match(FormatId::Unix, FormatId::FreeBsd));
+        assert!(is_os_match(FormatId::Debian, FormatId::Linux));
+        assert!(is_os_match(FormatId::Debian, FormatId::Unix));
         assert!(!is_os_match(FormatId::Windows, FormatId::Linux));
+        assert!(!is_os_match(FormatId::FreeBsd, FormatId::Linux));
+        assert!(!is_os_match(FormatId::Linux, FormatId::FreeBsd));
+        assert!(!is_os_match(FormatId::Windows, FormatId::Unix));
+        assert!(!is_os_match(FormatId::MacOs, FormatId::Linux));
     }
 
     #[crate::ctb_test]

@@ -14,8 +14,8 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228614,390,Linux,Linux kernel family,kernel,,,,,,,,,,,,
-2228615,391,BsdKernel,BSD kernel family,kernel,,,,,,,,,,,,
+2228614,390,Linux,Linux kernel family,kernel,@implies(f492),,,,,,,,,,,
+2228615,391,BsdKernel,BSD kernel family,kernel,@implies(f492),,,,,,,,,,,
 2228616,392,Mach,Mach kernel family,kernel,@based_on(f391),,,,,,,,,,,
 2228617,393,Hurd,Hurd kernel,kernel,@based_on(f413),,,,,,,,,,,
 2228618,394,Xnu,XNU (X is Not Unix),kernel,"@based_on(f392), @implies(f392)",,,,,,,,,,,

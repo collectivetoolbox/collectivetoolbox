@@ -453,78 +453,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+pub use ctb_formats_utilities::platform::{current_platform_os, is_os_match};
+
 use crate::detection::mime_derivation::FORMAT_CATALOG;
 use crate::format_id::FormatId;
-
-/// Determines whether a format's associated operating system is compatible
-/// with a target operating system context.
-#[must_use]
-pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
-    if candidate_os == target_os {
-        return true;
-    }
-    match (candidate_os, target_os) {
-        (
-            FormatId::MacOs | FormatId::MacOsDarwin,
-            FormatId::MacOs | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-        ) => true,
-        (
-            FormatId::Unix,
-            FormatId::Unix
-                | FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd
-                | FormatId::MacOs
-                | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd,
-            FormatId::Unix,
-        ) => true,
-        (
-            FormatId::Linux | FormatId::GnuLinux,
-            FormatId::Linux | FormatId::GnuLinux,
-        ) => true,
-        _ => false,
-    }
-}
-
-/// Infers the host platform operating system as an authoritative `FormatId`.
-#[must_use]
-pub fn current_platform_os() -> Option<FormatId> {
-    #[cfg(target_os = "macos")]
-    {
-        Some(FormatId::MacOs)
-    }
-    #[cfg(target_os = "windows")]
-    {
-        Some(FormatId::Windows)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        Some(FormatId::GnuLinux)
-    }
-    #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
-    {
-        Some(FormatId::Unix)
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
-    {
-        None
-    }
-}
 
 /// Checks whether a candidate format has recorded OS associations compatible
 /// with the specified target operating system.

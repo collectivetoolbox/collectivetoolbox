@@ -3169,6 +3169,8 @@ impl FormatId {
             Self::amd64 => &[Self::x86],
             Self::i586 => &[Self::x86],
             Self::sse2 => &[Self::i586, Self::x86],
+            Self::Linux => &[Self::Unix],
+            Self::BsdKernel => &[Self::Unix],
             Self::Xnu => &[Self::Mach],
             Self::Darwin => &[Self::Unix],
             Self::BsdLibc => &[Self::Unix],

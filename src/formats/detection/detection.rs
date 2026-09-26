@@ -445,6 +445,152 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Combined multi-signal format detection, hierarchical pattern matching,
 //! and multipart extension chain parsing.
+//!
+//! This crate (partial/incomplete but seems to be working for basic cases)
+//! provides file format guessing by synthesizing multiple orthogonal signals:
+//! - **Magic pattern matching**: Hierarchical, bitmask-aware rules compiled
+//!   from file signatures and fine-grained offsets.
+//! - **PRONOM / DROID signatures**: Dual-anchored header and trailer patterns
+//!   with variable-length gaps.
+//! - **Extension analysis**: Multipart extension chains (e.g. `.tar.gz`) with
+//!   case sensitivity rules and path classification.
+//! - **Structural inspection**: Container and polyglot detection for ZIP,
+//!   OLE2, AppleSingle/Double, and archive structures.
+//! - **Text encoding heuristics**: Multi-encoding validation (UTF-8, UTF-16,
+//!   ASCII, Latin-1) and XML/HTML markup pattern scoring.
+//! - **Platform knowledge**: Target operating system compatibility scoring
+//!   to resolve format ambiguities.
+//!
+//! # High-Level Convenience Functions
+//!
+//! For most use cases, convenience functions provide quick format guessing or
+//! full diagnostic reporting across common input types:
+//!
+//! - Filesystem paths: [`guess_path`] and [`guess_and_report_path`]
+//! - UTF-8 / String data: [`guess_string`] and [`guess_and_report_string`]
+//! - Document strings: [`guess_dcs`] and [`guess_and_report_dcs`]
+//! - Raw byte buffers: [`guess_vec`] and [`guess_and_report_vec`]
+//! - Structured `File` entities: [`guess_file`] and [`guess_and_report_file`]
+//!
+//! # Examples
+//!
+//! ### Inspecting a Filesystem Path
+//!
+//! Identify a format directly from an on-disk path or generate a report:
+//!
+//! ```rust,no_run
+//! use ctb_formats_detection::{
+//!     guess_and_report_path, guess_path, FormatId, OsPath,
+//! };
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! let dir = tempfile::tempdir()?;
+//! let path: OsPath = dir.path().join("archive.tar.gz");
+//! let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+//! std::fs::write(&path, gz_header)?;
+//!
+//! // Fast authoritative format identification:
+//! let format = guess_path(&path)?;
+//! assert_eq!(format, FormatId::Gzip);
+//!
+//! // Comprehensive detection report with ranked candidates:
+//! let report = guess_and_report_path(&path)?;
+//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Inspecting a String
+//!
+//! Detect markup, source code, or text formats from a `String` or `&str`:
+//!
+//! ```
+//! use ctb_formats_detection::{
+//!     guess_and_report_string, guess_string, FormatId,
+//! };
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! let html = String::from(
+//!     "<!DOCTYPE html><html><body><h1>Header</h1></body></html>",
+//! );
+//!
+//! let format = guess_string(html.clone())?;
+//! assert_eq!(format, FormatId::Html);
+//!
+//! let report = guess_and_report_string(html)?;
+//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Inspecting a Document Character String (`DcString`)
+//!
+//! Detect formats directly from a [`DcString`]:
+//!
+//! ```
+//! use ctb_formats_detection::{
+//!     guess_and_report_dcs, guess_dcs, DcString, FormatId,
+//! };
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! let dcs = DcString::from_dcutf(
+//!     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
+//! )?;
+//!
+//! let format = guess_dcs(&dcs)?;
+//! assert_eq!(format, FormatId::Html);
+//!
+//! let report = guess_and_report_dcs(&dcs)?;
+//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Inspecting Raw Byte Vectors
+//!
+//! Detect binary or text formats from an in-memory `Vec<u8>`:
+//!
+//! ```
+//! use ctb_formats_detection::{guess_and_report_vec, guess_vec, FormatId};
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! let gz_bytes: Vec<u8> =
+//!     vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+//!
+//! let format = guess_vec(gz_bytes.clone())?;
+//! assert_eq!(format, FormatId::Gzip);
+//!
+//! let report = guess_and_report_vec(gz_bytes)?;
+//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ### Inspecting an `io/file` `File` Entity
+//!
+//! Detect formats when working with structured [`File`] entities:
+//!
+//! ```rust,no_run
+//! use ctb_formats_detection::{
+//!     guess_and_report_file, guess_file, File, FormatId,
+//! };
+//!
+//! # fn main() -> anyhow::Result<()> {
+//! let dir = tempfile::tempdir()?;
+//! let path = dir.path().join("archive.tar.gz");
+//! let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+//! std::fs::write(&path, gz_header)?;
+//!
+//! let file = File::from_filesystem(&path, None)?;
+//!
+//! let format = guess_file(&file)?;
+//! assert_eq!(format, FormatId::Gzip);
+//!
+//! let report = guess_and_report_file(&file)?;
+//! assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+//! # Ok(())
+//! # }
+//! ```
 
 #[allow(
     unused_imports,
@@ -454,6 +600,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub use crate as detection;
+pub use ctb_formats_dcstring::DcString;
 pub use ctb_formats_utilities::encoding;
 pub use ctb_formats_utilities::extension_rule::{CaseSensitivity, ExtensionRule};
 pub use ctb_utilities::format_id;
@@ -482,7 +629,7 @@ pub mod text;
 pub mod types;
 pub mod file_upstream_suite;
 
-pub use platform::{current_platform_os, is_os_match};
+pub use platform::{current_platform_os, format_matches_platform, is_os_match};
 pub use source::{DetectionSource, EmptySource};
 pub use types::*;
 
@@ -1387,7 +1534,24 @@ pub fn detect_file_format(
     }
 }
 
-/// Guesses format candidates and generates a detection report for a filesystem path.
+/// Guesses format candidates and generates a detection report for a filesystem
+/// path.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ctb_formats_detection::{guess_and_report_path, FormatId, OsPath};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dir = tempfile::tempdir()?;
+/// let path: OsPath = dir.path().join("archive.tar.gz");
+/// std::fs::write(&path, [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00])?;
+///
+/// let report = guess_and_report_path(&path)?;
+/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_and_report_path(path: impl AsRef<std::path::Path>) -> Result<DetectionReport> {
     let p = path.as_ref();
     let file = File::from_filesystem(p, None)?;
@@ -1401,6 +1565,22 @@ pub fn guess_and_report_path(path: impl AsRef<std::path::Path>) -> Result<Detect
 }
 
 /// Guesses the authoritative format for a given filesystem path.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ctb_formats_detection::{guess_path, FormatId, OsPath};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dir = tempfile::tempdir()?;
+/// let path: OsPath = dir.path().join("archive.tar.gz");
+/// std::fs::write(&path, [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00])?;
+///
+/// let format = guess_path(&path)?;
+/// assert_eq!(format, FormatId::Gzip);
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_path(path: impl AsRef<std::path::Path>) -> Result<FormatId> {
     let p = path.as_ref();
     let report = guess_and_report_path(p)?;
@@ -1413,6 +1593,19 @@ pub fn guess_path(path: impl AsRef<std::path::Path>) -> Result<FormatId> {
 
 /// Guesses format candidates and generates a detection report from a String.
 /// The report populates `file_origin` as `FileOrigin::Synthetic`.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_and_report_string, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let html = "<!DOCTYPE html><html><body><h1>Header</h1></body></html>";
+/// let report = guess_and_report_string(html)?;
+/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_and_report_string(content: impl Into<String>) -> Result<DetectionReport> {
     let s = content.into();
     let bytes = s.into_bytes();
@@ -1422,6 +1615,19 @@ pub fn guess_and_report_string(content: impl Into<String>) -> Result<DetectionRe
 }
 
 /// Guesses the authoritative format for a given String content.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_string, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let html = "<!DOCTYPE html><html><body><h1>Header</h1></body></html>";
+/// let format = guess_string(html)?;
+/// assert_eq!(format, FormatId::Html);
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_string(content: impl Into<String>) -> Result<FormatId> {
     let report = guess_and_report_string(content)?;
     report
@@ -1431,8 +1637,24 @@ pub fn guess_string(content: impl Into<String>) -> Result<FormatId> {
         .ok_or_else(|| anyhow::anyhow!("No matching file format detected for string"))
 }
 
-/// Guesses format candidates and generates a detection report from a `DcString`.
+/// Guesses format candidates and generates a detection report from a
+/// `DcString`.
 /// The report populates `file_origin` as `FileOrigin::Synthetic`.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_and_report_dcs, DcString, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dcs = DcString::from_dcutf(
+///     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
+/// )?;
+/// let report = guess_and_report_dcs(&dcs)?;
+/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Html));
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_and_report_dcs(
     dcs: impl std::borrow::Borrow<ctb_formats_dcstring::DcString>,
 ) -> Result<DetectionReport> {
@@ -1443,6 +1665,21 @@ pub fn guess_and_report_dcs(
 }
 
 /// Guesses the authoritative format for a given `DcString`.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_dcs, DcString, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dcs = DcString::from_dcutf(
+///     b"<!DOCTYPE html><html><body>Test</body></html>".to_vec(),
+/// )?;
+/// let format = guess_dcs(&dcs)?;
+/// assert_eq!(format, FormatId::Html);
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_dcs(
     dcs: impl std::borrow::Borrow<ctb_formats_dcstring::DcString>,
 ) -> Result<FormatId> {
@@ -1456,6 +1693,19 @@ pub fn guess_dcs(
 
 /// Guesses format candidates and generates a detection report from raw bytes.
 /// The report populates `file_origin` as `FileOrigin::Synthetic`.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_and_report_vec, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let gz_bytes = vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+/// let report = guess_and_report_vec(gz_bytes)?;
+/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_and_report_vec(bytes: Vec<u8>) -> Result<DetectionReport> {
     let file = File::from_vec(bytes.clone());
     let mut source = MemoryPayloadSource::new(bytes)?;
@@ -1463,6 +1713,19 @@ pub fn guess_and_report_vec(bytes: Vec<u8>) -> Result<DetectionReport> {
 }
 
 /// Guesses the authoritative format for raw bytes.
+///
+/// # Examples
+///
+/// ```
+/// use ctb_formats_detection::{guess_vec, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let gz_bytes = vec![0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+/// let format = guess_vec(gz_bytes)?;
+/// assert_eq!(format, FormatId::Gzip);
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
     let report = guess_and_report_vec(bytes)?;
     report
@@ -1472,7 +1735,26 @@ pub fn guess_vec(bytes: Vec<u8>) -> Result<FormatId> {
         .ok_or_else(|| anyhow::anyhow!("No matching file format detected for byte vector"))
 }
 
-/// Guesses format candidates and generates a detection report directly from an `io/file` `File`.
+/// Guesses format candidates and generates a detection report directly from an
+/// `io/file` `File`.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ctb_formats_detection::{guess_and_report_file, File, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dir = tempfile::tempdir()?;
+/// let path = dir.path().join("archive.tar.gz");
+/// let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+/// std::fs::write(&path, gz_header)?;
+///
+/// let file = File::from_filesystem(&path, None)?;
+/// let report = guess_and_report_file(&file)?;
+/// assert_eq!(report.candidates[0].format_id, Some(FormatId::Gzip));
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_and_report_file(file: &File) -> Result<DetectionReport> {
     match &file.identity.origin {
         FileOrigin::Filesystem { canonical_path, .. } => {
@@ -1492,6 +1774,24 @@ pub fn guess_and_report_file(file: &File) -> Result<DetectionReport> {
 }
 
 /// Guesses the authoritative format directly from an `io/file` `File`.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use ctb_formats_detection::{guess_file, File, FormatId};
+///
+/// # fn main() -> anyhow::Result<()> {
+/// let dir = tempfile::tempdir()?;
+/// let path = dir.path().join("archive.tar.gz");
+/// let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
+/// std::fs::write(&path, gz_header)?;
+///
+/// let file = File::from_filesystem(&path, None)?;
+/// let format = guess_file(&file)?;
+/// assert_eq!(format, FormatId::Gzip);
+/// # Ok(())
+/// # }
+/// ```
 pub fn guess_file(file: &File) -> Result<FormatId> {
     let report = guess_and_report_file(file)?;
     report
