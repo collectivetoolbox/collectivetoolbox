@@ -443,8 +443,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Platform association, operating system compatibility matching, and
-//! environment prior scoring for format detection.
+//! Streamed and buffered payload abstractions for format detection.
 
 #[allow(
     unused_imports,
@@ -453,104 +452,213 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::detection::mime_derivation::FORMAT_CATALOG;
-use crate::format_id::FormatId;
+/// Abstraction for streamed or buffered payload access during format detection.
+pub trait DetectionSource {
+    /// Reads up to `buf.len()` bytes at the specified offset.
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize>;
 
-/// Bonus score awarded when a format candidate matches the target platform OS.
-pub const PLATFORM_PRIOR_BONUS: u32 = 15;
-
-/// Determines whether a format's associated operating system is compatible
-/// with a target operating system context.
-#[must_use]
-pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
-    if candidate_os == target_os {
-        return true;
+    /// Reads up to `max_len` bytes from the beginning of the file (BOF).
+    fn read_bof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let mut buf = vec![0u8; max_len];
+        let n = self.read_at(0, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
     }
-    match (candidate_os, target_os) {
-        (
-            FormatId::MacOs | FormatId::MacOsDarwin,
-            FormatId::MacOs | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
-        ) => true,
-        (
-            FormatId::Unix,
-            FormatId::Unix
-                | FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd
-                | FormatId::MacOs
-                | FormatId::MacOsDarwin,
-        ) => true,
-        (
-            FormatId::Linux
-                | FormatId::GnuLinux
-                | FormatId::FreeBsd
-                | FormatId::OpenBsd
-                | FormatId::NetBsd
-                | FormatId::DragonFlyBsd,
-            FormatId::Unix,
-        ) => true,
-        (
-            FormatId::Linux | FormatId::GnuLinux,
-            FormatId::Linux | FormatId::GnuLinux,
-        ) => true,
-        _ => false,
+
+    /// Reads up to `max_len` bytes backwards from the end of the file (EOF).
+    fn read_eof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        let Some(total) = self.total_len() else {
+            return Ok(Vec::new());
+        };
+        // Reason for fallback: max_len conversion to u64 defaults to 0 on conversion overflow
+        let u_max = u64::try_from(max_len).unwrap_or(0);
+        let start = total.saturating_sub(u_max);
+        // Reason for fallback: remaining byte count conversion to usize defaults to 0 on 32-bit overflow
+        let to_read = usize::try_from(total.saturating_sub(start)).unwrap_or(0);
+        let mut buf = vec![0u8; to_read];
+        let n = self.read_at(start, &mut buf)?;
+        buf.truncate(n);
+        Ok(buf)
+    }
+
+    /// Total logical length of payload in bytes if known.
+    fn total_len(&self) -> Option<u64>;
+}
+
+impl DetectionSource for &[u8] {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= self.len() {
+            return Ok(0);
+        }
+        // Reason for fallback: start offset beyond slice bounds returns empty slice
+        let available = self.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
     }
 }
 
-/// Infers the host platform operating system as an authoritative `FormatId`.
-#[must_use]
-pub fn current_platform_os() -> Option<FormatId> {
-    #[cfg(target_os = "macos")]
-    {
-        Some(FormatId::MacOs)
+impl DetectionSource for Vec<u8> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let mut slice = self.as_slice();
+        slice.read_at(offset, buf)
     }
-    #[cfg(target_os = "windows")]
-    {
-        Some(FormatId::Windows)
-    }
-    #[cfg(target_os = "linux")]
-    {
-        Some(FormatId::GnuLinux)
-    }
-    #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
-    {
-        Some(FormatId::Unix)
-    }
-    #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
-    {
-        None
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.len()).ok()
     }
 }
 
-/// Checks whether a candidate format has recorded OS associations compatible
-/// with the specified target operating system.
-#[must_use]
-pub fn format_matches_platform(format_id: FormatId, target_os: FormatId) -> bool {
-    if let Some(mapping) = FORMAT_CATALOG.lookup_ident(format_id.ident()) {
-        mapping
-            .os_associations
-            .iter()
-            .any(|&cand_os| is_os_match(cand_os, target_os))
-    } else {
-        false
+impl<T: AsRef<[u8]> + Send> DetectionSource for std::io::Cursor<T> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let slice = self.get_ref().as_ref();
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        if start >= slice.len() {
+            return Ok(0);
+        }
+        // Reason for fallback: start offset beyond cursor slice bounds returns empty slice
+        let available = slice.get(start..).unwrap_or(&[]);
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        u64::try_from(self.get_ref().as_ref().len()).ok()
     }
 }
 
-/// Evaluates the platform prior score bonus for a candidate format against a
-/// target operating system, returning `Some(score)` if compatible.
-#[must_use]
-pub fn evaluate_platform_prior(format_id: FormatId, target_os: FormatId) -> Option<u32> {
-    if format_matches_platform(format_id, target_os) {
-        Some(PLATFORM_PRIOR_BONUS)
-    } else {
-        None
+// FIXME: Make sure this detection uses the OS (where file was observed) data from the file struct for OS hints. May also be good to support retrieving the enclosing archive type from the file (in the case of a file that is being detected while it's within an archive) to also use as an OS hint, since archive formats are associated with OSes. (The OS from an archive type is probably a stronger signal than the OS where the archive is observed/unpacked.)
+impl DetectionSource for ctb_io_file::DiskPayloadSource {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        use std::io::{Read, Seek, SeekFrom};
+        self.seek(SeekFrom::Start(offset))?;
+        let mut read_bytes = 0;
+        while read_bytes < buf.len() {
+            let Some(tail) = buf.get_mut(read_bytes..) else {
+                break;
+            };
+            let n = self.read(tail)?;
+            if n == 0 {
+                break;
+            }
+            read_bytes = read_bytes.saturating_add(n);
+        }
+        Ok(read_bytes)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        use ctb_io_file::PayloadSource;
+        Some(self.total_size())
+    }
+}
+
+impl DetectionSource for ctb_io_file::MemoryPayloadSource {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        use std::io::{Read, Seek, SeekFrom};
+        self.seek(SeekFrom::Start(offset))?;
+        let mut read_bytes = 0;
+        while read_bytes < buf.len() {
+            let Some(tail) = buf.get_mut(read_bytes..) else {
+                break;
+            };
+            let n = self.read(tail)?;
+            if n == 0 {
+                break;
+            }
+            read_bytes = read_bytes.saturating_add(n);
+        }
+        Ok(read_bytes)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        use ctb_io_file::PayloadSource;
+        Some(self.total_size())
+    }
+}
+
+impl<R: std::io::Read + Send> DetectionSource for ctb_io_file::ReaderPayloadSource<R> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        self.read_at(offset, buf)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        if self.reached_eof() {
+            u64::try_from(self.buffered_bytes().len()).ok()
+        } else {
+            None
+        }
+    }
+}
+
+impl DetectionSource for dyn ctb_io_file::PayloadSource + '_ {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        use std::io::{Read, Seek, SeekFrom};
+        self.seek(SeekFrom::Start(offset))?;
+        let mut read_bytes = 0;
+        while read_bytes < buf.len() {
+            let Some(tail) = buf.get_mut(read_bytes..) else {
+                break;
+            };
+            let n = self.read(tail)?;
+            if n == 0 {
+                break;
+            }
+            read_bytes = read_bytes.saturating_add(n);
+        }
+        Ok(read_bytes)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(self.total_size())
+    }
+}
+
+impl<S: DetectionSource + ?Sized> DetectionSource for &mut S {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        (**self).read_at(offset, buf)
+    }
+
+    fn read_bof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        (**self).read_bof(max_len)
+    }
+
+    fn read_eof(&mut self, max_len: usize) -> Result<Vec<u8>> {
+        (**self).read_eof(max_len)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        (**self).total_len()
+    }
+}
+
+/// An empty detection source for filename/extension-only detection when no bytes are available.
+pub struct EmptySource;
+
+impl DetectionSource for EmptySource {
+    fn read_at(&mut self, _offset: u64, _buf: &mut [u8]) -> Result<usize> {
+        Ok(0)
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        Some(0)
     }
 }
 
@@ -569,23 +677,37 @@ mod tests {
     use super::*;
 
     #[ctb_test]
-    fn test_os_match_matrix() {
-        assert!(is_os_match(FormatId::Linux, FormatId::Unix));
-        assert!(is_os_match(FormatId::Unix, FormatId::Linux));
-        assert!(is_os_match(FormatId::MacOs, FormatId::MacOsDarwin));
-        assert!(is_os_match(FormatId::WinClassic, FormatId::Windows));
-        assert!(!is_os_match(FormatId::Windows, FormatId::Linux));
+    fn test_slice_detection_source() {
+        let data = b"Hello, World!";
+        let mut slice = data.as_slice();
+        assert_eq!(slice.total_len(), Some(13));
+
+        let bof = slice.read_bof(5).unwrap();
+        assert_eq!(bof, b"Hello");
+
+        let eof = slice.read_eof(6).unwrap();
+        assert_eq!(eof, b"World!");
     }
 
     #[ctb_test]
-    fn test_current_platform_os_is_consistent() {
-        let os = current_platform_os();
-        #[cfg(target_os = "linux")]
-        assert_eq!(os, Some(FormatId::GnuLinux));
-        #[cfg(target_os = "macos")]
-        assert_eq!(os, Some(FormatId::MacOs));
-        #[cfg(target_os = "windows")]
-        assert_eq!(os, Some(FormatId::Windows));
+    fn test_cursor_detection_source() {
+        let data = b"0123456789";
+        let mut cursor = std::io::Cursor::new(data.to_vec());
+        assert_eq!(cursor.total_len(), Some(10));
+
+        let mut buf = [0u8; 4];
+        let n = cursor.read_at(2, &mut buf).unwrap();
+        assert_eq!(n, 4);
+        assert_eq!(&buf, b"2345");
+    }
+
+    #[ctb_test]
+    fn test_empty_source() {
+        let mut empty = EmptySource;
+        assert_eq!(empty.total_len(), Some(0));
+        let mut buf = [0u8; 10];
+        let n = empty.read_at(0, &mut buf).unwrap();
+        assert_eq!(n, 0);
     }
 }
 /*

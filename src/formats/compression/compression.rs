@@ -19,7 +19,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
-use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
+use ctb_formats_detection::{FormatCategory, detect_file_format, detect_format_id};
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 use ctb_formats_utilities::format_info::FormatInfoOptionExt;
@@ -85,8 +85,7 @@ impl CompressionFormat {
         entity: &ctb_io_file::FileEntity,
         payload: &mut dyn ctb_io_file::PayloadSource,
     ) -> Option<Self> {
-        entity
-            .detect_format(payload, Some(FormatCategory::Compression))
+        detect_file_format(entity, payload, Some(FormatCategory::Compression))
             .and_then(Self::from_format_id)
     }
 

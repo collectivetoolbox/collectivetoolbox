@@ -60,7 +60,7 @@ pub use clean_name::{
     MAX_FILENAME_BYTES, clean_file_name, clean_file_name_unix,
     clean_file_name_windows,
 };
-pub use entity::{FileEntity, FileEntityKind, FileEntityType};
+pub use entity::{File, FileEntity, FileEntityKind, FileEntityType};
 pub use filesystem::{
     FS_CACHE_TEST_MUTEX, FilesystemInfo, clear_filesystem_cache, extract_device_id, is_cross_device_error,
     query_filesystem_info, query_filesystem_resolution, query_filesystem_type,

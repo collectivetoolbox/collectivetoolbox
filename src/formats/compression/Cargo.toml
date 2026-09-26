@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-detection = { path = "../detection" }
 ctb-io-file = { path = "../../io/file" }
 
 brotli = "8.0.3"

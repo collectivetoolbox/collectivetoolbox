@@ -50,6 +50,7 @@ pub use ctb_formats_dceutils as dceutils;
 pub use ctb_formats_dcdata as dcdata;
 pub use ctb_formats_dcstring as dcstring;
 pub use ctb_formats_dct_el as dct_el;
+pub use ctb_formats_detection as detection;
 pub use ctb_formats_docker as docker;
 pub use ctb_formats_eite as eite;
 pub use ctb_formats_encoding as encoding;

@@ -2713,6 +2713,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
  "ctb-formats-dct-el",
+ "ctb-formats-detection",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",
@@ -2833,6 +2834,7 @@ dependencies = [
  "brotli",
  "bzip2",
  "clap",
+ "ctb-formats-detection",
  "ctb-formats-utilities",
  "ctb-io-file",
  "ctb-utilities",
@@ -2914,6 +2916,23 @@ dependencies = [
  "ctb-formats-utilities",
  "ctb-utilities",
  "include_dir",
+]
+
+[[package]]
+name = "ctb-formats-detection"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "ctb-formats-dcdata",
+ "ctb-formats-dcstring",
+ "ctb-formats-utilities",
+ "ctb-io-file",
+ "ctb-utilities",
+ "flate2",
+ "regex",
+ "serde",
+ "tempfile",
 ]
 
 [[package]]
@@ -3505,7 +3524,6 @@ dependencies = [
  "ctb-formats-text-extraction",
  "ctb-formats-time",
  "ctb-formats-unicode",
- "ctb-formats-utilities",
  "ctb-io-environment",
  "ctb-utilities",
  "filetime",
@@ -3928,6 +3946,7 @@ dependencies = [
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
  "ctb-formats-dct-el",
+ "ctb-formats-detection",
  "ctb-formats-docker",
  "ctb-formats-dpkg",
  "ctb-formats-eite",

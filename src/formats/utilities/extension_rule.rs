@@ -443,17 +443,14 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! File extension registry and matching utilities for format identification.
-//!
-//! Adapted from extension and multi-layer disambiguation logic in
-//! `old/filedetect/polyfile` and `old/filedetect/binwalk`.
+//! Extension rule definitions and matching utilities.
 
 #[allow(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
-use ctb_utilities::*;
+use crate::utilities::*;
 
 /// Defines whether an extension comparison is case-sensitive or case-insensitive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -559,96 +556,6 @@ impl ExtensionRule {
         } else {
             None
         }
-    }
-}
-
-/// Resolves candidate `FormatId` variants and scores for a given file extension,
-/// taking into account database OS associations and platform priors.
-#[must_use]
-pub fn resolve_extension_candidates(
-    ext: &str,
-    platform: Option<crate::format_id::FormatId>,
-) -> Vec<(crate::format_id::FormatId, u32)> {
-    use crate::format_id::FormatId;
-
-    let trimmed = ext.trim().trim_start_matches('.').to_ascii_lowercase();
-    let mut results = Vec::new();
-
-    for mapping in
-        super::mime_derivation::FORMAT_CATALOG.lookup_extension(&trimmed)
-    {
-        if let Some(fmt) = mapping.format_id {
-            if !results.iter().any(|(f, _)| *f == fmt) {
-                let mut score: u32 = 50;
-                if let Some(target_os) = platform {
-                    if mapping.os_associations.iter().any(|&cand_os| {
-                        crate::detection::is_os_match(cand_os, target_os)
-                    }) {
-                        score = score.saturating_add(20);
-                    }
-                }
-                results.push((fmt, score));
-            }
-        }
-    }
-
-    // Fallback for .m (Objective-C source files mapped to C format)
-    if trimmed == "m" && results.is_empty() {
-        let score: u32 = match platform {
-            Some(FormatId::MacOs | FormatId::MacOsDarwin) => 75,
-            _ => 50,
-        };
-        results.push((FormatId::C, score));
-    }
-
-    results.sort_by(|a, b| b.1.cmp(&a.1));
-    results
-}
-
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
-    use crate::format_id::FormatId;
-
-    #[ctb_test]
-    fn test_resolve_extension_candidates_os_prior() {
-        // .as has both AppleSingle (@os(f405)) and ActionScript (no os)
-        let mac_candidates =
-            resolve_extension_candidates("as", Some(FormatId::MacOs));
-        assert!(!mac_candidates.is_empty());
-        assert_eq!(mac_candidates[0].0, FormatId::AppleSingle);
-        assert_eq!(mac_candidates[0].1, 70);
-
-        let generic_candidates = resolve_extension_candidates("as", None);
-        assert!(!generic_candidates.is_empty());
-        assert_eq!(generic_candidates[0].1, 50);
-    }
-
-    #[ctb_test]
-    fn test_extension_rule_matching() {
-        let sens_z = ExtensionRule::sensitive("Z");
-        assert!(sens_z.matches("file.txt.Z"));
-        assert!(sens_z.matches("Z"));
-        assert!(!sens_z.matches("file.txt.z"));
-
-        let sens_lower_z = ExtensionRule::sensitive("z");
-        assert!(sens_lower_z.matches("file.txt.z"));
-        assert!(!sens_lower_z.matches("file.txt.Z"));
-
-        let insens_gz = ExtensionRule::insensitive("gz");
-        assert!(insens_gz.matches("archive.tar.gz"));
-        assert!(insens_gz.matches("archive.tar.GZ"));
-        assert!(insens_gz.matches("gz"));
     }
 }
 /*

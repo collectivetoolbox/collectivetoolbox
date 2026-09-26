@@ -19,7 +19,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! File format detection, magic number lookup, and extension mapping tools.
 
-pub mod detection;
+pub mod platform;
+pub mod extension_rule;
+pub use extension_rule::{CaseSensitivity, ExtensionRule};
+
+pub mod detection {
+    pub use crate::platform::{current_platform_os, is_os_match};
+    pub mod extension {
+        pub use crate::extension_rule::{CaseSensitivity, ExtensionRule};
+    }
+}
 #[path = "encoding.generated.rs"]
 pub mod encoding;
 #[path = "extension_data.generated.rs"]

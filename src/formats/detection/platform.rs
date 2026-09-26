@@ -443,8 +443,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Core data types, candidate representations, and report structures for the
-//! format detection engine.
+//! Platform association, operating system compatibility matching, and
+//! environment prior scoring for format detection.
 
 #[allow(
     unused_imports,
@@ -453,249 +453,126 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub use ctb_utilities::format_id::FormatCategory;
-pub use ctb_utilities::FormatId;
+use crate::detection::mime_derivation::FORMAT_CATALOG;
+use crate::format_id::FormatId;
 
-/// Calibrated confidence tier for a detection candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ConfidenceTier {
-    /// Conflicting strong evidence detected across multiple formats.
-    Conflicted = 0,
-    /// Weak or ambiguous heuristic evidence.
-    Weak = 1,
-    /// Extension match or generic container without child specialization.
-    Moderate = 2,
-    /// Distinctive magic signature or verified extension + partial magic.
-    Strong = 3,
-    /// Exact magic signature + child specialization (and extension if present).
-    HighestConfidence = 4,
-}
-
-/// Types of resource quotas enforced during detection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum DetectionQuotaType {
-    /// Maximum byte inspection window limit reached.
-    ByteBudget,
-    /// Maximum directory entries inspected during bundle probing.
-    BundleEntries,
-    /// Maximum directory or container nesting depth exceeded.
-    RecursionDepth,
-}
-
-/// Specific evidence item contributing to a candidate's confidence score.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DetectionEvidence {
-    Magic {
-        description: String,
-        score: u32,
-    },
-    Extension {
-        ext: String,
-        is_primary: bool,
-        score: u32,
-    },
-    PlatformPrior {
-        platform: FormatId,
-        score: u32,
-    },
-    CategoryMatch {
-        category: FormatCategory,
-        score: u32,
-    },
-    AppleTypeCode {
-        code: [u8; 4],
-        score: u32,
-    },
-    AttachedStream {
-        stream_kind_name: String,
-        detail: String,
-        score: u32,
-    },
-    SubsumedAncestor {
-        parent_id: Option<FormatId>,
-        parent_mime: Option<String>,
-        score: u32,
-    },
-    /// Character set encoding identified for text content.
-    Encoding {
-        encoding: String,
-        score: u32,
-    },
-    /// Text properties including line endings, long lines, and escape sequences.
-    TextProperties {
-        line_ending: Option<crate::encoding::LineEndingKind>,
-        has_long_lines: bool,
-        has_escapes: bool,
-        score: u32,
-    },
-    /// Special file or filesystem entity.
-    SpecialFile {
-        kind: String,
-        score: u32,
-    },
-    /// Container or specialized structural inspection evidence.
-    ContainerStructure {
-        detail: String,
-        score: u32,
-    },
-    /// Dual-anchored BOF / EOF match evidence (DROID/PRONOM style).
-    DualAnchored {
-        bof_offset: u64,
-        eof_offset: Option<u64>,
-        score: u32,
-    },
-    /// PolyFile byte-range attribution spanning [start, end) offsets.
-    ByteRange {
-        start: u64,
-        end: u64,
-        label: String,
-        score: u32,
-    },
-    /// Polyglot container evidence where multiple independent primary formats co-exist.
-    Polyglot {
-        formats: Vec<String>,
-        detail: String,
-        score: u32,
-    },
-    /// DROID / PRONOM format identification evidence.
-    Pronom {
-        puid: String,
-        score: u32,
-    },
-}
-
-/// Output candidate produced by format detection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DetectionCandidate {
-    /// Authoritative workspace FormatId if a matching Dc exists.
-    pub format_id: Option<FormatId>,
-    /// Global graph Document Character ID if known.
-    pub dc_id: Option<u128>,
-    /// Detected MIME type (from magic rule or format catalog).
-    pub mime: Option<String>,
-    /// Human-readable format description.
-    pub description: String,
-    /// Calibrated confidence tier.
-    pub confidence: ConfidenceTier,
-    /// Quantitative score (0–100 scale).
-    pub score: u32,
-    /// Accumulated evidence trails.
-    pub evidence: Vec<DetectionEvidence>,
-}
-
-/// Contextual hints provided by the caller to guide detection.
-#[derive(Debug, Clone, Default)]
-pub struct DetectionHint {
-    pub filename: Option<String>,
-    pub extension: Option<String>,
-    pub platform: Option<FormatId>,
-    pub expected_category: Option<FormatCategory>,
-    pub expected_categories: Vec<FormatCategory>,
-    pub limit_to_categories: bool,
-    pub apple_type_code: Option<[u8; 4]>,
-    pub stream_candidates: Vec<DetectionCandidate>,
-    pub special_kind: Option<String>,
-}
-
-impl DetectionHint {
-    /// Creates a detection hint strictly limited to a single format category.
-    #[must_use]
-    pub fn for_category(cat: FormatCategory) -> Self {
-        Self {
-            expected_category: Some(cat),
-            expected_categories: vec![cat],
-            limit_to_categories: true,
-            ..Default::default()
-        }
+/// Determines whether a format's associated operating system is compatible
+/// with a target operating system context.
+#[must_use]
+pub fn is_os_match(candidate_os: FormatId, target_os: FormatId) -> bool {
+    if candidate_os == target_os {
+        return true;
     }
-
-    /// Creates a detection hint strictly limited to a list of format categories.
-    #[must_use]
-    pub fn for_categories(cats: &[FormatCategory]) -> Self {
-        Self {
-            expected_category: cats.first().copied(),
-            expected_categories: cats.to_vec(),
-            limit_to_categories: true,
-            ..Default::default()
-        }
-    }
-
-    /// Sets the expected category and limits detection to it.
-    #[must_use]
-    pub fn with_category(mut self, cat: FormatCategory) -> Self {
-        self.expected_category = Some(cat);
-        if !self.expected_categories.contains(&cat) {
-            self.expected_categories.push(cat);
-        }
-        self.limit_to_categories = true;
-        self
-    }
-
-    /// Sets multiple allowed categories and limits detection to them.
-    #[must_use]
-    pub fn with_categories(mut self, cats: &[FormatCategory]) -> Self {
-        self.expected_categories = cats.to_vec();
-        if self.expected_category.is_none() {
-            self.expected_category = cats.first().copied();
-        }
-        self.limit_to_categories = true;
-        self
-    }
-
-    /// Checks if a candidate category matches the hint's category constraints.
-    #[must_use]
-    pub fn allows_category(&self, cat: FormatCategory) -> bool {
-        if !self.limit_to_categories {
-            return true;
-        }
-        if let Some(exp) = self.expected_category {
-            if exp == cat {
-                return true;
-            }
-        }
-        self.expected_categories.contains(&cat)
+    match (candidate_os, target_os) {
+        (
+            FormatId::MacOs | FormatId::MacOsDarwin,
+            FormatId::MacOs | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+            FormatId::Windows | FormatId::WinClassic | FormatId::WinNt,
+        ) => true,
+        (
+            FormatId::Unix,
+            FormatId::Unix
+                | FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd
+                | FormatId::MacOs
+                | FormatId::MacOsDarwin,
+        ) => true,
+        (
+            FormatId::Linux
+                | FormatId::GnuLinux
+                | FormatId::FreeBsd
+                | FormatId::OpenBsd
+                | FormatId::NetBsd
+                | FormatId::DragonFlyBsd,
+            FormatId::Unix,
+        ) => true,
+        (
+            FormatId::Linux | FormatId::GnuLinux,
+            FormatId::Linux | FormatId::GnuLinux,
+        ) => true,
+        _ => false,
     }
 }
 
-/// Detailed outcome of format detection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DetectionOutcome {
-    /// One or more matching format candidates were identified and ranked.
-    Matched(Vec<DetectionCandidate>),
-    /// Insufficient data was available to evaluate candidate signatures
-    /// (e.g., source length is smaller than required minimum magic offset).
-    InsufficientData {
-        available_bytes: u64,
-        required_bytes: u64,
-    },
-    /// A configured quota or resource budget was exhausted during detection.
-    QuotaExhausted {
-        quota_type: DetectionQuotaType,
-        limit: u64,
-    },
-    /// A hardware or OS read error occurred during probing.
-    ReadError {
-        offset: u64,
-        message: String,
-    },
-    /// The source was inspected up to all required bounds and did not
-    /// match any known format signature.
-    TrueNegative {
-        bytes_inspected: u64,
-    },
+/// Infers the host platform operating system as an authoritative `FormatId`.
+#[must_use]
+pub fn current_platform_os() -> Option<FormatId> {
+    #[cfg(target_os = "macos")]
+    {
+        Some(FormatId::MacOs)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        Some(FormatId::Windows)
+    }
+    #[cfg(target_os = "linux")]
+    {
+        Some(FormatId::GnuLinux)
+    }
+    #[cfg(all(unix, not(any(target_os = "macos", target_os = "linux"))))]
+    {
+        Some(FormatId::Unix)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", unix)))]
+    {
+        None
+    }
 }
 
-/// Comprehensive report produced by format detection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DetectionReport {
-    /// High-level detection outcome.
-    pub outcome: DetectionOutcome,
-    /// Evaluated candidates (empty on error, insufficient data, or true negative).
-    pub candidates: Vec<DetectionCandidate>,
-    /// Total bytes read and evaluated across all probes.
-    pub bytes_evaluated: u64,
-    /// Whether any attached stream or fork signals were evaluated.
-    pub stream_signals_used: bool,
+/// Checks whether a candidate format has recorded OS associations compatible
+/// with the specified target operating system.
+#[must_use]
+pub fn format_matches_platform(format_id: FormatId, target_os: FormatId) -> bool {
+    if let Some(mapping) = FORMAT_CATALOG.lookup_ident(format_id.ident()) {
+        mapping
+            .os_associations
+            .iter()
+            .any(|&cand_os| is_os_match(cand_os, target_os))
+    } else {
+        false
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[ctb_test]
+    fn test_os_match_matrix() {
+        assert!(is_os_match(FormatId::Linux, FormatId::Unix));
+        assert!(is_os_match(FormatId::Unix, FormatId::Linux));
+        assert!(is_os_match(FormatId::MacOs, FormatId::MacOsDarwin));
+        assert!(is_os_match(FormatId::WinClassic, FormatId::Windows));
+        assert!(!is_os_match(FormatId::Windows, FormatId::Linux));
+    }
+
+    #[ctb_test]
+    fn test_current_platform_os_is_consistent() {
+        let os = current_platform_os();
+        #[cfg(target_os = "linux")]
+        assert_eq!(os, Some(FormatId::GnuLinux));
+        #[cfg(target_os = "macos")]
+        assert_eq!(os, Some(FormatId::MacOs));
+        #[cfg(target_os = "windows")]
+        assert_eq!(os, Some(FormatId::Windows));
+    }
 }
 /*
 /*
