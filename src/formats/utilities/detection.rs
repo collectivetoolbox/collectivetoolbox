@@ -781,7 +781,7 @@ pub fn guess_format_report(
 
     // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
     let has_strong_binary_magic = candidates.iter().any(|c| {
-        c.confidence >= ConfidenceTier::Strong
+        (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
             && !c.description.contains("text")
             && !c.description.contains("script")
             && !c.description.contains("source")

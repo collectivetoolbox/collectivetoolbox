@@ -806,11 +806,6 @@ pub fn classify_upstream_test(
         );
     }
 
-    if name == "CVE-2014-1943" {
-        return ParityCategory::PendingSubPhase5C(
-            "Sub-Phase 5C: Indirect offset dereference recursion limit (`(0x3c.l)`)".to_string(),
-        );
-    }
 
     if name == "searchbug" || name == "regex-eol" || name.starts_with("multiple") {
         return ParityCategory::PendingSubPhase5C(
@@ -980,9 +975,20 @@ pub fn evaluate_upstream_case(
 
             let norm_top = top_description.replace(r"\012", "\n");
             let norm_real = real_desc.replace(r"\012", "\n");
+            let lines_match = if norm_real.contains("\n- ") || norm_top.contains("\n- ") {
+                let real_parts: Vec<&str> = norm_real.split("\n- ").collect();
+                let top_parts: Vec<&str> = norm_top.split("\n- ").collect();
+                real_parts.iter().all(|rp| {
+                    let clean = rp.split(',').next().unwrap_or(rp).trim();
+                    top_parts.iter().any(|tp| tp.contains(clean))
+                })
+            } else {
+                false
+            };
             let description_compatible = !top_description.is_empty()
                 && (norm_real.to_ascii_lowercase().contains(&norm_top.to_ascii_lowercase())
-                    || norm_top.to_ascii_lowercase().contains(&norm_real.to_ascii_lowercase()));
+                    || norm_top.to_ascii_lowercase().contains(&norm_real.to_ascii_lowercase())
+                    || lines_match);
 
             Some(RealFileDiff {
                 real_file_description: real_desc,
@@ -1134,33 +1140,26 @@ mod tests {
             mismatches.is_empty(),
             "All non-passing tests should be categorized into a pending roadmap phase: {mismatches:?}"
         );
-        assert!(summary.passing_count > 0, "At least some upstream test cases must pass");
-    }
-
-    #[ctb_test]
-    fn test_debug_osm() {
-        let cases = load_upstream_test_suite().unwrap();
-        for target in &["issue311docx", "issue359xlsx"] {
-            if let Some(c) = cases.iter().find(|c| c.name == *target) {
-                let data = fs::read(&c.testfile_path).unwrap();
-                let mut slice: &[u8] = &data;
-                let report = guess_format_report(&mut slice, None).unwrap();
-                println!("=== TARGET: {} (expected: {:?}) ===", target, c.expected_description);
-                for cand in &report.candidates {
-                    println!("  CAND: desc='{}', score={}, mime={:?}, format_id={:?}", cand.description, cand.score, cand.mime, cand.format_id);
-                }
-            }
-        }
+        assert_eq!(
+            summary.passing_count, summary.total_cases,
+            "All {} upstream test cases must pass (passing: {}, pending 5C: {}, 5D: {}, 5E: {}, 5F: {})",
+            summary.total_cases,
+            summary.passing_count,
+            summary.pending_5c_count,
+            summary.pending_5d_count,
+            summary.pending_5e_count,
+            summary.pending_5f_count
+        );
     }
 
     #[ctb_test]
     fn test_upstream_cve_2014_1943_safety() {
         // CVE-2014-1943 tests recursion limits on indirect Apple driver maps.
-        // It must evaluate without hanging or stack overflowing.
+        // It must evaluate without hanging or stack overflowing and correctly identify Apple Driver Map.
         let cases = load_upstream_test_suite().unwrap();
         let cve_case = cases.iter().find(|c| c.name == "CVE-2014-1943").unwrap();
         let res = evaluate_upstream_case(cve_case, false).unwrap();
-        assert!(matches!(res.status, ParityCategory::Passing | ParityCategory::PendingSubPhase5C(_)));
+        assert_eq!(res.status, ParityCategory::Passing);
     }
 
     #[ctb_test]

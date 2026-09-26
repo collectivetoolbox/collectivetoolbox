@@ -1020,12 +1020,19 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
             if let Some(&first_digit) = chars.peek() {
                 if ('0'..='7').contains(&first_digit) {
                     chars.next();
-                    let mut oct_val = first_digit.to_digit(8).unwrap_or(0);
+                    #[allow(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
+                    let mut oct_val = first_digit
+                        .to_digit(8)
+                        .expect("first_digit in '0'..='7' is valid octal");
                     for _ in 0..2 {
                         if let Some(&d) = chars.peek() {
                             if ('0'..='7').contains(&d) {
                                 chars.next();
-                                oct_val = (oct_val << 3) + d.to_digit(8).unwrap_or(0);
+                                #[allow(clippy::expect_used, reason = "character checked in '0'..='7' so to_digit(8) is infallible")]
+                                let d_val = d
+                                    .to_digit(8)
+                                    .expect("digit in '0'..='7' is valid octal");
+                                oct_val = oct_val.saturating_mul(8).saturating_add(d_val);
                             } else {
                                 break;
                             }
@@ -1143,7 +1150,8 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         (t, adj)
     } else if let Some(idx) = base_type.find('-') {
         let (t, a) = base_type.split_at(idx);
-        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map(|v| -v).unwrap_or(0);
+        // Reason for fallback: default to zero offset adjustment if negative adjustment is invalid or missing
+        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map(|v| v.saturating_neg()).unwrap_or(0);
         (t, adj)
     } else {
         (base_type, 0)
@@ -1601,6 +1609,64 @@ mod tests {
                 multiplier: 1,
             }
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_negative_indirect_base_and_multiplier() {
+        let content = r#"
+0	string		TEST		Test Header
+>(-6.l)	string		FOOT		negative base indirect
+>(4.l*4+16)	string		DATA		multiplied indirect
+>(6.I+10)	string		TAG1		id3 big-endian synchsafe
+>(6.i+10)	string		TAG2		id3 little-endian synchsafe
+>0	search/64	!NOTFOUND	negated search
+>0	indirect	x		recursive indirect magic
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let root = &rules[0];
+        assert_eq!(root.children.len(), 6);
+        assert_eq!(
+            root.children[0].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Eof(6)),
+                ind_type: IndirectType::LongLe,
+                adjustment: 0,
+                multiplier: 1,
+            }
+        );
+        assert_eq!(
+            root.children[1].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                adjustment: 16,
+                multiplier: 4,
+            }
+        );
+        assert_eq!(
+            root.children[2].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(6)),
+                ind_type: IndirectType::Id3Be,
+                adjustment: 10,
+                multiplier: 1,
+            }
+        );
+        assert_eq!(
+            root.children[3].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(6)),
+                ind_type: IndirectType::Id3Le,
+                adjustment: 10,
+                multiplier: 1,
+            }
+        );
+        assert!(matches!(
+            root.children[4].test,
+            MagicTest::Search { negated: true, ref pattern, .. } if pattern == b"NOTFOUND"
+        ));
+        assert_eq!(root.children[5].test, MagicTest::Indirect);
     }
 
     #[crate::ctb_test]

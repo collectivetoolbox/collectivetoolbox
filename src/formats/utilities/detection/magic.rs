@@ -1126,12 +1126,10 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let slice = buf.get(..n)?;
                 let text = String::from_utf8_lossy(slice);
                 let search_text = if *line_mode {
-                    match text.find('\n') {
-                        Some(nl) => text.get(..nl).unwrap_or(&text).trim_end_matches('\r'),
-                        None => text.trim_end_matches('\r'),
-                    }
+                    // Reason for fallback: text may be empty or contain only a single line
+                    text.lines().next().unwrap_or("")
                 } else {
-                    &text[..]
+                    text.as_ref()
                 };
                 let re = regex::RegexBuilder::new(pattern)
                     .case_insensitive(*case_insensitive)
@@ -1363,11 +1361,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let year_diff = u32::from((raw >> 9) & 0x7F);
                 let year = 1980u32.saturating_add(year_diff);
                 let months = ["Jan", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                let m_str = if month_num >= 1 && month_num <= 12 {
-                    months[usize::from(month_num)]
-                } else {
-                    "Jan"
-                };
+                // Reason for fallback: invalid MS-DOS month number defaults to Jan matching libmagic output
+                let m_str = months.get(usize::from(month_num)).copied().unwrap_or("Jan");
                 let s = format!("{m_str} {day:02} {year}");
                 match_len = 2;
                 format_val = FormatValue::Str(s);
@@ -1912,6 +1907,62 @@ mod tests {
         let mut slice: &[u8] = &sample;
         let res = evaluate_rule(&rules[0], &mut slice).unwrap();
         assert_eq!(res.description, "Pascal Greeting");
+    }
+
+    #[ctb_test]
+    fn test_evaluate_indirect_multiplier_and_synchsafe() {
+        let content = r#"
+0	string		TEST		Test
+>(4.l*2+2)	string		HIT		\b, multiplier hit
+>(12.I+2)	string		TAG		\b, synchsafe hit
+"#;
+        let rules = parse_magic_content(content);
+        let mut synch_sample = vec![0u8; 150];
+        synch_sample[0..4].copy_from_slice(b"TEST");
+        synch_sample[4..8].copy_from_slice(&10u32.to_le_bytes()); // mult: 10*2+2 = 22
+        synch_sample[22..25].copy_from_slice(b"HIT");
+        // At offset 12: ID3 synchsafe bytes: [0, 0, 0, 0x1A] -> 26. 26 + 2 = 28.
+        synch_sample[12..16].copy_from_slice(&[0x00, 0x00, 0x00, 0x1A]);
+        synch_sample[28..31].copy_from_slice(b"TAG");
+
+        let mut slice: &[u8] = &synch_sample;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        assert!(res.description.contains("multiplier hit"));
+        assert!(res.description.contains("synchsafe hit"));
+    }
+
+    #[ctb_test]
+    fn test_evaluate_search_negation() {
+        let content_pass = r#"
+0	string		TEST		Test
+>0	search/64	!FORBIDDEN	\b, cleanly negated
+"#;
+        let rules_pass = parse_magic_content(content_pass);
+        let sample = b"TEST This is a clean test without forbidden word";
+        let mut slice: &[u8] = sample;
+        let res = evaluate_rule(&rules_pass[0], &mut slice).unwrap();
+        assert!(res.description.contains("cleanly negated"));
+
+        let sample_fail = b"TEST This has FORBIDDEN keyword inside";
+        let mut slice_fail: &[u8] = sample_fail;
+        let res_fail = evaluate_rule(&rules_pass[0], &mut slice_fail).unwrap();
+        assert!(!res_fail.description.contains("cleanly negated"));
+    }
+
+    #[ctb_test]
+    fn test_evaluate_recursive_indirect_magic() {
+        let content = r#"
+0	string		WRAP		Wrapper
+>4	indirect	x		\b:
+"#;
+        let rules = parse_magic_content(content);
+        let mut sample = vec![0u8; 32];
+        sample[0..4].copy_from_slice(b"WRAP");
+        sample[4..8].copy_from_slice(&[0x1F, 0x8B, 0x08, 0x00]);
+        let mut slice: &[u8] = &sample;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        assert!(res.description.contains("Wrapper"));
+        assert!(res.description.contains("gzip compressed data"));
     }
 }
 /*
