@@ -68,7 +68,7 @@ impl KStruct for SwitchBytearray {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -153,7 +153,7 @@ impl KStruct for SwitchBytearray_Opcode {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -216,7 +216,7 @@ impl KStruct for SwitchBytearray_Opcode_Intval {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -258,7 +258,7 @@ impl KStruct for SwitchBytearray_Opcode_Strval {
     type Root = SwitchBytearray;
     type Parent = SwitchBytearray_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

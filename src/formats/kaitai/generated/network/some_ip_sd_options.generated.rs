@@ -25,7 +25,7 @@ impl KStruct for SomeIpSdOptions {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -199,7 +199,7 @@ impl KStruct for SomeIpSdOptions_SdOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -333,7 +333,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigKvPair {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption_SdConfigString;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -383,7 +383,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigString {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption_SdConfigStringsContainer;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -442,7 +442,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigStringsContainer {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption_SdConfigurationOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -494,7 +494,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdConfigurationOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -556,7 +556,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4EndpointOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -632,7 +632,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4MulticastOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -708,7 +708,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv4SdEndpointOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -784,7 +784,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6EndpointOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -860,7 +860,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6MulticastOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -936,7 +936,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdIpv6SdEndpointOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1009,7 +1009,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdLoadBalancingOption {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1064,7 +1064,7 @@ impl KStruct for SomeIpSdOptions_SdOption_SdOptionHeader {
     type Root = SomeIpSdOptions;
     type Parent = SomeIpSdOptions_SdOption;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

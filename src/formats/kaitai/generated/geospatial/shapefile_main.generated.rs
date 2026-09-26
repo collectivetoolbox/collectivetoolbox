@@ -18,7 +18,7 @@ impl KStruct for ShapefileMain {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -192,7 +192,7 @@ impl KStruct for ShapefileMain_BoundingBoxXY {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -245,7 +245,7 @@ impl KStruct for ShapefileMain_BoundingBoxXYZM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_FileHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -310,7 +310,7 @@ impl KStruct for ShapefileMain_BoundsMinMax {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -367,7 +367,7 @@ impl KStruct for ShapefileMain_FileHeader {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -502,7 +502,7 @@ impl KStruct for ShapefileMain_MultiPatch {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -624,7 +624,7 @@ impl KStruct for ShapefileMain_MultiPoint {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -688,7 +688,7 @@ impl KStruct for ShapefileMain_MultiPointM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -771,7 +771,7 @@ impl KStruct for ShapefileMain_MultiPointZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -866,7 +866,7 @@ impl KStruct for ShapefileMain_Point {
     type Root = ShapefileMain;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -916,7 +916,7 @@ impl KStruct for ShapefileMain_PointM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -973,7 +973,7 @@ impl KStruct for ShapefileMain_PointZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1037,7 +1037,7 @@ impl KStruct for ShapefileMain_PolyLine {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1119,7 +1119,7 @@ impl KStruct for ShapefileMain_PolyLineM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1220,7 +1220,7 @@ impl KStruct for ShapefileMain_PolyLineZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1334,7 +1334,7 @@ impl KStruct for ShapefileMain_Polygon {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1416,7 +1416,7 @@ impl KStruct for ShapefileMain_PolygonM {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1517,7 +1517,7 @@ impl KStruct for ShapefileMain_PolygonZ {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_RecordContents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1628,7 +1628,7 @@ impl KStruct for ShapefileMain_Record {
     type Root = ShapefileMain;
     type Parent = ShapefileMain;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1881,7 +1881,7 @@ impl KStruct for ShapefileMain_RecordContents {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1986,7 +1986,7 @@ impl KStruct for ShapefileMain_RecordHeader {
     type Root = ShapefileMain;
     type Parent = ShapefileMain_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

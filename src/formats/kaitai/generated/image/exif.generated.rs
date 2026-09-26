@@ -38,7 +38,7 @@ impl KStruct for Exif {
     type Root = Exif;
     type Parent = Exif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1749,7 +1749,7 @@ impl KStruct for Exif_ExifBody {
     type Root = Exif;
     type Parent = Exif;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1835,7 +1835,7 @@ impl KStruct for Exif_ExifBody_AsciiString {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1909,7 +1909,7 @@ impl KStruct for Exif_ExifBody_Doubles {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1961,7 +1961,7 @@ impl KStruct for Exif_ExifBody_Floats {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2019,7 +2019,7 @@ impl KStruct for Exif_ExifBody_Ifd {
     type Root = Exif;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2321,7 +2321,7 @@ impl KStruct for Exif_ExifBody_IfdField {
     type Root = Exif;
     type Parent = Exif_ExifBody_Ifd;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2622,7 +2622,7 @@ impl KStruct for Exif_ExifBody_Longs {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2677,7 +2677,7 @@ impl KStruct for Exif_ExifBody_Rational {
     type Root = Exif;
     type Parent = Exif_ExifBody_Rationals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2763,7 +2763,7 @@ impl KStruct for Exif_ExifBody_Rationals {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2817,7 +2817,7 @@ impl KStruct for Exif_ExifBody_Sbytes {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2869,7 +2869,7 @@ impl KStruct for Exif_ExifBody_Shorts {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2921,7 +2921,7 @@ impl KStruct for Exif_ExifBody_Slongs {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2976,7 +2976,7 @@ impl KStruct for Exif_ExifBody_Srational {
     type Root = Exif;
     type Parent = Exif_ExifBody_Srationals;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3061,7 +3061,7 @@ impl KStruct for Exif_ExifBody_Srationals {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3115,7 +3115,7 @@ impl KStruct for Exif_ExifBody_Sshorts {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3167,7 +3167,7 @@ impl KStruct for Exif_ExifBody_Utf8String {
     type Root = Exif;
     type Parent = Exif_ExifBody_IfdField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

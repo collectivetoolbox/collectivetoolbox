@@ -35,7 +35,7 @@ impl KStruct for CreativeVoiceFile {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -344,7 +344,7 @@ impl KStruct for CreativeVoiceFile_Block {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -499,7 +499,7 @@ impl KStruct for CreativeVoiceFile_BlockExtraInfo {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -593,7 +593,7 @@ impl KStruct for CreativeVoiceFile_BlockMarker {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -643,7 +643,7 @@ impl KStruct for CreativeVoiceFile_BlockRepeatStart {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -698,7 +698,7 @@ impl KStruct for CreativeVoiceFile_BlockSilence {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -790,7 +790,7 @@ impl KStruct for CreativeVoiceFile_BlockSoundData {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -870,7 +870,7 @@ impl KStruct for CreativeVoiceFile_BlockSoundDataNew {
     type Root = CreativeVoiceFile;
     type Parent = CreativeVoiceFile_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

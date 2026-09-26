@@ -32,7 +32,7 @@ impl KStruct for WindowsShellItems {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -100,7 +100,7 @@ impl KStruct for WindowsShellItems_FileEntryBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -190,7 +190,7 @@ impl KStruct for WindowsShellItems_RootFolderBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -249,7 +249,7 @@ impl KStruct for WindowsShellItems_ShellItem {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -361,7 +361,7 @@ impl KStruct for WindowsShellItems_ShellItemData {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItem;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -435,7 +435,7 @@ impl KStruct for WindowsShellItems_VolumeBody {
     type Root = WindowsShellItems;
     type Parent = WindowsShellItems_ShellItemData;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

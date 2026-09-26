@@ -33,7 +33,7 @@ impl KStruct for WindowsLnkFile {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -237,7 +237,7 @@ impl KStruct for WindowsLnkFile_FileHeader {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -400,7 +400,7 @@ impl KStruct for WindowsLnkFile_LinkFlags {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_FileHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -514,7 +514,7 @@ impl KStruct for WindowsLnkFile_LinkInfo {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -581,7 +581,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_All {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -682,7 +682,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_Header {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_All;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -772,7 +772,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_LinkInfoFlags {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -843,7 +843,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdBody {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_VolumeIdSpec;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -940,7 +940,7 @@ impl KStruct for WindowsLnkFile_LinkInfo_VolumeIdSpec {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile_LinkInfo_All;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1003,7 +1003,7 @@ impl KStruct for WindowsLnkFile_LinkTargetIdList {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1062,7 +1062,7 @@ impl KStruct for WindowsLnkFile_StringData {
     type Root = WindowsLnkFile;
     type Parent = WindowsLnkFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

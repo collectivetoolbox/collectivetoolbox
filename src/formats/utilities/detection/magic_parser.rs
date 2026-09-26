@@ -852,6 +852,7 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
     let (base_part, ind_type, multiplier) = if let Some((base_str, type_str)) = before_adj.split_once('.') {
         let type_clean = type_str.trim();
         let (t_str, mult) = if let Some((ts, ms)) = type_clean.split_once('*') {
+            // Reason for fallback: invalid multiplier expression in indirect magic type defaults to unit multiplier 1
             (ts.trim(), parse_signed_magic_int(ms).unwrap_or(1))
         } else {
             (type_clean, 1)
@@ -1125,15 +1126,18 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
     // Parse type and optional numeric operator (%N, /N) or string flags (/...)
     let (base_type, flags_str, num_op) = if let Some(idx) = type_no_mask.find('%') {
         let (t, op_str) = type_no_mask.split_at(idx);
+        // Reason for fallback: default to modulo 1 if operator operand is missing or invalid
         let operand = op_str.strip_prefix('%').and_then(parse_magic_int).unwrap_or(1);
         (t, None, NumOp::Mod(operand))
     } else if let Some(idx) = type_no_mask.find('/') {
         let (t, rest) = type_no_mask.split_at(idx);
+        // Reason for fallback: strip leading slash from type flags or division string, defaulting to empty string
         let f = rest.strip_prefix('/').unwrap_or("");
         if f.chars().all(|c| c.is_ascii_digit())
             && !f.is_empty()
             && (t.contains("long") || t.contains("short") || t.contains("byte") || t.contains("quad"))
         {
+            // Reason for fallback: default to division by 1 if division operand is invalid
             let operand = parse_magic_int(f).unwrap_or(1);
             (t, None, NumOp::Div(operand))
         } else {
@@ -1146,6 +1150,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
     // Parse type adjustment e.g. leldate+631065600
     let (base_type_no_adj, type_adj) = if let Some(idx) = base_type.find('+') {
         let (t, a) = base_type.split_at(idx);
+        // Reason for fallback: default to zero offset adjustment if positive adjustment is invalid or missing
         let adj = a.strip_prefix('+').and_then(parse_signed_magic_int).unwrap_or(0);
         (t, adj)
     } else if let Some(idx) = base_type.find('-') {
@@ -1379,6 +1384,11 @@ fn parse_op_and_val(raw: &str) -> (RelOp, &str) {
     }
 }
 
+// Reason for fallback: pattern length exceeding u32::MAX saturates to u32::MAX
+fn pattern_len_strength(len: usize) -> u32 {
+    u32::try_from(len).unwrap_or(u32::MAX)
+}
+
 /// Calculates rule strength faithful to upstream apprentice_magic_strength_1.
 pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
     let mult = 10u32;
@@ -1386,15 +1396,15 @@ pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
     match test {
         MagicTest::Default => 0,
         MagicTest::Clear | MagicTest::Name(_) | MagicTest::Use(_) | MagicTest::Indirect => 0,
-        MagicTest::ExactBytes(b) => base.saturating_add(u32::try_from(b.len()).unwrap_or(0).saturating_mul(mult)),
-        MagicTest::MaskedBytes { bytes, .. } => base.saturating_add(u32::try_from(bytes.len()).unwrap_or(0).saturating_mul(mult)),
-        MagicTest::String { pattern, .. } => base.saturating_add(u32::try_from(pattern.len()).unwrap_or(0).saturating_mul(mult)),
+        MagicTest::ExactBytes(b) => base.saturating_add(pattern_len_strength(b.len()).saturating_mul(mult)),
+        MagicTest::MaskedBytes { bytes, .. } => base.saturating_add(pattern_len_strength(bytes.len()).saturating_mul(mult)),
+        MagicTest::String { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
         MagicTest::StringAny(_) => 0,
-        MagicTest::StringRelOp { pattern, .. } => base.saturating_add(u32::try_from(pattern.len()).unwrap_or(0).saturating_mul(mult)),
-        MagicTest::PascalString { pattern, .. } => base.saturating_add(u32::try_from(pattern.len()).unwrap_or(0).saturating_mul(mult)),
+        MagicTest::StringRelOp { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
+        MagicTest::PascalString { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
         MagicTest::PascalStringAny { .. } => 20,
-        MagicTest::Search { pattern, .. } => base.saturating_add(u32::try_from(pattern.len()).unwrap_or(0).saturating_mul(mult)),
-        MagicTest::Regex { pattern, .. } => base.saturating_add(u32::try_from(pattern.len().min(10)).unwrap_or(0).saturating_mul(mult)),
+        MagicTest::Search { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult)),
+        MagicTest::Regex { pattern, .. } => base.saturating_add(pattern_len_strength(pattern.len().min(10)).saturating_mul(mult)),
         MagicTest::U8 { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(10) },
         MagicTest::U16Le { op, .. } | MagicTest::U16Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(20) },
         MagicTest::U32Le { op, .. } | MagicTest::U32Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(40) },
@@ -1425,7 +1435,9 @@ pub fn parse_magic_content_with_templates(
         // Check directives: !:mime, !:ext, !:apple, !:strength
         if let Some(directive) = trimmed.strip_prefix("!:") {
             let parts: Vec<&str> = directive.splitn(2, char::is_whitespace).collect();
+            // Reason for fallback: empty directive parts default to empty string
             let name = parts.first().copied().unwrap_or("");
+            // Reason for fallback: directive without value defaults to empty string
             let val = parts.get(1).copied().unwrap_or("").trim();
 
             if let Some(target) = stack.last_mut() {
@@ -1450,8 +1462,8 @@ pub fn parse_magic_content_with_templates(
                                 }
                             } else if let Some(rest) = clean.strip_prefix('/') {
                                 if let Ok(div) = rest.parse::<u32>() {
-                                    if div != 0 {
-                                        root_target.strength = root_target.strength.checked_div(div).unwrap_or(root_target.strength);
+                                    if let Some(res) = root_target.strength.checked_div(div) {
+                                        root_target.strength = res;
                                     }
                                 }
                             } else if let Ok(s) = clean.parse::<u32>() {

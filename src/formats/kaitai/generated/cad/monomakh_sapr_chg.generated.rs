@@ -31,7 +31,7 @@ impl KStruct for MonomakhSaprChg {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -96,7 +96,7 @@ impl KStruct for MonomakhSaprChg_Block {
     type Root = MonomakhSaprChg;
     type Parent = MonomakhSaprChg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

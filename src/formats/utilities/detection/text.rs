@@ -789,12 +789,10 @@ pub fn looks_utf8(buf: &[u8]) -> Option<(IdentifiedEncoding, bool)> {
     if buf.len() < 2 {
         return None;
     }
-    let with_bom = buf.starts_with(b"\xEF\xBB\xBF");
-    let content = if with_bom {
-        // Reason for fallback: slice indexing with verified prefix length is valid
-        buf.get(3..).unwrap_or(&[])
+    let (with_bom, content) = if let Some(rest) = buf.strip_prefix(b"\xEF\xBB\xBF") {
+        (true, rest)
     } else {
-        buf
+        (false, buf)
     };
 
     if content.is_empty() {
@@ -812,7 +810,11 @@ pub fn looks_utf8(buf: &[u8]) -> Option<(IdentifiedEncoding, bool)> {
         if valid_up_to > 0 && err.error_len().is_none() {
             // Cut-off at end of buffer
             valid_end = valid_up_to;
-            s_res = std::str::from_utf8(content.get(..valid_end).unwrap_or(&[]));
+            if let Some(prefix) = content.get(..valid_end) {
+                s_res = std::str::from_utf8(prefix);
+            } else {
+                return None;
+            }
         } else {
             return None;
         }
@@ -864,12 +866,16 @@ pub fn looks_utf16(buf: &[u8]) -> Option<IdentifiedEncoding> {
             let third = buf.get(2).copied();
             let fourth = buf.get(3).copied();
             if third != Some(0x00) || fourth != Some(0x00) {
-                if validate_utf16_content(buf.get(2..).unwrap_or(&[]), false) {
+                // Reason for fallback: slice beyond 2-byte BOM defaults to empty slice if buffer is truncated
+                let payload = buf.get(2..).unwrap_or(&[]);
+                if validate_utf16_content(payload, false) {
                     return Some(IdentifiedEncoding::Utf16Le { with_bom: true });
                 }
             }
         } else if first == Some(0xFE) && second == Some(0xFF) {
-            if validate_utf16_content(buf.get(2..).unwrap_or(&[]), true) {
+            // Reason for fallback: slice beyond 2-byte BOM defaults to empty slice if buffer is truncated
+            let payload = buf.get(2..).unwrap_or(&[]);
+            if validate_utf16_content(payload, true) {
                 return Some(IdentifiedEncoding::Utf16Be { with_bom: true });
             }
         }
@@ -877,32 +883,36 @@ pub fn looks_utf16(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
     // Without BOM: check whether it looks like UTF-16
     if buf.len() >= 4 {
-        let inspect_len = buf.len().saturating_sub(buf.len().checked_rem(2).unwrap_or(0));
+        let inspect_len = buf.len().saturating_sub(buf.len() & 1);
+        // Reason for fallback: slice calculation beyond buffer bounds falls back to full buffer
         let slice = buf.get(..inspect_len).unwrap_or(buf);
 
         // Check if even or odd bytes are predominantly 0x00 for ASCII ranges
         let mut even_zeros = 0usize;
         let mut odd_zeros = 0usize;
-        let pairs = slice.len().checked_div(2).unwrap_or(0);
+        let chunks = slice.chunks_exact(2);
+        let pairs = chunks.len();
         if pairs >= 2 {
-            for i in 0..pairs {
-                let idx0 = i.saturating_mul(2);
-                let idx1 = idx0.saturating_add(1);
-                if slice.get(idx0) == Some(&0) {
-                    even_zeros = even_zeros.saturating_add(1);
-                }
-                if slice.get(idx1) == Some(&0) {
-                    odd_zeros = odd_zeros.saturating_add(1);
+            for chunk in chunks {
+                if let &[b0, b1] = chunk {
+                    if b0 == 0 {
+                        even_zeros = even_zeros.saturating_add(1);
+                    }
+                    if b1 == 0 {
+                        odd_zeros = odd_zeros.saturating_add(1);
+                    }
                 }
             }
 
             // UTF-16 LE: odd bytes are mostly 0 for ASCII text
+            // Reason for fallback: division by non-zero pairs cannot fail on unsigned integers
             let odd_ratio = odd_zeros.saturating_mul(100).checked_div(pairs).unwrap_or(0);
             if odd_ratio >= 40 && validate_utf16_content(slice, false) {
                 return Some(IdentifiedEncoding::Utf16Le { with_bom: false });
             }
 
             // UTF-16 BE: even bytes are mostly 0 for ASCII text
+            // Reason for fallback: division by non-zero pairs cannot fail on unsigned integers
             let even_ratio = even_zeros.saturating_mul(100).checked_div(pairs).unwrap_or(0);
             if even_ratio >= 40 && validate_utf16_content(slice, true) {
                 return Some(IdentifiedEncoding::Utf16Be { with_bom: false });
@@ -915,19 +925,16 @@ pub fn looks_utf16(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
 /// Helper validating UTF-16 code units, surrogates, and text characters.
 fn validate_utf16_content(buf: &[u8], big_endian: bool) -> bool {
-    let pairs = buf.len().checked_div(2).unwrap_or(0);
-    if pairs == 0 {
+    let chunks = buf.chunks_exact(2);
+    if chunks.len() == 0 {
         return true;
     }
 
     let mut hi_surrogate: Option<u32> = None;
     let mut valid_chars = 0usize;
 
-    for i in 0..pairs {
-        let idx0 = i.saturating_mul(2);
-        let idx1 = idx0.saturating_add(1);
-        let b0 = buf.get(idx0).copied().unwrap_or(0);
-        let b1 = buf.get(idx1).copied().unwrap_or(0);
+    for chunk in chunks {
+        let &[b0, b1] = chunk else { continue };
 
         let uc = if big_endian {
             u32::from(b1) | (u32::from(b0) << 8)
@@ -990,11 +997,15 @@ pub fn looks_utf32(buf: &[u8]) -> Option<IdentifiedEncoding> {
         let b3 = buf.get(3).copied();
 
         if b0 == Some(0xFF) && b1 == Some(0xFE) && b2 == Some(0x00) && b3 == Some(0x00) {
-            if validate_utf32_content(buf.get(4..).unwrap_or(&[]), false) {
+            // Reason for fallback: slice beyond 4-byte BOM defaults to empty slice if buffer is truncated
+            let payload = buf.get(4..).unwrap_or(&[]);
+            if validate_utf32_content(payload, false) {
                 return Some(IdentifiedEncoding::Utf32Le { with_bom: true });
             }
         } else if b0 == Some(0x00) && b1 == Some(0x00) && b2 == Some(0xFE) && b3 == Some(0xFF) {
-            if validate_utf32_content(buf.get(4..).unwrap_or(&[]), true) {
+            // Reason for fallback: slice beyond 4-byte BOM defaults to empty slice if buffer is truncated
+            let payload = buf.get(4..).unwrap_or(&[]);
+            if validate_utf32_content(payload, true) {
                 return Some(IdentifiedEncoding::Utf32Be { with_bom: true });
             }
         }
@@ -1002,34 +1013,34 @@ pub fn looks_utf32(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
     // Without BOM
     if buf.len() >= 8 {
-        let inspect_len = buf.len().saturating_sub(buf.len().checked_rem(4).unwrap_or(0));
+        let inspect_len = buf.len().saturating_sub(buf.len() & 3);
+        // Reason for fallback: slice calculation beyond buffer bounds falls back to full buffer
         let slice = buf.get(..inspect_len).unwrap_or(buf);
-        let quads = slice.len().checked_div(4).unwrap_or(0);
+        let chunks = slice.chunks_exact(4);
+        let quads = chunks.len();
 
         if quads >= 2 {
             let mut le_matches = 0usize;
             let mut be_matches = 0usize;
 
-            for i in 0..quads {
-                let idx = i.saturating_mul(4);
-                let b0 = slice.get(idx).copied().unwrap_or(0);
-                let b1 = slice.get(idx.saturating_add(1)).copied().unwrap_or(0);
-                let b2 = slice.get(idx.saturating_add(2)).copied().unwrap_or(0);
-                let b3 = slice.get(idx.saturating_add(3)).copied().unwrap_or(0);
-
-                if b1 == 0 && b2 == 0 && b3 == 0 && b0 > 0 && b0 < 128 {
-                    le_matches = le_matches.saturating_add(1);
-                }
-                if b0 == 0 && b1 == 0 && b2 == 0 && b3 > 0 && b3 < 128 {
-                    be_matches = be_matches.saturating_add(1);
+            for chunk in chunks {
+                if let &[b0, b1, b2, b3] = chunk {
+                    if b1 == 0 && b2 == 0 && b3 == 0 && b0 > 0 && b0 < 128 {
+                        le_matches = le_matches.saturating_add(1);
+                    }
+                    if b0 == 0 && b1 == 0 && b2 == 0 && b3 > 0 && b3 < 128 {
+                        be_matches = be_matches.saturating_add(1);
+                    }
                 }
             }
 
+            // Reason for fallback: division by non-zero quads cannot fail on unsigned integers
             let le_ratio = le_matches.saturating_mul(100).checked_div(quads).unwrap_or(0);
             if le_ratio >= 40 && validate_utf32_content(slice, false) {
                 return Some(IdentifiedEncoding::Utf32Le { with_bom: false });
             }
 
+            // Reason for fallback: division by non-zero quads cannot fail on unsigned integers
             let be_ratio = be_matches.saturating_mul(100).checked_div(quads).unwrap_or(0);
             if be_ratio >= 40 && validate_utf32_content(slice, true) {
                 return Some(IdentifiedEncoding::Utf32Be { with_bom: false });
@@ -1042,17 +1053,13 @@ pub fn looks_utf32(buf: &[u8]) -> Option<IdentifiedEncoding> {
 
 /// Helper validating UTF-32 code units.
 fn validate_utf32_content(buf: &[u8], big_endian: bool) -> bool {
-    let quads = buf.len().checked_div(4).unwrap_or(0);
-    if quads == 0 {
+    let chunks = buf.chunks_exact(4);
+    if chunks.len() == 0 {
         return true;
     }
 
-    for i in 0..quads {
-        let idx = i.saturating_mul(4);
-        let b0 = buf.get(idx).copied().unwrap_or(0);
-        let b1 = buf.get(idx.saturating_add(1)).copied().unwrap_or(0);
-        let b2 = buf.get(idx.saturating_add(2)).copied().unwrap_or(0);
-        let b3 = buf.get(idx.saturating_add(3)).copied().unwrap_or(0);
+    for chunk in chunks {
+        let &[b0, b1, b2, b3] = chunk else { continue };
 
         let uc = if big_endian {
             u32::from(b3) | (u32::from(b2) << 8) | (u32::from(b1) << 16) | (u32::from(b0) << 24)
@@ -1146,6 +1153,7 @@ pub fn looks_ebcdic(buf: &[u8]) -> Option<IdentifiedEncoding> {
     for &b in buf {
         // Reason for fallback: index within 0..=255 bounds is always valid
         let translated = EBCDIC_TO_ASCII.get(usize::from(b)).copied().unwrap_or(0);
+        // Reason for fallback: out-of-bounds byte class defaults to non-text CHAR_F
         let cls = TEXT_CHARS.get(usize::from(translated)).copied().unwrap_or(CHAR_F);
         if cls != CHAR_T {
             is_ascii = false;
@@ -1239,12 +1247,14 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
             } else {
                 0usize
             };
-            let pairs = trimmed.get(offset..).unwrap_or(&[]).len().checked_div(2).unwrap_or(0);
-            for i in 0..pairs {
-                let idx0 = offset.saturating_add(i.saturating_mul(2));
-                let idx1 = idx0.saturating_add(1);
-                let b0 = trimmed.get(idx0).copied().unwrap_or(0);
-                let b1 = trimmed.get(idx1).copied().unwrap_or(0);
+            let payload = if offset > 0 {
+                // Reason for fallback: slice offset exceeding buffer length defaults to empty slice
+                trimmed.get(offset..).unwrap_or(&[])
+            } else {
+                trimmed
+            };
+            for chunk in payload.chunks_exact(2) {
+                let &[b0, b1] = chunk else { continue };
                 let uc = if big_end {
                     u32::from(b1) | (u32::from(b0) << 8)
                 } else {
@@ -1284,8 +1294,8 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
         }
         _ => {
             // ASCII, UTF-8, ISO-8859, Extended ASCII
-            let content = if trimmed.starts_with(b"\xEF\xBB\xBF") {
-                trimmed.get(3..).unwrap_or(&[])
+            let content = if let Some(stripped) = trimmed.strip_prefix(b"\xEF\xBB\xBF") {
+                stripped
             } else {
                 trimmed
             };
@@ -1525,6 +1535,7 @@ pub fn detect_text_syntax(data: &[u8]) -> Option<TextSyntaxKind> {
 
 /// Extracts interpreter details from a shebang line.
 fn extract_shebang(data: &[u8]) -> Option<TextSyntaxKind> {
+    // Reason for fallback: if no newline delimiter is found, shebang line spans to the end of data
     let line_end = data.iter().position(|&b| b == b'\n' || b == b'\r').unwrap_or(data.len());
     let line_bytes = data.get(..line_end)?;
     let line_str = std::str::from_utf8(line_bytes).ok()?.trim_start_matches("#!").trim();
@@ -1534,10 +1545,12 @@ fn extract_shebang(data: &[u8]) -> Option<TextSyntaxKind> {
 
     let mut parts = line_str.split_whitespace();
     let prog_path = parts.next()?;
+    // Reason for fallback: path without directory separators uses entire string as program name
     let prog_name = prog_path.rsplit(['/', '\\']).next().unwrap_or(prog_path);
 
     let (interp, _args) = if prog_name == "env" {
         // Handled format: #!/usr/bin/env <cmd> [args...]
+        // Reason for fallback: #!/usr/bin/env without following arguments defaults to env interpreter
         let cmd = parts.next().unwrap_or("env");
         (cmd, parts.collect::<Vec<_>>())
     } else {

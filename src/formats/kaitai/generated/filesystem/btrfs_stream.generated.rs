@@ -31,7 +31,7 @@ impl KStruct for BtrfsStream {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -289,7 +289,7 @@ impl KStruct for BtrfsStream_SendCommand {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -367,7 +367,7 @@ impl KStruct for BtrfsStream_SendCommand_String {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -410,7 +410,7 @@ impl KStruct for BtrfsStream_SendCommand_Timespec {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -539,7 +539,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlv {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlvs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -709,7 +709,7 @@ impl KStruct for BtrfsStream_SendCommand_Tlvs {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -760,7 +760,7 @@ impl KStruct for BtrfsStream_SendCommand_Uuid {
     type Root = BtrfsStream;
     type Parent = BtrfsStream_SendCommand_Tlv;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -808,7 +808,7 @@ impl KStruct for BtrfsStream_SendStreamHeader {
     type Root = BtrfsStream;
     type Parent = BtrfsStream;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

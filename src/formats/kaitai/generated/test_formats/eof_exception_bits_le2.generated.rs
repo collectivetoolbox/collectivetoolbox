@@ -69,7 +69,7 @@ impl KStruct for EofExceptionBitsLe2 {
     type Root = EofExceptionBitsLe2;
     type Parent = EofExceptionBitsLe2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

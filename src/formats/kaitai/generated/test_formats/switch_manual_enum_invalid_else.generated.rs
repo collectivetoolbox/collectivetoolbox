@@ -68,7 +68,7 @@ impl KStruct for SwitchManualEnumInvalidElse {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -167,7 +167,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -264,7 +264,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Defval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,7 +312,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Intval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -354,7 +354,7 @@ impl KStruct for SwitchManualEnumInvalidElse_Opcode_Strval {
     type Root = SwitchManualEnumInvalidElse;
     type Parent = SwitchManualEnumInvalidElse_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

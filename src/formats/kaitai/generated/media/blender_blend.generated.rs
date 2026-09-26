@@ -35,7 +35,7 @@ impl KStruct for BlenderBlend {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -200,7 +200,7 @@ impl KStruct for BlenderBlend_Dna1Body {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_FileBlock;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -378,7 +378,7 @@ impl KStruct for BlenderBlend_DnaField {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_DnaStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -459,7 +459,7 @@ impl KStruct for BlenderBlend_DnaStruct {
     type Root = BlenderBlend;
     type Parent = BlenderBlend_Dna1Body;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -573,7 +573,7 @@ impl KStruct for BlenderBlend_FileBlock {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -710,7 +710,7 @@ impl KStruct for BlenderBlend_Header {
     type Root = BlenderBlend;
     type Parent = BlenderBlend;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

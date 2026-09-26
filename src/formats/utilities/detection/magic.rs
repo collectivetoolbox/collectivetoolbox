@@ -499,8 +499,10 @@ fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
 fn apply_num_op_u64(val: u64, op: NumOp) -> u64 {
     match op {
         NumOp::None => val,
-        NumOp::Div(d) => if d != 0 { val.checked_div(d).unwrap_or(val) } else { val },
-        NumOp::Mod(m) => if m != 0 { val.checked_rem(m).unwrap_or(0) } else { 0 },
+        // Reason for fallback: division by zero returns unmodified value
+        NumOp::Div(d) => val.checked_div(d).unwrap_or(val),
+        // Reason for fallback: modulo by zero returns 0
+        NumOp::Mod(m) => val.checked_rem(m).unwrap_or(0),
         NumOp::Mul(m) => val.saturating_mul(m),
         NumOp::Add(a) => val.saturating_add(a),
         NumOp::Sub(s) => val.saturating_sub(s),
@@ -589,6 +591,7 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
 
             while let Some(&w) = chars.get(i) {
                 if let Some(digit) = w.to_digit(10) {
+                    // Reason for fallback: decimal digit 0..=9 conversion to usize defaults to 0
                     let d = usize::try_from(digit).unwrap_or(0);
                     width = width.saturating_mul(10).saturating_add(d);
                     i = i.saturating_add(1);
@@ -603,6 +606,7 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
                 let mut prec: usize = 0;
                 while let Some(&p) = chars.get(i) {
                     if let Some(digit) = p.to_digit(10) {
+                        // Reason for fallback: decimal digit 0..=9 conversion to usize defaults to 0
                         let d = usize::try_from(digit).unwrap_or(0);
                         prec = prec.saturating_mul(10).saturating_add(d);
                         i = i.saturating_add(1);
@@ -621,6 +625,7 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
                 }
             }
 
+            // Reason for fallback: format specifier truncated at end of format string defaults to string specifier 's'
             let spec = chars.get(i).copied().unwrap_or('s');
             i = i.saturating_add(1);
 
@@ -895,16 +900,22 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let max_read = pattern.len().saturating_add(512);
                 let mut buf = vec![0u8; max_read];
                 let n = source.read_at(pos, &mut buf).ok()?;
-                let slice = buf.get(..n).unwrap_or(&[]);
+                let Some(slice) = buf.get(..n) else { return None; };
                 let mut a_idx = 0;
                 let mut b_idx = 0;
                 let mut matched = true;
                 while a_idx < pattern.len() {
-                    let pa = *pattern.get(a_idx).unwrap_or(&0);
+                    let Some(&pa) = pattern.get(a_idx) else {
+                        matched = false;
+                        break;
+                    };
                     if pa.is_ascii_whitespace() {
                         a_idx = a_idx.saturating_add(1);
                         if flags.blank_insensitive {
-                            while b_idx < slice.len() && slice.get(b_idx).copied().unwrap_or(0).is_ascii_whitespace() {
+                            while let Some(&b) = slice.get(b_idx) {
+                                if !b.is_ascii_whitespace() {
+                                    break;
+                                }
                                 b_idx = b_idx.saturating_add(1);
                             }
                         } else {
@@ -912,10 +923,16 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                                 matched = false;
                                 break;
                             }
-                            let pb = *slice.get(b_idx).unwrap_or(&0);
+                            let Some(&pb) = slice.get(b_idx) else {
+                                matched = false;
+                                break;
+                            };
                             if pb.is_ascii_whitespace() {
                                 b_idx = b_idx.saturating_add(1);
-                                while b_idx < slice.len() && slice.get(b_idx).copied().unwrap_or(0).is_ascii_whitespace() {
+                                while let Some(&b) = slice.get(b_idx) {
+                                    if !b.is_ascii_whitespace() {
+                                        break;
+                                    }
                                     b_idx = b_idx.saturating_add(1);
                                 }
                             } else {
@@ -928,7 +945,10 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                             matched = false;
                             break;
                         }
-                        let pb = *slice.get(b_idx).unwrap_or(&0);
+                        let Some(&pb) = slice.get(b_idx) else {
+                            matched = false;
+                            break;
+                        };
                         let eq = if flags.case_insensitive {
                             pa.to_ascii_lowercase() == pb.to_ascii_lowercase()
                         } else {
@@ -945,7 +965,9 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 }
                 if matched {
                     match_len = b_idx;
-                    format_val = FormatValue::Str(String::from_utf8_lossy(slice.get(..b_idx).unwrap_or(&[])).to_string());
+                    // Reason for fallback: slice calculation beyond buffer bounds defaults to empty slice
+                    let matched_bytes = slice.get(..b_idx).unwrap_or(&[]);
+                    format_val = FormatValue::Str(String::from_utf8_lossy(matched_bytes).to_string());
                     true
                 } else {
                     false
@@ -975,8 +997,10 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             if n == 0 {
                 false
             } else {
-                let slice = buf.get(..n).unwrap_or(&[]);
+                let Some(slice) = buf.get(..n) else { return None; };
+                // Reason for fallback: if no null or newline delimiter is found, string spans to end of read slice
                 let len = slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(n);
+                // Reason for fallback: subslice to delimiter defaults to empty slice
                 let mut s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
                 if flags.trim {
                     s = s.trim().to_string();
@@ -1006,12 +1030,16 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 };
                 if ok {
                     let mut full_buf = [0u8; 256];
+                    // Reason for fallback: read error when fetching string format value defaults to 0 bytes read
                     let fn_bytes = source.read_at(pos, &mut full_buf).unwrap_or(0);
+                    // Reason for fallback: slice defaults to empty slice if read length exceeds buffer
                     let full_slice = full_buf.get(..fn_bytes).unwrap_or(&[]);
+                    // Reason for fallback: if no null or newline delimiter is found, string spans full buffer
                     let str_len = full_slice
                         .iter()
                         .position(|&b| b == 0 || b == b'\r' || b == b'\n')
                         .unwrap_or(fn_bytes);
+                    // Reason for fallback: subslice to delimiter defaults to original pattern buffer
                     let mut s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
                     if flags.trim {
                         s = s.trim().to_string();
@@ -1057,9 +1085,14 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 } else {
                     raw_len
                 };
+                let prefix_len_u64 = match length_size {
+                    PascalLengthSize::Byte => 1u64,
+                    PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2u64,
+                    PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4u64,
+                };
                 let read_len = payload_len.min(pattern.len());
                 let mut content_buf = vec![0u8; read_len];
-                let content_pos = pos.saturating_add(u64::try_from(prefix_len).unwrap_or(0));
+                let content_pos = pos.saturating_add(prefix_len_u64);
                 let cn = source.read_at(content_pos, &mut content_buf).ok()?;
                 if cn >= pattern.len() && content_buf == *pattern {
                     match_len = prefix_len.saturating_add(payload_len);
@@ -1105,13 +1138,20 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 } else {
                     raw_len
                 };
+                let prefix_len_u64 = match length_size {
+                    PascalLengthSize::Byte => 1u64,
+                    PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2u64,
+                    PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4u64,
+                };
                 let read_len = payload_len.min(256);
                 let mut content_buf = vec![0u8; read_len];
-                let content_pos = pos.saturating_add(u64::try_from(prefix_len).unwrap_or(0));
+                let content_pos = pos.saturating_add(prefix_len_u64);
                 let cn = source.read_at(content_pos, &mut content_buf).ok()?;
-                let content_slice = content_buf.get(..cn).unwrap_or(&[]);
+                let Some(content_slice) = content_buf.get(..cn) else { return None; };
+                // Reason for fallback: if no null or newline delimiter is found, string spans full slice
                 let str_len = content_slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(cn);
-                let s = String::from_utf8_lossy(content_slice.get(..str_len).unwrap_or(&[])).to_string();
+                // Reason for fallback: subslice to delimiter defaults to full slice
+                let s = String::from_utf8_lossy(content_slice.get(..str_len).unwrap_or(content_slice)).to_string();
                 match_len = prefix_len.saturating_add(str_len);
                 format_val = FormatValue::Str(s);
                 true
@@ -1158,6 +1198,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u8 retains original value
                 val = u8::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
@@ -1177,6 +1218,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u16 retains original value
                 val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
@@ -1196,6 +1238,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u16 retains original value
                 val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
@@ -1215,6 +1258,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u32 retains original value
                 val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
@@ -1234,6 +1278,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u32 retains original value
                 val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
@@ -1292,7 +1337,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if ok {
                     match_len = 4;
                     let raw_i64 = i64::from(i32::from_le_bytes(buf));
-                    let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
+                    let adj = raw_i64.saturating_add(*adjustment);
                     format_val = FormatValue::Date(adj);
                 }
                 ok
@@ -1309,7 +1354,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if ok {
                     match_len = 4;
                     let raw_i64 = i64::from(i32::from_be_bytes(buf));
-                    let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
+                    let adj = raw_i64.saturating_add(*adjustment);
                     format_val = FormatValue::Date(adj);
                 }
                 ok
@@ -1326,7 +1371,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if ok {
                     match_len = 8;
                     let raw_i64 = i64::from_le_bytes(buf);
-                    let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
+                    let adj = raw_i64.saturating_add(*adjustment);
                     format_val = FormatValue::Date(adj);
                 }
                 ok
@@ -1343,7 +1388,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if ok {
                     match_len = 8;
                     let raw_i64 = i64::from_be_bytes(buf);
-                    let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
+                    let adj = raw_i64.saturating_add(*adjustment);
                     format_val = FormatValue::Date(adj);
                 }
                 ok
@@ -1449,6 +1494,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         }
         MagicTest::Use(template_name) => {
             if let Some(tpl) = templates.get(template_name) {
+                // Reason for fallback: template without top-level description defaults to empty description string
                 let mut sub_desc = tpl.description.clone().unwrap_or_default();
                 let mut sub_mime = tpl.mime.clone();
                 let mut sub_ext = tpl.ext.clone();
@@ -1579,6 +1625,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         } else {
             String::new()
         };
+        // Reason for fallback: match_len exceeding u64 limit defaults to 0 offset addition
         let m_end = pos.saturating_add(u64::try_from(match_len).unwrap_or(0));
         let starts_with_bs = desc.starts_with('\u{8}');
         (desc, rule.mime.clone(), rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end)

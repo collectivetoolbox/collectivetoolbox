@@ -24,7 +24,7 @@ impl KStruct for Grub2Font {
     type Root = Grub2Font;
     type Parent = Grub2Font;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -98,7 +98,7 @@ impl KStruct for Grub2Font_AsceSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -140,7 +140,7 @@ impl KStruct for Grub2Font_ChixSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -194,7 +194,7 @@ impl KStruct for Grub2Font_ChixSection_Character {
     type Root = Grub2Font;
     type Parent = Grub2Font_ChixSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -274,7 +274,7 @@ impl KStruct for Grub2Font_ChixSection_CharacterDefinition {
     type Root = Grub2Font;
     type Parent = Grub2Font_ChixSection_Character;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -366,7 +366,7 @@ impl KStruct for Grub2Font_DescSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -408,7 +408,7 @@ impl KStruct for Grub2Font_FamiSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -450,7 +450,7 @@ impl KStruct for Grub2Font_MaxhSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -492,7 +492,7 @@ impl KStruct for Grub2Font_MaxwSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -534,7 +534,7 @@ impl KStruct for Grub2Font_NameSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -576,7 +576,7 @@ impl KStruct for Grub2Font_PtszSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -790,7 +790,7 @@ impl KStruct for Grub2Font_Section {
     type Root = Grub2Font;
     type Parent = Grub2Font;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -934,7 +934,7 @@ impl KStruct for Grub2Font_SlanSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -976,7 +976,7 @@ impl KStruct for Grub2Font_WeigSection {
     type Root = Grub2Font;
     type Parent = Grub2Font_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

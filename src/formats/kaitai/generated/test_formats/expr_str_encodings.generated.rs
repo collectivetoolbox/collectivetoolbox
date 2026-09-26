@@ -93,7 +93,7 @@ impl KStruct for ExprStrEncodings {
     type Root = ExprStrEncodings;
     type Parent = ExprStrEncodings;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

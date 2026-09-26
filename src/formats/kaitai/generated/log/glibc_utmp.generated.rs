@@ -18,7 +18,7 @@ impl KStruct for GlibcUtmp {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -147,7 +147,7 @@ impl KStruct for GlibcUtmp_Record {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,7 +321,7 @@ impl KStruct for GlibcUtmp_Timeval {
     type Root = GlibcUtmp;
     type Parent = GlibcUtmp_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

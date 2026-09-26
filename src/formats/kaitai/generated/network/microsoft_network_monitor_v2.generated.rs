@@ -50,7 +50,7 @@ impl KStruct for MicrosoftNetworkMonitorV2 {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -617,7 +617,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_Frame {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -709,7 +709,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndex {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -766,7 +766,7 @@ impl KStruct for MicrosoftNetworkMonitorV2_FrameIndexEntry {
     type Root = MicrosoftNetworkMonitorV2;
     type Parent = MicrosoftNetworkMonitorV2_FrameIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

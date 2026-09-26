@@ -35,7 +35,7 @@ impl KStruct for GenmidiOp2 {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -110,7 +110,7 @@ impl KStruct for GenmidiOp2_Instrument {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2_InstrumentEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -189,7 +189,7 @@ impl KStruct for GenmidiOp2_InstrumentEntry {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -267,7 +267,7 @@ impl KStruct for GenmidiOp2_OpSettings {
     type Root = GenmidiOp2;
     type Parent = GenmidiOp2_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

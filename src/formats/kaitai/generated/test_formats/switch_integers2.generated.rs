@@ -173,7 +173,7 @@ impl KStruct for SwitchIntegers2 {
     type Root = SwitchIntegers2;
     type Parent = SwitchIntegers2;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

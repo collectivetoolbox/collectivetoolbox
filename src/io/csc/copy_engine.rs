@@ -271,6 +271,7 @@ pub fn execute_copy_pipeline(
                 }
 
                 if !args.dry_run {
+                    // Reason for fallback: absent relative path defaults to current directory "." as destination root
                     let rel_dir = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
                     if let Err(e) = dest_dir.ensure_dir_all(
                         rel_dir,
@@ -324,12 +325,14 @@ pub fn execute_copy_pipeline(
                             continue;
                         }
                     };
+                // Reason for fallback: absent relative path defaults to current directory "." as destination root
+                let dir_rel = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
                 let dir_entries = match ctb_io::file::validate_and_order_directory_entries(
                     raw_dir_entries,
                     &curr_src,
                     &curr_tgt,
                     tgt_root,
-                    dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new(".")),
+                    dir_rel,
                     &apple_read_options,
                     apple_write_mode,
                     apple_single_write_extension,

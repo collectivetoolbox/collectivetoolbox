@@ -701,6 +701,7 @@ pub fn audit_entity_detailed(
                 }
             }
         }
+        // Reason for fallback: absent flags metadata defaults to empty slice for verification comparison
         let mut exp_names: Vec<String> = expected
             .metadata
             .flags

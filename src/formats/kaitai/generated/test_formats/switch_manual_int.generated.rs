@@ -68,7 +68,7 @@ impl KStruct for SwitchManualInt {
     type Root = SwitchManualInt;
     type Parent = SwitchManualInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -152,7 +152,7 @@ impl KStruct for SwitchManualInt_Opcode {
     type Root = SwitchManualInt;
     type Parent = SwitchManualInt;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,7 +210,7 @@ impl KStruct for SwitchManualInt_Opcode_Intval {
     type Root = SwitchManualInt;
     type Parent = SwitchManualInt_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -252,7 +252,7 @@ impl KStruct for SwitchManualInt_Opcode_Strval {
     type Root = SwitchManualInt;
     type Parent = SwitchManualInt_Opcode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

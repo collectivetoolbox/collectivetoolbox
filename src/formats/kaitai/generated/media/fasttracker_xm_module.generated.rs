@@ -33,7 +33,7 @@ impl KStruct for FasttrackerXmModule {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -114,7 +114,7 @@ impl KStruct for FasttrackerXmModule_Flags {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -174,7 +174,7 @@ impl KStruct for FasttrackerXmModule_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -304,7 +304,7 @@ impl KStruct for FasttrackerXmModule_Instrument {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -408,7 +408,7 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -637,7 +637,7 @@ impl KStruct for FasttrackerXmModule_Instrument_ExtraHeader_EnvelopePoint {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_ExtraHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -697,7 +697,7 @@ impl KStruct for FasttrackerXmModule_Instrument_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -779,7 +779,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -892,7 +892,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SampleHeader_LoopType {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument_SampleHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -999,7 +999,7 @@ impl KStruct for FasttrackerXmModule_Instrument_SamplesData {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Instrument;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1058,7 +1058,7 @@ impl KStruct for FasttrackerXmModule_Pattern {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1114,7 +1114,7 @@ impl KStruct for FasttrackerXmModule_Pattern_Header {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Pattern;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1244,7 +1244,7 @@ impl KStruct for FasttrackerXmModule_Pattern_Header_HeaderMain {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Pattern_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1340,7 +1340,7 @@ impl KStruct for FasttrackerXmModule_Preheader {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1448,7 +1448,7 @@ impl KStruct for FasttrackerXmModule_Preheader_Version {
     type Root = FasttrackerXmModule;
     type Parent = FasttrackerXmModule_Preheader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

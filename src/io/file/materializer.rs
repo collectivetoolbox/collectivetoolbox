@@ -252,7 +252,7 @@ pub fn apply_entity_metadata(
     )?;
 
     // 4. File flags
-    let has_flags = meta.flags.as_ref().map_or(false, |f| !f.is_empty());
+    let has_flags = meta.flags.as_ref().is_some_and(|f| !f.is_empty());
     if apply_flags && (has_flags || meta.platform_raw_flags.is_some()) {
         let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
         apply_file_flags(
@@ -918,7 +918,7 @@ pub fn materialize_entity(
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Deferred immutability: apply flags as the very last step!
-            let has_flags = entity.metadata.flags.as_ref().map_or(false, |f| !f.is_empty());
+            let has_flags = entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty());
             if has_flags
                 || entity.metadata.platform_raw_flags.is_some()
             {
@@ -1229,7 +1229,7 @@ fn try_update_existing_regular_entity(
     )?;
 
     // 10. Apply final file flags
-    let has_flags = entity.metadata.flags.as_ref().map_or(false, |f| !f.is_empty());
+    let has_flags = entity.metadata.flags.as_ref().is_some_and(|f| !f.is_empty());
     if has_flags
         || entity.metadata.platform_raw_flags.is_some()
         || !dest_flags.is_empty()

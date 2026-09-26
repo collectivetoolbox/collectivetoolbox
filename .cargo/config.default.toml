@@ -4,7 +4,7 @@
 # rustflags = ["--cfg", "tokio_unstable"]
 # You may need to adjust this depending on your system.
 # This is to avoid overloading the system when building.
-# jobs = 6
+jobs = 4
 rustflags = ["-A", "warnings", "-A", "unfulfilled_lint_expectations"]
 
 [target.i586-unknown-linux-musl]

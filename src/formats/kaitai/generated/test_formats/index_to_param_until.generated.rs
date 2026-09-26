@@ -70,7 +70,7 @@ impl KStruct for IndexToParamUntil {
     type Root = IndexToParamUntil;
     type Parent = IndexToParamUntil;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -142,7 +142,7 @@ impl KStruct for IndexToParamUntil_Block {
     type Root = IndexToParamUntil;
     type Parent = IndexToParamUntil;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

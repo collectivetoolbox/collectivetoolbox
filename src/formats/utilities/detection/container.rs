@@ -546,7 +546,7 @@ pub fn inspect_tar<S: DetectionSource + ?Sized>(
         return Ok(None);
     }
 
-    // Inspect magic at offset 257..265
+    // Reason for fallback: truncated header shorter than 265 bytes defaults to empty magic slice
     let magic_slice = header.get(257..265).unwrap_or(&[]);
     let (desc, mime) = if magic_slice.starts_with(b"ustar  \0")
         || magic_slice.starts_with(b"ustar ")
@@ -1090,20 +1090,25 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
         return Ok(None);
     }
 
-    let class_byte = hdr.get(4).copied().unwrap_or(0);
+    let Some(&class_byte) = hdr.get(4) else {
+        return Ok(None);
+    };
     let (is_64bit, class_str) = match class_byte {
         1 => (false, "32-bit"),
         2 => (true, "64-bit"),
         _ => return Ok(None),
     };
 
-    let data_byte = hdr.get(5).copied().unwrap_or(0);
+    let Some(&data_byte) = hdr.get(5) else {
+        return Ok(None);
+    };
     let (is_le, endian_str) = match data_byte {
         1 => (true, "LSB"),
         2 => (false, "MSB"),
         _ => return Ok(None),
     };
 
+    // Reason for fallback: default to SYSV OSABI (0) if osabi byte is missing or 0
     let osabi_byte = hdr.get(7).copied().unwrap_or(0);
     let osabi_str = match osabi_byte {
         0 => "SYSV",
@@ -1117,10 +1122,13 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
     };
 
     // Read e_type at bytes 16..18
+    let Some(&[t0, t1]) = hdr.get(16..18).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
+        return Ok(None);
+    };
     let e_type = if is_le {
-        u16::from_le_bytes([hdr.get(16).copied().unwrap_or(0), hdr.get(17).copied().unwrap_or(0)])
+        u16::from_le_bytes([t0, t1])
     } else {
-        u16::from_be_bytes([hdr.get(16).copied().unwrap_or(0), hdr.get(17).copied().unwrap_or(0)])
+        u16::from_be_bytes([t0, t1])
     };
 
     let (type_str, mime) = match e_type {
@@ -1132,10 +1140,13 @@ pub fn inspect_elf<S: DetectionSource + ?Sized>(
     };
 
     // Read e_machine at bytes 18..20
+    let Some(&[m0, m1]) = hdr.get(18..20).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
+        return Ok(None);
+    };
     let e_machine = if is_le {
-        u16::from_le_bytes([hdr.get(18).copied().unwrap_or(0), hdr.get(19).copied().unwrap_or(0)])
+        u16::from_le_bytes([m0, m1])
     } else {
-        u16::from_be_bytes([hdr.get(18).copied().unwrap_or(0), hdr.get(19).copied().unwrap_or(0)])
+        u16::from_be_bytes([m0, m1])
     };
 
     let arch_str = match e_machine {
@@ -1185,27 +1196,26 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
         return Ok(None);
     }
 
-    let sector_shift = u16::from_le_bytes([
-        header.get(30).copied().unwrap_or(9),
-        header.get(31).copied().unwrap_or(0),
-    ]);
+    let Some(&[s0, s1]) = header.get(30..32).and_then(|s| <&[u8; 2]>::try_from(s).ok()) else {
+        return Ok(None);
+    };
+    let sector_shift = u16::from_le_bytes([s0, s1]);
     // OLE2 specification requires sector shift of 9 (512 bytes) or 12 (4096 bytes)
     if sector_shift != 9 && sector_shift != 12 {
         return Ok(None);
     }
-    let sector_size: u64 = 1u64.checked_shl(u32::from(sector_shift)).unwrap_or(512);
+    let sector_size: u64 = if sector_shift == 12 { 4096 } else { 512 };
 
-    let first_dir_sector = u32::from_le_bytes([
-        header.get(48).copied().unwrap_or(0),
-        header.get(49).copied().unwrap_or(0),
-        header.get(50).copied().unwrap_or(0),
-        header.get(51).copied().unwrap_or(0),
-    ]);
+    let Some(&[f0, f1, f2, f3]) = header.get(48..52).and_then(|s| <&[u8; 4]>::try_from(s).ok()) else {
+        return Ok(None);
+    };
+    let first_dir_sector = u32::from_le_bytes([f0, f1, f2, f3]);
 
     // Directory sector offset is (first_dir_sector + 1) * sector_size
     let dir_offset = u64::from(first_dir_sector.saturating_add(1)).saturating_mul(sector_size);
 
-    let mut dir_buf = vec![0u8; usize::try_from(sector_size.min(4096)).unwrap_or(512)];
+    let dir_buf_len = if sector_size == 4096 { 4096 } else { 512 };
+    let mut dir_buf = vec![0u8; dir_buf_len];
     let dir_read = source.read_at(dir_offset, &mut dir_buf)?;
     if dir_read < 128 {
         return Ok(None);
@@ -1213,24 +1223,24 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
 
     // Scan directory entries (128 bytes each)
     let mut stream_names = Vec::new();
-    let entry_count = dir_read.checked_div(128).unwrap_or(0);
-    for idx in 0..entry_count {
-        let entry_start = idx.saturating_mul(128);
-        if let Some(entry) = dir_buf.get(entry_start..entry_start.saturating_add(128)) {
-            let name_len = u16::from_le_bytes([
-                entry.get(64).copied().unwrap_or(0),
-                entry.get(65).copied().unwrap_or(0),
-            ]);
+    let valid_read = dir_read.min(dir_buf.len());
+    if let Some(read_slice) = dir_buf.get(..valid_read) {
+        for entry in read_slice.chunks_exact(128) {
+            let name_len = if let Some(&[n0, n1]) = entry.get(64..66).and_then(|s| <&[u8; 2]>::try_from(s).ok()) {
+                u16::from_le_bytes([n0, n1])
+            } else {
+                0
+            };
             let name_bytes_len = usize::from(name_len).min(64);
             if name_bytes_len >= 2 {
-                let name_words: Vec<u16> = entry
-                    .get(..name_bytes_len.saturating_sub(2))
-                    .unwrap_or(&[])
-                    .chunks_exact(2)
-                    .map(|c| u16::from_le_bytes([c.first().copied().unwrap_or(0), c.get(1).copied().unwrap_or(0)]))
-                    .collect();
-                if let Ok(name) = String::from_utf16(&name_words) {
-                    stream_names.push(name);
+                if let Some(name_bytes) = entry.get(..name_bytes_len.saturating_sub(2)) {
+                    let name_words: Vec<u16> = name_bytes
+                        .chunks_exact(2)
+                        .map(|c| if let &[b0, b1] = c { u16::from_le_bytes([b0, b1]) } else { 0 })
+                        .collect();
+                    if let Ok(name) = String::from_utf16(&name_words) {
+                        stream_names.push(name);
+                    }
                 }
             }
         }
@@ -1359,14 +1369,14 @@ pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
     let mut pos: usize = 0;
     while pos.saturating_add(30) <= sample.len() {
         if sample.get(pos..pos.saturating_add(4)) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
-            let flen = u16::from_le_bytes([
-                sample.get(pos.saturating_add(26)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(27)).copied().unwrap_or(0),
-            ]);
-            let elen = u16::from_le_bytes([
-                sample.get(pos.saturating_add(28)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(29)).copied().unwrap_or(0),
-            ]);
+            let Some(&[f0, f1, e0, e1]) = sample
+                .get(pos.saturating_add(26)..pos.saturating_add(30))
+                .and_then(|s| <&[u8; 4]>::try_from(s).ok())
+            else {
+                break;
+            };
+            let flen = u16::from_le_bytes([f0, f1]);
+            let elen = u16::from_le_bytes([e0, e1]);
             let name_start = pos.saturating_add(30);
             let name_end = name_start.saturating_add(usize::from(flen));
             if let Some(name_bytes) = sample.get(name_start..name_end) {

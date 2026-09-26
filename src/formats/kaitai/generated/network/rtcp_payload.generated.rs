@@ -22,7 +22,7 @@ impl KStruct for RtcpPayload {
     type Root = RtcpPayload;
     type Parent = RtcpPayload;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -287,7 +287,7 @@ impl KStruct for RtcpPayload_PacketStatusChunk {
     type Root = RtcpPayload;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -408,7 +408,7 @@ impl KStruct for RtcpPayload_PsfbAfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_PsfbPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -477,7 +477,7 @@ impl KStruct for RtcpPayload_PsfbAfbRembPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_PsfbAfbPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -592,7 +592,7 @@ impl KStruct for RtcpPayload_PsfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -683,7 +683,7 @@ impl KStruct for RtcpPayload_ReportBlock {
     type Root = RtcpPayload;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -780,7 +780,7 @@ impl KStruct for RtcpPayload_RrPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -932,7 +932,7 @@ impl KStruct for RtcpPayload_RtcpPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1087,7 +1087,7 @@ impl KStruct for RtcpPayload_RtpfbPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1180,7 +1180,7 @@ impl KStruct for RtcpPayload_RtpfbTransportFeedbackPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtpfbPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1290,7 +1290,7 @@ impl KStruct for RtcpPayload_SdesPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1352,7 +1352,7 @@ impl KStruct for RtcpPayload_SdesTlv {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_SourceChunk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1416,7 +1416,7 @@ impl KStruct for RtcpPayload_SourceChunk {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_SdesPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1480,7 +1480,7 @@ impl KStruct for RtcpPayload_SrPacket {
     type Root = RtcpPayload;
     type Parent = RtcpPayload_RtcpPacket;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

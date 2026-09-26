@@ -68,7 +68,7 @@ impl KStruct for PharWithoutStub {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -272,7 +272,7 @@ impl KStruct for PharWithoutStub_ApiVersion {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -342,7 +342,7 @@ impl KStruct for PharWithoutStub_FileEntry {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -499,7 +499,7 @@ impl KStruct for PharWithoutStub_FileFlags {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_FileEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -599,7 +599,7 @@ impl KStruct for PharWithoutStub_GlobalFlags {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub_Manifest;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -705,7 +705,7 @@ impl KStruct for PharWithoutStub_Manifest {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -862,7 +862,7 @@ impl KStruct for PharWithoutStub_SerializedValue {
     type Root = PharWithoutStub;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -930,7 +930,7 @@ impl KStruct for PharWithoutStub_Signature {
     type Root = PharWithoutStub;
     type Parent = PharWithoutStub;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

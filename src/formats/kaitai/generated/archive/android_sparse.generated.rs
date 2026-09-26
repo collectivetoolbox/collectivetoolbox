@@ -34,7 +34,7 @@ impl KStruct for AndroidSparse {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -181,7 +181,7 @@ impl KStruct for AndroidSparse_Chunk {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -257,7 +257,7 @@ impl KStruct for AndroidSparse_Chunk_ChunkHeader {
     type Root = AndroidSparse;
     type Parent = AndroidSparse_Chunk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -368,7 +368,7 @@ impl KStruct for AndroidSparse_FileHeader {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -489,7 +489,7 @@ impl KStruct for AndroidSparse_FileHeaderPrefix {
     type Root = AndroidSparse;
     type Parent = AndroidSparse;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -556,7 +556,7 @@ impl KStruct for AndroidSparse_Version {
     type Root = AndroidSparse;
     type Parent = AndroidSparse_FileHeaderPrefix;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

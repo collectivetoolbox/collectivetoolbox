@@ -18,7 +18,7 @@ impl KStruct for ShapefileIndex {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -150,7 +150,7 @@ impl KStruct for ShapefileIndex_BoundingBoxXYZM {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_FileHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -215,7 +215,7 @@ impl KStruct for ShapefileIndex_BoundsMinMax {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex_BoundingBoxXYZM;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -272,7 +272,7 @@ impl KStruct for ShapefileIndex_FileHeader {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -399,7 +399,7 @@ impl KStruct for ShapefileIndex_Record {
     type Root = ShapefileIndex;
     type Parent = ShapefileIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

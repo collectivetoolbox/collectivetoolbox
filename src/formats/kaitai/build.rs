@@ -116,7 +116,9 @@ fn emit_cargo_rerun_directives(manifest_dir: &Path) -> Result<()> {
         if first_comp.as_deref() == Some("generated") {
             continue;
         }
-        if rel_path.starts_with("tests/generated") {
+        if rel_path == Path::new("tests")
+          || rel_path.starts_with("tests/generated")
+        {
             continue;
         }
         if rel_path == Path::new("generated.generated.rs") {
@@ -335,8 +337,10 @@ fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()
             } else if path.is_file() && name.ends_with(".rs") {
                 if name.ends_with(".generated.rs") {
                     let cat_name = name.trim_end_matches(".generated.rs").to_string();
-                    if !categories.contains(&cat_name) && name != "test_formats.generated.rs" {
-                        let _ = fs::remove_file(&path);
+                  if !generated_dir.join(&cat_name).is_dir()
+                    && name != "test_formats.generated.rs"
+                  {
+                    fs::remove_file(&path)?;
                     }
                 } else {
                     // Clean up any legacy non-.generated.rs files

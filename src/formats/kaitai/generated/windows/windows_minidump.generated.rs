@@ -38,7 +38,7 @@ impl KStruct for WindowsMinidump {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -438,7 +438,7 @@ impl KStruct for WindowsMinidump_Dir {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -572,7 +572,7 @@ impl KStruct for WindowsMinidump_ExceptionRecord {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_ExceptionStream;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -674,7 +674,7 @@ impl KStruct for WindowsMinidump_ExceptionStream {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -743,7 +743,7 @@ impl KStruct for WindowsMinidump_LocationDescriptor {
     type Root = WindowsMinidump;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -813,7 +813,7 @@ impl KStruct for WindowsMinidump_Memory64List {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -877,7 +877,7 @@ impl KStruct for WindowsMinidump_MemoryDescriptor {
     type Root = WindowsMinidump;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -931,7 +931,7 @@ impl KStruct for WindowsMinidump_MemoryDescriptor64 {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Memory64List;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -984,7 +984,7 @@ impl KStruct for WindowsMinidump_MemoryList {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1045,7 +1045,7 @@ impl KStruct for WindowsMinidump_MinidumpString {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_SystemInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1112,7 +1112,7 @@ impl KStruct for WindowsMinidump_MiscInfo {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1233,7 +1233,7 @@ impl KStruct for WindowsMinidump_SystemInfo {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1410,7 +1410,7 @@ impl KStruct for WindowsMinidump_Thread {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_ThreadList;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1499,7 +1499,7 @@ impl KStruct for WindowsMinidump_ThreadList {
     type Root = WindowsMinidump;
     type Parent = WindowsMinidump_Dir;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

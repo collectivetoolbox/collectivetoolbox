@@ -35,7 +35,7 @@ impl KStruct for AllegroDat {
     type Root = AllegroDat;
     type Parent = AllegroDat;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -135,7 +135,7 @@ impl KStruct for AllegroDat_DatBitmap {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -244,7 +244,7 @@ impl KStruct for AllegroDat_DatFont {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -312,7 +312,7 @@ impl KStruct for AllegroDat_DatFont16 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -370,7 +370,7 @@ impl KStruct for AllegroDat_DatFont39 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -426,7 +426,7 @@ impl KStruct for AllegroDat_DatFont39_FontChar {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont39_Range;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -488,7 +488,7 @@ impl KStruct for AllegroDat_DatFont39_Range {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont39;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -567,7 +567,7 @@ impl KStruct for AllegroDat_DatFont8 {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatFont;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -687,7 +687,7 @@ impl KStruct for AllegroDat_DatObject {
     type Root = AllegroDat;
     type Parent = AllegroDat;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -804,7 +804,7 @@ impl KStruct for AllegroDat_DatRleSprite {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -878,7 +878,7 @@ impl KStruct for AllegroDat_Property {
     type Root = AllegroDat;
     type Parent = AllegroDat_DatObject;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

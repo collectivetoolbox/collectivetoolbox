@@ -43,7 +43,7 @@ impl KStruct for VmwareVmdk {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -297,7 +297,7 @@ impl KStruct for VmwareVmdk_HeaderFlags {
     type Root = VmwareVmdk;
     type Parent = VmwareVmdk;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

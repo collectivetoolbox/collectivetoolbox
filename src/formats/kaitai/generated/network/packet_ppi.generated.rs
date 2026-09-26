@@ -81,7 +81,7 @@ impl KStruct for PacketPpi {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -559,7 +559,7 @@ impl KStruct for PacketPpi_MacFlags {
     type Root = PacketPpi;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -753,7 +753,7 @@ impl KStruct for PacketPpi_PacketPpiField {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiFields;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -837,7 +837,7 @@ impl KStruct for PacketPpi_PacketPpiFields {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -894,7 +894,7 @@ impl KStruct for PacketPpi_PacketPpiHeader {
     type Root = PacketPpi;
     type Parent = PacketPpi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -966,7 +966,7 @@ impl KStruct for PacketPpi_Radio80211CommonBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1064,7 +1064,7 @@ impl KStruct for PacketPpi_Radio80211nMacExtBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1145,7 +1145,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody {
     type Root = PacketPpi;
     type Parent = PacketPpi_PacketPpiField;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1316,7 +1316,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_ChannelFlags {
     type Root = PacketPpi;
     type Parent = PacketPpi_Radio80211nMacPhyExtBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1439,7 +1439,7 @@ impl KStruct for PacketPpi_Radio80211nMacPhyExtBody_SignalNoise {
     type Root = PacketPpi;
     type Parent = PacketPpi_Radio80211nMacPhyExtBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

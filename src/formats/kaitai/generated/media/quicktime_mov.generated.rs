@@ -21,7 +21,7 @@ impl KStruct for QuicktimeMov {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1055,7 +1055,7 @@ impl KStruct for QuicktimeMov_Atom {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_AtomList;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1215,7 +1215,7 @@ impl KStruct for QuicktimeMov_AtomList {
     type Root = QuicktimeMov;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1270,7 +1270,7 @@ impl KStruct for QuicktimeMov_Fixed16 {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_MvhdBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1323,7 +1323,7 @@ impl KStruct for QuicktimeMov_Fixed32 {
     type Root = QuicktimeMov;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1378,7 +1378,7 @@ impl KStruct for QuicktimeMov_FtypBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1467,7 +1467,7 @@ impl KStruct for QuicktimeMov_MvhdBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1705,7 +1705,7 @@ impl KStruct for QuicktimeMov_TkhdBody {
     type Root = QuicktimeMov;
     type Parent = QuicktimeMov_Atom;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

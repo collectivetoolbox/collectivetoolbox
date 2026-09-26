@@ -36,7 +36,7 @@ impl KStruct for Vp8DuckIvf {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -188,7 +188,7 @@ impl KStruct for Vp8DuckIvf_Block {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf_Blocks;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -251,7 +251,7 @@ impl KStruct for Vp8DuckIvf_Blocks {
     type Root = Vp8DuckIvf;
     type Parent = Vp8DuckIvf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

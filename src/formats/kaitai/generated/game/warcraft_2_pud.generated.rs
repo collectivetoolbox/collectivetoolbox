@@ -32,7 +32,7 @@ impl KStruct for Warcraft2Pud {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -620,7 +620,7 @@ impl KStruct for Warcraft2Pud_Section {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -759,7 +759,7 @@ impl KStruct for Warcraft2Pud_SectionDim {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -811,7 +811,7 @@ impl KStruct for Warcraft2Pud_SectionEra {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -857,7 +857,7 @@ impl KStruct for Warcraft2Pud_SectionOwnr {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -906,7 +906,7 @@ impl KStruct for Warcraft2Pud_SectionStartingResource {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -965,7 +965,7 @@ impl KStruct for Warcraft2Pud_SectionType {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1035,7 +1035,7 @@ impl KStruct for Warcraft2Pud_SectionUnit {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1089,7 +1089,7 @@ impl KStruct for Warcraft2Pud_SectionVer {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_Section;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1137,7 +1137,7 @@ impl KStruct for Warcraft2Pud_Unit {
     type Root = Warcraft2Pud;
     type Parent = Warcraft2Pud_SectionUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
