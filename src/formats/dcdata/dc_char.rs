@@ -27,7 +27,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use ctb_formats_utf_8e_128::encode_utf_8e_128_buf;
-pub use ctb_utilities::dc_char::*;
+pub use ctb_utilities::dc_char::DcChar;
 
 /// Extension methods for [`DcChar`] specific to document formats and serialization.
 pub trait DcCharExt {
@@ -122,6 +122,7 @@ impl DcCharExt for DcChar {
 )]
 mod tests {
     use super::*;
+    use ctb_utilities::dc_char::{FORMAT_REGION_START, SHORT_DC_REGION_START};
 
     #[crate::ctb_test]
     fn test_from_short_and_to_short() {

@@ -26,10 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::payload::{Extent, get_file_extents};
-use crate::file::streams::read_and_hash_streams;
-use crate::file::sys_flags::query_file_flags;
+use crate::entity::{FileEntity, FileEntityKind};
+use crate::payload::{Extent, get_file_extents};
+use crate::streams::read_and_hash_streams;
+use crate::sys_flags::query_file_flags;
 use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use nix::fcntl::{PosixFadviseAdvice, posix_fadvise};
@@ -727,7 +727,7 @@ pub fn audit_entity_detailed(
         if on_disk_streams.is_empty() && !expected.streams.is_empty() {
             let mut check_entity = expected.clone();
             check_entity.streams.clear();
-            let all_apple_opts = crate::file::apple_double::AppleReadOptions {
+            let all_apple_opts = crate::apple_double::AppleReadOptions {
                 read_apple_double_alongside: true,
                 read_apple_double_zip: true,
                 read_apple_double_netatalk: true,
@@ -736,7 +736,7 @@ pub fn audit_entity_detailed(
                 read_apple_single_as: true,
                 read_apple_single_asf: true,
             };
-            if crate::file::apple_double::join_apple_double_or_single(&mut check_entity, path, None, &all_apple_opts).is_ok() {
+            if crate::apple_double::join_apple_double_or_single(&mut check_entity, path, None, &all_apple_opts).is_ok() {
                 on_disk_streams = check_entity.streams;
             }
         }
@@ -858,8 +858,8 @@ pub fn audit_entity_detailed(
                     let mut magic = [0u8; 4];
                     if f.read_exact(&mut magic).is_ok() {
                         let m = u32::from_be_bytes(magic);
-                        m == crate::file::apple_double::APPLESINGLE_MAGIC_BE
-                            || m == crate::file::apple_double::APPLESINGLE_MAGIC_LE
+                        m == crate::apple_double::APPLESINGLE_MAGIC_BE
+                            || m == crate::apple_double::APPLESINGLE_MAGIC_LE
                     } else {
                         false
                     }
@@ -948,7 +948,7 @@ pub fn audit_entity_detailed(
                 let expected_has_holes = is_sparse;
                 if actual_has_holes != expected_has_holes {
                     if expected_has_holes && !actual_has_holes && options.best_effort {
-                        let fs_info = crate::file::filesystem::query_filesystem_info(path, &dest_meta);
+                        let fs_info = crate::filesystem::query_filesystem_info(path, &dest_meta);
                         if fs_info.supports_sparse() != Some(true) {
                             ignored.sparseness = ignored.sparseness.saturating_add(1);
                         } else {
@@ -972,7 +972,7 @@ pub fn audit_entity_detailed(
             } else {
                 Vec::new()
             };
-            let actual_sha256 = crate::file::payload::hash_payload_stream(
+            let actual_sha256 = crate::payload::hash_payload_stream(
                 &mut file,
                 &actual_extents,
                 is_sparse,
@@ -1216,8 +1216,8 @@ mod tests {
                 path_policy: PathTraversalPolicy::StrictSandboxed,
                 copy_specials: false,
                 force_overwrite: true,
-                apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
-                apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
+                apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
+                apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
             };
 
             materializer::materialize_entity(&entity, Some(&mut payload), &dest_dir, &options).unwrap();

@@ -19,4 +19,4 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Document Character (`DcChar`) representation re-exported from `ctb_formats_dcdata`.
 
-pub use ctb_formats_dcdata::dc_char::*;
+pub use ctb_formats_dcdata::dc_char::{DcChar, DcCharExt};

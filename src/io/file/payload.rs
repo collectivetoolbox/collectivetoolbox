@@ -460,7 +460,7 @@ impl PayloadSource for MemoryPayloadSource {
     }
 }
 
-pub use crate::file::block_device_size::query_block_device_size;
+pub use crate::block_device_size::query_block_device_size;
 
 /// Computes the cryptographic SHA-256 digest of a payload source, taking
 /// sparse holes into account when `is_sparse` is true to avoid linear zero reads.

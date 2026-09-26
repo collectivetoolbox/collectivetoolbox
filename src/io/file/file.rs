@@ -26,11 +26,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-// Internal compatibility alias while migrating from module to crate
-pub(crate) mod file {
-    pub use crate::*;
-}
-
 pub mod apple_single_double;
 pub use apple_single_double as apple_double;
 pub mod block_device_size;

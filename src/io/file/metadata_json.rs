@@ -26,15 +26,15 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::identity::FileIdentity;
-use crate::file::materializer::{
+use crate::entity::{FileEntity, FileEntityKind};
+use crate::identity::FileIdentity;
+use crate::materializer::{
     MaterializeOptions, MaterializeReceipt, materialize_entity,
 };
-use crate::file::metadata::FileMetadata;
-use crate::file::payload::MemoryPayloadSource;
-use crate::file::sandboxable_dir::SandboxableDir;
-use crate::file::streams::AttachedStream;
+use crate::metadata::FileMetadata;
+use crate::payload::MemoryPayloadSource;
+use crate::sandboxable_dir::SandboxableDir;
+use crate::streams::AttachedStream;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -53,7 +53,7 @@ pub struct FileMetadataJson {
     pub streams: Vec<AttachedStream>,
     /// Optional file body content (base64-encoded in JSON).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[serde(with = "crate::file::serde_helpers::opt_base64")]
+    #[serde(with = "crate::serde_helpers::opt_base64")]
     pub body: Option<Vec<u8>>,
 }
 

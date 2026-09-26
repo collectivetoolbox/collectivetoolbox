@@ -52,11 +52,9 @@ pub mod types;
 #[path = "precompile/validator.rs"]
 pub mod validator;
 
-pub use hierarchy::*;
-pub use imports::*;
-pub use resolver::*;
-pub use types::*;
-pub use validator::*;
+pub use hierarchy::ClassSpec;
+pub use imports::SpecRegistry;
+pub use resolver::resolve_ksy;
 
 #[cfg(test)]
 #[allow(
@@ -71,6 +69,11 @@ pub use validator::*;
 )]
 mod tests {
     use super::*;
+    use super::hierarchy::*;
+    use super::imports::*;
+    use super::resolver::*;
+    use super::types::*;
+    use super::validator::*;
     use crate::parser::parse_ksy_slice;
     use crate::get_kaitai_data;
 

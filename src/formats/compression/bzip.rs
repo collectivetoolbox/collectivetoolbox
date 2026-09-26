@@ -17,7 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! The original `bzip` 0.21 compression format (Julian Seward, 1996).
+//! New implementation of the original `bzip` 0.21 compression format (Julian
+//! Seward, 1996).
 //!
 //! Specification reference: `data/docs/bzip.md`
 

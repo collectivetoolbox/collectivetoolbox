@@ -60,13 +60,6 @@ pub mod parser;
 pub mod precompile;
 pub mod spec;
 
-pub use codegen::*;
-pub use expr::*;
-pub use kaitai::*;
-pub use parser::*;
-pub use precompile::*;
-pub use spec::*;
-
 static KAITAI_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 /// Retrieves embedded Kaitai asset data by path key.
@@ -99,6 +92,12 @@ pub mod my_custom_fx;
 )]
 mod tests {
     use super::*;
+    use super::codegen::*;
+    use super::parser::*;
+    use super::precompile::validator::validate_ksy_file;
+    use super::precompile::*;
+    use super::spec::*;
+    use kaitai::{BytesReader, KStruct, OptRc, SharedType};
 
     #[crate::ctb_test]
     fn test_parse_apple_single_double() -> anyhow::Result<()> {
