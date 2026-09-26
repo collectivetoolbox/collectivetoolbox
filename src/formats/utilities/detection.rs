@@ -613,10 +613,8 @@ pub fn guess_format_report(
     }
 
     // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
-    for (idx, rule) in COMPILED_MAGIC_RULES.iter().enumerate() {
+    for rule in COMPILED_MAGIC_RULES.iter() {
         if let Some(match_res) = evaluate_rule(rule, source) {
-            println!("MATCHED RULE {idx}: test={:?}, off={:?}, desc={:?}, res_desc={:?}, res_mime={:?}, res_score={}",
-                rule.test, rule.offset, rule.description, match_res.description, match_res.mime, match_res.score);
             if match_res.description.trim().is_empty() && match_res.mime.is_none() {
                 continue;
             }
@@ -782,22 +780,40 @@ pub fn guess_format_report(
     }
 
     // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
-    let has_strong_magic = candidates.iter().any(|c| {
-        (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
+    let has_strong_binary_magic = candidates.iter().any(|c| {
+        c.confidence >= ConfidenceTier::Strong
+            && !c.description.contains("text")
+            && !c.description.contains("script")
+            && !c.description.contains("source")
+            && !c.mime.as_deref().is_some_and(|m| m.starts_with("text/"))
             && c.format_id != Some(FormatId::Ascii)
     });
-    if !has_strong_magic {
+    if !has_strong_binary_magic {
         if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
             let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
             bytes_evaluated = bytes_evaluated.max(inspect_size);
 
             let mut merged = false;
             for existing in &mut candidates {
-                if text_cand.format_id.is_some() && existing.format_id == text_cand.format_id {
+                let matches_fmt = text_cand.format_id.is_some() && existing.format_id == text_cand.format_id;
+                let matches_desc = (!existing.description.is_empty()
+                    && !text_cand.description.is_empty()
+                    && (existing.description.contains(&text_cand.description)
+                        || text_cand.description.contains(&existing.description)))
+                    || (existing.description.contains("Python") && text_cand.description.contains("Python"))
+                    || (existing.description.contains("script") && text_cand.description.contains("script"));
+
+                if matches_fmt || matches_desc {
                     if text_cand.score > existing.score {
                         existing.score = text_cand.score;
                         existing.confidence = text_cand.confidence;
                         existing.description = text_cand.description.clone();
+                    }
+                    if existing.mime.is_none() && text_cand.mime.is_some() {
+                        existing.mime = text_cand.mime.clone();
+                    }
+                    if existing.format_id.is_none() && text_cand.format_id.is_some() {
+                        existing.format_id = text_cand.format_id;
                     }
                     existing.evidence.extend(text_cand.evidence.clone());
                     merged = true;
@@ -1101,7 +1117,6 @@ mod tests {
         let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
         let mut slice: &[u8] = c_data;
         let report = guess_format_report(&mut slice, None).unwrap();
-        println!("TEST CANDIDATES: {:?}", report.candidates);
         assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
         let top = &report.candidates[0];
         assert_eq!(top.format_id, Some(FormatId::C));

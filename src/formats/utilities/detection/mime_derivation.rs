@@ -663,6 +663,9 @@ impl FormatInheritanceGraph {
             {
                 dynamic_parents.push("application/x-ole-storage".to_string());
             }
+            if current == "image/apng" {
+                dynamic_parents.push("image/png".to_string());
+            }
 
             for dp in dynamic_parents {
                 if dp == parent_norm {

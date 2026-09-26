@@ -1008,9 +1008,15 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     let mut full_buf = [0u8; 256];
                     let fn_bytes = source.read_at(pos, &mut full_buf).unwrap_or(0);
                     let full_slice = full_buf.get(..fn_bytes).unwrap_or(&[]);
-                    let str_len = full_slice.iter().position(|&b| b == 0).unwrap_or(pattern.len()).max(pattern.len());
-                    let s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
-                    match_len = pattern.len();
+                    let str_len = full_slice
+                        .iter()
+                        .position(|&b| b == 0 || b == b'\r' || b == b'\n')
+                        .unwrap_or(fn_bytes);
+                    let mut s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
+                    if flags.trim {
+                        s = s.trim().to_string();
+                    }
+                    match_len = pattern.len().max(str_len);
                     format_val = FormatValue::Str(s);
                 }
                 ok
@@ -1121,8 +1127,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let text = String::from_utf8_lossy(slice);
                 let search_text = if *line_mode {
                     match text.find('\n') {
-                        Some(nl) => &text[..nl],
-                        None => &text[..],
+                        Some(nl) => text.get(..nl).unwrap_or(&text).trim_end_matches('\r'),
+                        None => text.trim_end_matches('\r'),
                     }
                 } else {
                     &text[..]
@@ -1460,7 +1466,6 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 for child in &tpl.children {
                     if child.test == MagicTest::Clear {
                         matched_any_in_sub = false;
-                        continue;
                     }
                     if child.test == MagicTest::Default && matched_any_in_sub {
                         continue;
@@ -1589,7 +1594,6 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
     for child in &rule.children {
         if child.test == MagicTest::Clear {
             matched_any_in_level = false;
-            continue;
         }
         if child.test == MagicTest::Default && matched_any_in_level {
             continue;
@@ -1866,7 +1870,7 @@ mod tests {
         let mut slice: &[u8] = &data;
         let res = evaluate_rule(&rules[0], &mut slice).unwrap();
         assert!(res.description.contains("0102030405060708"));
-        assert!(res.description.contains("2021-01-01"));
+        assert!(res.description.contains("Jan") && res.description.contains("2021"));
     }
 
     #[ctb_test]

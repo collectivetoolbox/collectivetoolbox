@@ -60,6 +60,8 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated
 
 - kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
 
+- [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
+
 - Regenerate Guix packaging in CI
 
 Deprecate Dcs duplicating Unicode

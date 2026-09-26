@@ -145,12 +145,14 @@
   - [ ] Identifying files that are valid hexadecimal or other base strings (octet-oriented or just numbers - e.g. detecting that a text file containing only ASCII digits can be considered an Integer as well as a text file and a string).
   - [ ] Identifying other "small" formats, if not already - IP address strings; checksums; UUIDs; math expressions/relations; etc.
   - [ ] Identifying the language of files:
+    - [ ] Scripts: Latin; Cyrillic; etc.
     - [ ] Programming languages:
       - [ ] GitHub Linguist?
       - [ ] Grammars for ctoolbox-supported languages
     - [ ] Natural languages:
       - [ ] Lingua (Rust crate https://crates.io/crates/lingua)
       - [ ] CLD3 (Rust wrapper around C++)?
+    - [ ] Dictionary-based detection for constructed languages and less-common natural languages?
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).

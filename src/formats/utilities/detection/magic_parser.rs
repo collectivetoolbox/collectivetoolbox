@@ -987,7 +987,11 @@ fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize, bool, bool) {
         let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
         if let Ok(num) = digits.parse::<usize>() {
             if num > 0 {
-                max_bytes = num;
+                if line_mode {
+                    max_bytes = num.saturating_mul(8192);
+                } else {
+                    max_bytes = num;
+                }
             }
         }
     }
@@ -1423,26 +1427,28 @@ pub fn parse_magic_content_with_templates(
                     "apple" => target.apple = Some(val.to_string()),
                     "strength" => {
                         let clean = val.replace(' ', "");
-                        if let Some(rest) = clean.strip_prefix('+') {
-                            if let Ok(delta) = rest.parse::<u32>() {
-                                target.strength = target.strength.saturating_add(delta);
-                            }
-                        } else if let Some(rest) = clean.strip_prefix('-') {
-                            if let Ok(delta) = rest.parse::<u32>() {
-                                target.strength = target.strength.saturating_sub(delta);
-                            }
-                        } else if let Some(rest) = clean.strip_prefix('*') {
-                            if let Ok(factor) = rest.parse::<u32>() {
-                                target.strength = target.strength.saturating_mul(factor);
-                            }
-                        } else if let Some(rest) = clean.strip_prefix('/') {
-                            if let Ok(div) = rest.parse::<u32>() {
-                                if div != 0 {
-                                    target.strength = target.strength.checked_div(div).unwrap_or(target.strength);
+                        if let Some(root_target) = stack.first_mut() {
+                            if let Some(rest) = clean.strip_prefix('+') {
+                                if let Ok(delta) = rest.parse::<u32>() {
+                                    root_target.strength = root_target.strength.saturating_add(delta);
                                 }
+                            } else if let Some(rest) = clean.strip_prefix('-') {
+                                if let Ok(delta) = rest.parse::<u32>() {
+                                    root_target.strength = root_target.strength.saturating_sub(delta);
+                                }
+                            } else if let Some(rest) = clean.strip_prefix('*') {
+                                if let Ok(factor) = rest.parse::<u32>() {
+                                    root_target.strength = root_target.strength.saturating_mul(factor);
+                                }
+                            } else if let Some(rest) = clean.strip_prefix('/') {
+                                if let Ok(div) = rest.parse::<u32>() {
+                                    if div != 0 {
+                                        root_target.strength = root_target.strength.checked_div(div).unwrap_or(root_target.strength);
+                                    }
+                                }
+                            } else if let Ok(s) = clean.parse::<u32>() {
+                                root_target.strength = s;
                             }
-                        } else if let Ok(s) = clean.parse::<u32>() {
-                            target.strength = s;
                         }
                     }
                     _ => {}

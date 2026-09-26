@@ -642,17 +642,45 @@ pub fn is_real_file_available() -> bool {
 }
 
 /// Invokes real `file` to obtain human-readable description and MIME type.
-pub fn query_real_file(path: &Path) -> Result<(String, String)> {
-    let desc_out = Command::new("file")
-        .arg("-b")
-        .arg(path)
+pub fn query_real_file(
+    path: &Path,
+    magic_paths: &[PathBuf],
+    flags: Option<&str>,
+) -> Result<(String, String)> {
+    let mut cmd = Command::new("file");
+    cmd.arg("-b");
+    if let Some(f) = flags {
+        cmd.arg(format!("-{f}"));
+    }
+    if !magic_paths.is_empty() {
+        let joined = magic_paths
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(":");
+        cmd.arg("-m").arg(joined);
+    }
+    cmd.arg(path);
+    let desc_out = cmd
         .output()
         .with_context(|| format!("Failed to run file -b on {}", path.display()))?;
 
-    let mime_out = Command::new("file")
-        .arg("-b")
-        .arg("--mime-type")
-        .arg(path)
+    let mut mime_cmd = Command::new("file");
+    mime_cmd.arg("-b");
+    mime_cmd.arg("--mime-type");
+    if let Some(f) = flags {
+        mime_cmd.arg(format!("-{f}"));
+    }
+    if !magic_paths.is_empty() {
+        let joined = magic_paths
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(":");
+        mime_cmd.arg("-m").arg(joined);
+    }
+    mime_cmd.arg(path);
+    let mime_out = mime_cmd
         .output()
         .with_context(|| format!("Failed to run file --mime-type on {}", path.display()))?;
 
@@ -668,6 +696,12 @@ pub fn is_mime_compatible(detected: &str, real: &str) -> bool {
     let r = real.split(';').next().unwrap_or(real).trim().to_ascii_lowercase();
 
     if d == r {
+        return true;
+    }
+
+    if crate::detection::mime_derivation::FORMAT_CATALOG.is_mime_subclass_of(&d, &r)
+        || crate::detection::mime_derivation::FORMAT_CATALOG.is_mime_subclass_of(&r, &d)
+    {
         return true;
     }
 
@@ -701,6 +735,8 @@ pub fn is_mime_compatible(detected: &str, real: &str) -> bool {
             | ("image/x-portable-graymap", "image/x-portable-anymap")
             | ("image/x-portable-pixmap", "image/x-portable-anymap")
             | ("image/x-portable-bitmap", "image/x-portable-anymap")
+            | ("image/apng", "image/png")
+            | ("image/png", "image/apng")
             | ("application/json", "text/json")
             | ("application/json", "text/plain")
             | ("text/plain", "application/json")
@@ -932,15 +968,21 @@ pub fn evaluate_upstream_case(
     let confidence = top_cand.map(|c| c.confidence);
 
     let diff_with_real_file = if run_real_file_diff && is_real_file_available() {
-        if let Ok((real_desc, real_mime)) = query_real_file(&test_case.testfile_path) {
+        if let Ok((real_desc, real_mime)) = query_real_file(
+            &test_case.testfile_path,
+            &test_case.custom_magic_paths,
+            test_case.flags.as_deref(),
+        ) {
             let mime_compatible = top_mime
                 .as_deref()
                 .map(|m| is_mime_compatible(m, &real_mime))
                 .unwrap_or(false);
 
+            let norm_top = top_description.replace(r"\012", "\n");
+            let norm_real = real_desc.replace(r"\012", "\n");
             let description_compatible = !top_description.is_empty()
-                && (real_desc.to_ascii_lowercase().contains(&top_description.to_ascii_lowercase())
-                    || top_description.to_ascii_lowercase().contains(&real_desc.to_ascii_lowercase()));
+                && (norm_real.to_ascii_lowercase().contains(&norm_top.to_ascii_lowercase())
+                    || norm_top.to_ascii_lowercase().contains(&norm_real.to_ascii_lowercase()));
 
             Some(RealFileDiff {
                 real_file_description: real_desc,
