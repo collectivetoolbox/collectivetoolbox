@@ -467,6 +467,12 @@ pub enum Offset {
         ind_type: IndirectType,
         adjustment: i64,
     },
+    /// Relative indirect offset pointer dereference: `&(<offset>.<type>+<adjustment>)`.
+    RelativeIndirect {
+        base: Box<Offset>,
+        ind_type: IndirectType,
+        adjustment: i64,
+    },
     /// Search within window starting at given offset.
     Search {
         start: u64,
@@ -576,24 +582,44 @@ pub enum MagicTest {
     Date32Le {
         value: u32,
         op: RelOp,
+        adjustment: i64,
     },
     Date32Be {
         value: u32,
         op: RelOp,
+        adjustment: i64,
     },
     Date64Le {
         value: u64,
         op: RelOp,
+        adjustment: i64,
     },
     Date64Be {
         value: u64,
         op: RelOp,
+        adjustment: i64,
     },
     Search {
         pattern: Vec<u8>,
         max_bytes: usize,
         flags: StringFlags,
     },
+    StringAny(StringFlags),
+    StringRelOp {
+        pattern: Vec<u8>,
+        op: RelOp,
+        flags: StringFlags,
+    },
+    PascalStringAny {
+        length_size: PascalLengthSize,
+        length_includes_itself: bool,
+    },
+    MsDosDate,
+    MsDosTime,
+    Guid([u8; 16]),
+    OffsetVal,
+    Default,
+    Clear,
     Use(String),
     Name(String),
 }
@@ -814,6 +840,9 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
     let base = if let Some(stripped) = base_part.strip_prefix('&') {
         let rel_val = parse_signed_magic_int(stripped)?;
         Offset::Relative(rel_val)
+    } else if let Some(stripped) = base_part.strip_prefix('-') {
+        let off = parse_magic_int(stripped)?;
+        Offset::Eof(off)
     } else {
         let abs_val = parse_magic_int(base_part)?;
         Offset::Bof(abs_val)
@@ -829,7 +858,15 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
 /// Parses offset string into an `Offset` enum variant.
 pub fn parse_offset(offset_str: &str) -> Option<Offset> {
     let trimmed = offset_str.trim();
-    if trimmed.starts_with('(') && trimmed.ends_with(')') {
+    if trimmed.starts_with("&(") && trimmed.ends_with(')') {
+        let inner = trimmed.strip_prefix('&')?;
+        let ind = parse_indirect_offset(inner)?;
+        if let Offset::Indirect { base, ind_type, adjustment } = ind {
+            Some(Offset::RelativeIndirect { base, ind_type, adjustment })
+        } else {
+            None
+        }
+    } else if trimmed.starts_with('(') && trimmed.ends_with(')') {
         parse_indirect_offset(trimmed)
     } else if let Some(stripped) = trimmed.strip_prefix('&') {
         let rel_val = parse_signed_magic_int(stripped)?;
@@ -841,6 +878,30 @@ pub fn parse_offset(offset_str: &str) -> Option<Offset> {
         let off = parse_magic_int(trimmed)?;
         Some(Offset::Bof(off))
     }
+}
+
+/// Parses a 16-byte mixed-endian GUID string e.g. `C1C41626-504C-4092-ACA9-41F936934328`.
+fn parse_guid(s: &str) -> Option<[u8; 16]> {
+    let clean = s.trim().replace('-', "");
+    if clean.len() != 32 {
+        return None;
+    }
+    let d1 = u32::from_str_radix(clean.get(0..8)?, 16).ok()?.to_le_bytes();
+    let d2 = u16::from_str_radix(clean.get(8..12)?, 16).ok()?.to_le_bytes();
+    let d3 = u16::from_str_radix(clean.get(12..16)?, 16).ok()?.to_le_bytes();
+    let mut out = [0u8; 16];
+    out[0..4].copy_from_slice(&d1);
+    out[4..6].copy_from_slice(&d2);
+    out[6..8].copy_from_slice(&d3);
+    for (i, chunk) in clean.get(16..32)?.as_bytes().chunks_exact(2).enumerate() {
+        let chunk_str = std::str::from_utf8(chunk).ok()?;
+        let b = u8::from_str_radix(chunk_str, 16).ok()?;
+        let idx = 8usize.saturating_add(i);
+        if let Some(slot) = out.get_mut(idx) {
+            *slot = b;
+        }
+    }
+    Some(out)
 }
 
 fn parse_string_flags(flags_str: Option<&str>) -> StringFlags {

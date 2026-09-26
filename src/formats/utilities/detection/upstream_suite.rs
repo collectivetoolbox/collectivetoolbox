@@ -979,6 +979,14 @@ mod tests {
             mismatches.is_empty(),
             "All non-passing tests should be categorized into a pending roadmap phase: {mismatches:?}"
         );
+        for res in &summary.results {
+            if res.status != ParityCategory::Passing {
+                println!(
+                    "PENDING: name={}, status={:?}\n  expected: {:?}\n  got desc: {:?}, mime: {:?}, format_id: {:?}",
+                    res.name, res.status, res.expected, res.top_description, res.top_mime, res.top_format_id
+                );
+            }
+        }
         assert!(summary.passing_count > 0, "At least some upstream test cases must pass");
     }
 
