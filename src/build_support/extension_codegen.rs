@@ -173,7 +173,7 @@ pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
     out.push_str("pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {\n");
     out.push_str("    let mut matches = Vec::new();\n");
     out.push_str("    for entry in EXTENSION_REGISTRY {\n");
-    out.push_str("        if entry.rule.matches(ext) && !matches.contains(&entry.format_id) {\n");
+    out.push_str("        if entry.rule.matches_extension(ext) && !matches.contains(&entry.format_id) {\n");
     out.push_str("            matches.push(entry.format_id);\n");
     out.push_str("        }\n");
     out.push_str("    }\n");
