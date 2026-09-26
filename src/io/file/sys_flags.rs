@@ -122,7 +122,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::metadata::{FileFlag, FlagSettability, OsFamily, PlatformRawFlags};
+use crate::metadata::{FileFlag, FlagSettability, OsFamily, PlatformRawFlags};
 use std::path::Path;
 
 /// Mapping between a semantic [`FileFlag`], a platform-specific bitmask, and

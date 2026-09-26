@@ -30,9 +30,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::apple_double::AppleReadOptions;
-use crate::file::entity::FileEntity;
-use crate::file::identity::InodeKey;
+use crate::apple_double::AppleReadOptions;
+use crate::entity::FileEntity;
+use crate::identity::InodeKey;
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::fs::Metadata;
@@ -881,7 +881,7 @@ fn should_skip_apple_companion(
             if !base_name.is_empty() {
                 let sibling = dir_path.join(base_name);
                 if sibling.symlink_metadata().is_ok()
-                    && crate::file::apple_double::is_apple_double_file(entry_path)
+                    && crate::apple_double::is_apple_double_file(entry_path)
                 {
                     return true;
                 }
@@ -898,11 +898,11 @@ fn should_skip_apple_companion(
             if parent_name == ".AppleDouble" {
                 if let Some(grandparent) = dir_path.parent() {
                     if name_str == ".Parent" {
-                        if crate::file::apple_double::is_apple_double_file(entry_path) {
+                        if crate::apple_double::is_apple_double_file(entry_path) {
                             return true;
                         }
                     } else if grandparent.join(name_str).symlink_metadata().is_ok()
-                        && crate::file::apple_double::is_apple_double_file(entry_path)
+                        && crate::apple_double::is_apple_double_file(entry_path)
                     {
                         return true;
                     }
@@ -922,7 +922,7 @@ fn should_skip_apple_companion(
                     if let Some((base_dir, rel_path)) = split_macosx_path(dir_path) {
                         let target = base_dir.join(rel_path).join(base_name);
                         if target.symlink_metadata().is_ok()
-                            && crate::file::apple_double::is_apple_double_file(entry_path)
+                            && crate::apple_double::is_apple_double_file(entry_path)
                         {
                             return true;
                         }
@@ -946,10 +946,10 @@ fn is_netatalk_companion_dir(dir_path: &Path, dot_appledouble: &Path) -> bool {
         let child_str = child_name.to_string_lossy();
         let child_path = entry.path();
         let is_companion = if child_str == ".Parent" {
-            crate::file::apple_double::is_apple_double_file(&child_path)
+            crate::apple_double::is_apple_double_file(&child_path)
         } else {
             dir_path.join(&child_name).symlink_metadata().is_ok()
-                && crate::file::apple_double::is_apple_double_file(&child_path)
+                && crate::apple_double::is_apple_double_file(&child_path)
         };
         if !is_companion {
             return false;
@@ -1007,7 +1007,7 @@ fn is_zip_companion_dir(base_dir: &Path, macosx_dir: &Path) -> bool {
                     let rel_parent = rel.parent().unwrap_or_else(|| Path::new(""));
                     let target = base_dir.join(rel_parent).join(base_name);
                     if target.symlink_metadata().is_err()
-                        || !crate::file::apple_double::is_apple_double_file(&path)
+                        || !crate::apple_double::is_apple_double_file(&path)
                     {
                         return false;
                     }
@@ -1162,7 +1162,7 @@ mod tests {
 
         assert_eq!(entity.identity.relative_path, PathBuf::from("sample.txt"));
         assert!(entity.is_regular());
-        if let crate::file::entity::FileEntityKind::Regular { size, .. } = entity.kind {
+        if let crate::entity::FileEntityKind::Regular { size, .. } = entity.kind {
             assert_eq!(size, 15);
         } else {
             panic!("expected regular file entity");

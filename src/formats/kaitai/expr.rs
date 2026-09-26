@@ -48,8 +48,8 @@ pub mod lexer;
 #[path = "expr/parser.rs"]
 pub mod parser;
 
-pub use ast::*;
-pub use parser::*;
+pub use ast::{BoolOp, CmpOp, Expr, Operator, UnaryOp};
+pub use parser::parse_expr;
 
 #[cfg(test)]
 #[allow(
@@ -64,6 +64,8 @@ pub use parser::*;
 )]
 mod tests {
     use super::*;
+    use super::ast::*;
+    use super::parser::*;
 
     #[crate::ctb_test]
     fn test_parse_arithmetic() -> anyhow::Result<()> {

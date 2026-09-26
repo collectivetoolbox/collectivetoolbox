@@ -486,7 +486,7 @@ impl FileFlag {
     /// operating system.
     #[must_use]
     pub const fn settability(&self, os: OsFamily) -> FlagSettability {
-        crate::file::sys_flags::flag_settability(*self, os)
+        crate::sys_flags::flag_settability(*self, os)
     }
 
     /// Returns the settability status of this flag on the specified operating

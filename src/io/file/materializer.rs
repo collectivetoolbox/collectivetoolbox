@@ -26,21 +26,21 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::apple_double::{
+use crate::apple_double::{
     AppleFormat, AppleWriteMode, create_apple_archive_from_entity,
     write_apple_double_companion, write_apple_single_double,
 };
-use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::identity::resolve_relative_path_for_os;
-use crate::file::metadata::FileMetadata;
-use crate::file::path_policy::{
+use crate::entity::{FileEntity, FileEntityKind};
+use crate::identity::resolve_relative_path_for_os;
+use crate::metadata::FileMetadata;
+use crate::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, resolve_and_validate_path,
 };
-use crate::file::payload::{Extent, PayloadSource};
-use crate::file::sandboxable_dir::{DirHandleRef, SandboxableDir};
-use crate::file::streams::{read_and_hash_streams, remove_stream, write_streams};
-use crate::file::sys_flags::{apply_file_flags, query_file_flags};
-use crate::file::verifier::{EntityAuditOptions, audit_entity_detailed};
+use crate::payload::{Extent, PayloadSource};
+use crate::sandboxable_dir::{DirHandleRef, SandboxableDir};
+use crate::streams::{read_and_hash_streams, remove_stream, write_streams};
+use crate::sys_flags::{apply_file_flags, query_file_flags};
+use crate::verifier::{EntityAuditOptions, audit_entity_detailed};
 use ctb_formats_checksum::Sha256Stream;
 use filetime::{FileTime, set_file_times, set_symlink_file_times};
 #[cfg(unix)]
@@ -79,7 +79,7 @@ pub struct MaterializeOptions {
     /// Policy for writing AppleDouble, AppleSingle, or native streams.
     pub apple_write_mode: AppleWriteMode,
     /// Extension style when writing AppleSingle archives.
-    pub apple_single_write_extension: crate::file::apple_double::AppleSingleExtension,
+    pub apple_single_write_extension: crate::apple_double::AppleSingleExtension,
 }
 
 impl Default for MaterializeOptions {
@@ -92,7 +92,7 @@ impl Default for MaterializeOptions {
             copy_specials: false,
             force_overwrite: false,
             apple_write_mode: AppleWriteMode::NativeOnly,
-            apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
+            apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
         }
     }
 }
@@ -631,22 +631,22 @@ pub fn materialize_entity(
                 sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
                 let actual_file_name = match options.apple_single_write_extension {
-                    crate::file::apple_double::AppleSingleExtension::WithoutExtension => {
+                    crate::apple_double::AppleSingleExtension::WithoutExtension => {
                         file_name.as_os_str().to_os_string()
                     }
-                    crate::file::apple_double::AppleSingleExtension::As => {
+                    crate::apple_double::AppleSingleExtension::As => {
                         let mut s = file_name.as_os_str().to_os_string();
                         s.push(".as");
                         s
                     }
-                    crate::file::apple_double::AppleSingleExtension::Asf => {
+                    crate::apple_double::AppleSingleExtension::Asf => {
                         let mut s = file_name.as_os_str().to_os_string();
                         s.push(".asf");
                         s
                     }
                 };
                 let actual_dest_path = if options.apple_single_write_extension
-                    == crate::file::apple_double::AppleSingleExtension::WithoutExtension
+                    == crate::apple_double::AppleSingleExtension::WithoutExtension
                 {
                     dest_path.clone()
                 } else {
@@ -1659,8 +1659,8 @@ mod tests {
             path_policy: PathTraversalPolicy::StrictSandboxed,
             copy_specials: false,
             force_overwrite: true,
-            apple_write_mode: crate::file::apple_double::AppleWriteMode::NativeOnly,
-            apple_single_write_extension: crate::file::apple_double::AppleSingleExtension::WithoutExtension,
+            apple_write_mode: crate::apple_double::AppleWriteMode::NativeOnly,
+            apple_single_write_extension: crate::apple_double::AppleSingleExtension::WithoutExtension,
         };
 
         let dest_dir = SandboxableDir::open(temp.path()).unwrap();

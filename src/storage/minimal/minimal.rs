@@ -31,8 +31,6 @@ pub mod global_graph_layout;
 pub mod shorthand;
 pub mod xkb;
 
-pub use shorthand::*;
-
 static STORAGE_MINIMAL_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
 
 pub(crate) fn get_storage_minimal_inline_data(key: &str) -> Option<Vec<u8>> {

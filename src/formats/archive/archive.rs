@@ -27,7 +27,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) use ctb_utilities::*;
 
 pub use ctb_formats_apple_single_double as apple_single_double;
-pub use ctb_formats_apple_single_double::*;
 pub use ctb_io_file::AppleArchiveExt;
 
 use include_dir::{Dir, include_dir};
@@ -53,6 +52,7 @@ pub fn get_archive_data(key: &str) -> Option<Vec<u8>> {
 )]
 mod tests {
     use super::*;
+    use super::apple_single_double::*;
 
     #[crate::ctb_test]
     fn test_apple_single_fixtures() -> anyhow::Result<()> {

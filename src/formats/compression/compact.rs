@@ -17,8 +17,8 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Colin L. `McMaster`'s 1979 Online Adaptive Huffman Coding format
-//! (`compact` / `uncompact`, `.C` file format).
+//! New implementation of Colin L. `McMaster`'s 1979 Online Adaptive Huffman
+//! Coding format (`compact` / `uncompact`, `.C` file format).
 //!
 //! Specification reference: `data/docs/compact.md`
 

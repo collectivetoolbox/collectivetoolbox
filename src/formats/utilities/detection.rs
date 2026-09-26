@@ -471,24 +471,21 @@ pub mod text;
 pub mod types;
 pub mod file_upstream_suite;
 
-pub use chain::*;
-pub use conflict::*;
-pub use container::*;
-pub use droid::*;
-pub use platform::*;
-pub use polyfile::*;
-pub use source::*;
-pub use special::*;
-pub use text::*;
+pub use platform::{current_platform_os, is_os_match};
+pub use source::{DetectionSource, EmptySource};
 pub use types::*;
-pub use file_upstream_suite::*;
 
+use self::conflict::resolve_candidate_conflicts;
 use self::container::detect_container_candidates;
+use self::droid::{evaluate_dual_anchored_signatures, evaluate_pronom_signatures};
 use self::extension::resolve_extension_candidates;
 use self::magic::evaluate_rule;
 use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
 use self::mime_derivation::FORMAT_CATALOG;
+use self::platform::{PLATFORM_PRIOR_BONUS, evaluate_platform_prior, format_matches_platform};
+use self::polyfile::detect_polyglots;
 use self::special::detect_special_entity;
+use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
 use crate::format_id::FormatId;
 
 /// Primary format detection function returning a comprehensive report.

@@ -47,7 +47,6 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 #[path = "spec/kst.rs"]
 pub mod kst;
-pub use kst::*;
 
 /// A value that can be deserialized from either a single string or a list of
 /// strings.

@@ -26,10 +26,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::entity::{FileEntity, FileEntityKind};
-use crate::file::identity::{FileIdentity, FileOrigin};
-use crate::file::metadata::{FileMetadata, FileTimestamps};
-use crate::file::payload::Extent;
+use crate::entity::{FileEntity, FileEntityKind};
+use crate::identity::{FileIdentity, FileOrigin};
+use crate::metadata::{FileMetadata, FileTimestamps};
+use crate::payload::Extent;
 use ctb_formats_checksum::Sha256Stream;
 use std::ffi::{OsStr, OsString};
 #[cfg(unix)]
@@ -252,7 +252,7 @@ pub struct AttachedStream {
     #[dc(nested = 317)]
     pub entity: Box<FileEntity>,
     /// In-memory payload data, if loaded.
-    #[serde(default, with = "crate::file::serde_helpers::opt_base64")]
+    #[serde(default, with = "crate::serde_helpers::opt_base64")]
     #[dc(short = 385, default)]
     pub data: Option<Vec<u8>>,
 }

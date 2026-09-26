@@ -26,13 +26,13 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::identity::{FileIdentity, FileOrigin, InodeKey};
-use crate::file::materializer::{MaterializeOptions, MaterializeReceipt};
-use crate::file::metadata::{FileMetadata, FileTimestamps};
-use crate::file::payload::{Extent, PayloadSource, get_file_extents};
-use crate::file::sandboxable_dir::SandboxableDir;
-use crate::file::streams::{AttachedStream, read_and_hash_streams};
-use crate::file::sys_flags::query_file_flags;
+use crate::identity::{FileIdentity, FileOrigin, InodeKey};
+use crate::materializer::{MaterializeOptions, MaterializeReceipt};
+use crate::metadata::{FileMetadata, FileTimestamps};
+use crate::payload::{Extent, PayloadSource, get_file_extents};
+use crate::sandboxable_dir::SandboxableDir;
+use crate::streams::{AttachedStream, read_and_hash_streams};
+use crate::sys_flags::query_file_flags;
 use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use filetime::set_symlink_file_times;
@@ -55,7 +55,7 @@ pub enum FileEntityKind {
         #[dc(short = 336)]
         size: u64,
         /// SHA-256 cryptographic digest of payload.
-        #[serde(with = "crate::file::serde_helpers::hex_sha256")]
+        #[serde(with = "crate::serde_helpers::hex_sha256")]
         #[dc(short = 368, binary)]
         sha256: [u8; 32],
         /// True if any sparse extents (holes) exist.
@@ -72,7 +72,7 @@ pub enum FileEntityKind {
     #[dc(short = 360)]
     Symlink {
         /// Exact target bytes (not lossily decoded).
-        #[serde(with = "crate::file::serde_helpers::text_or_base64")]
+        #[serde(with = "crate::serde_helpers::text_or_base64")]
         #[dc(short = 339, binary)]
         target: Vec<u8>,
     },
@@ -80,7 +80,7 @@ pub enum FileEntityKind {
     #[dc(short = 361)]
     Hardlink {
         /// Relative path to the original linked file in raw bytes.
-        #[serde(with = "crate::file::serde_helpers::text_or_base64")]
+        #[serde(with = "crate::serde_helpers::text_or_base64")]
         #[dc(short = 339, binary)]
         target_relative_path: Vec<u8>,
     },
@@ -313,7 +313,7 @@ impl FileEntity {
             .and_then(|n| n.to_str());
 
         // Infer platform prior from archive origin (strongest), Apple metadata, or recorded environment
-        let origin_archive_os = if let crate::file::identity::FileOrigin::Archive {
+        let origin_archive_os = if let crate::identity::FileOrigin::Archive {
             archive_format,
             ..
         } = &self.identity.origin
@@ -368,7 +368,7 @@ impl FileEntity {
         let mut stream_platform = None;
         for stream in &self.streams {
             match stream.kind {
-                crate::file::StreamKind::MacOsResourceFork => {
+                crate::StreamKind::MacOsResourceFork => {
                     stream_platform = Some(ctb_formats_utilities::format_id::FormatId::MacOs);
                     if let Some(ref data) = stream.data {
                         let type_codes =
@@ -402,7 +402,7 @@ impl FileEntity {
                         }
                     }
                 }
-                crate::file::StreamKind::NtfsAlternateDataStream => {
+                crate::StreamKind::NtfsAlternateDataStream => {
                     stream_platform = Some(ctb_formats_utilities::format_id::FormatId::Windows);
                     if let Some(ref name) = stream.name {
                         let name_lossy = name.to_string_lossy();
@@ -429,7 +429,7 @@ impl FileEntity {
                         }
                     }
                 }
-                crate::file::StreamKind::ExtendedAttribute => {
+                crate::StreamKind::ExtendedAttribute => {
                     if let Some(ref name) = stream.name {
                         let name_lossy = name.to_string_lossy();
                         if name_lossy == "user.mime_type" || name_lossy == "xdg.mime.type" {
@@ -535,7 +535,7 @@ impl FileEntity {
     pub fn encode_with_payload(
         &self,
         mst: &mut ctb_formats_dcstring::DcMst,
-        source: &mut dyn crate::file::payload::PayloadSource,
+        source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
         mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
         self.identity.encode_dc_mixed(mst)?;
@@ -560,7 +560,7 @@ impl FileEntity {
     pub fn encode_to_writer_with_payload<W: std::io::Write>(
         &self,
         writer: &mut W,
-        source: &mut dyn crate::file::payload::PayloadSource,
+        source: &mut dyn crate::payload::PayloadSource,
     ) -> Result<()> {
         let mut prefix_mst = ctb_formats_dcstring::DcMst::new();
         prefix_mst.push_char(ctb_formats_dcstring::DcChar::from_short(317));
@@ -599,7 +599,7 @@ impl FileEntity {
         dest_dir: &SandboxableDir,
         options: &MaterializeOptions,
     ) -> Result<MaterializeReceipt> {
-        crate::file::materializer::materialize_entity(self, payload, dest_dir, options)
+        crate::materializer::materialize_entity(self, payload, dest_dir, options)
     }
 
     /// Materializes this entity onto the filesystem given a destination root path.
@@ -609,7 +609,7 @@ impl FileEntity {
         dest_root: &Path,
         options: &MaterializeOptions,
     ) -> Result<MaterializeReceipt> {
-        crate::file::materializer::materialize_entity_at_path(self, payload, dest_root, options)
+        crate::materializer::materialize_entity_at_path(self, payload, dest_root, options)
     }
 
     /// Inspects an existing filesystem entry at `path` and builds a full `FileEntity`.
@@ -620,7 +620,7 @@ impl FileEntity {
         Self::from_filesystem_with_apple_options(
             path,
             base_dir,
-            &crate::file::apple_double::AppleReadOptions::default(),
+            &crate::apple_double::AppleReadOptions::default(),
         )
     }
 
@@ -629,10 +629,10 @@ impl FileEntity {
     pub fn from_filesystem_with_apple_options(
         path: &Path,
         base_dir: Option<&Path>,
-        apple_options: &crate::file::apple_double::AppleReadOptions,
+        apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
         let mut entity = Self::from_filesystem_internal(path, base_dir, true)?;
-        crate::file::apple_double::join_apple_double_or_single(
+        crate::apple_double::join_apple_double_or_single(
             &mut entity,
             path,
             base_dir,
@@ -648,7 +648,7 @@ impl FileEntity {
         Self::from_filesystem_metadata_only_with_apple_options(
             path,
             base_dir,
-            &crate::file::apple_double::AppleReadOptions::default(),
+            &crate::apple_double::AppleReadOptions::default(),
         )
     }
 
@@ -657,10 +657,10 @@ impl FileEntity {
     pub fn from_filesystem_metadata_only_with_apple_options(
         path: &Path,
         base_dir: Option<&Path>,
-        apple_options: &crate::file::apple_double::AppleReadOptions,
+        apple_options: &crate::apple_double::AppleReadOptions,
     ) -> Result<Self> {
         let mut entity = Self::from_filesystem_internal(path, base_dir, false)?;
-        crate::file::apple_double::join_apple_double_or_single(
+        crate::apple_double::join_apple_double_or_single(
             &mut entity,
             path,
             base_dir,
@@ -725,7 +725,7 @@ impl FileEntity {
         let (mtime_sec, mtime_nsec) = system_time_to_unix(sym_meta.modified());
         let (btime_sec, btime_nsec) = system_time_to_unix(sym_meta.created());
 
-        let fs_info = crate::file::filesystem::query_filesystem_info(path, &sym_meta);
+        let fs_info = crate::filesystem::query_filesystem_info(path, &sym_meta);
 
         let timestamps = FileTimestamps {
             atime_sec,
@@ -833,7 +833,7 @@ impl FileEntity {
             let is_sparse = extents.iter().any(Extent::is_hole);
 
             let sha256 = if compute_hash {
-                crate::file::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
+                crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
             } else {
                 [0_u8; 32]
             };
@@ -896,7 +896,7 @@ impl FileEntity {
         };
 
         let file_type = sym_meta.file_type();
-        let fs_info = crate::file::filesystem::query_filesystem_info(path, &sym_meta);
+        let fs_info = crate::filesystem::query_filesystem_info(path, &sym_meta);
 
         #[cfg(unix)]
         let (dev, ino, nlink, mode, uid, gid, mut timestamps) = {
@@ -1086,7 +1086,7 @@ impl FileEntity {
             let is_sparse = extents.iter().any(Extent::is_hole);
 
             let sha256 = if compute_hash {
-                crate::file::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
+                crate::payload::hash_payload_stream(&mut file, &extents, is_sparse, path)?
             } else {
                 [0_u8; 32]
             };
@@ -1514,15 +1514,15 @@ mod tests {
         entity.identity.raw_filename.clear();
 
         // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
-        entity.metadata.apple = Some(crate::file::AppleMetadata {
-            finder_info: Some(crate::file::FinderInfo {
+        entity.metadata.apple = Some(crate::AppleMetadata {
+            finder_info: Some(crate::FinderInfo {
                 file_type: "TEXT".to_string(),
                 file_creator: "ttxt".to_string(),
                 label: ctb_formats_apple_single_double::FinderLabel::from_index(6),
                 flags: ctb_formats_apple_single_double::FinderFlags::from_raw_u16(0x450D),
                 location: (10, 20),
                 folder_id: 0,
-                extended: Some(crate::file::ExtendedFinderInfo {
+                extended: Some(crate::ExtendedFinderInfo {
                     icon_id: -16455,
                     script: 1,
                     xflags: ctb_formats_apple_single_double::ExtendedFlags::default(),
@@ -1543,10 +1543,10 @@ mod tests {
         stream_entity.metadata.apple = None;
         stream_entity.identity.raw_relative_path.clear();
         stream_entity.identity.raw_filename.clear();
-        entity.metadata.flags.push(crate::file::FileFlag::Hidden);
-        entity.streams.push(crate::file::AttachedStream {
-            name: Some(crate::file::StreamName::from_bytes(b"user.comment")),
-            kind: crate::file::StreamKind::ExtendedAttribute,
+        entity.metadata.flags.push(crate::FileFlag::Hidden);
+        entity.streams.push(crate::AttachedStream {
+            name: Some(crate::StreamName::from_bytes(b"user.comment")),
+            kind: crate::StreamKind::ExtendedAttribute,
             data: Some(b"roundtrip test".to_vec()),
             entity: Box::new(stream_entity),
         });
@@ -1562,7 +1562,7 @@ mod tests {
         std::fs::write(&gz_path, gz_header).unwrap();
 
         let entity = FileEntity::from_filesystem(&gz_path, None).unwrap();
-        let mut source = crate::file::payload::DiskPayloadSource::open(&gz_path).unwrap();
+        let mut source = crate::payload::DiskPayloadSource::open(&gz_path).unwrap();
         let candidates = entity.guess_format(&mut source);
 
         assert!(!candidates.is_empty());
@@ -1596,14 +1596,14 @@ mod tests {
         fork[46..50].copy_from_slice(b"alis");
 
         let stream_entity = entity.clone();
-        entity.streams.push(crate::file::streams::AttachedStream {
+        entity.streams.push(crate::streams::AttachedStream {
             name: None,
-            kind: crate::file::streams::StreamKind::MacOsResourceFork,
+            kind: crate::streams::StreamKind::MacOsResourceFork,
             entity: Box::new(stream_entity),
             data: Some(fork),
         });
 
-        let mut source = crate::file::payload::DiskPayloadSource::open(&empty_path).unwrap();
+        let mut source = crate::payload::DiskPayloadSource::open(&empty_path).unwrap();
         let report = entity.detect_format_report(&mut source).unwrap();
 
         assert!(report.stream_signals_used);

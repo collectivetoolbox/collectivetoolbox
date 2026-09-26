@@ -115,11 +115,11 @@ pub struct FileIdentity {
     #[dc(short = 357)]
     pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
-    #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
+    #[serde(default, with = "crate::serde_helpers::text_or_base64")]
     #[dc(skip, reason = "Raw relative path bytes are an alternative representation unified with relative_path (Dc 337)")]
     pub raw_relative_path: Vec<u8>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
-    #[serde(default, with = "crate::file::serde_helpers::text_or_base64")]
+    #[serde(default, with = "crate::serde_helpers::text_or_base64")]
     #[dc(skip, reason = "Raw filename bytes are an alternative representation unified with relative_path (Dc 337)")]
     pub raw_filename: Vec<u8>,
     /// Link count on the source filesystem.

@@ -30,8 +30,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-use crate::file::entity::FileEntityKind;
-use crate::file::path_policy::{
+use crate::entity::FileEntityKind;
+use crate::path_policy::{
     PathTraversalPolicy, SymlinkValidationPolicy, validate_symlink_target,
 };
 
