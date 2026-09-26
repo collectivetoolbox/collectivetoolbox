@@ -148,9 +148,11 @@ pub fn execute_copy_pipeline(
         for entity in snap.committed_entities.values() {
             if entity.identity.nlink > 1 && entity.is_regular() {
                 if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-                    let dest_path = journal.destination().join(&entity.identity.relative_path);
-                    if dest_path.exists() {
-                        hardlink_map.insert((key.device_id, key.inode), dest_path);
+                    if let Some(ref rel) = entity.identity.relative_path {
+                        let dest_path = journal.destination().join(rel);
+                        if dest_path.exists() {
+                            hardlink_map.insert((key.device_id, key.inode), dest_path);
+                        }
                     }
                 }
             }
@@ -269,8 +271,9 @@ pub fn execute_copy_pipeline(
                 }
 
                 if !args.dry_run {
+                    let rel_dir = dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new("."));
                     if let Err(e) = dest_dir.ensure_dir_all(
-                        &dir_entity.identity.relative_path,
+                        rel_dir,
                         options.path_policy,
                     ) {
                         let _ = handle_item_error(
@@ -288,9 +291,9 @@ pub fn execute_copy_pipeline(
 
                 let mut journal_dir = dir_entity.clone();
                 let rel = compute_journal_relative_path(journal.destination(), &curr_tgt);
-                journal_dir.identity.relative_path = rel.clone();
+                journal_dir.identity.relative_path = Some(rel.clone());
                 journal_dir.identity.raw_relative_path =
-                    rel.as_os_str().as_encoded_bytes().to_vec();
+                    Some(rel.as_os_str().as_encoded_bytes().to_vec());
                 journal.record_entity(&journal_dir);
                 if !args.dry_run {
                     journal.commit_batch()?;
@@ -326,7 +329,7 @@ pub fn execute_copy_pipeline(
                     &curr_src,
                     &curr_tgt,
                     tgt_root,
-                    &dir_entity.identity.relative_path,
+                    dir_entity.identity.relative_path.as_deref().unwrap_or(Path::new(".")),
                     &apple_read_options,
                     apple_write_mode,
                     apple_single_write_extension,
@@ -352,10 +355,9 @@ pub fn execute_copy_pipeline(
                     let entry_name = item.file_name;
                     let entry_tgt = curr_tgt.join(&entry_name);
 
-                    let entry_rel = if dir_entity.identity.relative_path.as_os_str().is_empty() {
-                        PathBuf::from(&entry_name)
-                    } else {
-                        dir_entity.identity.relative_path.join(&entry_name)
+                    let entry_rel = match &dir_entity.identity.relative_path {
+                        Some(p) if !p.as_os_str().is_empty() => p.join(&entry_name),
+                        _ => PathBuf::from(&entry_name),
                     };
 
                     if item.is_dir {
@@ -397,10 +399,10 @@ pub fn execute_copy_pipeline(
                         }
                         expected_filenames.push(entry_name.as_encoded_bytes().to_vec());
                         let mut sym_entity = sym_entity;
-                        sym_entity.identity.relative_path = entry_rel;
-                        sym_entity.identity.raw_relative_path =
-                            sym_entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
-                        sym_entity.identity.raw_filename = entry_name.as_encoded_bytes().to_vec();
+                        let raw_rel = entry_rel.as_os_str().as_encoded_bytes().to_vec();
+                        sym_entity.identity.relative_path = Some(entry_rel);
+                        sym_entity.identity.raw_relative_path = Some(raw_rel);
+                        sym_entity.identity.raw_filename = Some(entry_name.as_encoded_bytes().to_vec());
                         deferred_symlinks.push(DeferredSymlink {
                             src_path: entry_src,
                             dest_path: entry_tgt,
@@ -494,11 +496,11 @@ pub fn execute_copy_pipeline(
                     )?;
                     continue;
                 }
-                sym_entity.identity.relative_path = target_rel_path.to_path_buf();
+                sym_entity.identity.relative_path = Some(target_rel_path.to_path_buf());
                 sym_entity.identity.raw_relative_path =
-                    target_file_name.as_encoded_bytes().to_vec();
+                    Some(target_file_name.as_encoded_bytes().to_vec());
                 sym_entity.identity.raw_filename =
-                    target_file_name.as_encoded_bytes().to_vec();
+                    Some(target_file_name.as_encoded_bytes().to_vec());
                 deferred_symlinks.push(DeferredSymlink {
                     src_path: src_root.clone(),
                     dest_path: tgt_root.clone(),
@@ -567,14 +569,14 @@ pub fn execute_copy_pipeline(
                 }
             };
             #[cfg(unix)]
-            {
+            if let Some(ref ts) = entity.metadata.timestamps {
                 let atime = filetime::FileTime::from_unix_time(
-                    entity.metadata.timestamps.atime_sec,
-                    entity.metadata.timestamps.atime_nsec,
+                    ts.atime_sec,
+                    ts.atime_nsec,
                 );
                 let mtime = filetime::FileTime::from_unix_time(
-                    entity.metadata.timestamps.mtime_sec,
-                    entity.metadata.timestamps.mtime_nsec,
+                    ts.mtime_sec,
+                    ts.mtime_nsec,
                 );
                 let _ = filetime::set_symlink_file_times(dest_path, atime, mtime);
             }
@@ -815,21 +817,25 @@ fn copy_single_item(
             && (dest_fname.ends_with(".as") || dest_fname.ends_with(".AS"))
         {
             let stripped_len = dest_fname.len().saturating_sub(".as".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename == s.as_bytes())
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename.as_deref() == Some(s.as_bytes()))
         } else if apple_read_options.read_apple_single_asf
             && (dest_fname.ends_with(".asf") || dest_fname.ends_with(".ASF"))
         {
             let stripped_len = dest_fname.len().saturating_sub(".asf".len());
-            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename == s.as_bytes())
+            dest_fname.get(..stripped_len).is_some_and(|s| entity.identity.raw_filename.as_deref() == Some(s.as_bytes()))
         } else {
             false
         };
 
         if is_stripped {
-            if let Ok(fname_str) = std::str::from_utf8(&entity.identity.raw_filename) {
-                match dest_rel_path.parent() {
-                    Some(p) if !p.as_os_str().is_empty() => p.join(fname_str),
-                    _ => PathBuf::from(fname_str),
+            if let Some(raw) = &entity.identity.raw_filename {
+                if let Ok(fname_str) = std::str::from_utf8(raw) {
+                    match dest_rel_path.parent() {
+                        Some(p) if !p.as_os_str().is_empty() => p.join(fname_str),
+                        _ => PathBuf::from(fname_str),
+                    }
+                } else {
+                    dest_rel_path.to_path_buf()
                 }
             } else {
                 dest_rel_path.to_path_buf()
@@ -846,10 +852,12 @@ fn copy_single_item(
     let file_name = effective_dest_rel.file_name().unwrap_or(effective_dest_rel.as_os_str());
     let effective_dest_path = parent_path.join(file_name);
 
-    entity.identity.relative_path = effective_dest_rel;
-    entity.identity.raw_relative_path = entity.identity.relative_path.as_os_str().as_encoded_bytes().to_vec();
-    if let Some(fname) = entity.identity.relative_path.file_name() {
-        entity.identity.raw_filename = fname.as_encoded_bytes().to_vec();
+    let raw_rel = effective_dest_rel.as_os_str().as_encoded_bytes().to_vec();
+    let raw_fname = effective_dest_rel.file_name().map(|f| f.as_encoded_bytes().to_vec());
+    entity.identity.relative_path = Some(effective_dest_rel);
+    entity.identity.raw_relative_path = Some(raw_rel);
+    if let Some(fname) = raw_fname {
+        entity.identity.raw_filename = Some(fname);
     }
     if !args.dry_run {
         record_journal_entry(journal, &effective_dest_path, &entity)?;
@@ -864,7 +872,10 @@ fn copy_single_item(
         };
 
         if let Some(first_target_rel) = hardlink_map.get(&key) {
-            let this_full_path = dest_dir.root_path().join(&entity.identity.relative_path);
+            let this_full_path = match &entity.identity.relative_path {
+                Some(p) => dest_dir.root_path().join(p),
+                None => dest_dir.root_path().to_path_buf(),
+            };
             let is_self = effective_dest_path == *first_target_rel
                 || this_full_path == *first_target_rel
                 || std::fs::canonicalize(&effective_dest_path).ok().as_deref()
@@ -971,9 +982,9 @@ fn copy_single_item(
 
     // 5. Regular files: Sparse support, in-flight SHA-256, atomic rename
     #[cfg(unix)]
-    let captured_mtime = entity.metadata.timestamps.mtime_sec;
+    let captured_mtime = entity.metadata.timestamps.as_ref().map(|ts| ts.mtime_sec);
     #[cfg(unix)]
-    let captured_ctime = entity.metadata.timestamps.ctime_sec;
+    let captured_ctime = entity.metadata.timestamps.as_ref().map(|ts| ts.ctime_sec);
     let initial_size = match &entity.kind {
         FileEntityKind::Regular { size, .. } => *size,
         _ => 0,
@@ -1088,14 +1099,16 @@ fn copy_single_item(
     let is_block_device_as_regular = false;
 
     #[cfg(unix)]
-    let changed = after_meta.mtime() != captured_mtime
-        || after_meta.ctime() != captured_ctime
-        || after_meta.mtime_nsec() != i64::from(entity.metadata.timestamps.mtime_nsec)
+    let changed = captured_mtime.is_some_and(|m| after_meta.mtime() != m)
+        || captured_ctime.is_some_and(|c| after_meta.ctime() != c)
+        || entity.metadata.timestamps.as_ref().is_some_and(|ts| after_meta.mtime_nsec() != i64::from(ts.mtime_nsec))
         || (apple_single_data.is_none() && after_meta.len() != initial_size);
     #[cfg(not(unix))]
     let changed = (apple_single_data.is_none() && after_meta.len() != initial_size)
-        || filetime::FileTime::from_last_modification_time(&after_meta)
-            != filetime::FileTime::from_unix_time(entity.metadata.timestamps.mtime_sec, entity.metadata.timestamps.mtime_nsec);
+        || entity.metadata.timestamps.as_ref().is_some_and(|ts| {
+            filetime::FileTime::from_last_modification_time(&after_meta)
+                != filetime::FileTime::from_unix_time(ts.mtime_sec, ts.mtime_nsec)
+        });
 
     if !is_block_device_as_regular && changed {
         if args.on_source_change == SourceChangePolicy::Error {
@@ -1134,10 +1147,12 @@ fn copy_single_item(
 
     if entity.identity.nlink > 1 && entity.is_regular() {
         if let FileOrigin::Filesystem { key, .. } = &entity.identity.origin {
-            hardlink_map.insert(
-                (key.device_id, key.inode),
-                dest_dir.root_path().join(&entity.identity.relative_path),
-            );
+            if let Some(ref rel) = entity.identity.relative_path {
+                hardlink_map.insert(
+                    (key.device_id, key.inode),
+                    dest_dir.root_path().join(rel),
+                );
+            }
         }
     }
 
@@ -1184,8 +1199,8 @@ fn record_journal_entry(
 ) -> Result<()> {
     let mut journal_entity = entity.clone();
     let rel = compute_journal_relative_path(journal.destination(), dest_path);
-    journal_entity.identity.relative_path = rel.clone();
-    journal_entity.identity.raw_relative_path = rel.as_os_str().as_encoded_bytes().to_vec();
+    journal_entity.identity.relative_path = Some(rel.clone());
+    journal_entity.identity.raw_relative_path = Some(rel.as_os_str().as_encoded_bytes().to_vec());
     if let FileEntityKind::Hardlink { target_relative_path } = &mut journal_entity.kind {
         let target = ctb_io::file::resolve_relative_path_for_os(target_relative_path, cfg!(windows))?;
         // Reason for fallback: if destination cannot be canonicalized, use destination path directly

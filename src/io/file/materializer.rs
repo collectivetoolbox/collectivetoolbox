@@ -124,19 +124,6 @@ pub fn apply_entity_metadata(
     anyhow::ensure!(!strict_lossless, "Lossless ownership and permission preservation is not implemented on this platform");
     // Reason for fallback: error reporting defaults to actual destination path if no alternate display path provided
     let display_target = target_display_path.unwrap_or(dest);
-    let mode = meta.mode;
-    #[cfg(unix)]
-    let uid = meta.uid;
-    #[cfg(unix)]
-    let gid = meta.gid;
-    let atime = FileTime::from_unix_time(
-        meta.timestamps.atime_sec,
-        meta.timestamps.atime_nsec,
-    );
-    let mtime = FileTime::from_unix_time(
-        meta.timestamps.mtime_sec,
-        meta.timestamps.mtime_nsec,
-    );
 
     let dest_meta = if is_symlink {
         std::fs::symlink_metadata(dest)
@@ -147,36 +134,38 @@ pub fn apply_entity_metadata(
     // 1. Ownership: check if dest already has the desired UID/GID
     #[cfg(unix)]
     {
-        let needs_chown = match dest_meta {
-            Ok(ref dm) => dm.uid() != uid || dm.gid() != gid,
-            Err(_) => true,
-        };
-
-        if needs_chown {
-            let uid_obj = Some(Uid::from_raw(uid));
-            let gid_obj = Some(Gid::from_raw(gid));
-            let chown_res = if is_symlink {
-                fchownat(
-                    AT_FDCWD,
-                    dest,
-                    uid_obj,
-                    gid_obj,
-                    NixAtFlags::AT_SYMLINK_NOFOLLOW,
-                )
-            } else {
-                nix::unistd::chown(dest, uid_obj, gid_obj)
+        if let (Some(uid), Some(gid)) = (meta.uid, meta.gid) {
+            let needs_chown = match dest_meta {
+                Ok(ref dm) => dm.uid() != uid || dm.gid() != gid,
+                Err(_) => true,
             };
-            if let Err(err) = chown_res {
-                if strict_lossless {
-                    anyhow::bail!(
-                        "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
+
+            if needs_chown {
+                let uid_obj = Some(Uid::from_raw(uid));
+                let gid_obj = Some(Gid::from_raw(gid));
+                let chown_res = if is_symlink {
+                    fchownat(
+                        AT_FDCWD,
+                        dest,
+                        uid_obj,
+                        gid_obj,
+                        NixAtFlags::AT_SYMLINK_NOFOLLOW,
+                    )
+                } else {
+                    nix::unistd::chown(dest, uid_obj, gid_obj)
+                };
+                if let Err(err) = chown_res {
+                    if strict_lossless {
+                        anyhow::bail!(
+                            "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err}",
+                            display_target.display()
+                        );
+                    }
+                    log_fmt!(
+                        "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
                         display_target.display()
                     );
                 }
-                log_fmt!(
-                    "Failed to preserve ownership (uid: {uid}, gid: {gid}) for {}: {err} (proceeding best-effort)",
-                    display_target.display()
-                );
             }
         }
     }
@@ -184,47 +173,64 @@ pub fn apply_entity_metadata(
     // 2. Permissions (symlink permissions are fixed on Linux)
     #[cfg(unix)]
     if !is_symlink {
-        let perms = Permissions::from_mode(mode);
-        if let Err(e) = std::fs::set_permissions(dest, perms) {
-            if strict_lossless {
-                return Err(e).with_context(|| {
-                    format!("Failed to set permissions on {}", display_target.display())
-                });
+        if let Some(mode) = meta.mode {
+            let perms = Permissions::from_mode(mode);
+            if let Err(e) = std::fs::set_permissions(dest, perms) {
+                if strict_lossless {
+                    return Err(e).with_context(|| {
+                        format!("Failed to set permissions on {}", display_target.display())
+                    });
+                }
+                log_fmt!(
+                    "Failed to set permissions on {}: {e} (proceeding best-effort)",
+                    display_target.display()
+                );
             }
-            log_fmt!(
-                "Failed to set permissions on {}: {e} (proceeding best-effort)",
-                display_target.display()
-            );
         }
     }
     #[cfg(windows)]
-    if !is_symlink && (mode & 0o222) == 0 {
-        if let Ok(mut perms) = std::fs::metadata(dest).map(|m| m.permissions()) {
-            perms.set_readonly(true);
-            let _ = std::fs::set_permissions(dest, perms);
+    if !is_symlink {
+        if let Some(mode) = meta.mode {
+            if (mode & 0o222) == 0 {
+                if let Ok(mut perms) = std::fs::metadata(dest).map(|m| m.permissions()) {
+                    perms.set_readonly(true);
+                    let _ = std::fs::set_permissions(dest, perms);
+                }
+            }
         }
     }
 
     // 3. Timestamps
-    // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
-    let is_special = dest_meta
-        .as_ref()
-        .map_or(false, |m| !m.is_file() && !m.is_dir());
-    let time_res = if is_symlink || is_special {
-        set_symlink_file_times(dest, atime, mtime)
-    } else {
-        set_file_times(dest, atime, mtime)
-    };
-    if let Err(e) = time_res {
-        if strict_lossless {
-            return Err(e).with_context(|| {
-                format!("Failed to set file timestamps on {}", display_target.display())
-            });
-        }
-        log_fmt!(
-            "Failed to set file timestamps on {}: {e} (proceeding best-effort)",
-            display_target.display()
+    if let Some(ref ts) = meta.timestamps {
+        let atime = FileTime::from_unix_time(
+            ts.atime_sec,
+            ts.atime_nsec,
         );
+        let mtime = FileTime::from_unix_time(
+            ts.mtime_sec,
+            ts.mtime_nsec,
+        );
+
+        // Reason for fallback: If destination metadata cannot be queried, assume not a special file to proceed with standard timestamp update.
+        let is_special = dest_meta
+            .as_ref()
+            .map_or(false, |m| !m.is_file() && !m.is_dir());
+        let time_res = if is_symlink || is_special {
+            set_symlink_file_times(dest, atime, mtime)
+        } else {
+            set_file_times(dest, atime, mtime)
+        };
+        if let Err(e) = time_res {
+            if strict_lossless {
+                return Err(e).with_context(|| {
+                    format!("Failed to set file timestamps on {}", display_target.display())
+                });
+            }
+            log_fmt!(
+                "Failed to set file timestamps on {}: {e} (proceeding best-effort)",
+                display_target.display()
+            );
+        }
     }
 
     #[cfg(windows)]
@@ -246,10 +252,12 @@ pub fn apply_entity_metadata(
     )?;
 
     // 4. File flags
-    if apply_flags && (!meta.flags.is_empty() || meta.platform_raw_flags.is_some()) {
+    let has_flags = meta.flags.as_ref().map_or(false, |f| !f.is_empty());
+    if apply_flags && (has_flags || meta.platform_raw_flags.is_some()) {
+        let flags_slice = meta.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
         apply_file_flags(
             dest,
-            &meta.flags,
+            flags_slice,
             meta.platform_raw_flags.as_ref(),
             strict_lossless,
         )?;
@@ -268,16 +276,17 @@ pub fn apply_entity_metadata(
     reason = "Win32 CreateFileW and SetFileTime require FFI to set file creation timestamp"
 )]
 fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
-    if let Some(sec) = meta.timestamps.birthtime_sec {
-        // Reason for fallback: Sub-second nanoseconds default to 0 when unrecorded in timestamp metadata.
-        let nsec = meta.timestamps.birthtime_nsec.unwrap_or(0);
-        let total_secs = u64::try_from(sec.saturating_add(11_644_473_600))
-            .context("Invalid epoch conversion")?;
-        let intervals = total_secs
-            .checked_mul(10_000_000)
-            .context("Overflow in birth time calculation")?
-            .checked_add(u64::from(nsec).checked_div(100).context("Division error")?)
-            .context("Overflow adding nanoseconds")?;
+    if let Some(ref ts) = meta.timestamps {
+        if let Some(sec) = ts.birthtime_sec {
+            // Reason for fallback: Sub-second nanoseconds default to 0 when unrecorded in timestamp metadata.
+            let nsec = ts.birthtime_nsec.unwrap_or(0);
+            let total_secs = u64::try_from(sec.saturating_add(11_644_473_600))
+                .context("Invalid epoch conversion")?;
+            let intervals = total_secs
+                .checked_mul(10_000_000)
+                .context("Overflow in birth time calculation")?
+                .checked_add(u64::from(nsec).checked_div(100).context("Division error")?)
+                .context("Overflow adding nanoseconds")?;
         let low = u32::try_from(intervals & 0xFFFF_FFFF)?;
         let high = u32::try_from(intervals >> 32)?;
         let ft = windows_sys::Win32::Foundation::FILETIME {
@@ -311,6 +320,7 @@ fn apply_windows_birthtime(dest: &Path, meta: &FileMetadata) -> Result<()> {
                 windows_sys::Win32::Foundation::CloseHandle(handle);
             }
         }
+    }
     }
     Ok(())
 }
@@ -363,9 +373,14 @@ pub fn materialize_entity(
 ) -> Result<MaterializeReceipt> {
     #[cfg(not(any(unix, windows)))]
     anyhow::ensure!(!options.strict_lossless, "Lossless materialization is not implemented on this platform");
+    let relative_path = entity
+        .identity
+        .relative_path
+        .as_deref()
+        .context("Entity missing relative path for materialization")?;
     let dest_path = resolve_and_validate_path(
         dest_dir.root_path(),
-        &entity.identity.relative_path,
+        relative_path,
         options.path_policy,
     )?;
 
@@ -386,11 +401,11 @@ pub fn materialize_entity(
     }
 
     let (parent_dir_fd, file_name) = dest_dir
-        .ensure_parent_dir(&entity.identity.relative_path, options.path_policy)?;
+        .ensure_parent_dir(relative_path, options.path_policy)?;
 
     match &entity.kind {
         FileEntityKind::Symlink { target } => {
-            if options.strict_lossless && entity.metadata.timestamps.birthtime_sec.is_some() {
+            if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce symlink birth time on this platform");
             }
             dest_dir.create_symlink_at(
@@ -435,7 +450,7 @@ pub fn materialize_entity(
         }
         FileEntityKind::Directory | FileEntityKind::Bundle { .. } => {
             let _dir_fd =
-                dest_dir.ensure_dir_all(&entity.identity.relative_path, options.path_policy)?;
+                dest_dir.ensure_dir_all(relative_path, options.path_policy)?;
             let mut write_companion = false;
             match options.apple_write_mode {
                 AppleWriteMode::ForceAppleDouble(_) => {
@@ -483,7 +498,7 @@ pub fn materialize_entity(
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
         | FileEntityKind::BlockDevice { .. } => {
-            if options.strict_lossless && entity.metadata.timestamps.birthtime_sec.is_some() {
+            if options.strict_lossless && entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec).is_some() {
                 anyhow::bail!("Cannot reproduce special-node birth time on this platform");
             }
             anyhow::ensure!(
@@ -491,11 +506,13 @@ pub fn materialize_entity(
                 "Special node creation rejected: {}. Enable copy_specials to permit.",
                 dest_path.display()
             );
+            // Reason for fallback: absent file mode for special node defaults to standard 0o666 permissions
+            let mode = entity.metadata.mode.unwrap_or(0o666);
             dest_dir.create_special(
                 &parent_dir_fd.as_fd(),
                 &file_name,
                 &entity.kind,
-                entity.metadata.mode,
+                mode,
             )?;
             write_streams(&dest_path, None, &entity.streams, options.strict_lossless)?;
             apply_entity_metadata(
@@ -599,10 +616,12 @@ pub fn materialize_entity(
                 let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
 
+                // Reason for fallback: absent file mode for AppleSingle temp file defaults to standard 0o644 permissions
+                let mode = entity.metadata.mode.unwrap_or(0o644);
                 let mut temp_file = dest_dir.create_temp_file(
                     &parent_dir_fd.as_fd(),
                     &temp_name,
-                    entity.metadata.mode,
+                    mode,
                 )?;
                 let mut cleanup_guard = TempFileCleanupGuard {
                     parent_fd: parent_dir_fd.as_fd(),
@@ -683,10 +702,12 @@ pub fn materialize_entity(
             let seq = ATOMIC_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             let temp_name = format!(".csc-tmp.{pid}.{nanos}.{seq}");
 
+            // Reason for fallback: absent file mode for regular temp file defaults to standard 0o644 permissions
+            let mode = entity.metadata.mode.unwrap_or(0o644);
             let mut temp_file = dest_dir.create_temp_file(
                 &parent_dir_fd.as_fd(),
                 &temp_name,
-                entity.metadata.mode,
+                mode,
             )?;
 
             // RAII guard unlinking temp_file if an error occurs before commit_atomic_file
@@ -897,12 +918,14 @@ pub fn materialize_entity(
             sync_parent_dir_best_effort(&parent_dir_fd, parent_dir);
 
             // Deferred immutability: apply flags as the very last step!
-            if !entity.metadata.flags.is_empty()
+            let has_flags = entity.metadata.flags.as_ref().map_or(false, |f| !f.is_empty());
+            if has_flags
                 || entity.metadata.platform_raw_flags.is_some()
             {
+                let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
                 apply_file_flags(
                     &dest_path,
-                    &entity.metadata.flags,
+                    flags_slice,
                     entity.metadata.platform_raw_flags.as_ref(),
                     options.strict_lossless,
                 )?;
@@ -1206,14 +1229,16 @@ fn try_update_existing_regular_entity(
     )?;
 
     // 10. Apply final file flags
-    if !entity.metadata.flags.is_empty()
+    let has_flags = entity.metadata.flags.as_ref().map_or(false, |f| !f.is_empty());
+    if has_flags
         || entity.metadata.platform_raw_flags.is_some()
         || !dest_flags.is_empty()
         || dest_raw.is_some()
     {
+        let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]); // Reason for fallback: absent flags metadata defaults to empty slice
         apply_file_flags(
             dest_path,
-            &entity.metadata.flags,
+            flags_slice,
             entity.metadata.platform_raw_flags.as_ref(),
             options.strict_lossless,
         )?;
@@ -1291,19 +1316,19 @@ mod tests {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
-                raw_filename: b"test_file.bin".to_vec(),
+                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
+                raw_filename: Some(b"test_file.bin".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: nix::unistd::getuid().as_raw(),
-                gid: nix::unistd::getgid().as_raw(),
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(nix::unistd::getuid().as_raw()),
+                gid: Some(nix::unistd::getgid().as_raw()),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1313,8 +1338,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags,
+                }),
+                flags: Some(flags),
                 platform_raw_flags,
                 read_time: None,
                 filesystem_type: None,
@@ -1395,19 +1420,19 @@ mod tests {
         let mut entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
-                raw_filename: b"report.txt".to_vec(),
+                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
+                raw_filename: Some(b"report.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o600,
-                uid: nix::unistd::getuid().as_raw(),
-                gid: nix::unistd::getgid().as_raw(),
-                timestamps: FileTimestamps {
+                mode: Some(0o600),
+                uid: Some(nix::unistd::getuid().as_raw()),
+                gid: Some(nix::unistd::getgid().as_raw()),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1417,8 +1442,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1449,8 +1474,10 @@ mod tests {
         assert_eq!(meta1.permissions().mode() & 0o7777, 0o600);
 
         // 2. Second materialization with updated permissions (0o644) and mtime
-        entity.metadata.mode = 0o644;
-        entity.metadata.timestamps.mtime_sec = 1_700_050_000;
+        entity.metadata.mode = Some(0o644);
+        if let Some(ref mut ts) = entity.metadata.timestamps {
+            ts.mtime_sec = 1_700_050_000;
+        }
         let mut payload2 = MemoryPayloadSource::new(payload_bytes.to_vec()).unwrap();
 
         let receipt2 = entity
@@ -1485,19 +1512,19 @@ mod tests {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
-                raw_filename: b"forced.bin".to_vec(),
+                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
+                raw_filename: Some(b"forced.bin".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: nix::unistd::getuid().as_raw(),
-                gid: nix::unistd::getgid().as_raw(),
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(nix::unistd::getuid().as_raw()),
+                gid: Some(nix::unistd::getgid().as_raw()),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1507,8 +1534,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1565,19 +1592,19 @@ mod tests {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
-                raw_filename: b"mismatch.txt".to_vec(),
+                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
+                raw_filename: Some(b"mismatch.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: nix::unistd::getuid().as_raw(),
-                gid: nix::unistd::getgid().as_raw(),
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(nix::unistd::getuid().as_raw()),
+                gid: Some(nix::unistd::getgid().as_raw()),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1587,8 +1614,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1649,7 +1676,7 @@ mod tests {
                 },
             ];
         }
-        entity.identity.relative_path = PathBuf::from("sparse_dest.bin");
+        entity.identity.relative_path = Some(PathBuf::from("sparse_dest.bin"));
 
         let mut payload = DiskPayloadSource::open(&src_path).unwrap();
         let options = MaterializeOptions {

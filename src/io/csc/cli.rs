@@ -93,7 +93,10 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
                     if key == source_key)
             });
             if let Some(entity) = recorded_root {
-                task.target_root = snap.destination.join(&entity.identity.relative_path);
+                task.target_root = match &entity.identity.relative_path {
+                    Some(rel) => snap.destination.join(rel),
+                    None => snap.destination.clone(),
+                };
             } else {
                 anyhow::ensure!(task.copy_contents_only || !snap.destination.exists(),
                     "Cannot safely recover the original directory destination from this journal");
@@ -157,7 +160,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
 
     let has_errors = error_count > 0 || stats.files_failed > 0;
     let retain_metadata_journal = stats.copied_entities.iter().any(|(_, _, entity)|
-        entity.metadata.native.is_some() || entity.metadata.timestamps.birthtime_sec.is_some()
+        entity.metadata.native.is_some() || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
         || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
     if args.delete_manifest_after && has_errors {
         warn_fmt!("Retaining {}: it contains recorded error records", journal_path.display());

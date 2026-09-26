@@ -745,20 +745,25 @@ pub struct FileMetadata {
     #[dc(skip, reason = "Native observations retained in-memory for target replication, omitted from canonical serialization")]
     pub native: Option<NativeMetadata>,
     /// POSIX file mode bits (permissions and type bits).
+    #[serde(default)]
     #[dc(short = 333)]
-    pub mode: u32,
+    pub mode: Option<u32>,
     /// Owner user ID.
+    #[serde(default)]
     #[dc(short = 334)]
-    pub uid: u32,
+    pub uid: Option<u32>,
     /// Owner group ID.
+    #[serde(default)]
     #[dc(short = 335)]
-    pub gid: u32,
+    pub gid: Option<u32>,
     /// Timestamps with nanosecond precision.
+    #[serde(default)]
     #[dc(nested = [329, 330, 331, 332, 378])]
-    pub timestamps: FileTimestamps,
+    pub timestamps: Option<FileTimestamps>,
     /// Semantic file flags.
+    #[serde(default)]
     #[dc(begin = 388, end = 389)]
-    pub flags: Vec<FileFlag>,
+    pub flags: Option<Vec<FileFlag>>,
     /// Raw platform-specific flags if captured on a native filesystem.
     #[dc(skip, reason = "Raw bitmasks preserved for audit provenance, flags are canonized in semantic flags")]
     pub platform_raw_flags: Option<PlatformRawFlags>,
@@ -893,6 +898,24 @@ impl ctb_formats_dcstring::DcMixedDecode for AppleMetadata {
 }
 
 impl FileMetadata {
+    /// Creates an empty `FileMetadata` with all fields set to `None`.
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
+            native: None,
+            mode: None,
+            uid: None,
+            gid: None,
+            timestamps: None,
+            flags: None,
+            platform_raw_flags: None,
+            read_time: None,
+            filesystem_type: None,
+            environment: None,
+            apple: None,
+        }
+    }
+
     /// Returns a reference to the originating environment description, if attached.
     #[must_use]
     pub fn environment(&self) -> Option<&EnvDescription> {
@@ -942,6 +965,12 @@ impl FileMetadata {
                 native.values.remove("io.noatime");
             }
         }
+    }
+}
+
+impl Default for FileMetadata {
+    fn default() -> Self {
+        Self::empty()
     }
 }
 
@@ -1072,35 +1101,36 @@ pub fn check_metadata_replication(
     strict: bool,
     ignore_flags: bool,
 ) -> Result<()> {
-    if let Some(seconds) = metadata.timestamps.birthtime_sec {
-        let nanos = metadata
-            .timestamps
-            .birthtime_nsec
-            .context("Birth time has no nanoseconds")?;
-        anyhow::ensure!(
-            nanos < 1_000_000_000,
-            "Invalid birth time nanoseconds"
-        );
-        let actual =
-            capture_birthtime(&std::fs::symlink_metadata(destination)?)?;
-        let expected = filetime::FileTime::from_unix_time(seconds, nanos);
-        if actual != Some(expected) {
-            if strict {
-                anyhow::bail!(
-                    "Cannot reproduce birth time {seconds}.{nanos:09} on {}; original metadata must be retained in the journal",
+    if let Some(ref ts) = metadata.timestamps {
+        if let Some(seconds) = ts.birthtime_sec {
+            let nanos = ts
+                .birthtime_nsec
+                .context("Birth time has no nanoseconds")?;
+            anyhow::ensure!(
+                nanos < 1_000_000_000,
+                "Invalid birth time nanoseconds"
+            );
+            let actual =
+                capture_birthtime(&std::fs::symlink_metadata(destination)?)?;
+            let expected = filetime::FileTime::from_unix_time(seconds, nanos);
+            if actual != Some(expected) {
+                if strict {
+                    anyhow::bail!(
+                        "Cannot reproduce birth time {seconds}.{nanos:09} on {}; original metadata must be retained in the journal",
+                        destination.display()
+                    );
+                }
+                warn_fmt!(
+                    "Birth time cannot be reproduced on {}; retain the source metadata journal",
                     destination.display()
                 );
             }
-            warn_fmt!(
-                "Birth time cannot be reproduced on {}; retain the source metadata journal",
-                destination.display()
+        } else {
+            anyhow::ensure!(
+                ts.birthtime_nsec.is_none(),
+                "Birth time has no seconds"
             );
         }
-    } else {
-        anyhow::ensure!(
-            metadata.timestamps.birthtime_nsec.is_none(),
-            "Birth time has no seconds"
-        );
     }
     let differences =
         native_metadata_differences(destination, metadata, ignore_flags)?;
@@ -1301,18 +1331,20 @@ mod tests {
         let path = temp.path().join("file");
         fs::write(&path, b"data").unwrap();
         let mut metadata = FileMetadata {
-            native: None, mode: 0o600, uid: 0, gid: 0,
-            timestamps: FileTimestamps {
+            native: None, mode: Some(0o600), uid: Some(0), gid: Some(0),
+            timestamps: Some(FileTimestamps {
                 atime_sec: 0, atime_nsec: 0, mtime_sec: 0, mtime_nsec: 0,
                 ctime_sec: 0, ctime_nsec: 0, birthtime_sec: Some(-1), birthtime_nsec: Some(123),
                 resolution_nsec: None,
-            },
-            flags: Vec::new(), platform_raw_flags: None, read_time: None, filesystem_type: None,
+            }),
+            flags: Some(Vec::new()), platform_raw_flags: None, read_time: None, filesystem_type: None,
             environment: None, apple: None,
         };
         assert!(metadata::check_metadata_replication(&path, &metadata, true, false).is_err());
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_ok());
-        metadata.timestamps.birthtime_sec = None;
+        if let Some(ref mut ts) = metadata.timestamps {
+            ts.birthtime_sec = None;
+        }
         assert!(metadata::check_metadata_replication(&path, &metadata, false, false).is_err());
     }
 
