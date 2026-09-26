@@ -105,13 +105,11 @@ Update Guix packaging.
 Hi! I'd like you to work on some issues in the installer:
 
 - Keyboard input is still somewhat laggy, and frequently keys "stick" when pressed. (Mouse input, by contrast, is relatively smooth, and un-"stick"s the stuck keyboard event - keyboard events work smoothly if I'm continuously moving the mouse.)
-- [x] The license text view doesn't capture keyboard focus and can't be closed nor the controls tabbed between using only the keyboard; focus remains on the outer window. It should capture the tab focus like the file picker modal.
+- The license text view tabbing is messy - it's technically possible to tab to close button, but it also tabs to a lot of other invsible stuff. It also opens off-screen, so parts of the license modal are not visible.
 
 - Navigating the file tree by arrow keys isn't working: it appears to do *something* sometimes when I press the arrow keys, but the effects seem unrelated to the keys I'm pressing. Pressing Up should move the selected item to the preceding entry in the current column. Pressing Down should move to the following entry in the current column. Pressing Down when at the last selectable item in a column should do nothing; similarly for pressing Up when at the first. Pressing Right should move focus to the top item in the next column to the right. Pressing Left should move focus to the enclosing directory in the column before the currently selected column. (In other words the Left key should do the same thing as the Up toolbar button.)
 
 - Home, End, Page Up, and Page Down aren't doing anything.
-- [x] It's possible to type into the license text box.
--
 
 At narrow screen sizes (e.g. mobile portrait mode), the installer's file picker exhibits bugs. I suspect these are all *symptoms* of a single bug:
 
@@ -138,8 +136,6 @@ Could you investigate what the root cause of this broken behavior is, and correc
   - Pressing Left should move focus to the enclosing directory in the column before the currently selected column. (In other words the Left key should do the same thing as the Up toolbar button.)
 - The file picker toolbar is currently treated as a single tab-stop; instead, each button should have its own tab stop.
 - The Path field in the file picker is not reachable by tab key.
-- [x] The License modal does not trap keyboard focus, so it's possible to tab out of it. It should use `set_focus_lock_filter` like the file picker to ensure you can't tab out.
-- [x] The License modal does not respond to pressing the escape key to close it.
 
 - Scripts with cursive joining are badly mangled. See https://github.com/emilk/egui/issues/2517 (I guess the claim in the readme that it works with non-Latin characters is *technically* true, but I wish I'd realized this up front)
 
