@@ -347,6 +347,9 @@ impl CompressionFormat {
 
     /// Returns the standard default file extension associated with the format.
     pub fn extension(&self) -> &'static str {
+        if *self == Self::Lzma2 {
+            return "lzma2";
+        }
         ctb_formats_utilities::extension_data::primary_extension_for_format(
             self.to_format_id(),
         )
