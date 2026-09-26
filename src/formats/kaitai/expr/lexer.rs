@@ -41,6 +41,15 @@ See full license information at the end of this file.
 )]
 use crate::utilities::*;
 
+/// Segment of a formatted / interpolated string (f-string).
+#[derive(Debug, Clone, PartialEq)]
+pub enum FStringPart {
+    /// Literal text segment.
+    Literal(String),
+    /// Embedded expression string inside `{...}`.
+    Expr(String),
+}
+
 /// Token categories recognized in Kaitai Struct expressions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
@@ -70,6 +79,8 @@ pub enum TokenKind {
     Float(f64),
     /// String literal without surrounding quotes.
     Str(String),
+    /// Formatted / interpolated string (f-string) expression parts.
+    FStr(Vec<FStringPart>),
     /// Scope resolution operator `::`.
     ColonColon,
     /// Conditional ternary operator `?`.
@@ -418,6 +429,157 @@ pub fn tokenize(src: &str) -> Result<Vec<Token>> {
                 continue;
             }
             _ => {}
+        }
+
+        // Formatted / interpolated strings (f-strings): f"..." or f'...'
+        if (b == b'f' || b == b'F')
+            && bytes
+                .get(idx.saturating_add(1))
+                .copied()
+                .is_some_and(|c| c == b'\'' || c == b'"')
+        {
+            let start = idx;
+            idx = idx.saturating_add(1); // skip 'f' or 'F'
+            let quote = *bytes.get(idx).context("Byte offset out of bounds")?;
+            idx = idx.saturating_add(1); // skip quote
+            let mut parts = Vec::new();
+            let mut lit = String::new();
+
+            while idx < len && bytes.get(idx).copied() != Some(quote) {
+                let cur = *bytes.get(idx).context("Byte offset out of bounds")?;
+                if cur == b'{' {
+                    if bytes.get(idx.saturating_add(1)).copied() == Some(b'{') {
+                        lit.push('{');
+                        idx = idx.saturating_add(2);
+                        continue;
+                    }
+                    if !lit.is_empty() {
+                        parts.push(FStringPart::Literal(std::mem::take(&mut lit)));
+                    }
+                    idx = idx.saturating_add(1); // skip '{'
+                    let expr_start = idx;
+                    let mut brace_depth = 1_usize;
+                    while idx < len && brace_depth > 0 {
+                        let eb = *bytes.get(idx).context("Byte offset out of bounds")?;
+                        if eb == b'{' {
+                            brace_depth = brace_depth.saturating_add(1);
+                            idx = idx.saturating_add(1);
+                        } else if eb == b'}' {
+                            brace_depth = brace_depth.saturating_sub(1);
+                            if brace_depth == 0 {
+                                break;
+                            }
+                            idx = idx.saturating_add(1);
+                        } else if eb == b'\'' || eb == b'"' {
+                            let inner_q = eb;
+                            idx = idx.saturating_add(1);
+                            while idx < len && bytes.get(idx).copied() != Some(inner_q) {
+                                if bytes.get(idx).copied() == Some(b'\\') {
+                                    idx = idx.saturating_add(2);
+                                } else {
+                                    idx = idx.saturating_add(1);
+                                }
+                            }
+                            if idx < len {
+                                idx = idx.saturating_add(1);
+                            }
+                        } else {
+                            idx = idx.saturating_add(1);
+                        }
+                    }
+                    ensure!(brace_depth == 0, "Unclosed '}}' in f-string expression");
+                    let expr_str = src.get(expr_start..idx).context("Invalid slice")?;
+                    idx = idx.saturating_add(1); // skip '}'
+                    parts.push(FStringPart::Expr(expr_str.trim().to_string()));
+                    continue;
+                }
+                if cur == b'}' {
+                    if bytes.get(idx.saturating_add(1)).copied() == Some(b'}') {
+                        lit.push('}');
+                        idx = idx.saturating_add(2);
+                        continue;
+                    }
+                    bail!("Unmatched '}}' in f-string");
+                }
+                if cur == b'\\' {
+                    idx = idx.saturating_add(1);
+                    ensure!(idx < len, "Unterminated escape sequence in f-string");
+                    let esc = *bytes.get(idx).context("Byte offset out of bounds")?;
+                    match esc {
+                        b'n' => lit.push('\n'),
+                        b'r' => lit.push('\r'),
+                        b't' => lit.push('\t'),
+                        b'\\' => lit.push('\\'),
+                        b'\'' => lit.push('\''),
+                        b'"' => lit.push('"'),
+                        b'a' => lit.push('\u{0007}'),
+                        b'b' => lit.push('\u{0008}'),
+                        b'e' => lit.push('\u{001B}'),
+                        b'f' => lit.push('\u{000C}'),
+                        b'v' => lit.push('\u{000B}'),
+                        b'0'..=b'7' => {
+                            let octal_start = idx;
+                            let mut count = 0_usize;
+                            while count < 3
+                                && bytes
+                                    .get(idx.saturating_add(count))
+                                    .is_some_and(|&c| (b'0'..=b'7').contains(&c))
+                            {
+                                count = count.saturating_add(1);
+                            }
+                            let oct_str = src
+                                .get(octal_start..octal_start.saturating_add(count))
+                                .context("Invalid slice")?;
+                            let code = u32::from_str_radix(oct_str, 8)
+                                .context("Invalid octal escape")?;
+                            let ch = char::from_u32(code)
+                                .context("Invalid unicode codepoint from octal")?;
+                            lit.push(ch);
+                            idx = idx.saturating_add(count.saturating_sub(1));
+                        }
+                        b'u' => {
+                            idx = idx.saturating_add(1);
+                            ensure!(idx.saturating_add(4) <= len, "Incomplete unicode escape in f-string");
+                            let hex_str = src.get(idx..idx.saturating_add(4)).context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16).context("Invalid unicode hex escape")?;
+                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            lit.push(ch);
+                            idx = idx.saturating_add(3);
+                        }
+                        b'x' => {
+                            idx = idx.saturating_add(1);
+                            ensure!(idx.saturating_add(2) <= len, "Incomplete hex escape in f-string");
+                            let hex_str = src.get(idx..idx.saturating_add(2)).context("Invalid slice")?;
+                            let code = u32::from_str_radix(hex_str, 16).context("Invalid hex escape")?;
+                            let ch = char::from_u32(code).context("Invalid unicode codepoint")?;
+                            lit.push(ch);
+                            idx = idx.saturating_add(1);
+                        }
+                        other => lit.push(char::from(other)),
+                    }
+                    idx = idx.saturating_add(1);
+                    continue;
+                }
+
+                let rem = src.get(idx..).context("Byte offset out of bounds")?;
+                let ch = rem.chars().next().context("Expected char")?;
+                lit.push(ch);
+                idx = idx.saturating_add(ch.len_utf8());
+            }
+
+            ensure!(
+                idx < len && bytes.get(idx).copied() == Some(quote),
+                "Unterminated f-string literal"
+            );
+            idx = idx.saturating_add(1);
+            if !lit.is_empty() || parts.is_empty() {
+                parts.push(FStringPart::Literal(lit));
+            }
+            tokens.push(Token {
+                kind: TokenKind::FStr(parts),
+                pos: start,
+            });
+            continue;
         }
 
         // Strings

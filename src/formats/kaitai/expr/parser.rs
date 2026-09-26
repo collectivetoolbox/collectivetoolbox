@@ -526,6 +526,50 @@ impl Parser {
                 self.bump();
                 Ok(Expr::Str(val))
             }
+            TokenKind::FStr(parts) => {
+                let parts = parts.clone();
+                self.bump();
+                let mut expr_parts = Vec::new();
+                for part in parts {
+                    match part {
+                        super::lexer::FStringPart::Literal(s) => {
+                            expr_parts.push(Expr::Str(s));
+                        }
+                        super::lexer::FStringPart::Expr(expr_src) => {
+                            let parsed = super::parser::parse_expr(&expr_src)?;
+                            expr_parts.push(parsed);
+                        }
+                    }
+                }
+                if expr_parts.is_empty() {
+                    Ok(Expr::Str(String::new()))
+                } else if expr_parts.len() == 1 {
+                    let first = expr_parts.remove(0);
+                    if matches!(first, Expr::Str(_)) {
+                        Ok(first)
+                    } else {
+                        Ok(Expr::BinOp {
+                            left: Box::new(Expr::Str(String::new())),
+                            op: Operator::Add,
+                            right: Box::new(first),
+                        })
+                    }
+                } else {
+                    if !matches!(expr_parts.first(), Some(Expr::Str(_))) {
+                        expr_parts.insert(0, Expr::Str(String::new()));
+                    }
+                    let mut iter = expr_parts.into_iter();
+                    let mut acc = iter.next().context("Non-empty expr_parts")?;
+                    for next_expr in iter {
+                        acc = Expr::BinOp {
+                            left: Box::new(acc),
+                            op: Operator::Add,
+                            right: Box::new(next_expr),
+                        };
+                    }
+                    Ok(acc)
+                }
+            }
             TokenKind::KwSizeof => {
                 self.bump();
                 ensure!(
