@@ -112,6 +112,8 @@
     - [x] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
     - [ ] Resolve remaining hierarchical chunk, search, and offset rules across Magdir cases (APNG, OpenPGP key packets, Android vdex, ARJ, bcachefs).
     - [x] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
+  - [ ] passing all upstream `file` tests
+  - [ ] able to output `file`-compatible results by skipping ctoolbox additions
 
 - [x] **Sub-Phase 5D: Specialized Deep Parsers & Container Inspection (`detection/container.rs`):**
   - [x] TAR archive verification: validate octal checksums across the 512-byte header block (V7, ustar, GNU, pax) without full extraction (`is_tar.c`).

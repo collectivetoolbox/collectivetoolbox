@@ -1033,24 +1033,57 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         (type_no_mask, None)
     };
 
+    // Parse type adjustment e.g. leldate+631065600
+    let (base_type_no_adj, type_adj) = if let Some(idx) = base_type.find('+') {
+        let (t, a) = base_type.split_at(idx);
+        let adj = a.strip_prefix('+').and_then(parse_signed_magic_int).unwrap_or(0);
+        (t, adj)
+    } else if let Some(idx) = base_type.find('-') {
+        let (t, a) = base_type.split_at(idx);
+        let adj = a.strip_prefix('-').and_then(parse_signed_magic_int).map(|v| -v).unwrap_or(0);
+        (t, adj)
+    } else {
+        (base_type, 0)
+    };
+
     // Parse test
-    let test = match base_type {
+    let test = match base_type_no_adj {
         "string" => {
             let flags = parse_string_flags(flags_str);
-            let bytes = decode_magic_escapes(val_str);
-            if flags == StringFlags::default() {
-                MagicTest::ExactBytes(bytes)
-            } else {
+            if val_str == "x" {
+                MagicTest::StringAny(flags)
+            } else if let Some(stripped) = val_str.strip_prefix('>') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Gt, flags }
+            } else if let Some(stripped) = val_str.strip_prefix('<') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Lt, flags }
+            } else if let Some(stripped) = val_str.strip_prefix('!') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::StringRelOp { pattern: bytes, op: RelOp::Ne, flags }
+            } else if let Some(stripped) = val_str.strip_prefix('=') {
+                let bytes = decode_magic_escapes(stripped);
                 MagicTest::String { pattern: bytes, flags }
+            } else {
+                let bytes = decode_magic_escapes(val_str);
+                if flags == StringFlags::default() {
+                    MagicTest::ExactBytes(bytes)
+                } else {
+                    MagicTest::String { pattern: bytes, flags }
+                }
             }
         }
         "pstring" => {
             let (length_size, length_includes_itself) = parse_pstring_flags(flags_str);
-            let bytes = decode_magic_escapes(val_str);
-            MagicTest::PascalString {
-                pattern: bytes,
-                length_size,
-                length_includes_itself,
+            if val_str == "x" {
+                MagicTest::PascalStringAny { length_size, length_includes_itself }
+            } else {
+                let bytes = decode_magic_escapes(val_str);
+                MagicTest::PascalString {
+                    pattern: bytes,
+                    length_size,
+                    length_includes_itself,
+                }
             }
         }
         "regex" => {
@@ -1139,42 +1172,51 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         "date" | "bedate" | "ldate" | "beldate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date32Be { value: 0, op: RelOp::Any }
+                MagicTest::Date32Be { value: 0, op: RelOp::Any, adjustment: type_adj }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::Date32Be { value: val, op }
+                MagicTest::Date32Be { value: val, op, adjustment: type_adj }
             }
         }
         "ledate" | "leldate" | "medate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date32Le { value: 0, op: RelOp::Any }
+                MagicTest::Date32Le { value: 0, op: RelOp::Any, adjustment: type_adj }
             } else {
                 let val_u64 = parse_magic_int(num_str)?;
                 let val = u32::try_from(val_u64).ok()?;
-                MagicTest::Date32Le { value: val, op }
+                MagicTest::Date32Le { value: val, op, adjustment: type_adj }
             }
         }
         "qdate" | "beqdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date64Be { value: 0, op: RelOp::Any }
+                MagicTest::Date64Be { value: 0, op: RelOp::Any, adjustment: type_adj }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::Date64Be { value: val, op }
+                MagicTest::Date64Be { value: val, op, adjustment: type_adj }
             }
         }
         "leqdate" => {
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
-                MagicTest::Date64Le { value: 0, op: RelOp::Any }
+                MagicTest::Date64Le { value: 0, op: RelOp::Any, adjustment: type_adj }
             } else {
                 let val = parse_magic_int(num_str)?;
-                MagicTest::Date64Le { value: val, op }
+                MagicTest::Date64Le { value: val, op, adjustment: type_adj }
             }
         }
-        _ if base_type.starts_with("search") => {
+        "lemsdosdate" | "msdosdate" => MagicTest::MsDosDate,
+        "lemsdostime" | "msdostime" => MagicTest::MsDosTime,
+        "guid" => {
+            let g = parse_guid(val_str)?;
+            MagicTest::Guid(g)
+        }
+        "offset" => MagicTest::OffsetVal,
+        "default" => MagicTest::Default,
+        "clear" => MagicTest::Clear,
+        _ if base_type_no_adj.starts_with("search") => {
             let (flags, max_bytes) = parse_search_flags(flags_str);
             let bytes = decode_magic_escapes(val_str);
             MagicTest::Search { pattern: bytes, max_bytes, flags }
@@ -1411,6 +1453,7 @@ mod tests {
             MagicTest::Date32Be {
                 value: 0,
                 op: RelOp::Any,
+                adjustment: 0,
             }
         );
         assert_eq!(
