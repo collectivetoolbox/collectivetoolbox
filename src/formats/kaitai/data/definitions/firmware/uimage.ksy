@@ -7,7 +7,7 @@ doc: |
   The new uImage format allows more flexibility in handling images of various
   types (kernel, ramdisk, etc.), it also enhances integrity protection of images
   with sha1 and md5 checksums.
-doc-ref: https://source.denx.de/u-boot/u-boot/-/raw/e4dba4ba6f/include/image.h
+doc-ref: https://github.com/u-boot/u-boot/blob/ece349ade2973e220f524ce59e59711cc919263f/include/image.h Git tag "v2026.07"
 seq:
   - id: header
     type: uheader
@@ -135,6 +135,9 @@ enums:
     28:
       id: efi
       doc: EFI Firmware (e.g. GRUB2)
+    29:
+      id: elf
+      doc: ELF Image (e.g. seL4)
   uimage_arch:
     0:
       id: invalid
@@ -351,3 +354,24 @@ enums:
     40:
       id: sunxi_egon
       doc: Allwinner eGON Boot Image
+    41:
+      id: sunxi_toc0
+      doc: Allwinner TOC0 Boot Image
+    42:
+      id: fdt_legacy
+      doc: Binary Flat Device Tree Blob in a Legacy Image
+    43:
+      id: renesas_spkg
+      doc: Renesas SPKG image
+    44:
+      id: starfive_spl
+      doc: StarFive SPL image
+    45:
+      id: tfa_bl31
+      doc: TFA BL31 image
+    46:
+      id: stm32image_v2
+      doc: STMicroelectronics STM32 Image V2.0
+    47:
+      id: amlimage
+      doc: Amlogic Boot Image
