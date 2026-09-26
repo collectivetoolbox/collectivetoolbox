@@ -498,10 +498,34 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
 
             let is_container_parent = parent_candidate.format_id == Some(FormatId::Zip)
                 || parent_candidate.mime.as_deref() == Some("application/zip")
-                || parent_candidate.mime.as_deref() == Some("application/x-ole-storage");
+                || parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
+                || parent_candidate.description.starts_with("OLE 2 Compound Document")
+                || parent_candidate.description.starts_with("Composite Document File");
+
+            let is_child_of_container = is_container_parent
+                && child_candidate.evidence.iter().any(|e| match e {
+                    DetectionEvidence::ContainerStructure { detail, .. } => {
+                        (parent_candidate.format_id == Some(FormatId::Zip)
+                            || parent_candidate.mime.as_deref() == Some("application/zip"))
+                            && (detail.contains("ZIP") || detail.contains("Central Directory"))
+                            || (parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
+                                || parent_candidate.description.starts_with("OLE 2 Compound Document")
+                                || parent_candidate.description.starts_with("Composite Document File"))
+                                && (detail.contains("OLE2")
+                                    || detail.contains("Compound Document")
+                                    || detail.contains("Hancom")
+                                    || detail.contains("Word")
+                                    || detail.contains("Excel")
+                                    || detail.contains("PowerPoint"))
+                    }
+                    _ => false,
+                });
 
             // If i is a subtype of j and i has equal or higher score (or within 35 points, or is a specialized format in a container)
-            if is_subclass && (child_candidate.score.saturating_add(35) >= parent_candidate.score || (is_container_parent && child_candidate.score >= 65)) {
+            if (is_subclass || is_child_of_container)
+                && (child_candidate.score.saturating_add(35) >= parent_candidate.score
+                    || (is_container_parent && child_candidate.score >= 65))
+            {
                 subsumed_indices.insert(j);
             }
         }

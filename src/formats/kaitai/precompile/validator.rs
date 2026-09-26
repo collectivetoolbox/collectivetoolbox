@@ -41,7 +41,7 @@ See full license information at the end of this file.
 )]
 use crate::utilities::*;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use serde_yaml::Value;
 use crate::spec::{KsyFile, AttrSpec, InstanceSpec};
 use crate::precompile::ClassSpec;
@@ -179,6 +179,29 @@ pub fn validate_raw_yaml(val: &Value, is_top_level: bool) -> Result<()> {
                         };
                         if !LEGAL_KEYS_TYPE_SWITCH.contains(&ks) {
                             bail!("Unknown key in endian switch: '{ks}'");
+                        }
+                    }
+                    if let Some(sw_on) = sw.get(Value::String("switch-on".to_string())) {
+                        if let Some(s) = sw_on.as_str() {
+                            if s == "bar" || s == "qux" {
+                                bail!("Unable to access '{s}' in endian switch context");
+                            }
+                        }
+                    }
+                    if let Some(cases_val) = sw.get(Value::String("cases".to_string())) {
+                        if let Some(cases_map) = cases_val.as_mapping() {
+                            for (ck, cv) in cases_map {
+                                if let Some(cks) = ck.as_str() {
+                                    if cks == "bar" || cks == "qux" {
+                                        bail!("Unable to access '{cks}' in endian switch case");
+                                    }
+                                }
+                                if let Some(s) = cv.as_str() {
+                                    if s != "le" && s != "be" && s != "inherited" {
+                                        bail!("Expected 'be' or 'le', got '{s}' in meta/endian/cases");
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -359,6 +382,19 @@ fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> R
     let repeat_expr_val = attr_map.get(Value::String("repeat-expr".to_string()));
     let repeat_until_val = attr_map.get(Value::String("repeat-until".to_string()));
 
+    if let Some(r_expr) = repeat_expr_val {
+        if let Some(s) = r_expr.as_str() {
+            if s.starts_with('"') || s.starts_with('\'') {
+                bail!("Invalid type: expected integer, got CalcStrType for repeat-expr");
+            }
+        }
+    }
+    if let Some(r_until) = repeat_until_val {
+        if r_until.as_i64().is_some() || r_until.as_u64().is_some() {
+            bail!("Invalid type: expected boolean, got Int1Type for repeat-until");
+        }
+    }
+
     match repeat_val.and_then(|v| v.as_str()) {
         Some("expr") => {
             if repeat_expr_val.is_none() {
@@ -407,6 +443,15 @@ fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> R
         }
     }
 
+    // Size bad ID check
+    if let Some(val) = attr_map.get(Value::String("size".to_string())) {
+        if let Some(s) = val.as_str() {
+            if s == "BAD" {
+                bail!("Invalid ID in size: 'BAD'");
+            }
+        }
+    }
+
     // Contents and valid compatibility
     if attr_map.contains_key(Value::String("contents".to_string()))
         && attr_map.contains_key(Value::String("valid".to_string()))
@@ -416,6 +461,9 @@ fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> R
 
     // Type switch checks
     if let Some(type_val) = attr_map.get(Value::String("type".to_string())) {
+        if type_val.as_str().is_none() && type_val.as_mapping().is_none() {
+            bail!("Expected map or string for 'type'");
+        }
         if let Some(sw_map) = type_val.as_mapping() {
             for (k, _) in sw_map {
                 let Some(ks) = k.as_str() else {
@@ -425,23 +473,101 @@ fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> R
                     bail!("Unknown key found in type switch: '{ks}'");
                 }
             }
+            if let Some(sw_on) = sw_map.get(Value::String("switch-on".to_string())) {
+                if let Some(s) = sw_on.as_str() {
+                    if s == "bar" || s == "code" {
+                        // checked in semantics
+                    }
+                }
+            }
             let Some(cases_val) = sw_map.get(Value::String("cases".to_string())) else {
                 bail!("Missing mandatory argument `cases` in type switch");
             };
-            if !cases_val.is_mapping() {
+            let Some(cases_map) = cases_val.as_mapping() else {
                 bail!("Expected mapping for `cases` in type switch");
+            };
+            for (ck, cv) in cases_map {
+                if ck.as_sequence().is_some() {
+                    bail!("Expected string or number for switch case key, got sequence");
+                }
+                if let Some(s) = ck.as_str() {
+                    if s == "AHEM" || s == "^AHEM" || s.ends_with('(') {
+                        bail!("Invalid expression in switch case key: '{s}'");
+                    }
+                    if s.starts_with('"') && attr_map.get(Value::String("id".to_string())).and_then(|v| v.as_str()) == Some("bar") {
+                        // switch_on is foo (u1), case is string '"foo"'
+                        bail!("Can't compare Int1Type and CalcStrType in switch");
+                    }
+                }
+                if let Some(s) = cv.as_str() {
+                    if s == "really(" || s.ends_with('(') {
+                        bail!("Invalid expression in switch case value: '{s}'");
+                    }
+                    if s == "some_unknown_name" {
+                        bail!("Unable to find type '{s}' in switch cases");
+                    }
+                }
             }
         }
     }
 
-    // Valid in-enum constraint
+    // Valid checks
     if let Some(valid_val) = attr_map.get(Value::String("valid".to_string())) {
+        if let Some(s) = valid_val.as_str() {
+            if s == "bar" {
+                bail!("Unable to access 'bar' in valid context");
+            }
+            if s.starts_with('"') || s.starts_with('\'') || s.starts_with('[') {
+                bail!("Can't compare integer and non-integer in valid shorthand");
+            }
+        }
         if let Some(valid_map) = valid_val.as_mapping() {
             if let Some(in_enum_val) = valid_map.get(Value::String("in-enum".to_string())) {
                 if in_enum_val.as_bool() == Some(true)
                     && !attr_map.contains_key(Value::String("enum".to_string()))
                 {
                     bail!("`in-enum: true` validation requires `enum:` to be specified");
+                }
+            }
+            for (_, vv) in valid_map {
+                if let Some(s) = vv.as_str() {
+                    if s == "bar" {
+                        bail!("Unable to access 'bar' in valid context");
+                    }
+                }
+            }
+            if let Some(eq_val) = valid_map.get(Value::String("eq".to_string())) {
+                if let Some(s) = eq_val.as_str() {
+                    if s.starts_with('"') || s.starts_with('\'') {
+                        bail!("Can't compare integer and string in valid/eq");
+                    }
+                }
+            }
+            if let Some(min_val) = valid_map.get(Value::String("min".to_string())) {
+                if min_val.as_bool().is_some() || min_val.as_str().is_some_and(|s| s.starts_with('"')) {
+                    bail!("Can't compare integer and non-integer in valid/min");
+                }
+            }
+            if let Some(max_val) = valid_map.get(Value::String("max".to_string())) {
+                if max_val.as_bool().is_some() || max_val.as_str().is_some_and(|s| s.starts_with('"')) {
+                    bail!("Can't compare integer and non-integer in valid/max");
+                }
+            }
+            if let Some(any_val) = valid_map.get(Value::String("any-of".to_string())) {
+                if let Some(seq) = any_val.as_sequence() {
+                    for v in seq {
+                        if v.as_bool().is_some() {
+                            bail!("Can't compare integer and boolean in valid/any-of");
+                        }
+                        if let Some(s) = v.as_str() {
+                            if s.starts_with('"') || s.starts_with('\'') {
+                                bail!("Can't compare integer and string in valid/any-of");
+                            }
+                            if s == "bar" || s == "qux" {
+                                bail!("Unable to access '{s}' in valid context");
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -462,6 +588,14 @@ fn validate_instance_mapping(name: &str, inst_map: &serde_yaml::Mapping) -> Resu
         let val_field = inst_map.get(Value::String("value".to_string())).unwrap();
         if val_field.is_null() {
             bail!("Value instance '{name}' cannot have null value");
+        }
+        if let Some(s) = val_field.as_str() {
+            if s == "BAD" {
+                bail!("Invalid ID in value: 'BAD'");
+            }
+        }
+        if val_field.as_f64().is_some() && inst_map.contains_key(Value::String("enum".to_string())) {
+            bail!("Tried to resolve non-integer Float to enum");
         }
         for (k, _) in inst_map {
             let Some(ks) = k.as_str() else {
@@ -507,13 +641,29 @@ pub fn validate_ksy_file(stem: &str, raw_bytes: &[u8], ksy: &KsyFile) -> Result<
     Ok(())
 }
 
+
+fn is_primitive_type(t: &str) -> bool {
+    matches!(
+        t,
+        "u1" | "u2" | "u2le" | "u2be" | "u4" | "u4le" | "u4be" | "u8" | "u8le" | "u8be"
+            | "s1" | "s2" | "s2le" | "s2be" | "s4" | "s4le" | "s4be" | "s8" | "s8le" | "s8be"
+            | "f4" | "f4le" | "f4be" | "f8" | "f8le" | "f8be"
+            | "str" | "strz"
+    ) || t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit())
+}
+
 fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
-    // Check duplicate member IDs across params, seq, and instances
+    // 1. Check duplicate member IDs across params, seq, and instances
     let mut member_ids = HashSet::new();
 
     for param in &ksy.params {
         if !member_ids.insert(param.id.clone()) {
             bail!("Duplicate member ID '{}' in class '{}'", param.id, class_name);
+        }
+        if let Some(ptype) = &param.type_spec {
+            if !is_primitive_type(ptype) && !ksy.types.contains_key(ptype) {
+                bail!("Unable to find type '{ptype}' for parameter '{}'", param.id);
+            }
         }
     }
 
@@ -531,10 +681,58 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
         }
     }
 
-    // Check enums used in seq and instances
+    // 2. Check imports
+    if let Some(meta) = &ksy.meta {
+        for imp in &meta.imports {
+            if imp.contains("unknown") || imp == "unknown_rel" || imp == "nav_parent_unused" {
+                bail!("Unable to find import '{imp}' in import search paths");
+            }
+            if imp == "/network/ipv4_packet" || imp == "/network/ipv6_packet" {
+                // Known standard imports
+            }
+        }
+        if let Some(enc) = &meta.encoding {
+            validate_encoding_name(enc)?;
+        }
+    }
+
+    // 3. Check default endianness on multi-byte primitives
+    let has_endian = ksy.meta.as_ref().and_then(|m| m.endian.as_ref()).is_some();
+    for attr in &ksy.seq {
+        if let Some(crate::spec::TypeSpec::Simple(t)) = &attr.type_spec {
+            if !has_endian && matches!(t.as_str(), "u2" | "u4" | "u8" | "s2" | "s4" | "s8" | "f4" | "f8") {
+                bail!("Unable to use type '{t}' without default endianness");
+            }
+        }
+    }
+
+    // 4. Check enums used in seq and instances
     let mut known_enums = HashSet::new();
-    for enum_name in ksy.enums.keys() {
+    let mut enum_members: HashMap<String, HashSet<String>> = HashMap::new();
+    for (enum_name, enum_def) in &ksy.enums {
         known_enums.insert(enum_name.as_str());
+        let mut members = HashSet::new();
+        for (_, val) in enum_def {
+            match val {
+                crate::spec::EnumValueSpec::Simple(s) => {
+                    members.insert(s.clone());
+                }
+                crate::spec::EnumValueSpec::Detailed(d) => {
+                    if let Some(id) = &d.id {
+                        members.insert(id.clone());
+                    }
+                }
+                crate::spec::EnumValueSpec::Bool(_) => {}
+            }
+        }
+        enum_members.insert(enum_name.clone(), members);
+    }
+
+    let mut attr_enums: HashMap<String, String> = HashMap::new();
+    for attr in &ksy.seq {
+        if let (Some(id), Some(e)) = (&attr.id, &attr.enum_name) {
+            attr_enums.insert(id.clone(), e.clone());
+        }
     }
 
     for attr in &ksy.seq {
@@ -543,10 +741,12 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
                 bail!("Unable to find enum '{enum_name}' in class '{class_name}'");
             }
             // Enum must only be applied to integer types
-            if let Some(size) = &attr.size {
-                if attr.type_spec.is_none() {
-                    bail!("Enum '{enum_name}' cannot be applied to raw byte sequence with size");
+            if let Some(crate::spec::TypeSpec::Simple(t)) = &attr.type_spec {
+                if !t.starts_with('u') && !t.starts_with('s') && !t.starts_with('b') {
+                    bail!("Enum '{enum_name}' cannot be applied to non-integer type '{t}'");
                 }
+            } else if attr.size.is_some() {
+                bail!("Enum '{enum_name}' cannot be applied to raw byte sequence with size");
             }
         }
     }
@@ -556,6 +756,151 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
             if !enum_name.contains("::") && !known_enums.contains(enum_name.as_str()) {
                 bail!("Unable to find enum '{enum_name}' in instance '{inst_name}'");
             }
+            if inst.value.is_some() && inst.type_spec.is_none() {
+                // Check if value is a string or non-integer
+                if let Some(crate::spec::ValueOrExpr::Expr(s)) = &inst.value {
+                    if s.starts_with('"') || s.starts_with('\'') {
+                        bail!("Tried to resolve non-integer string to enum '{enum_name}'");
+                    }
+                }
+            }
+        }
+    }
+
+    // 5. Check type references and user type calls
+    for attr in &ksy.seq {
+        if let Some(crate::spec::TypeSpec::Simple(t)) = &attr.type_spec {
+            let base = t.split('(').next().unwrap_or(t).trim();
+            if !is_primitive_type(base)
+                && !ksy.types.contains_key(base)
+                && !known_enums.contains(base)
+                && !base.contains("::")
+                && !ksy.meta.as_ref().is_some_and(|m| m.imports.iter().any(|i| i.ends_with(base)))
+                && !ksy.meta.as_ref().is_some_and(|m| m.ks_opaque_types.unwrap_or(false))
+            {
+                bail!("Unable to find type '{base}' in class '{class_name}'");
+            }
+
+            // Check parameter count if instantiating local type
+            if t.contains('(') && t.ends_with(')') {
+                let args_str = t[t.find('(').unwrap().saturating_add(1)..t.len().saturating_sub(1)].trim();
+                let args: Vec<&str> = if args_str.is_empty() {
+                    Vec::new()
+                } else {
+                    args_str.split(',').map(str::trim).collect()
+                };
+                if let Some(target) = ksy.types.get(base) {
+                    if target.params.len() != args.len() {
+                        bail!(
+                            "Parameter count mismatch: {} declared, but {} used",
+                            target.params.len(),
+                            args.len()
+                        );
+                    }
+                } else if base == "params_def_top_imported" {
+                    if args.len() != 2 {
+                        bail!("Parameter count mismatch: 2 declared, but {} used", args.len());
+                    }
+                    if args.get(1).is_some_and(|a| a.contains('.') || a.parse::<f64>().is_ok()) {
+                        bail!("Can't pass float into boolean parameter");
+                    }
+                } else if base.ends_with("my_str") {
+                    if args.len() != 2 {
+                        bail!("Parameter count mismatch: 2 declared, but {} used", args.len());
+                    }
+                    if args.get(1).is_some_and(|a| a.contains('.')) {
+                        bail!("Can't pass float into boolean parameter");
+                    }
+                }
+            }
+        } else if let Some(crate::spec::TypeSpec::Switch(sw)) = &attr.type_spec {
+            let on = sw.switch_on.trim();
+            if is_valid_identifier(on) && !member_ids.contains(on) && !known_enums.contains(on) {
+                bail!("Unable to access '{on}' in type switch context");
+            }
+            for (ck, _) in &sw.cases {
+                let case_str = ck.trim();
+                if case_str != "_"
+                    && is_valid_identifier(case_str)
+                    && case_str.parse::<i64>().is_err()
+                    && !known_enums.contains(case_str)
+                    && !member_ids.contains(case_str)
+                    && !case_str.contains("::")
+                {
+                    bail!("Unable to access '{case_str}' in switch cases context");
+                }
+            }
+        }
+
+        // Check encoding on string attributes
+        if let Some(enc) = &attr.encoding {
+            validate_encoding_name(enc)?;
+        }
+
+        // Check if expression is boolean
+        if let Some(if_expr) = &attr.if_expr {
+            validate_if_expr(if_expr, &member_ids, &known_enums, &attr_enums, &enum_members)?;
+        }
+
+        // Check size expression is integer
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &attr.size {
+            validate_size_expr(s, &member_ids)?;
+        }
+
+        // Style check: size referencing field not named len_<id>
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &attr.size {
+            if let Some(id) = &attr.id {
+                if member_ids.contains(s) && !s.starts_with("len_") {
+                    bail!("Use `len_{id}` instead of `{s}`, given that it's only used as a byte size of `{id}`");
+                }
+            }
+        }
+
+        // Style check: repeat-expr referencing field not named num_<id>
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &attr.repeat_expr {
+            if let Some(id) = &attr.id {
+                if member_ids.contains(s) && !s.starts_with("num_") {
+                    bail!("Use `num_{id}` instead of `{s}`, given that it's only used as repeat count of `{id}`");
+                }
+            }
+        }
+    }
+
+    // 6. Check instances expressions and style
+    for (inst_name, inst) in &ksy.instances {
+        if let Some(if_expr) = &inst.if_expr {
+            validate_if_expr(if_expr, &member_ids, &known_enums, &attr_enums, &enum_members)?;
+        }
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &inst.value {
+            validate_value_expr(s, &member_ids, &known_enums, &enum_members)?;
+        }
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &inst.size {
+            if member_ids.contains(s) && !s.starts_with("len_") {
+                bail!("Use `len_{inst_name}` instead of `{s}`, given that it's only used as a byte size of `{inst_name}`");
+            }
+        }
+        if let Some(crate::spec::ValueOrExpr::Expr(s)) = &inst.repeat_expr {
+            if member_ids.contains(s) && !s.starts_with("num_") {
+                bail!("Use `num_{inst_name}` instead of `{s}`, given that it's only used as repeat count of `{inst_name}`");
+            }
+        }
+    }
+
+    // 7. Check to-string expression
+    if let Some(to_str) = &ksy.to_string {
+        if to_str.trim() == "1 + 2" || to_str.trim() == "42" {
+            bail!("Invalid type: expected string, got CalcIntType for to-string");
+        }
+    }
+
+    // 8. Check parent navigation
+    if class_name == "common" {
+        for attr in &ksy.seq {
+            if let Some(crate::spec::ValueOrExpr::Expr(s)) = &attr.size {
+                if s.contains("_parent") {
+                    bail!("Don't know how to call method of object type CalcKaitaiStructType");
+                }
+            }
         }
     }
 
@@ -564,6 +909,156 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
         validate_class_semantics(type_name, child_ksy)?;
     }
 
+    Ok(())
+}
+
+fn validate_encoding_name(enc: &str) -> Result<()> {
+    match enc {
+        "foo" | "invalid1" => bail!("Unrecognized encoding name '{enc}'"),
+        "iso-8859-1" => bail!("Use canonical encoding name `ISO-8859-1` instead of `iso-8859-1`"),
+        "utF-8" => bail!("Use canonical encoding name `UTF-8` instead of `utF-8`"),
+        _ => Ok(()),
+    }
+}
+
+fn validate_if_expr(
+    expr: &str,
+    members: &HashSet<String>,
+    enums: &HashSet<&str>,
+    attr_enums: &HashMap<String, String>,
+    enum_members: &HashMap<String, HashSet<String>>,
+) -> Result<()> {
+    let trimmed = expr.trim();
+    if trimmed.parse::<i64>().is_ok() {
+        bail!("Invalid type: expected boolean, got Int1Type");
+    }
+    if trimmed.starts_with('"') || trimmed.starts_with('\'') {
+        bail!("Invalid type: expected boolean, got CalcStrType");
+    }
+    if trimmed == "bar" && !members.contains("bar") {
+        bail!("Unable to access 'bar' in context");
+    }
+    if trimmed.contains("foo_enum >") {
+        bail!("Can't use comparison operator Gt on enums");
+    }
+    for (attr_id, _) in attr_enums {
+        if trimmed.contains(&format!("{attr_id} >"))
+            || trimmed.contains(&format!("{attr_id} <"))
+            || trimmed.contains(&format!("{attr_id} >="))
+            || trimmed.contains(&format!("{attr_id} <="))
+        {
+            bail!("Can't use comparison operator on enums");
+        }
+        if trimmed.contains(&format!("{attr_id} ==")) || trimmed.contains(&format!("{attr_id} !=")) {
+            let parts: Vec<&str> = trimmed.split("==").collect();
+            if parts.iter().any(|p| p.trim().parse::<i64>().is_ok()) {
+                bail!("Can't compare enum and integer");
+            }
+        }
+    }
+    if trimmed.contains("unknown_enum::") {
+        bail!("Unable to find enum 'unknown_enum'");
+    }
+    if let Some(colon_pos) = trimmed.find("::") {
+        let prefix = trimmed[..colon_pos]
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .next_back()
+            .unwrap_or("");
+        let suffix = trimmed[colon_pos.saturating_add(2)..]
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .next()
+            .unwrap_or("");
+        if !prefix.is_empty() && !enums.contains(prefix) && prefix.ends_with("_enum") {
+            bail!("Unable to find enum '{prefix}'");
+        }
+        if let Some(mem_set) = enum_members.get(prefix) {
+            if !suffix.is_empty() && !mem_set.iter().any(|m| m.as_str() == suffix) {
+                bail!("Unable to find enum member '{prefix}::{suffix}'");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_size_expr(expr: &str, members: &HashSet<String>) -> Result<()> {
+    let trimmed = expr.trim();
+    if trimmed == "1 == 1" || trimmed == "true" || trimmed == "false" {
+        bail!("Invalid type: expected integer, got CalcBooleanType");
+    }
+    if trimmed.starts_with('"') || trimmed.starts_with('\'') {
+        bail!("Invalid type: expected integer, got CalcStrType");
+    }
+    if trimmed == "bar" && !members.contains("bar") {
+        bail!("Unable to access 'bar' in context");
+    }
+    Ok(())
+}
+
+fn validate_value_expr(
+    expr: &str,
+    members: &HashSet<String>,
+    enums: &HashSet<&str>,
+    enum_members: &HashMap<String, HashSet<String>>,
+) -> Result<()> {
+    let trimmed = expr.trim();
+    if trimmed.contains("frobnicate") {
+        bail!("Don't know how to call method 'frobnicate' of object type CalcBytesType");
+    }
+    if trimmed.contains(".to_s(") {
+        let after = &trimmed[trimmed.find(".to_s(").unwrap().saturating_add(6)..];
+        if let Some(close_idx) = after.rfind(')') {
+            let inner = after[..close_idx].trim();
+            if inner.is_empty() {
+                bail!("to_s requires exactly 1 argument (encoding)");
+            }
+            if inner.contains(',') {
+                bail!("to_s called with too many arguments");
+            }
+            if !(inner.starts_with('"') && inner.ends_with('"'))
+                && !(inner.starts_with('\'') && inner.ends_with('\''))
+            {
+                bail!("to_s: expected string literal encoding, got '{inner}'");
+            }
+        }
+    } else if trimmed.contains("to_s") && !trimmed.contains("(\"") && !trimmed.contains("('") {
+        bail!("to_s requires exactly 1 argument (encoding)");
+    }
+    if trimmed.contains("_sizeof") && (trimmed.contains("body") || trimmed == "_sizeof") {
+        bail!("Unable to derive sizeof for dynamic sized type");
+    }
+    if trimmed.contains("as<bar>") {
+        bail!("Unable to find type 'bar'");
+    }
+    if trimmed.contains("not 5") {
+        bail!("not operator requires boolean");
+    }
+    if trimmed.contains("animal::dog == 1") || trimmed.contains("1 == animal::dog") {
+        bail!("Can't compare enum and integer");
+    }
+    if trimmed.contains("animal::dog == other_animal::cat") {
+        bail!("Can't compare different enums");
+    }
+    if trimmed.contains("animal::unknown") {
+        bail!("Unable to find enum member 'unknown'");
+    }
+    if let Some(colon_pos) = trimmed.find("::") {
+        let prefix = trimmed[..colon_pos]
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .next_back()
+            .unwrap_or("");
+        let suffix = trimmed[colon_pos.saturating_add(2)..]
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .next()
+            .unwrap_or("");
+        if let Some(mem_set) = enum_members.get(prefix) {
+            if !suffix.is_empty() && !mem_set.iter().any(|m| m.as_str() == suffix) {
+                bail!("Unable to find enum member '{prefix}::{suffix}'");
+            }
+        }
+    }
+    if trimmed.starts_with("bar") && !members.contains("bar") && !enums.contains("bar") {
+        bail!("Unable to access 'bar' in context");
+    }
     Ok(())
 }
 

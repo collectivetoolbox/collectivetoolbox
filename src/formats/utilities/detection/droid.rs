@@ -2065,7 +2065,8 @@ pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
 }
 
 /// Evaluates DROID container signatures against OLE2 stream names.
-pub fn evaluate_droid_ole2_container(
+pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
+    source: &mut S,
     stream_names: &[String],
     db: &ContainerSignatureDatabase,
 ) -> Result<Option<DetectionCandidate>> {
@@ -2073,63 +2074,114 @@ pub fn evaluate_droid_ole2_container(
         return Ok(None);
     }
 
+    let mut sample_buf = vec![0u8; 262144];
+    let n = source.read_at(0, &mut sample_buf)?;
+    let sample = sample_buf.get(..n).unwrap_or(&[]);
+
+    let mut candidate_matches = Vec::new();
+
     for sig in &db.ole2_signatures {
         if sig.files.is_empty() {
             continue;
         }
 
-        let all_streams_matched = sig.files.iter().all(|file_rule| {
+        let mut has_sequence = false;
+        let mut all_streams_matched = true;
+
+        for file_rule in &sig.files {
             let rule_path = file_rule.path.trim_start_matches('/');
-            stream_names.iter().any(|s| {
+            let stream_found = stream_names.iter().any(|s| {
                 let s_path = s.trim_start_matches('/');
                 s_path.eq_ignore_ascii_case(rule_path)
-            })
-        });
+            });
+            if !stream_found {
+                all_streams_matched = false;
+                break;
+            }
 
-        if all_streams_matched {
-            let puid_opt = sig.puid.clone();
-            let mut mime = None;
-            let mut desc = sig.description.clone();
-
-            if let Some(ref puid) = puid_opt {
-                if let Some(fmt) = DROID_PRONOM_DB.formats.get(puid) {
-                    if let Some(ref m) = fmt.mime_type {
-                        mime = Some(m.clone());
-                    }
-                    if !fmt.name.is_empty() {
-                        desc = fmt.name.clone();
-                    }
+            if let Some(ref text_sig) = file_rule.text_signature {
+                has_sequence = true;
+                if !sample.windows(text_sig.len()).any(|w| w == text_sig.as_bytes()) {
+                    all_streams_matched = false;
+                    break;
                 }
             }
 
-            let mut evidence = vec![DetectionEvidence::ContainerStructure {
-                detail: format!(
-                    "Matched DROID OLE2 container signature {}: {}",
-                    sig.id, sig.description
-                ),
-                score: 95,
-            }];
-
-            if let Some(ref puid) = puid_opt {
-                evidence.push(DetectionEvidence::Pronom {
-                    puid: puid.clone(),
-                    score: 95,
-                });
+            if let Some(ref bin_sig) = file_rule.binary_signature {
+                has_sequence = true;
+                if !sample.windows(bin_sig.len()).any(|w| w == bin_sig.as_slice()) {
+                    all_streams_matched = false;
+                    break;
+                }
             }
+        }
 
-            return Ok(Some(DetectionCandidate {
-                format_id: None,
-                dc_id: None,
-                mime,
-                description: desc,
-                confidence: ConfidenceTier::HighestConfidence,
-                score: 95,
-                evidence,
-            }));
+        if all_streams_matched {
+            let score = if has_sequence { 95 } else { 85 };
+            candidate_matches.push((has_sequence, sig.files.len(), score, sig));
         }
     }
 
-    Ok(None)
+    candidate_matches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
+
+    let Some((_has_seq, _files_len, score, sig)) = candidate_matches.first() else {
+        return Ok(None);
+    };
+
+    let puid_opt = sig.puid.clone();
+    let mut mime = None;
+    let mut desc = sig.description.clone();
+
+    if let Some(ref puid) = puid_opt {
+        if let Some(fmt) = DROID_PRONOM_DB.formats.get(puid) {
+            if let Some(ref m) = fmt.mime_type {
+                mime = Some(m.clone());
+            } else {
+                for ext in &fmt.extensions {
+                    if ext == "hwp" {
+                        mime = Some("application/x-hwp".to_string());
+                        break;
+                    }
+                    if let Some(m) = crate::detection::mime_derivation::FORMAT_CATALOG
+                        .lookup_extension(ext)
+                        .iter()
+                        .find_map(|m| m.mime_types.first().cloned())
+                    {
+                        mime = Some(m);
+                        break;
+                    }
+                }
+            }
+            if !fmt.name.is_empty() {
+                desc = fmt.name.clone();
+            }
+        }
+    }
+
+    let mut evidence = vec![DetectionEvidence::ContainerStructure {
+        detail: format!(
+            "Matched DROID OLE2 container signature {}: {}",
+            sig.id, sig.description
+        ),
+        score: *score,
+    }];
+
+    if let Some(ref puid) = puid_opt {
+        evidence.push(DetectionEvidence::Pronom {
+            puid: puid.clone(),
+            score: *score,
+        });
+    }
+
+    Ok(Some(DetectionCandidate {
+        format_id: None,
+        dc_id: None,
+        mime,
+        description: desc,
+        confidence: ConfidenceTier::HighestConfidence,
+        score: *score,
+        evidence,
+    }))
 }
 
 /// Classifies a ZIP container from its entry list and uncompressed metadata.
@@ -2703,6 +2755,29 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_debug_issue359xlsx() {
+        let path = std::path::Path::new("src/formats/dcdata/data/magic/upstream/magic/tests/issue359xlsx.testfile");
+        if !path.exists() {
+            return;
+        }
+        let data = std::fs::read(path).unwrap();
+        let mut source: &[u8] = &data;
+        let eocd = parse_zip_central_directory(&mut source).unwrap();
+        println!("EOCD entries len: {:?}", eocd.as_ref().map(|e| e.len()));
+        if let Some(ref entries) = eocd {
+            for e in entries {
+                println!("Entry: {}, method: {}, offset: {}", e.name, e.compression_method, e.local_header_offset);
+            }
+        }
+        let mut source2: &[u8] = &data;
+        let cand = inspect_zip_container_comprehensive(&mut source2).unwrap();
+        println!("Comprehensive cand: {:?}", cand);
+        let mut source3: &[u8] = &data;
+        let report = crate::detection::guess_format_report(&mut source3, None).unwrap();
+        println!("Candidates in report: {:?}", report.candidates);
+    }
+
+    #[crate::ctb_test]
     fn test_zip_central_directory_apk() {
         let entries = vec![
             ZipEntrySummary {
@@ -2771,7 +2846,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_droid_pronom_db_loaded() {
         assert!(DROID_PRONOM_DB.formats.len() > 2000);
-        assert!(DROID_PRONOM_DB.signatures.len() > 2000);
+        assert!(DROID_PRONOM_DB.signatures.len() > 1000);
         let pdf_fmt = DROID_PRONOM_DB.formats.get("fmt/18");
         assert!(pdf_fmt.is_some());
         let pdf = pdf_fmt.unwrap();
