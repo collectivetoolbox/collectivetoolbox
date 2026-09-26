@@ -19,8 +19,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
-use ctb_formats_utilities::detection::{FormatCategory, guess_format_id};
-use ctb_formats_utilities::extension_data::lookup_format_by_extension;
+use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
+use ctb_formats_utilities::extension_data::{
+    lookup_format_by_extension, primary_extension_for_format,
+};
 use ctb_formats_utilities::format_id::FormatId;
 #[expect(
     unused_imports,
@@ -46,77 +48,7 @@ pub fn get_compression_data(key: &str) -> Option<Vec<u8>> {
     get_embedded_asset(&COMPRESSION_DATA_DIR, key)
 }
 
-/// Supported single-stream compression formats and historical version variants.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CompressionFormat {
-    /// Brotli compressed stream (.br)
-    Brotli,
-    /// Gzip compressed stream (.gz)
-    Gzip,
-    /// Raw DEFLATE compressed stream (.deflate)
-    Deflate,
-    /// Zlib-wrapped DEFLATE stream RFC 1950 (.zz, .zl)
-    Zlib,
-    /// Bzip2 compressed stream (.bz2)
-    Bzip2,
-    /// Original bzip 0.21 compressed stream (.bz)
-    Bzip,
-    /// SCO compress -H compressed stream (.Z)
-    ScoCompress,
-    /// Modern standard LZW / compress 4.0 / ncompress (.Z)
-    CompressLzw,
-    /// Compress 2.0 non-block LZW (.Z)
-    CompressLzw2,
-    /// Compress 1.0 headerless LZW (.Z)
-    CompressLzw1,
-    /// Compress 1.6 sorted chain LZW (.Z)
-    CompressLzw16,
-    /// System III/V Canonical Huffman pack (.z)
-    Pack,
-    /// Early PDP-11 Unix binary tree pack (.z)
-    OldPack,
-    /// `McMaster` Adaptive Huffman compact (.C)
-    Compact,
-    /// LZ4 compressed stream (.lz4)
-    Lz4,
-    /// LZMA stream (.lzma)
-    Lzma,
-    /// LZMA2 stream (.lzma2)
-    Lzma2,
-    /// Lzip compressed stream (.lz)
-    Lzip,
-    /// XZ compressed stream (.xz)
-    Xz,
-    /// Zstandard compressed stream (.zst, .zstd)
-    Zstd,
-    /// LZO compressed stream (.lzo)
-    Lzo,
-}
-
-/// Declarative metadata for a compression format variant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct CompressionFormatInfo {
-    /// The compression format enum variant.
-    pub format: CompressionFormat,
-    /// Human-readable display name or description of the format.
-    pub display_name: &'static str,
-    /// List of format string aliases (shorthand and long names).
-    pub aliases: &'static [&'static str],
-}
-
-impl CompressionFormatInfo {
-    /// Returns the aliases sorted shortest string first, then alphabetically for equal length strings.
-    pub fn sorted_aliases(&self) -> Vec<&'static str> {
-        sorted_aliases(self.aliases)
-    }
-}
-
-/// Sorts a slice of string aliases by shortest length first, then alphabetically for equal length strings.
-pub fn sorted_aliases(aliases: &[&'static str]) -> Vec<&'static str> {
-    let mut sorted = aliases.to_vec();
-    sorted.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
-    sorted
-}
+include!("compression_format.generated.rs");
 
 /// Generates a detailed help table of supported compression formats and their shorthand aliases.
 pub fn format_help_table() -> String {
@@ -135,210 +67,6 @@ pub static COMPRESSION_AFTER_HELP: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(format_help_table);
 
 impl CompressionFormat {
-    /// Declarative registry of all supported compression formats and their aliases.
-    pub const ALL_FORMATS: &'static [CompressionFormatInfo] = &[
-        CompressionFormatInfo {
-            format: Self::Brotli,
-            display_name: "Brotli compressed stream (RFC 9841)",
-            aliases: &["brotli", "br"],
-        },
-        CompressionFormatInfo {
-            format: Self::Gzip,
-            display_name: "GNU gzip format (RFC 1952)",
-            aliases: &["gzip", "gz"],
-        },
-        CompressionFormatInfo {
-            format: Self::Deflate,
-            display_name: "Raw DEFLATE compressed stream (RFC 1951)",
-            aliases: &["deflate", "raw-deflate"],
-        },
-        CompressionFormatInfo {
-            format: Self::Zlib,
-            display_name: "Zlib-wrapped DEFLATE stream (RFC 1950)",
-            aliases: &["zlib", "zz", "zl", "zlib-deflate"],
-        },
-        CompressionFormatInfo {
-            format: Self::Bzip2,
-            display_name: "Bzip2 compressed stream",
-            aliases: &["bzip2", "bz2"],
-        },
-        CompressionFormatInfo {
-            format: Self::Bzip,
-            display_name: "Original bzip compression",
-            aliases: &["bzip", "bz"],
-        },
-        CompressionFormatInfo {
-            format: Self::CompressLzw,
-            display_name: "`compress` format, modern LZW block format",
-            aliases: &[
-                "compress",
-                "compress4",
-                "compress3",
-                "compress-4.0",
-                "compress-3.0",
-            ],
-        },
-        CompressionFormatInfo {
-            format: Self::ScoCompress,
-            display_name: "`compress`: SCO `compress -H` format",
-            aliases: &["sco-compress", "compress-sco", "compress-h"],
-        },
-        CompressionFormatInfo {
-            format: Self::CompressLzw2,
-            display_name: "`compress` 2.0 (LZW non-block format)",
-            aliases: &["compress2", "compress-2.0"],
-        },
-        CompressionFormatInfo {
-            format: Self::CompressLzw16,
-            display_name: "`compress` 1.6 (LZW sorted chain format)",
-            aliases: &[
-                "compress16",
-                "compress1.6",
-                "compress-1.6",
-                "lzw-sorted-chain",
-            ],
-        },
-        CompressionFormatInfo {
-            format: Self::CompressLzw1,
-            display_name: "`compress` 1.0 (LZW headerless format)",
-            aliases: &["compress1", "compress-1.0"],
-        },
-        CompressionFormatInfo {
-            format: Self::Pack,
-            display_name: "`pack` format, common version (Huffman)",
-            aliases: &["pack"],
-        },
-        CompressionFormatInfo {
-            format: Self::OldPack,
-            display_name: "`pack` format, early PDP-11 Unix binary tree",
-            aliases: &[
-                "old-pack",
-                "oldpack",
-                "early-pack",
-            ],
-        },
-        CompressionFormatInfo {
-            format: Self::Compact,
-            display_name: "`compact` (McMaster Adaptive Huffman)",
-            aliases: &["compact"],
-        },
-        CompressionFormatInfo {
-            format: Self::Lz4,
-            display_name: "LZ4",
-            aliases: &["lz4"],
-        },
-        CompressionFormatInfo {
-            format: Self::Lzma,
-            display_name: "LZMA (Lempel–Ziv–Markov chain algorithm)",
-            aliases: &["lzma"],
-        },
-        CompressionFormatInfo {
-            format: Self::Lzma2,
-            display_name: "LZMA container format",
-            aliases: &["lzma2"],
-        },
-        CompressionFormatInfo {
-            format: Self::Lzip,
-            display_name: "Lzip compression",
-            aliases: &["lzip", "lz"],
-        },
-        CompressionFormatInfo {
-            format: Self::Xz,
-            display_name: "XZ compression",
-            aliases: &["xz"],
-        },
-        CompressionFormatInfo {
-            format: Self::Zstd,
-            display_name: "Zstandard compression",
-            aliases: &["zstd", "zst"],
-        },
-        CompressionFormatInfo {
-            format: Self::Lzo,
-            display_name: "LZO (Lempel-Ziv-Oberhumer)",
-            aliases: &["lzo"],
-        },
-    ];
-
-    /// Maps this compression format variant to the global `FormatId`.
-    pub fn to_format_id(&self) -> FormatId {
-        match self {
-            Self::Brotli => FormatId::Brotli,
-            Self::Gzip => FormatId::Gzip,
-            Self::Deflate => FormatId::Deflate,
-            Self::Zlib => FormatId::Zlib,
-            Self::Bzip2 => FormatId::Bzip2,
-            Self::Bzip => FormatId::Bzip,
-            Self::ScoCompress => FormatId::ScoCompress,
-            Self::CompressLzw => FormatId::CompressLzw,
-            Self::CompressLzw2 => FormatId::CompressLzw2,
-            Self::CompressLzw1 => FormatId::CompressLzw1,
-            Self::CompressLzw16 => FormatId::CompressLzw16,
-            Self::Pack => FormatId::Pack,
-            Self::OldPack => FormatId::OldPack,
-            Self::Compact => FormatId::Compact,
-            Self::Lz4 => FormatId::Lz4,
-            Self::Lzma => FormatId::Lzma,
-            Self::Lzma2 => FormatId::Lzma2,
-            Self::Lzip => FormatId::Lzip,
-            Self::Xz => FormatId::Xz,
-            Self::Zstd => FormatId::Zstd,
-            Self::Lzo => FormatId::Lzo,
-        }
-    }
-
-    /// Converts a global `FormatId` to a `CompressionFormat` if it represents a compression format.
-    pub fn from_format_id(id: FormatId) -> Option<Self> {
-        match id {
-            FormatId::Brotli => Some(Self::Brotli),
-            FormatId::Gzip => Some(Self::Gzip),
-            FormatId::Deflate => Some(Self::Deflate),
-            FormatId::Zlib => Some(Self::Zlib),
-            FormatId::Bzip2 => Some(Self::Bzip2),
-            FormatId::Bzip => Some(Self::Bzip),
-            FormatId::ScoCompress => Some(Self::ScoCompress),
-            FormatId::CompressLzw => Some(Self::CompressLzw),
-            FormatId::CompressLzw2 => Some(Self::CompressLzw2),
-            FormatId::CompressLzw1 => Some(Self::CompressLzw1),
-            FormatId::CompressLzw16 => Some(Self::CompressLzw16),
-            FormatId::Pack => Some(Self::Pack),
-            FormatId::OldPack => Some(Self::OldPack),
-            FormatId::Compact => Some(Self::Compact),
-            FormatId::Lz4 => Some(Self::Lz4),
-            FormatId::Lzma => Some(Self::Lzma),
-            FormatId::Lzma2 => Some(Self::Lzma2),
-            FormatId::Lzip => Some(Self::Lzip),
-            FormatId::Xz => Some(Self::Xz),
-            FormatId::Zstd => Some(Self::Zstd),
-            FormatId::Lzo => Some(Self::Lzo),
-            _ => None,
-        }
-    }
-
-    /// Ordered list of all compression formats supported by this crate.
-    pub const SUPPORTED: &'static [CompressionFormat] = &[
-        Self::Brotli,
-        Self::Gzip,
-        Self::Deflate,
-        Self::Zlib,
-        Self::Bzip2,
-        Self::Bzip,
-        Self::CompressLzw,
-        Self::ScoCompress,
-        Self::CompressLzw2,
-        Self::CompressLzw16,
-        Self::CompressLzw1,
-        Self::Pack,
-        Self::OldPack,
-        Self::Compact,
-        Self::Lz4,
-        Self::Lzma,
-        Self::Lzma2,
-        Self::Lzip,
-        Self::Xz,
-        Self::Zstd,
-        Self::Lzo,
-    ];
-
     /// Retrieves format metadata from the shared registry.
     #[must_use]
     pub fn format_info(&self) -> Option<ctb_formats_utilities::FormatInfo> {
@@ -347,13 +75,7 @@ impl CompressionFormat {
 
     /// Returns the standard default file extension associated with the format.
     pub fn extension(&self) -> &'static str {
-        if *self == Self::Lzma2 {
-            return "lzma2";
-        }
-        ctb_formats_utilities::extension_data::primary_extension_for_format(
-            self.to_format_id(),
-        )
-        .unwrap_or("bin")
+        primary_extension_for_format(self.to_format_id()).unwrap_or("bin")
     }
 
     /// Infers compression format from file extension if recognized.
@@ -370,7 +92,7 @@ impl CompressionFormat {
 
     /// Infers compression format from magic header bytes if possible.
     pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        guess_format_id(Some(header), None, Some(FormatCategory::Compression))
+        detect_format_id(Some(header), None, Some(FormatCategory::Compression))
             .and_then(Self::from_format_id)
     }
 
@@ -379,36 +101,13 @@ impl CompressionFormat {
         data: Option<&[u8]>,
         filename_or_ext: Option<&str>,
     ) -> Option<Self> {
-        guess_format_id(
+        detect_format_id(
             data,
             filename_or_ext,
             Some(FormatCategory::Compression),
         )
         .and_then(Self::from_format_id)
         .or_else(|| filename_or_ext.and_then(Self::from_extension))
-    }
-    /// Returns true if this compression format is implemented natively in this repository,
-    /// rather than being provided by an external crate.
-    pub fn is_implemented_in_repo(&self) -> bool {
-        matches!(
-            self,
-            Self::Bzip
-                | Self::ScoCompress
-                | Self::CompressLzw
-                | Self::CompressLzw2
-                | Self::CompressLzw1
-                | Self::CompressLzw16
-                | Self::Pack
-                | Self::OldPack
-                | Self::Compact
-        )
-    }
-
-    /// Returns the default verification setting for this format when compressing.
-    /// In-tree implementations default to verifying output, while external crate
-    /// implementations default to not verifying.
-    pub fn default_verify(&self) -> bool {
-        self.is_implemented_in_repo()
     }
 }
 
@@ -445,23 +144,7 @@ impl std::str::FromStr for CompressionFormat {
     }
 }
 
-impl From<CompressionFormat> for FormatId {
-    fn from(fmt: CompressionFormat) -> Self {
-        fmt.to_format_id()
-    }
-}
 
-impl TryFrom<FormatId> for CompressionFormat {
-    type Error = anyhow::Error;
-
-    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
-        Self::from_format_id(id).ok_or_else(|| {
-            anyhow::anyhow!(
-                "FormatId {id:?} is not a supported CompressionFormat"
-            )
-        })
-    }
-}
 
 /// Compresses a stream from `reader` directly into `writer` without verification.
 pub fn compress_stream_direct(
@@ -826,16 +509,17 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_alias_sorting() {
-        let input = vec!["sco-compress", "compress-sco", "compress-h"];
-        let sorted = sorted_aliases(&input);
+        let sco = CompressionFormat::ScoCompress.format_info().unwrap();
         assert_eq!(
-            sorted,
+            sco.sorted_nicknames(),
             vec!["compress-h", "compress-sco", "sco-compress"]
         );
 
-        let input_zlib = vec!["zlib", "zz", "zl", "zlib-deflate"];
-        let sorted_zlib = sorted_aliases(&input_zlib);
-        assert_eq!(sorted_zlib, vec!["zl", "zz", "zlib", "zlib-deflate"]);
+        let zlib = CompressionFormat::Zlib.format_info().unwrap();
+        assert_eq!(
+            zlib.sorted_nicknames(),
+            vec!["zl", "zz", "zlib", "zlib-deflate"]
+        );
     }
 
     #[crate::ctb_test]
@@ -901,8 +585,7 @@ mod tests {
     #[crate::ctb_test]
     fn test_compress_stream_with_verify_toggle() {
         let data = b"The quick brown fox jumps over the lazy dog. 1234567890!";
-        for info in CompressionFormat::ALL_FORMATS {
-            let fmt = info.format;
+        for &fmt in CompressionFormat::SUPPORTED {
             // Test with verify = false
             let compressed_unverified =
                 compress_with_verify(data, fmt, false).unwrap();
@@ -925,16 +608,16 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_all_format_aliases_parsing() {
-        for info in CompressionFormat::ALL_FORMATS {
-            for &alias in info.aliases {
+        for &fmt in CompressionFormat::SUPPORTED {
+            let info = fmt.format_info().expect("format info must exist");
+            for &alias in &info.sorted_nicknames() {
                 let parsed =
                     CompressionFormat::try_from(alias).unwrap_or_else(|_| {
                         panic!(
-                            "Failed to parse alias '{alias}' for format {:?}",
-                            info.format
+                            "Failed to parse alias '{alias}' for format {fmt:?}"
                         )
                     });
-                assert_eq!(parsed, info.format);
+                assert_eq!(parsed, fmt);
             }
         }
     }
@@ -1013,7 +696,7 @@ mod tests {
         assert_eq!(CompressionFormat::Compact.extension(), "C");
         assert_eq!(CompressionFormat::Lz4.extension(), "lz4");
         assert_eq!(CompressionFormat::Lzma.extension(), "lzma");
-        assert_eq!(CompressionFormat::Lzma2.extension(), "lzma2");
+        assert_eq!(CompressionFormat::Lzma2.extension(), "lzma");
         assert_eq!(CompressionFormat::Lzip.extension(), "lz");
         assert_eq!(CompressionFormat::Xz.extension(), "xz");
         assert_eq!(CompressionFormat::Zstd.extension(), "zst");
