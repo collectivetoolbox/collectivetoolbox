@@ -644,6 +644,11 @@ impl FormatInheritanceGraph {
             if current.ends_with("+json") && current != "application/json" {
                 dynamic_parents.push("application/json".to_string());
             }
+            if (current == "application/vnd.gentoo.gpkg" || current.ends_with("+tar"))
+                && current != "application/x-tar"
+            {
+                dynamic_parents.push("application/x-tar".to_string());
+            }
 
             for dp in dynamic_parents {
                 if dp == parent_norm {

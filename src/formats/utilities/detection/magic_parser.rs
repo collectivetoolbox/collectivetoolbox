@@ -466,12 +466,14 @@ pub enum Offset {
         base: Box<Offset>,
         ind_type: IndirectType,
         adjustment: i64,
+        multiplier: i64,
     },
     /// Relative indirect offset pointer dereference: `&(<offset>.<type>+<adjustment>)`.
     RelativeIndirect {
         base: Box<Offset>,
         ind_type: IndirectType,
         adjustment: i64,
+        multiplier: i64,
     },
     /// Search within window starting at given offset.
     Search {
@@ -519,7 +521,20 @@ pub enum RelOp {
     Gt,
     Lt,
     BitAnd,
+    BitClear,
     Any,
+}
+
+/// Arithmetic operations applied to read numeric values before comparison/format.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum NumOp {
+    #[default]
+    None,
+    Div(u64),
+    Mod(u64),
+    Mul(u64),
+    Add(u64),
+    Sub(u64),
 }
 
 /// Type and comparison test of a magic rule.
@@ -543,41 +558,50 @@ pub enum MagicTest {
         pattern: String,
         case_insensitive: bool,
         max_bytes: usize,
+        line_mode: bool,
+        offset_start: bool,
     },
     U8 {
         value: u8,
         op: RelOp,
         mask: Option<u8>,
+        num_op: NumOp,
     },
     U16Le {
         value: u16,
         op: RelOp,
         mask: Option<u16>,
+        num_op: NumOp,
     },
     U16Be {
         value: u16,
         op: RelOp,
         mask: Option<u16>,
+        num_op: NumOp,
     },
     U32Le {
         value: u32,
         op: RelOp,
         mask: Option<u32>,
+        num_op: NumOp,
     },
     U32Be {
         value: u32,
         op: RelOp,
         mask: Option<u32>,
+        num_op: NumOp,
     },
     U64Le {
         value: u64,
         op: RelOp,
         mask: Option<u64>,
+        num_op: NumOp,
     },
     U64Be {
         value: u64,
         op: RelOp,
         mask: Option<u64>,
+        num_op: NumOp,
     },
     Date32Le {
         value: u32,

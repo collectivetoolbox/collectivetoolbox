@@ -4,7 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, confidence tiers, modular refactoring, text encoding subsystem, specialized deep parsers, and filesystem/inode special detection in place; upstream `file` test suite currently at 60/88 passing cases with remaining 28 deficiencies actively being resolved to achieve complete feature parity)
+- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, confidence tiers, modular refactoring, text encoding subsystem, specialized deep parsers, and filesystem/inode special detection in place; 61/88 canonical upstream test cases passing, meaning the upstream test suite is NOT yet passing and full parity has NOT yet been achieved; active work underway to resolve all 27 remaining deficiencies and achieve complete feature parity)
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
 - **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
@@ -137,7 +137,7 @@
 - [ ] **Sub-Phase 5G: Automated Upstream `file` Test Suite Harness & Differential Verification (`detection/upstream_suite.rs`):**
   - [x] Test suite discovery & loader: parse and index all 88 canonical test files and `.result` expectations in `src/formats/dcdata/data/magic/upstream/magic/tests/`.
   - [x] Execution safety & denial-of-service verification: execute all 88 test cases through `guess_format_report` asserting zero panics, crashes, or hangs (verifying recursion protection on `CVE-2014-1943.testfile`).
-  - [ ] Full feature parity on all 88 test cases (currently 60/88 passing; resolving remaining 28 deficiencies to achieve 100% pass rate).
+  - [ ] Full feature parity on all 88 test cases (currently 61/88 passing, parity not yet achieved; resolving remaining 27 deficiencies to achieve 100% pass rate).
   - [x] Live differential testing with system `file`: implement host `file` probing (`query_real_file`), comparing MIME types and format classifications with semantic alias tolerance (`application/xml` <-> `text/plain`, `text/x-shellscript` <-> `text/plain`, `application/zstd` <-> `application/x-zstd`).
   - [ ] Unit test coverage for upstream features beyond the 88 test cases (boundary offsets, unusual search limits, negative date stamps, malformed nested CDFs, etc.).
 

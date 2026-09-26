@@ -29,6 +29,8 @@ pub(crate) use ctb_utilities::*;
 use std::fs::File;
 use std::io::Read;
 
+use ctb_formats_dcstring::DcString;
+
 /// Extracts text from a file up to an optional byte limit.
 ///
 /// Reads up to `byte_limit` bytes from `file`. If the extracted bytes form valid
@@ -61,11 +63,12 @@ pub fn to_text(file: &mut File, byte_limit: Option<usize>) -> Result<String> {
     }
 }
 
-/// Extracts DC-text (document-content text) from a file up to an optional byte limit.
+/// Extracts text from a file in Dc format up to an optional byte limit.
 ///
 /// Currently a passthrough wrapper around [`to_text`].
-pub fn to_dctext(file: &mut File, byte_limit: Option<usize>) -> Result<String> {
-    to_text(file, byte_limit)
+pub fn to_dcstring(file: &mut File, byte_limit: Option<usize>) -> Result<DcString> {
+    let text = to_text(file, byte_limit)?;
+    Ok(DcString::from(text))
 }
 
 #[cfg(test)]
@@ -119,14 +122,14 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_to_dctext_passthrough() {
+    fn test_to_dcstring_passthrough() {
         let mut f = tempfile().expect("tempfile");
         f.write_all(b"Sample content").expect("write");
         f.seek(SeekFrom::Start(0)).expect("seek");
 
         let t1 = to_text(&mut f, None).expect("to_text");
         f.seek(SeekFrom::Start(0)).expect("seek");
-        let t2 = to_dctext(&mut f, None).expect("to_dctext");
-        assert_eq!(t1, t2);
+        let t2 = to_dcstring(&mut f, None).expect("to_dcstring");
+        assert_eq!(t2, DcString::from(t1));
     }
 }

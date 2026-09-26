@@ -10,6 +10,7 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-wfscan = { path = "../wfscan" }
+ctb-formats-dcstring = { path = "../dcstring" }
 anyhow = "1.0"
 
 [dev-dependencies]

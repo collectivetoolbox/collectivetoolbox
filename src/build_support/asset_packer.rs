@@ -26,7 +26,7 @@ mod xkb_rules;
 
 use anyhow::{Context, Result, bail};
 use ctb_formats_ctb_asset_bundle::{
-    self as asset_bundle_format, AssetBundleHeader, AssetBundleSourceEntry,
+    self as asset_bundle_format, AssetBundleDiskSourceEntry, AssetBundleHeader,
 };
 use fs2::FileExt;
 use sha2::{Digest, Sha256};
@@ -234,6 +234,11 @@ fn ensure_parent_dir(path: &Path) -> Result<()> {
 
 fn write_text_file(path: &Path, contents: &str) -> Result<()> {
     ensure_parent_dir(path)?;
+    if let Ok(existing) = fs::read_to_string(path) {
+        if existing == contents {
+            return Ok(());
+        }
+    }
     fs::write(path, contents)
         .with_context(|| format!("Failed to write {}", path.display()))
 }
@@ -255,7 +260,7 @@ fn normalize_relative_path(path: &Path) -> Result<String> {
 fn collect_bundle_entries(
     root: &Path,
     current: &Path,
-    entries: &mut Vec<AssetBundleSourceEntry>,
+    entries: &mut Vec<AssetBundleDiskSourceEntry>,
 ) -> Result<()> {
     for entry in fs::read_dir(current)
         .with_context(|| format!("Failed to read {}", current.display()))?
@@ -279,9 +284,8 @@ fn collect_bundle_entries(
             )
         })?;
         let path_string = normalize_relative_path(relative)?;
-        let contents = fs::read(&path)
-            .with_context(|| format!("Failed to read {}", path.display()))?;
-        entries.push(AssetBundleSourceEntry::raw(path_string, contents));
+        let meta = entry.metadata()?;
+        entries.push(AssetBundleDiskSourceEntry::new(path_string, &path, meta.len()));
     }
 
     Ok(())
@@ -306,25 +310,32 @@ fn compute_sha256_hex(bytes: &[u8]) -> String {
 
 fn get_or_compute_delta(
     base_path: &str,
-    base_contents: &[u8],
-    target_contents: &[u8],
+    base_disk_path: &Path,
+    target_disk_path: &Path,
     cache_dir: &Path,
-) -> Result<Vec<u8>> {
-    let base_hash = compute_sha256_hex(base_contents);
-    let target_hash = compute_sha256_hex(target_contents);
+) -> Result<(PathBuf, u64)> {
+    let base_contents = fs::read(base_disk_path)
+        .with_context(|| format!("Failed to read {}", base_disk_path.display()))?;
+    let target_contents = fs::read(target_disk_path)
+        .with_context(|| format!("Failed to read {}", target_disk_path.display()))?;
+
+    let base_hash = compute_sha256_hex(&base_contents);
+    let target_hash = compute_sha256_hex(&target_contents);
     let cache_file = cache_dir.join(format!("{base_hash}_{target_hash}.delta"));
 
     if cache_file.is_file() {
-        if let Ok(cached) = fs::read(&cache_file) {
-            return Ok(cached);
+        if let Ok(meta) = fs::metadata(&cache_file) {
+            return Ok((cache_file, meta.len()));
         }
     }
 
     let payload = asset_bundle_format::delta::encode_delta_payload(
         base_path,
-        base_contents,
-        target_contents,
+        &base_contents,
+        &target_contents,
     )?;
+    let payload_len = u64::try_from(payload.len())
+        .context("Delta payload too large")?;
 
     // Cache to disk
     let _ = fs::create_dir_all(cache_dir);
@@ -333,11 +344,11 @@ fn get_or_compute_delta(
         let _ = fs::rename(&temp_file, &cache_file);
     }
 
-    Ok(payload)
+    Ok((cache_file, payload_len))
 }
 
 fn optimize_unicode_deltas(
-    entries: &mut [AssetBundleSourceEntry],
+    entries: &mut [AssetBundleDiskSourceEntry],
     cache_dir: &Path,
 ) -> Result<()> {
     let path_to_idx: HashMap<String, usize> = entries
@@ -357,8 +368,8 @@ fn optimize_unicode_deltas(
         let to_prefix = format!("data/Unicode/{to_ver}/");
 
         for i in 0..entries.len() {
-            let path = match entries.get(i) {
-                Some(e) => e.path.clone(),
+            let (path, orig_len, target_disk_path) = match entries.get(i) {
+                Some(e) => (e.path.clone(), e.size, e.disk_path.clone()),
                 None => continue,
             };
             if !path.starts_with(&from_prefix) {
@@ -389,30 +400,25 @@ fn optimize_unicode_deltas(
                 continue;
             };
 
-            let base_contents = match entries.get(base_idx) {
-                Some(e) => e.contents.clone(),
+            let base_disk_path = match entries.get(base_idx) {
+                Some(e) => e.disk_path.clone(),
                 None => continue,
             };
 
-            let target_entry = match entries.get_mut(i) {
-                Some(e) => e,
-                None => continue,
-            };
-
-            let orig_len = target_entry.contents.len();
-            let delta_payload = get_or_compute_delta(
+            let (delta_path, delta_len) = get_or_compute_delta(
                 &base_path,
-                &base_contents,
-                &target_entry.contents,
+                &base_disk_path,
+                &target_disk_path,
                 cache_dir,
             )?;
 
             // Use delta if it achieves >= 5% savings (i.e. size < 95% of orig)
-            if delta_payload.len().saturating_mul(100)
-                < orig_len.saturating_mul(95)
-            {
-                target_entry.contents = delta_payload;
-                target_entry.flags = asset_bundle_format::ASSET_FLAG_DELTA;
+            if delta_len.saturating_mul(100) < orig_len.saturating_mul(95) {
+                if let Some(target_entry) = entries.get_mut(i) {
+                    target_entry.disk_path = delta_path;
+                    target_entry.size = delta_len;
+                    target_entry.flags = asset_bundle_format::ASSET_FLAG_DELTA;
+                }
             }
         }
     }
@@ -481,19 +487,7 @@ fn write_resource_bundle(
 
     optimize_unicode_deltas(&mut entries, &cache_dir)?;
 
-    let content_sha256 =
-        asset_bundle_format::compute_asset_bundle_content_sha256(&entries)?;
-    let sha256_hex = asset_bundle_format::format_sha256_hex(&content_sha256);
-
-    if let Some(existing_header) =
-        read_existing_asset_bundle_header(bundle_path)?
-    {
-        if existing_header.content_sha256 == content_sha256 {
-            return Ok((existing_header.bundle_uuid.to_string(), sha256_hex));
-        }
-    }
-
-    let (bundle, header) = asset_bundle_format::build_asset_bundle(&entries)?;
+    let existing_header = read_existing_asset_bundle_header(bundle_path)?;
 
     ensure_parent_dir(bundle_path)?;
     let bundle_name = bundle_path
@@ -501,17 +495,25 @@ fn write_resource_bundle(
         .and_then(|name| name.to_str())
         .unwrap_or("ctoolbox.rsrc");
     let temp_bundle_path =
-        bundle_path.with_file_name(format!(".{bundle_name}.tmp"));
+        bundle_path.with_file_name(format!(".{bundle_name}.tmp_stream"));
 
-    let mut file = File::create(&temp_bundle_path).with_context(|| {
-        format!("Failed to create {}", temp_bundle_path.display())
-    })?;
-    file.write_all(&bundle).with_context(|| {
-        format!("Failed to write {}", temp_bundle_path.display())
-    })?;
-    file.sync_all().with_context(|| {
-        format!("Failed to sync {}", temp_bundle_path.display())
-    })?;
+    let custom_uuid = existing_header.as_ref().map(|h| h.bundle_uuid);
+    let header = asset_bundle_format::write_asset_bundle_from_disk_entries_with_details(
+        &entries,
+        &temp_bundle_path,
+        asset_bundle_format::RESOURCE_BUNDLE_VERSION,
+        custom_uuid,
+        None,
+    )?;
+
+    let sha256_hex = asset_bundle_format::format_sha256_hex(&header.content_sha256);
+
+    if let Some(ref existing) = existing_header {
+        if existing.content_sha256 == header.content_sha256 {
+            let _ = fs::remove_file(&temp_bundle_path);
+            return Ok((existing.bundle_uuid.to_string(), sha256_hex));
+        }
+    }
 
     fs::rename(&temp_bundle_path, bundle_path).with_context(|| {
         format!(
@@ -814,6 +816,10 @@ fn prepare_runtime_assets(
         }
 
         if options.write_debug_stubs {
+            let lib_docs = runtime_assets.join("docs/lib");
+            if lib_docs.is_dir() {
+                fs::remove_dir_all(&lib_docs)?;
+            }
             write_text_file(
                 &runtime_assets.join("docs/lib/ctoolbox/index.html"),
                 DEBUG_LIBRARY_DOCS_STUB,
@@ -1189,3 +1195,52 @@ fn is_file_older(target: &Path, reference: &Path) -> bool {
         _ => false,
     }
 }
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_resource_bundle_streaming() -> Result<()> {
+        let temp_dir = std::env::temp_dir().join("ctb_test_asset_packer");
+        if temp_dir.is_dir() {
+            let _ = fs::remove_dir_all(&temp_dir);
+        }
+        let stage_dir = temp_dir.join("stage");
+        fs::create_dir_all(stage_dir.join("subdir"))?;
+        fs::write(stage_dir.join("hello.txt"), b"Hello World")?;
+        fs::write(stage_dir.join("subdir/nested.bin"), b"Binary Content 12345")?;
+
+        let bundle_path = temp_dir.join("test.rsrc");
+        let (uuid1, sha1) = write_resource_bundle(&stage_dir, &bundle_path)?;
+
+        assert!(bundle_path.is_file());
+        assert!(!uuid1.is_empty());
+        assert_eq!(sha1.len(), 64);
+
+        // Header should match
+        let header = read_existing_asset_bundle_header(&bundle_path)?
+            .expect("header should exist");
+        assert_eq!(header.bundle_uuid.to_string(), uuid1);
+
+        // Calling again without changes should return cached uuid and sha
+        let (uuid2, sha2) = write_resource_bundle(&stage_dir, &bundle_path)?;
+        assert_eq!(uuid1, uuid2);
+        assert_eq!(sha1, sha2);
+
+        // Clean up
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+}
+

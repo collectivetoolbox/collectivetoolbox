@@ -3246,6 +3246,7 @@ name = "ctb-formats-text-extraction"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "ctb-formats-dcstring",
  "ctb-formats-utilities",
  "ctb-formats-wfscan",
  "ctb-utilities",
