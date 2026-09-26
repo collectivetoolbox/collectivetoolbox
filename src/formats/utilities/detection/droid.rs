@@ -459,6 +459,9 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use crate::detection::source::DetectionSource;
 use crate::detection::types::{
     ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
@@ -849,7 +852,796 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
 }
 
 // ---------------------------------------------------------------------------
-// 2. ZIP Central Directory Inspector & Container Signatures
+// 2. PRONOM Signature Database and Streaming XML Parser
+// ---------------------------------------------------------------------------
+
+/// Reference anchor for PRONOM byte sequences (BOF or EOF).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PronomByteSequenceRef {
+    Bof,
+    Eof,
+}
+
+/// Bounded byte pattern subsequence within a PRONOM signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PronomSubSequence {
+    pub min_offset: u64,
+    pub max_offset: u64,
+    pub sequence: Vec<u8>,
+}
+
+/// Sequence of PRONOM subsequences anchored at BOF or EOF.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PronomByteSequence {
+    pub reference: PronomByteSequenceRef,
+    pub subsequences: Vec<PronomSubSequence>,
+}
+
+/// Internal PRONOM binary signature composed of byte sequences.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PronomInternalSignature {
+    pub id: u32,
+    pub byte_sequences: Vec<PronomByteSequence>,
+}
+
+/// Format definition in the PRONOM database.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PronomFormat {
+    pub id: u32,
+    pub puid: String,
+    pub name: String,
+    pub mime_type: Option<String>,
+    pub version: Option<String>,
+    pub extensions: Vec<String>,
+    pub signature_ids: Vec<u32>,
+}
+
+/// Full PRONOM signature database loaded from DROID XML.
+#[derive(Debug, Clone, Default)]
+pub struct PronomDatabase {
+    pub formats: HashMap<String, PronomFormat>,
+    pub signatures: HashMap<u32, PronomInternalSignature>,
+    pub puid_by_sig_id: HashMap<u32, Vec<String>>,
+    pub formats_by_ext: HashMap<String, Vec<String>>,
+}
+
+/// Container type discriminator for DROID container signatures.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ContainerKind {
+    Zip,
+    Ole2,
+}
+
+/// File matching rule within a container signature.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContainerFileRule {
+    pub path: String,
+    pub text_signature: Option<String>,
+    pub binary_signature: Option<Vec<u8>>,
+}
+
+/// Container signature mapping a set of files/streams to a PUID format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContainerSignature {
+    pub id: u32,
+    pub container_kind: ContainerKind,
+    pub description: String,
+    pub files: Vec<ContainerFileRule>,
+    pub puid: Option<String>,
+}
+
+/// Full DROID container signature database.
+#[derive(Debug, Clone, Default)]
+pub struct ContainerSignatureDatabase {
+    pub signatures: Vec<ContainerSignature>,
+    pub zip_signatures: Vec<ContainerSignature>,
+    pub ole2_signatures: Vec<ContainerSignature>,
+    pub sig_by_puid: HashMap<String, Vec<usize>>,
+}
+
+fn extract_attr<'a>(tag: &'a str, attr_name: &str) -> Option<&'a str> {
+    let needle = format!("{attr_name}=\"");
+    let start_idx = tag.find(&needle)?.checked_add(needle.len())?;
+    let rest = tag.get(start_idx..)?;
+    let end_idx = rest.find('"')?;
+    rest.get(..end_idx)
+}
+
+fn hex_nibble(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => b.checked_sub(b'0'),
+        b'a'..=b'f' => b.checked_sub(b'a')?.checked_add(10),
+        b'A'..=b'F' => b.checked_sub(b'A')?.checked_add(10),
+        _ => None,
+    }
+}
+
+fn decode_hex_bytes(hex_str: &str) -> Option<Vec<u8>> {
+    let clean: Vec<u8> = hex_str
+        .bytes()
+        .filter(|&b| !b.is_ascii_whitespace())
+        .collect();
+    let rem = clean.len().checked_rem(2)?;
+    if rem != 0 {
+        return None;
+    }
+    let half_len = clean.len().checked_div(2)?;
+    let mut out = Vec::with_capacity(half_len);
+    let mut i = 0usize;
+    while i < clean.len() {
+        let hi = hex_nibble(*clean.get(i)?)?;
+        let next_i = i.checked_add(1)?;
+        let lo = hex_nibble(*clean.get(next_i)?)?;
+        out.push(hi.checked_shl(4)?.checked_add(lo)?);
+        i = i.checked_add(2)?;
+    }
+    Some(out)
+}
+
+/// Parses the DROID PRONOM binary signature XML file into a `PronomDatabase`.
+pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
+    let mut db = PronomDatabase::default();
+
+    let sig_col_start = xml.find("<InternalSignatureCollection>")?;
+    let sig_col_end = xml.find("</InternalSignatureCollection>")?;
+    let sig_xml = xml.get(sig_col_start..sig_col_end)?;
+
+    let mut cursor = 0usize;
+    while let Some(slice) = sig_xml.get(cursor..) {
+        let Some(start) = slice.find("<InternalSignature ") else {
+            break;
+        };
+        let pos = cursor.checked_add(start)?;
+        let Some(end_rel) = sig_xml.get(pos..)?.find("</InternalSignature>") else {
+            break;
+        };
+        let end = pos
+            .checked_add(end_rel)?
+            .checked_add("</InternalSignature>".len())?;
+        let block = sig_xml.get(pos..end)?;
+        cursor = end;
+
+        let Some(tag_end) = block.find('>') else {
+            continue;
+        };
+        let open_tag = block.get(..tag_end)?;
+        let Some(id_str) = extract_attr(open_tag, "ID") else {
+            continue;
+        };
+        let Ok(id) = id_str.parse::<u32>() else {
+            continue;
+        };
+
+        // Signatures containing LeftFragment or RightFragment rely on variable
+        // regex fragments rather than exact literal sequences. Skip to prevent false positives.
+        if block.contains("<LeftFragment") || block.contains("<RightFragment") {
+            continue;
+        }
+
+        let mut byte_sequences = Vec::new();
+        let mut bcursor = 0usize;
+        while let Some(bslice) = block.get(bcursor..) {
+            let Some(bstart) = bslice.find("<ByteSequence ") else {
+                break;
+            };
+            let bpos = bcursor.checked_add(bstart)?;
+            let Some(bend_rel) = block.get(bpos..)?.find("</ByteSequence>") else {
+                break;
+            };
+            let bend = bpos
+                .checked_add(bend_rel)?
+                .checked_add("</ByteSequence>".len())?;
+            let bblock = block.get(bpos..bend)?;
+            bcursor = bend;
+
+            let Some(btag_end) = bblock.find('>') else {
+                continue;
+            };
+            let bopen_tag = bblock.get(..btag_end)?;
+            let ref_str = extract_attr(bopen_tag, "Reference").unwrap_or("BOFoffset");
+            let reference = if ref_str == "EOFoffset" {
+                PronomByteSequenceRef::Eof
+            } else {
+                PronomByteSequenceRef::Bof
+            };
+
+            let mut subsequences = Vec::new();
+            let mut scursor = 0usize;
+            while let Some(sslice) = bblock.get(scursor..) {
+                let Some(sstart) = sslice.find("<SubSequence ") else {
+                    break;
+                };
+                let spos = scursor.checked_add(sstart)?;
+                let Some(send_rel) = bblock.get(spos..)?.find("</SubSequence>") else {
+                    break;
+                };
+                let send = spos
+                    .checked_add(send_rel)?
+                    .checked_add("</SubSequence>".len())?;
+                let sblock = bblock.get(spos..send)?;
+                scursor = send;
+
+                let Some(stag_end) = sblock.find('>') else {
+                    continue;
+                };
+                let sopen_tag = sblock.get(..stag_end)?;
+                let min_off = extract_attr(sopen_tag, "SubSeqMinOffset")
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let max_off = extract_attr(sopen_tag, "SubSeqMaxOffset")
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+
+                if let Some(seq_start) = sblock.find("<Sequence>") {
+                    if let Some(seq_val_start) = seq_start.checked_add("<Sequence>".len()) {
+                        if let Some(seq_val_end_rel) =
+                            sblock.get(seq_val_start..)?.find("</Sequence>")
+                        {
+                            let seq_val_end = seq_val_start.checked_add(seq_val_end_rel)?;
+                            if let Some(seq_hex) = sblock.get(seq_val_start..seq_val_end) {
+                                if let Some(seq_bytes) = decode_hex_bytes(seq_hex) {
+                                    subsequences.push(PronomSubSequence {
+                                        min_offset: min_off,
+                                        max_offset: max_off,
+                                        sequence: seq_bytes,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !subsequences.is_empty() {
+                byte_sequences.push(PronomByteSequence {
+                    reference,
+                    subsequences,
+                });
+            }
+        }
+
+        db.signatures.insert(
+            id,
+            PronomInternalSignature {
+                id,
+                byte_sequences,
+            },
+        );
+    }
+
+    let fmt_col_start = xml.find("<FileFormatCollection>")?;
+    let fmt_col_end = xml.find("</FileFormatCollection>")?;
+    let fmt_xml = xml.get(fmt_col_start..fmt_col_end)?;
+
+    cursor = 0usize;
+    while let Some(slice) = fmt_xml.get(cursor..) {
+        let Some(start) = slice.find("<FileFormat ") else {
+            break;
+        };
+        let pos = cursor.checked_add(start)?;
+        let Some(tag_close) = fmt_xml.get(pos..)?.find('>') else {
+            break;
+        };
+        let tag_close_abs = pos.checked_add(tag_close)?;
+        let is_self_closing = fmt_xml.get(pos..tag_close_abs)?.ends_with('/');
+        let end = if is_self_closing {
+            tag_close_abs.checked_add(1)?
+        } else {
+            let Some(rel_end) = fmt_xml.get(pos..)?.find("</FileFormat>") else {
+                break;
+            };
+            pos.checked_add(rel_end)?
+                .checked_add("</FileFormat>".len())?
+        };
+        let block = fmt_xml.get(pos..end)?;
+        cursor = end;
+
+        let open_tag = block.get(..tag_close)?;
+        let Some(id_str) = extract_attr(open_tag, "ID") else {
+            continue;
+        };
+        let Ok(id) = id_str.parse::<u32>() else {
+            continue;
+        };
+        let Some(puid) = extract_attr(open_tag, "PUID").map(ToString::to_string) else {
+            continue;
+        };
+        let name = extract_attr(open_tag, "Name").unwrap_or("").to_string();
+        let mime_type = extract_attr(open_tag, "MIMEType").map(ToString::to_string);
+        let version = extract_attr(open_tag, "Version").map(ToString::to_string);
+
+        let mut signature_ids = Vec::new();
+        let mut icursor = 0usize;
+        while let Some(islice) = block.get(icursor..) {
+            let Some(istart) = islice.find("<InternalSignatureID>") else {
+                break;
+            };
+            let Some(ipos) = icursor
+                .checked_add(istart)?
+                .checked_add("<InternalSignatureID>".len())
+            else {
+                break;
+            };
+            let Some(iend_rel) = block.get(ipos..)?.find("</InternalSignatureID>") else {
+                break;
+            };
+            let iend = ipos.checked_add(iend_rel)?;
+            let sig_id_str = block.get(ipos..iend)?;
+            icursor = iend.checked_add("</InternalSignatureID>".len())?;
+            if let Ok(sig_id) = sig_id_str.parse::<u32>() {
+                signature_ids.push(sig_id);
+                db.puid_by_sig_id
+                    .entry(sig_id)
+                    .or_default()
+                    .push(puid.clone());
+            }
+        }
+
+        let mut extensions = Vec::new();
+        let mut ecursor = 0usize;
+        while let Some(eslice) = block.get(ecursor..) {
+            let Some(estart) = eslice.find("<Extension>") else {
+                break;
+            };
+            let Some(epos) = ecursor
+                .checked_add(estart)?
+                .checked_add("<Extension>".len())
+            else {
+                break;
+            };
+            let Some(eend_rel) = block.get(epos..)?.find("</Extension>") else {
+                break;
+            };
+            let eend = epos.checked_add(eend_rel)?;
+            let ext = block
+                .get(epos..eend)?
+                .trim()
+                .to_ascii_lowercase();
+            ecursor = eend.checked_add("</Extension>".len())?;
+            if !ext.is_empty() {
+                extensions.push(ext.clone());
+                db.formats_by_ext
+                    .entry(ext)
+                    .or_default()
+                    .push(puid.clone());
+            }
+        }
+
+        db.formats.insert(
+            puid.clone(),
+            PronomFormat {
+                id,
+                puid,
+                name,
+                mime_type,
+                version,
+                extensions,
+                signature_ids,
+            },
+        );
+    }
+
+    Some(db)
+}
+
+/// Parses the DROID container signature XML into a `ContainerSignatureDatabase`.
+pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignatureDatabase> {
+    let mut db = ContainerSignatureDatabase::default();
+    let mut sig_by_id = HashMap::new();
+
+    let sig_col_start = xml.find("<ContainerSignatures>")?;
+    let sig_col_end = xml.find("</ContainerSignatures>")?;
+    let sig_xml = xml.get(sig_col_start..sig_col_end)?;
+
+    let mut cursor = 0usize;
+    while let Some(slice) = sig_xml.get(cursor..) {
+        let Some(start) = slice.find("<ContainerSignature ") else {
+            break;
+        };
+        let pos = cursor.checked_add(start)?;
+        let Some(end_rel) = sig_xml.get(pos..)?.find("</ContainerSignature>") else {
+            break;
+        };
+        let end = pos
+            .checked_add(end_rel)?
+            .checked_add("</ContainerSignature>".len())?;
+        let block = sig_xml.get(pos..end)?;
+        cursor = end;
+
+        let Some(tag_end) = block.find('>') else {
+            continue;
+        };
+        let open_tag = block.get(..tag_end)?;
+        let Some(id_str) = extract_attr(open_tag, "Id") else {
+            continue;
+        };
+        let Ok(id) = id_str.parse::<u32>() else {
+            continue;
+        };
+        let type_str = extract_attr(open_tag, "ContainerType").unwrap_or("ZIP");
+        let container_kind = if type_str == "OLE2" {
+            ContainerKind::Ole2
+        } else {
+            ContainerKind::Zip
+        };
+
+        let description = if let Some(desc_start) = block.find("<Description>") {
+            if let Some(desc_val_start) = desc_start.checked_add("<Description>".len()) {
+                if let Some(desc_rel_end) = block.get(desc_val_start..)?.find("</Description>") {
+                    let desc_end = desc_val_start.checked_add(desc_rel_end)?;
+                    block
+                        .get(desc_val_start..desc_end)
+                        .unwrap_or("")
+                        .trim()
+                        .to_string()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        let mut files = Vec::new();
+        let mut fcursor = 0usize;
+        while let Some(fslice) = block.get(fcursor..) {
+            let Some(fstart) = fslice.find("<File") else {
+                break;
+            };
+            let fpos = fcursor.checked_add(fstart)?;
+            let Some(fend_rel) = block.get(fpos..)?.find("</File>") else {
+                break;
+            };
+            let fend = fpos
+                .checked_add(fend_rel)?
+                .checked_add("</File>".len())?;
+            let fblock = block.get(fpos..fend)?;
+            fcursor = fend;
+
+            let path = if let Some(pstart) = fblock.find("<Path>") {
+                if let Some(pval_start) = pstart.checked_add("<Path>".len()) {
+                    if let Some(pend_rel) = fblock.get(pval_start..)?.find("</Path>") {
+                        let pend = pval_start.checked_add(pend_rel)?;
+                        fblock
+                            .get(pval_start..pend)
+                            .unwrap_or("")
+                            .trim()
+                            .to_string()
+                    } else {
+                        String::new()
+                    }
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
+            if path.is_empty() {
+                continue;
+            }
+
+            let mut text_signature = None;
+            let mut binary_signature = None;
+            if let Some(sstart) = fblock.find("<Sequence>") {
+                if let Some(sval_start) = sstart.checked_add("<Sequence>".len()) {
+                    if let Some(send_rel) = fblock.get(sval_start..)?.find("</Sequence>") {
+                        let send = sval_start.checked_add(send_rel)?;
+                        let seq_raw = fblock.get(sval_start..send).unwrap_or("").trim();
+                        if let Some(qstart) = seq_raw.find('\'') {
+                            if let Some(qstart_pos) = qstart.checked_add(1) {
+                                if let Some(qrest) = seq_raw.get(qstart_pos..) {
+                                    if let Some(qend) = qrest.find('\'') {
+                                        if let Some(sig_str) = qrest.get(..qend) {
+                                            text_signature = Some(sig_str.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        } else if let Some(bytes) = decode_hex_bytes(seq_raw) {
+                            binary_signature = Some(bytes);
+                        }
+                    }
+                }
+            }
+
+            files.push(ContainerFileRule {
+                path,
+                text_signature,
+                binary_signature,
+            });
+        }
+
+        let sig = ContainerSignature {
+            id,
+            container_kind,
+            description,
+            files,
+            puid: None,
+        };
+        sig_by_id.insert(id, sig);
+    }
+
+    if let Some(map_start) = xml.find("<FileFormatMappings>") {
+        if let Some(map_end) = xml.find("</FileFormatMappings>") {
+            if let Some(map_xml) = xml.get(map_start..map_end) {
+                let mut cursor = 0usize;
+                while let Some(slice) = map_xml.get(cursor..) {
+                    let Some(start) = slice.find("<FileFormatMapping ") else {
+                        break;
+                    };
+                    let pos = cursor.checked_add(start)?;
+                    let Some(tag_close) = map_xml.get(pos..)?.find('>') else {
+                        break;
+                    };
+                    let tag_close_pos = pos.checked_add(tag_close)?;
+                    let tag = map_xml.get(pos..tag_close_pos)?;
+                    cursor = tag_close_pos.checked_add(1)?;
+
+                    let Some(id_str) = extract_attr(tag, "signatureId") else {
+                        continue;
+                    };
+                    let Ok(sig_id) = id_str.parse::<u32>() else {
+                        continue;
+                    };
+                    let Some(puid) = extract_attr(tag, "Puid") else {
+                        continue;
+                    };
+
+                    if let Some(sig) = sig_by_id.get_mut(&sig_id) {
+                        sig.puid = Some(puid.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    for (_, sig) in sig_by_id {
+        match sig.container_kind {
+            ContainerKind::Zip => db.zip_signatures.push(sig.clone()),
+            ContainerKind::Ole2 => db.ole2_signatures.push(sig.clone()),
+        }
+        if let Some(ref puid) = sig.puid {
+            let idx = db.signatures.len();
+            db.sig_by_puid.entry(puid.clone()).or_default().push(idx);
+        }
+        db.signatures.push(sig);
+    }
+
+    Some(db)
+}
+
+/// Authoritative DROID PRONOM binary signature database loaded from embedded XML.
+pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
+    ctb_formats_dcdata::get_droid_signature_xml()
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+        .and_then(parse_pronom_signature_xml)
+        .unwrap_or_default()
+});
+
+/// Authoritative DROID container signature database loaded from embedded XML.
+pub static DROID_CONTAINER_DB: LazyLock<ContainerSignatureDatabase> = LazyLock::new(|| {
+    ctb_formats_dcdata::get_droid_container_signature_xml()
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+        .and_then(parse_droid_container_signatures_xml)
+        .unwrap_or_default()
+});
+
+/// Evaluates PRONOM signatures from DROID database on source.
+pub fn evaluate_pronom_signatures<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    hint: Option<&DetectionHint>,
+) -> Result<Vec<DetectionCandidate>> {
+    let mut candidates = Vec::new();
+    let bof_sample = source.read_bof(65536)?;
+    let eof_sample = source.read_eof(65536)?;
+
+    let hint_ext = hint.and_then(|h| {
+        h.extension.as_deref().or_else(|| {
+            h.filename.as_deref().and_then(|f| {
+                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
+            })
+        })
+    });
+
+    let db = &*DROID_PRONOM_DB;
+    if db.signatures.is_empty() {
+        return Ok(candidates);
+    }
+
+    for sig in db.signatures.values() {
+        if sig.byte_sequences.is_empty() {
+            continue;
+        }
+
+        let mut sig_matched = true;
+        let mut bof_matched = false;
+        let mut eof_matched = false;
+        let mut first_bof_off: Option<u64> = None;
+        let mut first_eof_off: Option<u64> = None;
+
+        for bs in &sig.byte_sequences {
+            match bs.reference {
+                PronomByteSequenceRef::Bof => {
+                    if bof_sample.is_empty() {
+                        sig_matched = false;
+                        break;
+                    }
+                    let mut bof_ok = true;
+                    for sub in &bs.subsequences {
+                        let min_off = match usize::try_from(sub.min_offset) {
+                            Ok(m) => m,
+                            Err(_) => {
+                                bof_ok = false;
+                                break;
+                            }
+                        };
+                        let max_off = match usize::try_from(sub.max_offset) {
+                            Ok(m) => m,
+                            Err(_) => {
+                                bof_ok = false;
+                                break;
+                            }
+                        };
+                        let pat = &sub.sequence;
+                        if pat.len() < 2 {
+                            bof_ok = false;
+                            break;
+                        }
+                        // Fast rejection for exact offset
+                        if min_off == max_off {
+                            if let Some(first_byte) = pat.first() {
+                                if bof_sample.get(min_off) != Some(first_byte) {
+                                    bof_ok = false;
+                                    break;
+                                }
+                            }
+                        }
+                        let limit = max_off
+                            .saturating_add(pat.len())
+                            .min(bof_sample.len());
+                        let mut found = false;
+                        let mut off = min_off;
+                        while off.saturating_add(pat.len()) <= limit {
+                            if bof_sample.get(off..off.saturating_add(pat.len()))
+                                == Some(pat.as_slice())
+                            {
+                                found = true;
+                                if first_bof_off.is_none() {
+                                    first_bof_off = u64::try_from(off).ok();
+                                }
+                                break;
+                            }
+                            off = off.saturating_add(1);
+                        }
+                        if !found {
+                            bof_ok = false;
+                            break;
+                        }
+                    }
+                    if bof_ok {
+                        bof_matched = true;
+                    } else {
+                        sig_matched = false;
+                        break;
+                    }
+                }
+                PronomByteSequenceRef::Eof => {
+                    if eof_sample.is_empty() {
+                        sig_matched = false;
+                        break;
+                    }
+                    let mut eof_ok = true;
+                    let sample_len = eof_sample.len();
+                    for sub in &bs.subsequences {
+                        let min_off = match usize::try_from(sub.min_offset) {
+                            Ok(m) => m,
+                            Err(_) => {
+                                eof_ok = false;
+                                break;
+                            }
+                        };
+                        let max_off = match usize::try_from(sub.max_offset) {
+                            Ok(m) => m,
+                            Err(_) => {
+                                eof_ok = false;
+                                break;
+                            }
+                        };
+                        let pat = &sub.sequence;
+                        if pat.len() < 2 {
+                            eof_ok = false;
+                            break;
+                        }
+                        let limit = max_off.min(sample_len);
+                        let mut found = false;
+                        let mut dist = min_off;
+                        while dist.saturating_add(pat.len()) <= limit {
+                            let start_idx =
+                                sample_len.saturating_sub(dist.saturating_add(pat.len()));
+                            let end_idx = start_idx.saturating_add(pat.len());
+                            if eof_sample.get(start_idx..end_idx) == Some(pat.as_slice()) {
+                                found = true;
+                                if first_eof_off.is_none() {
+                                    first_eof_off = u64::try_from(dist).ok();
+                                }
+                                break;
+                            }
+                            dist = dist.saturating_add(1);
+                        }
+                        if !found {
+                            eof_ok = false;
+                            break;
+                        }
+                    }
+                    if eof_ok {
+                        eof_matched = true;
+                    } else {
+                        sig_matched = false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if sig_matched && (bof_matched || eof_matched) {
+            if let Some(puids) = db.puid_by_sig_id.get(&sig.id) {
+                for puid in puids {
+                    if let Some(fmt) = db.formats.get(puid) {
+                        let mut score = if bof_matched && eof_matched {
+                            95u32
+                        } else {
+                            90u32
+                        };
+                        let mut evidence = vec![DetectionEvidence::Pronom {
+                            puid: puid.clone(),
+                            score,
+                        }];
+                        if let Some(bof_off) = first_bof_off {
+                            evidence.push(DetectionEvidence::DualAnchored {
+                                bof_offset: bof_off,
+                                eof_offset: first_eof_off,
+                                score,
+                            });
+                        }
+
+                        if let Some(ext) = hint_ext {
+                            if fmt.extensions.iter().any(|e| e.eq_ignore_ascii_case(ext)) {
+                                score = score.saturating_add(5).min(100);
+                                evidence.push(DetectionEvidence::Extension {
+                                    ext: ext.to_string(),
+                                    is_primary: true,
+                                    score: 25,
+                                });
+                            }
+                        }
+
+                        candidates.push(DetectionCandidate {
+                            format_id: None,
+                            dc_id: None,
+                            mime: fmt.mime_type.clone(),
+                            description: fmt.name.clone(),
+                            confidence: if score >= 90 {
+                                ConfidenceTier::HighestConfidence
+                            } else {
+                                ConfidenceTier::Strong
+                            },
+                            score,
+                            evidence,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(candidates)
+}
+
+// ---------------------------------------------------------------------------
+// 3. ZIP Central Directory Inspector & Container Signatures
 // ---------------------------------------------------------------------------
 
 const ZIP_LOCAL_HEADER_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
@@ -1079,35 +1871,265 @@ pub fn scan_zip_local_headers<S: DetectionSource + ?Sized>(
     Ok(entries)
 }
 
+/// Reads the uncompressed or Deflate-decompressed payload of a ZIP entry.
+pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    entry: &ZipEntrySummary,
+    max_bytes: usize,
+) -> Result<Option<Vec<u8>>> {
+    let local_off = u64::from(entry.local_header_offset);
+    let mut header = [0u8; 30];
+    let n = source.read_at(local_off, &mut header)?;
+    if n < 30 || header.get(..4) != Some(&ZIP_LOCAL_HEADER_MAGIC) {
+        return Ok(None);
+    }
+    let flen = u16::from_le_bytes([
+        header.get(26).copied().unwrap_or(0),
+        header.get(27).copied().unwrap_or(0),
+    ]);
+    let elen = u16::from_le_bytes([
+        header.get(28).copied().unwrap_or(0),
+        header.get(29).copied().unwrap_or(0),
+    ]);
+    let data_offset = local_off
+        .saturating_add(30)
+        .saturating_add(u64::from(flen))
+        .saturating_add(u64::from(elen));
+
+    if entry.compression_method == 0 {
+        let to_read = usize::try_from(u64::from(entry.uncompressed_size))
+            .unwrap_or(max_bytes)
+            .min(max_bytes);
+        let mut buf = vec![0u8; to_read];
+        let read_n = source.read_at(data_offset, &mut buf)?;
+        buf.truncate(read_n);
+        return Ok(Some(buf));
+    }
+
+    if entry.compression_method == 8 {
+        let comp_size = usize::try_from(u64::from(entry.compressed_size))
+            .unwrap_or(65536)
+            .min(65536);
+        let mut comp_buf = vec![0u8; comp_size];
+        let read_n = source.read_at(data_offset, &mut comp_buf)?;
+        comp_buf.truncate(read_n);
+
+        use std::io::Read;
+        let mut decoder = flate2::read::DeflateDecoder::new(comp_buf.as_slice());
+        let mut decomp_buf = vec![0u8; max_bytes];
+        let mut total_read = 0usize;
+        while total_read < max_bytes {
+            let chunk_slice = decomp_buf.get_mut(total_read..).unwrap_or(&mut []);
+            if chunk_slice.is_empty() {
+                break;
+            }
+            match decoder.read(chunk_slice) {
+                Ok(0) => break,
+                Ok(bytes) => {
+                    total_read = total_read.saturating_add(bytes);
+                }
+                Err(_) => break,
+            }
+        }
+        decomp_buf.truncate(total_read);
+        return Ok(Some(decomp_buf));
+    }
+
+    Ok(None)
+}
+
 /// Reads the uncompressed payload of an entry stored with compression method 0.
 fn read_uncompressed_entry<S: DetectionSource + ?Sized>(
     source: &mut S,
     entry: &ZipEntrySummary,
     max_bytes: usize,
 ) -> Result<Option<Vec<u8>>> {
-    if entry.compression_method != 0 {
-        return Ok(None);
-    }
-    let local_off = u64::from(entry.local_header_offset);
-    let mut header = [0u8; 30];
-    let n = source.read_at(local_off, &mut header)?;
-    if n < 30 || &header[..4] != &ZIP_LOCAL_HEADER_MAGIC {
-        return Ok(None);
-    }
-    let flen = u16::from_le_bytes([header[26], header[27]]);
-    let elen = u16::from_le_bytes([header[28], header[29]]);
-    let data_offset = local_off
-        .saturating_add(30)
-        .saturating_add(u64::from(flen))
-        .saturating_add(u64::from(elen));
+    read_zip_entry_payload(source, entry, max_bytes)
+}
 
-    let to_read = usize::try_from(u64::from(entry.uncompressed_size))
-        .unwrap_or(max_bytes)
-        .min(max_bytes);
-    let mut buf = vec![0u8; to_read];
-    let read_n = source.read_at(data_offset, &mut buf)?;
-    buf.truncate(read_n);
-    Ok(Some(buf))
+/// Evaluates DROID container signatures against ZIP entry summaries.
+pub fn evaluate_droid_zip_container<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    entries: &[ZipEntrySummary],
+    db: &ContainerSignatureDatabase,
+) -> Result<Option<DetectionCandidate>> {
+    if entries.is_empty() || db.zip_signatures.is_empty() {
+        return Ok(None);
+    }
+
+    for sig in &db.zip_signatures {
+        if sig.files.is_empty() {
+            continue;
+        }
+
+        let mut all_files_matched = true;
+        for file_rule in &sig.files {
+            let rule_path = file_rule.path.trim_start_matches('/');
+            let Some(entry) = entries.iter().find(|e| {
+                let entry_path = e.name.trim_start_matches('/');
+                entry_path.eq_ignore_ascii_case(rule_path)
+            }) else {
+                all_files_matched = false;
+                break;
+            };
+
+            if let Some(ref text_sig) = file_rule.text_signature {
+                let payload = match read_zip_entry_payload(source, entry, 65536)? {
+                    Some(p) => p,
+                    None => {
+                        all_files_matched = false;
+                        break;
+                    }
+                };
+                let text = String::from_utf8_lossy(&payload);
+                if !text.contains(text_sig) {
+                    all_files_matched = false;
+                    break;
+                }
+            }
+
+            if let Some(ref bin_sig) = file_rule.binary_signature {
+                let payload = match read_zip_entry_payload(source, entry, 65536)? {
+                    Some(p) => p,
+                    None => {
+                        all_files_matched = false;
+                        break;
+                    }
+                };
+                if !payload.windows(bin_sig.len()).any(|w| w == bin_sig.as_slice()) {
+                    all_files_matched = false;
+                    break;
+                }
+            }
+        }
+
+        if all_files_matched {
+            let puid_opt = sig.puid.clone();
+            let mut mime = None;
+            let mut desc = sig.description.clone();
+
+            if let Some(ref puid) = puid_opt {
+                if let Some(fmt) = DROID_PRONOM_DB.formats.get(puid) {
+                    if let Some(ref m) = fmt.mime_type {
+                        mime = Some(m.clone());
+                    } else {
+                        for ext in &fmt.extensions {
+                            if let Some(m) = crate::detection::mime_derivation::FORMAT_CATALOG
+                                .lookup_extension(ext)
+                                .iter()
+                                .find_map(|m| m.mime_types.first().cloned())
+                            {
+                                mime = Some(m);
+                                break;
+                            }
+                            if ext == "apk" {
+                                mime = Some("application/vnd.android.package-archive".to_string());
+                                break;
+                            }
+                        }
+                    }
+                    if !fmt.name.is_empty() {
+                        desc = fmt.name.clone();
+                    }
+                }
+            }
+
+            let mut evidence = vec![DetectionEvidence::ContainerStructure {
+                detail: format!(
+                    "Matched DROID ZIP container signature {}: {}",
+                    sig.id, sig.description
+                ),
+                score: 98,
+            }];
+
+            if let Some(ref puid) = puid_opt {
+                evidence.push(DetectionEvidence::Pronom {
+                    puid: puid.clone(),
+                    score: 98,
+                });
+            }
+
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime,
+                description: desc,
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 98,
+                evidence,
+            }));
+        }
+    }
+
+    Ok(None)
+}
+
+/// Evaluates DROID container signatures against OLE2 stream names.
+pub fn evaluate_droid_ole2_container(
+    stream_names: &[String],
+    db: &ContainerSignatureDatabase,
+) -> Result<Option<DetectionCandidate>> {
+    if stream_names.is_empty() || db.ole2_signatures.is_empty() {
+        return Ok(None);
+    }
+
+    for sig in &db.ole2_signatures {
+        if sig.files.is_empty() {
+            continue;
+        }
+
+        let all_streams_matched = sig.files.iter().all(|file_rule| {
+            let rule_path = file_rule.path.trim_start_matches('/');
+            stream_names.iter().any(|s| {
+                let s_path = s.trim_start_matches('/');
+                s_path.eq_ignore_ascii_case(rule_path)
+            })
+        });
+
+        if all_streams_matched {
+            let puid_opt = sig.puid.clone();
+            let mut mime = None;
+            let mut desc = sig.description.clone();
+
+            if let Some(ref puid) = puid_opt {
+                if let Some(fmt) = DROID_PRONOM_DB.formats.get(puid) {
+                    if let Some(ref m) = fmt.mime_type {
+                        mime = Some(m.clone());
+                    }
+                    if !fmt.name.is_empty() {
+                        desc = fmt.name.clone();
+                    }
+                }
+            }
+
+            let mut evidence = vec![DetectionEvidence::ContainerStructure {
+                detail: format!(
+                    "Matched DROID OLE2 container signature {}: {}",
+                    sig.id, sig.description
+                ),
+                score: 95,
+            }];
+
+            if let Some(ref puid) = puid_opt {
+                evidence.push(DetectionEvidence::Pronom {
+                    puid: puid.clone(),
+                    score: 95,
+                });
+            }
+
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime,
+                description: desc,
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence,
+            }));
+        }
+    }
+
+    Ok(None)
 }
 
 /// Classifies a ZIP container from its entry list and uncompressed metadata.
@@ -1117,6 +2139,11 @@ pub fn classify_zip_container<S: DetectionSource + ?Sized>(
 ) -> Result<Option<DetectionCandidate>> {
     if entries.is_empty() {
         return Ok(None);
+    }
+
+    // 0. Check DROID declarative container signatures
+    if let Ok(Some(cand)) = evaluate_droid_zip_container(source, entries, &DROID_CONTAINER_DB) {
+        return Ok(Some(cand));
     }
 
     // 1. Check for `mimetype` entry (ODF, EPUB, KRA, ORA)
@@ -1739,6 +2766,61 @@ mod tests {
         let mut source: &[u8] = &gif_data;
         let cands = evaluate_dual_anchored_signatures(&mut source).unwrap();
         assert!(cands.iter().any(|c| c.mime.as_deref() == Some("image/gif")));
+    }
+
+    #[crate::ctb_test]
+    fn test_droid_pronom_db_loaded() {
+        assert!(DROID_PRONOM_DB.formats.len() > 2000);
+        assert!(DROID_PRONOM_DB.signatures.len() > 2000);
+        let pdf_fmt = DROID_PRONOM_DB.formats.get("fmt/18");
+        assert!(pdf_fmt.is_some());
+        let pdf = pdf_fmt.unwrap();
+        assert_eq!(pdf.mime_type.as_deref(), Some("application/pdf"));
+    }
+
+    #[crate::ctb_test]
+    fn test_droid_container_db_loaded() {
+        assert!(DROID_CONTAINER_DB.zip_signatures.len() > 100);
+        assert!(DROID_CONTAINER_DB.ole2_signatures.len() > 100);
+    }
+
+    #[crate::ctb_test]
+    fn test_droid_pronom_detection_pdf() {
+        if let Some(pdf_bytes) =
+            ctb_formats_dcdata::get_dc_data_file("droid/tests/signatures/sample.pdf")
+        {
+            let mut source: &[u8] = &pdf_bytes;
+            let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
+            assert!(cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("application/pdf")));
+            assert!(cands.iter().any(|c| c.evidence.iter().any(
+                |e| matches!(e, DetectionEvidence::Pronom { puid, .. } if puid == "fmt/18")
+            )));
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_droid_pronom_detection_jpeg() {
+        if let Some(jpeg_bytes) =
+            ctb_formats_dcdata::get_dc_data_file("droid/tests/signatures/DROID.jpeg")
+        {
+            let mut source: &[u8] = &jpeg_bytes;
+            let cands = evaluate_pronom_signatures(&mut source, None).unwrap();
+            assert!(cands
+                .iter()
+                .any(|c| c.mime.as_deref() == Some("image/jpeg")));
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_droid_container_test_zip() {
+        if let Some(zip_bytes) =
+            ctb_formats_dcdata::get_dc_data_file("droid/tests/containers/test.zip")
+        {
+            let mut source: &[u8] = &zip_bytes;
+            let _ = inspect_zip_container_comprehensive(&mut source);
+        }
     }
 }
 /*

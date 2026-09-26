@@ -616,7 +616,37 @@ pub fn guess_format_report(
         }
     }
 
-    // 1.5. Evaluate DROID dual-anchored BOF / EOF signatures (droid.rs)
+    // 1.5. Evaluate DROID PRONOM and dual-anchored BOF / EOF signatures (droid.rs)
+    if let Ok(pronom_cands) = evaluate_pronom_signatures(source, hint) {
+        for cand in pronom_cands {
+            let mut merged = false;
+            for existing in &mut candidates {
+                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
+                let matches_desc = !cand.description.is_empty()
+                    && existing.description.eq_ignore_ascii_case(&cand.description);
+                if matches_fmt || matches_desc {
+                    if existing.format_id.is_none() && cand.format_id.is_some() {
+                        existing.format_id = cand.format_id;
+                    }
+                    if cand.score > existing.score {
+                        existing.score = cand.score;
+                        existing.confidence = cand.confidence;
+                        existing.description = cand.description.clone();
+                    }
+                    if existing.mime.is_none() && cand.mime.is_some() {
+                        existing.mime = cand.mime.clone();
+                    }
+                    existing.evidence.extend(cand.evidence.clone());
+                    merged = true;
+                    break;
+                }
+            }
+            if !merged {
+                candidates.push(cand);
+            }
+        }
+    }
+
     if let Ok(dual_cands) = evaluate_dual_anchored_signatures(source) {
         for cand in dual_cands {
             let mut merged = false;
