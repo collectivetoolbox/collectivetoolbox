@@ -39,6 +39,8 @@ See full license information for Kaitai Struct compiler at the end of this file.
 
 // See individual files in data/definitions/ for license details of the format specifications (this file itself isn't directly derived from those format specifications, but it includes them using include_dir!).
 
+// Based on https://github.com/kaitai-io/kaitai_struct_compiler/commit/fd2594257834241455f27121ae1adf296bcf09b9
+
 //! Kaitai Struct compiler and runtime integration for format specifications.
 
 #[allow(
@@ -241,6 +243,7 @@ mod tests {
 
         let mut total_files: usize = 0;
         let mut errors_detected: usize = 0;
+        let mut unexpected_successes = Vec::new();
 
         for entry in walkdir::WalkDir::new(&err_dir) {
             let entry = entry?;
@@ -260,10 +263,17 @@ mod tests {
 
                 if failed {
                     errors_detected = errors_detected.saturating_add(1);
+                } else {
+                    unexpected_successes.push(stem.to_string());
                 }
             }
         }
 
+        unexpected_successes.sort();
+        println!(
+            "Negative validation: {}/{} detected errors. Unexpected successes ({}): {:?}",
+            errors_detected, total_files, unexpected_successes.len(), unexpected_successes
+        );
         ensure!(total_files > 150, "Expected at least 150 error files, found {}", total_files);
         ensure!(errors_detected > 0, "No errors were caught across invalid formats");
         Ok(())

@@ -49,8 +49,9 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size_eos.generated.rs: cannot parse string into token stream
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size.generated.rs: cannot parse string into token stream
-
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
+
+- kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
 
 - [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
 

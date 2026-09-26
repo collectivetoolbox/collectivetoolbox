@@ -557,6 +557,11 @@ pub enum DetectionEvidence {
         detail: String,
         score: u32,
     },
+    /// DROID / PRONOM format identification evidence.
+    Pronom {
+        puid: String,
+        score: u32,
+    },
 }
 
 /// Output candidate produced by format detection.
