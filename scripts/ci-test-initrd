@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+set -euo pipefail
+
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
+
+echo "=================================================="
+echo "Starting Guix POSIX Initrd Build Verification"
+echo "=================================================="
+
+# Ensure output target directory exists
+mkdir -p built
+
+# Back up or remove existing built initrd if present to test build from scratch
+target_initrd="built/guix_posix_initrd.cpio.gz"
+if [[ -f "$target_initrd" ]]; then
+    rm "$target_initrd"
+fi
+
+# Run Guix initrd-only build from scratch
+echo "Building Guix POSIX initrd from scratch..."
+./scripts/guix/build-v86-guix-image.sh --initrd-only
+
+# Verify the initrd was created
+if [[ ! -f "$target_initrd" ]]; then
+    echo "Error: Output initrd archive was not generated at $target_initrd" >&2
+    exit 1
+fi
+
+initrd_size="$(wc -c < "$target_initrd" | tr -d ' ')"
+echo "Generated initrd size: $initrd_size bytes"
+
+# Minimum sanity threshold (initrd must be at least 1MB)
+if (( initrd_size < 1000000 )); then
+    echo "Error: Generated initrd is too small ($initrd_size bytes)!" >&2
+    exit 1
+fi
+
+# Verify gzip archive integrity
+gzip -t "$target_initrd"
+echo "Gzip archive integrity check: OK"
+
+# Print sha256 checksum for audit and tracking
+sha256sum "$target_initrd"
+
+echo "=================================================="
+echo "Guix POSIX Initrd Build Verification Passed!"
+echo "=================================================="

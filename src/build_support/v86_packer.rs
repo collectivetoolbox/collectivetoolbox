@@ -674,10 +674,10 @@ fn find_bash_static_bytes(json: &str) -> Result<Vec<u8>> {
                     let end = rest.find('"').unwrap_or(rest.len());
                     if let Some(sub) = rest.get(..end) {
                         let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) =
-                            (parts.first(), parts.get(1))
+                        if let (Some(p0), Some(p1), Some(p2)) =
+                            (parts.first(), parts.get(1), parts.get(2))
                         {
-                            let p = format!("/{p0}/{p1}/bin/bash");
+                            let p = format!("/{p0}/{p1}/{p2}/bin/bash");
                             if let Ok(bytes) = fs::read(&p) {
                                 if bytes.get(4) == Some(&1) {
                                     // ELFCLASS32
@@ -735,10 +735,10 @@ fn find_linux_modules_dir(json: &str) -> PathBuf {
                     let end = rest.find('"').unwrap_or(rest.len());
                     if let Some(sub) = rest.get(..end) {
                         let parts: Vec<&str> = sub.split('/').collect();
-                        if let (Some(p0), Some(p1)) =
-                            (parts.first(), parts.get(1))
+                        if let (Some(p0), Some(p1), Some(p2)) =
+                            (parts.first(), parts.get(1), parts.get(2))
                         {
-                            let p = PathBuf::from(format!("/{p0}/{p1}"));
+                            let p = PathBuf::from(format!("/{p0}/{p1}/{p2}"));
                             if p.is_dir() {
                                 return p;
                             }
