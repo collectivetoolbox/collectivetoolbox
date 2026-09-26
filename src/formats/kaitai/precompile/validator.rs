@@ -32,597 +32,537 @@ Copyright (c) 2011-2017 Lightbend, Inc.
 See full license information at the end of this file.
 */
 
-//! Build script for compiling Kaitai Struct format definitions into Rust source files.
+//! Static validation and diagnostic checks for Kaitai Struct schema files.
 
-#![allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::shadow_unrelated,
-    reason = "Build script code generation"
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace module prelude"
 )]
+use crate::utilities::*;
 
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
-use anyhow::{Context, Result};
-use ctb_build_support::license_consts::DEFAULT_AGPL_HEADER;
-use walkdir::WalkDir;
+use std::collections::HashSet;
+use serde_yaml::Value;
+use crate::spec::{KsyFile, AttrSpec, InstanceSpec};
+use crate::precompile::ClassSpec;
 
-pub(crate) mod utilities {
-    pub use anyhow::{Result, Context, bail, ensure};
-}
-
-#[path = "expr.rs"]
-pub mod expr;
-#[path = "spec.rs"]
-pub mod spec;
-#[path = "parser.rs"]
-pub mod parser;
-#[path = "precompile.rs"]
-pub mod precompile;
-#[path = "codegen.rs"]
-pub mod codegen;
-
-use parser::parse_ksy_slice;
-use precompile::{resolve_ksy, SpecRegistry};
-use codegen::{compile_to_rust_with_header, LICENSE_HEADER};
-
-fn write_if_changed(path: &Path, content: &str) -> Result<()> {
-    if path.exists() {
-        if let Ok(existing) = fs::read_to_string(path) {
-            if existing == content {
-                return Ok(());
-            }
-        }
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
-    Ok(())
-}
-
-fn emit_cargo_rerun_directives(manifest_dir: &Path) -> Result<()> {
-    for entry in WalkDir::new(manifest_dir) {
-        let entry = entry?;
-        let path = entry.path();
-        let rel_path = match path.strip_prefix(manifest_dir) {
-            Ok(p) => p,
-            Err(_) => continue,
-        };
-        if rel_path.as_os_str().is_empty() {
-            continue;
-        }
-
-        // Skip hidden files/directories (like .git, .build_cache)
-        let is_hidden = rel_path.components().any(|c| {
-            c.as_os_str().to_string_lossy().starts_with('.')
-        });
-        if is_hidden {
-            continue;
-        }
-
-        // Skip target directory
-        if rel_path.components().any(|c| c.as_os_str() == "target") {
-            continue;
-        }
-
-        // Skip generated files and generated directories
-        let first_comp = rel_path
-            .components()
-            .next()
-            .map(|c| c.as_os_str().to_string_lossy());
-        if first_comp.as_deref() == Some("generated") {
-            continue;
-        }
-        if rel_path.starts_with("tests/generated") {
-            continue;
-        }
-        if rel_path == Path::new("generated.generated.rs") {
-            continue;
-        }
-        if let Some(file_name) = rel_path.file_name().and_then(|s| s.to_str()) {
-            if file_name.ends_with(".generated.rs") {
-                continue;
-            }
-        }
-
-        println!("cargo:rerun-if-changed={}", rel_path.display());
-    }
-    Ok(())
-}
-
-fn main() -> Result<()> {
-    let manifest_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
-    let definitions_dir = manifest_dir.join("data/definitions");
-    let generated_dir = manifest_dir.join("generated");
-
-    emit_cargo_rerun_directives(&manifest_dir)?;
-
-    if !definitions_dir.exists() {
-        return Ok(());
-    }
-
-    fs::create_dir_all(&generated_dir)?;
-
-    let source_hash = codegen::test_generator::compute_source_hash(&manifest_dir)?;
-    let header_prefix = format!("# source_hash\t{source_hash}");
-
-    // 1. Load build cache (rel_path -> (mtime_nanos, size_bytes))
-    let cache_file = generated_dir.join(".build_cache");
-    let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
-    if let Ok(cache_str) = fs::read_to_string(&cache_file) {
-        let mut lines = cache_str.lines();
-        // Reason for fallback: empty cache file yields empty string for header line check
-        let first_line = lines.next().unwrap_or_default();
-        if first_line == header_prefix {
-            for line in lines {
-                let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                        cache.insert(parts[0].to_string(), (mtime, size));
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Discover all .ksy files (skipping 'licenses' directory)
-    let mut ksy_files: Vec<(String, PathBuf, PathBuf)> = Vec::new();
-    for entry in WalkDir::new(&definitions_dir) {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
-            let rel_path = path.strip_prefix(&definitions_dir)?;
-            let rel_components: Vec<_> = rel_path
-                .components()
-                .map(|c| c.as_os_str().to_string_lossy().to_string())
-                .collect();
-            if rel_components.first().map(|s| s.as_str()) == Some("licenses") {
-                continue;
-            }
-            let stem = path
-                .file_stem()
-                .context("Missing file stem")?
-                .to_string_lossy()
-                .to_string();
-            ksy_files.push((stem, path.to_path_buf(), rel_path.to_path_buf()));
-        }
-    }
-
-    // 3. Build SpecRegistry
-    let mut registry = SpecRegistry::new(vec![definitions_dir.clone()]);
-    for (stem, path, _) in &ksy_files {
-        if let Ok(bytes) = fs::read(path) {
-            if let Ok(ksy) = parse_ksy_slice(&bytes) {
-                registry.insert(stem.clone(), ksy);
-            }
-        }
-    }
-
-    // 4. Compile .ksy files into .generated.rs
-    let to_compile = ksy_files.clone();
-
-    let mut updated_cache = cache.clone();
-    for (stem, ksy_path, rel_path) in &to_compile {
-        let metadata = fs::metadata(ksy_path)?;
-        // Reason for fallback: system clock before UNIX epoch defaults to zero duration
-        let mtime = metadata
-            .modified()?
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let size = metadata.len();
-        let rel_key = rel_path.to_string_lossy().to_string();
-
-        // Reason for fallback: definition at root without subfolder defaults to common category
-        let top_cat = rel_path
-            .components()
-            .next()
-            .map(|c| c.as_os_str().to_string_lossy().to_string())
-            .unwrap_or_else(|| "common".to_string());
-        let out_file = generated_dir.join(&top_cat).join(format!("{stem}.generated.rs"));
-
-        let cached = cache.get(&rel_key);
-        let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
-
-        if !up_to_date {
-            let bytes = fs::read(ksy_path)?;
-            match parse_ksy_slice(&bytes) {
-                Ok(ksy) => match resolve_ksy(stem, &ksy, Some(&registry)) {
-                    Ok(spec) => {
-                        let is_kaitai_tests = ksy_path
-                            .components()
-                            .any(|c| c.as_os_str() == "kaitai_struct_tests");
-                        let header = if is_kaitai_tests {
-                            Some(LICENSE_HEADER)
-                        } else {
-                            None
-                        };
-                        match compile_to_rust_with_header(&spec, header) {
-                            Ok(rust_code) => {
-                                write_if_changed(&out_file, &rust_code)?;
-                                updated_cache.insert(rel_key, (mtime, size));
-                            }
-                            Err(e) => {
-                                println!("cargo:warning=Failed to generate Rust for {stem}: {e}");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        println!("cargo:warning=Failed to resolve {stem}: {e}");
-                    }
-                },
-                Err(e) => {
-                    println!("cargo:warning=Failed to parse {stem}.ksy: {e}");
-                }
-            }
-        }
-    }
-
-    // 5. Generate module files adhering to workspace style (strictly no mod.rs)
-    generate_module_files(&manifest_dir, &generated_dir)?;
-
-    // 6. Write updated cache
-    let mut cache_content = format!("# source_hash\t{source_hash}\n");
-    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
-    sorted_keys.sort();
-    for key in sorted_keys {
-        if let Some((mtime, size)) = updated_cache.get(&key) {
-            cache_content.push_str(&format!("{key}\t{mtime}\t{size}\n"));
-        }
-    }
-    write_if_changed(&cache_file, &cache_content)?;
-
-    // 7. Compile test suite if available
-    compile_test_suite(&manifest_dir, &generated_dir, source_hash)?;
-
-    Ok(())
-}
-
-fn generate_module_files(manifest_dir: &Path, generated_dir: &Path) -> Result<()> {
-    // Clean up any legacy mod.rs files if present
-    let root_mod = generated_dir.join("mod.rs");
-    if root_mod.exists() {
-        let _ = fs::remove_file(root_mod);
-    }
-
-    let mut categories = Vec::new();
-
-    if generated_dir.exists() {
-        for entry in fs::read_dir(generated_dir)? {
-            let entry = entry?;
-            let path = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
-
-            if path.is_dir() && !name.starts_with('.') && name != "test_formats" {
-                let cat_mod = path.join("mod.rs");
-                if cat_mod.exists() {
-                    let _ = fs::remove_file(cat_mod);
-                }
-
-                let mut gen_files = Vec::new();
-                for sub_entry in fs::read_dir(&path)? {
-                    let sub_entry = sub_entry?;
-                    let sub_path = sub_entry.path();
-                    let sub_name = sub_entry.file_name().to_string_lossy().to_string();
-                    if sub_path.is_file() && sub_name.ends_with(".generated.rs") {
-                        let mod_name = sub_name.trim_end_matches(".generated.rs").to_string();
-                        gen_files.push((mod_name, sub_name));
-                    }
-                }
-
-                if !gen_files.is_empty() {
-                    gen_files.sort();
-                    let mut cat_rs = String::new();
-                    cat_rs.push_str("// @generated by ctb-formats-kaitai::codegen\n\n");
-                    cat_rs.push_str("pub use super::*;\n\n");
-                    for (mod_name, filename) in &gen_files {
-                        cat_rs.push_str(&format!(
-                            "#[path = \"{name}/{filename}\"]\npub mod {mod_name};\npub use {mod_name}::*;\n"
-                        ));
-                    }
-                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
-                    write_if_changed(&cat_file, &cat_rs)?;
-                    categories.push(name);
-                } else {
-                    let cat_file = generated_dir.join(format!("{name}.generated.rs"));
-                    if cat_file.exists() {
-                        let _ = fs::remove_file(cat_file);
-                    }
-                }
-            } else if path.is_file() && name.ends_with(".rs") {
-                if name.ends_with(".generated.rs") {
-                    let cat_name = name.trim_end_matches(".generated.rs").to_string();
-                    if !categories.contains(&cat_name) && name != "test_formats.generated.rs" {
-                        let _ = fs::remove_file(&path);
-                    }
-                } else {
-                    // Clean up any legacy non-.generated.rs files
-                    let _ = fs::remove_file(&path);
-                }
-            }
-        }
-    }
-
-    categories.sort();
-    let mut root_rs = String::new();
-    root_rs.push_str(DEFAULT_AGPL_HEADER);
-    root_rs.push_str("\n\n//! Generated Kaitai format modules.\n\n// @generated by ctb-formats-kaitai::codegen\n\n");
-    for cat in &categories {
-        root_rs.push_str(&format!(
-            "#[path = \"generated/{cat}.generated.rs\"]\npub mod {cat};\npub use {cat}::*;\n"
-        ));
-    }
-    let root_file = manifest_dir.join("generated.generated.rs");
-    write_if_changed(&root_file, &root_rs)?;
-    let old_root_file = manifest_dir.join("generated.rs");
-    if old_root_file.exists() {
-        let _ = fs::remove_file(old_root_file);
-    }
-
-    Ok(())
-}
-
-fn compile_test_suite(
-    manifest_dir: &Path,
-    generated_dir: &Path,
-    source_hash: u64,
-) -> Result<()> {
-    let kaitai_tests_dir = manifest_dir.join("kaitai_struct_tests");
-    if !kaitai_tests_dir.exists() {
-        return Ok(());
-    }
-
-    let kst_dir = kaitai_tests_dir.join("spec/ks");
-    let test_rs_dir = manifest_dir.join("tests/generated");
-    let formats_dir = kaitai_tests_dir.join("formats");
-    let test_formats_dir = generated_dir.join("test_formats");
-    fs::create_dir_all(&test_formats_dir)?;
-    fs::create_dir_all(&test_rs_dir)?;
-
-    // 1. Regenerate test files from KST specs if needed
-    let kst_cache_file = test_rs_dir.join(".build_cache");
-    let _ = codegen::test_generator::regenerate_tests_from_kst(
-        &kst_dir,
-        &test_rs_dir,
-        Some(&formats_dir),
-        &kst_cache_file,
-        false,
-    )?;
-
-    // 2. Load test format build cache
-    let cache_file = test_formats_dir.join(".build_cache");
-    let header_prefix = format!("# source_hash\t{source_hash}");
-    let mut cache: HashMap<String, (u128, u64)> = HashMap::new();
-    if let Ok(cache_str) = fs::read_to_string(&cache_file) {
-        let mut lines = cache_str.lines();
-        // Reason for fallback: empty cache file yields empty string for header line check
-        let first_line = lines.next().unwrap_or_default();
-        if first_line == header_prefix {
-            for line in lines {
-                let parts: Vec<&str> = line.split('\t').collect();
-                if parts.len() == 3 {
-                    if let (Ok(mtime), Ok(size)) = (parts[1].parse(), parts[2].parse()) {
-                        cache.insert(parts[0].to_string(), (mtime, size));
-                    }
-                }
-            }
-        }
-    }
-
-    // 3. Discover all .ksy format files in kaitai_struct_tests/formats
-    let mut ksy_files: Vec<(String, PathBuf, PathBuf)> = Vec::new();
-    for entry in WalkDir::new(&formats_dir) {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
-            let rel_path = path.strip_prefix(&formats_dir)?;
-            let stem = path
-                .file_stem()
-                .context("Missing file stem")?
-                .to_string_lossy()
-                .to_string();
-            ksy_files.push((stem, path.to_path_buf(), rel_path.to_path_buf()));
-        }
-    }
-
-    // 4. Build SpecRegistry
-    let mut registry = SpecRegistry::new(vec![formats_dir.clone()]);
-    for (stem, path, _) in &ksy_files {
-        if let Ok(bytes) = fs::read(path) {
-            if let Ok(ksy) = parse_ksy_slice(&bytes) {
-                registry.insert(stem.clone(), ksy);
-            }
-        }
-    }
-
-    // 5. Compile .ksy files into test_formats/*.generated.rs
-    let mut updated_cache = cache.clone();
-    let mut successfully_compiled_formats = Vec::new();
-
-    for (stem, ksy_path, rel_path) in &ksy_files {
-        let metadata = fs::metadata(ksy_path)?;
-        // Reason for fallback: timestamps before unix epoch default to duration 0
-        let mtime = metadata
-            .modified()?
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_nanos();
-        let size = metadata.len();
-        let rel_key = rel_path.to_string_lossy().to_string();
-        let out_file = test_formats_dir.join(format!("{stem}.generated.rs"));
-
-        let cached = cache.get(&rel_key);
-        let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
-
-        if up_to_date {
-            successfully_compiled_formats.push(stem.clone());
-        } else {
-            let bytes = fs::read(ksy_path)?;
-            if let Ok(ksy) = parse_ksy_slice(&bytes) {
-                if let Ok(spec) = resolve_ksy(stem, &ksy, Some(&registry)) {
-                    let is_kaitai_tests = ksy_path
-                        .components()
-                        .any(|c| c.as_os_str() == "kaitai_struct_tests");
-                    let header = if is_kaitai_tests {
-                        Some(LICENSE_HEADER)
-                    } else {
-                        None
-                    };
-                    if let Ok(rust_code) = compile_to_rust_with_header(&spec, header) {
-                        write_if_changed(&out_file, &rust_code)?;
-                        updated_cache.insert(rel_key, (mtime, size));
-                        successfully_compiled_formats.push(stem.clone());
-                    }
-                }
-            }
-        }
-    }
-
-/// Test formats currently pending transpiler bugfixes before they pass rustc type-checking.
-/// As transpiler bugs are fixed, formats should be removed from this list.
-const PENDING_TRANSPILER_FIX_FORMATS: &[&str] = &[
-    "cast_nested",
-    "cast_to_imported",
-    "cast_to_imported2",
-    "cast_to_top",
-    "combine_bytes",
-    "combine_str",
-    "debug_switch_user",
-    "default_endian_expr_exception",
-    "default_endian_expr_inherited",
-    "default_endian_expr_is_be",
-    "default_endian_expr_is_le",
-    "enum_deep_literals",
-    "enum_import_literals",
-    "enum_invalid",
-    "enum_long_range_u",
-    "enum_to_i_class_border_1",
-    "enum_to_i_class_border_2",
-    "enum_to_i_invalid",
-    "expr_array",
-    "expr_bits",
-    "expr_bytes_cmp",
-    "expr_calc_array_ops",
-    "expr_io_eof",
-    "expr_io_eof_bits",
-    "expr_io_pos",
-    "expr_io_ternary",
-    "expr_ops_parens",
-    "expr_str_ops",
-    "if_instances",
-    "if_values",
-    "imports_abs",
-    "imports_cast_to_imported",
-    "imports_cast_to_imported2",
-    "imports_params_def_array_usertype_imported",
-    "imports_params_def_enum_imported",
-    "imports_params_def_usertype_imported",
-    "instance_io_user_earlier",
-    "nav_parent2",
-    "nav_parent3",
-    "nav_parent_false",
-    "nav_parent_recursive",
-    "nav_parent_switch",
-    "nav_parent_switch_cast",
-    "nested_type_param",
-    "nested_types_import",
-    "opaque_external_type",
-    "params_call",
-    "params_call_extra_parens",
-    "params_def_array_usertype_imported",
-    "params_def_enum_imported",
-    "params_pass_array_int",
-    "params_pass_array_io",
-    "params_pass_array_str",
-    "params_pass_array_struct",
-    "params_pass_array_usertype",
-    "params_pass_struct",
-    "position_to_end",
-    "process_coerce_switch",
-    "recursive_one",
-    "repeat_until_calc_array_type",
-    "repeat_until_complex",
-    "repeat_until_s4",
-    "repeat_until_sized",
-    "switch_bytearray",
-    "switch_else_only",
-    "switch_integers2",
-    "switch_manual_enum",
-    "switch_manual_enum_invalid",
-    "switch_manual_enum_invalid_else",
-    "switch_manual_int",
-    "switch_manual_int_else",
-    "switch_manual_int_size",
-    "switch_manual_int_size_else",
-    "switch_manual_int_size_eos",
-    "switch_manual_str",
-    "switch_manual_str_else",
-    "switch_repeat_expr",
-    "switch_repeat_expr_invalid",
-    "type_ternary_opaque",
-    "valid_switch",
+const LEGAL_KEYS_CLASS: &[&str] = &[
+    "meta", "doc", "doc-ref", "to-string", "params", "seq", "types",
+    "instances", "enums",
 ];
 
-    // 6. Write test_formats.generated.rs
-    successfully_compiled_formats.sort();
-    let mut test_formats_rs = String::new();
-    test_formats_rs.push_str("// @generated by ctb-formats-kaitai::build\n\n");
-    test_formats_rs.push_str("pub use super::*;\n\n");
-    for stem in &successfully_compiled_formats {
-        if PENDING_TRANSPILER_FIX_FORMATS.contains(&stem.as_str()) {
-            continue;
-        }
-        test_formats_rs.push_str(&format!(
-            "#[path = \"test_formats/{stem}.generated.rs\"]\npub mod {stem};\npub use {stem}::*;\n"
-        ));
+const LEGAL_KEYS_META: &[&str] = &[
+    "id", "title", "application", "file-extension", "xref", "tags", "license",
+    "ks-version", "ks-debug", "ks-opaque-types", "ks-zero-copy-substream",
+    "imports", "endian", "bit-endian", "encoding", "force-debug", "opaque-types",
+];
+
+const LEGAL_KEYS_SEQ_ATTR: &[&str] = &[
+    "id", "doc", "doc-ref", "type", "contents", "size", "size-eos", "repeat",
+    "repeat-expr", "repeat-until", "if", "encoding", "enum", "terminator",
+    "consume", "include", "eos-error", "pad-right", "process", "valid",
+    "parent",
+];
+
+const LEGAL_KEYS_VALUE_INSTANCE: &[&str] = &[
+    "value", "doc", "doc-ref", "if", "enum", "id",
+];
+
+const LEGAL_KEYS_PARSE_INSTANCE: &[&str] = &[
+    "pos", "io", "doc", "doc-ref", "type", "contents", "size", "size-eos",
+    "repeat", "repeat-expr", "repeat-until", "if", "encoding", "enum",
+    "terminator", "consume", "include", "eos-error", "pad-right", "process",
+    "valid", "parent", "id",
+];
+
+const LEGAL_KEYS_PARAM: &[&str] = &[
+    "id", "type", "doc", "doc-ref", "enum",
+];
+
+const LEGAL_KEYS_TYPE_SWITCH: &[&str] = &[
+    "switch-on", "cases",
+];
+
+/// Checks if an identifier matches the Kaitai Struct naming convention:
+/// `^[a-z][a-z0-9_]*$`
+pub fn is_valid_identifier(id: &str) -> bool {
+    let mut chars = id.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !first.is_ascii_lowercase() {
+        return false;
     }
-    let test_formats_root = generated_dir.join("test_formats.generated.rs");
-    write_if_changed(&test_formats_root, &test_formats_rs)?;
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
 
-    // 7. Write updated cache for test formats
-    let mut cache_content = format!("# source_hash\t{source_hash}\n");
-    let mut sorted_keys: Vec<_> = updated_cache.keys().cloned().collect();
-    sorted_keys.sort();
-    for key in sorted_keys {
-        if let Some((mtime, size)) = updated_cache.get(&key) {
-            cache_content.push_str(&format!("{key}\t{mtime}\t{size}\n"));
+/// Checks if a version string matches `X.Y` or `X.Y.Z` where each component is a
+/// non-negative integer without leading zeros.
+pub fn is_valid_ks_version(s: &str) -> bool {
+    let parts: Vec<&str> = s.split('.').collect();
+    if parts.len() < 2 || parts.len() > 3 {
+        return false;
+    }
+    for p in parts {
+        if p.is_empty() {
+            return false;
+        }
+        if p.len() > 1 && p.starts_with('0') {
+            return false;
+        }
+        if !p.chars().all(|c| c.is_ascii_digit()) {
+            return false;
         }
     }
-    write_if_changed(&cache_file, &cache_content)?;
+    true
+}
 
-    // 8. Generate tests/generated/spec_modules.generated.rs
-    fs::create_dir_all(&test_rs_dir)?;
-    let spec_modules_file = test_rs_dir.join("spec_modules.generated.rs");
+/// Validates raw YAML structure against schema rules.
+///
+/// # Errors
+/// Returns an error if structural constraints or unknown keys are violated.
+pub fn validate_raw_yaml(val: &Value, is_top_level: bool) -> Result<()> {
+    let Some(map) = val.as_mapping() else {
+        bail!("Expected mapping in class specification, found non-mapping");
+    };
 
-    let mut spec_modules = Vec::new();
-    if test_rs_dir.exists() {
-        for entry in fs::read_dir(&test_rs_dir)? {
-            let entry = entry?;
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.starts_with("test_") && name.ends_with(".generated.rs") {
-                let mod_name = name.trim_end_matches(".generated.rs").to_string();
-                // Reason for fallback: module names without test_ prefix remain unchanged
-                let format_stem = mod_name.strip_prefix("test_").unwrap_or(&mod_name);
-                if PENDING_TRANSPILER_FIX_FORMATS.contains(&format_stem) {
-                    continue;
+    // 1. Check legal keys in class
+    for (k, _) in map {
+        let Some(key_str) = k.as_str() else {
+            bail!("Invalid non-string key in class specification");
+        };
+        if !key_str.starts_with('-') && !LEGAL_KEYS_CLASS.contains(&key_str) {
+            bail!("Unknown key found in class specification: '{key_str}'");
+        }
+    }
+
+    // 2. Validate meta
+    if is_top_level {
+        let Some(meta_val) = map.get(Value::String("meta".to_string())) else {
+            bail!("Missing required 'meta' block in top-level specification");
+        };
+        let Some(meta_map) = meta_val.as_mapping() else {
+            bail!("'meta' must be a mapping");
+        };
+
+        let Some(id_val) = meta_map.get(Value::String("id".to_string())) else {
+            bail!("No 'meta/id' encountered in top-level class spec");
+        };
+        let Some(id_str) = id_val.as_str() else {
+            bail!("'meta/id' must be a string");
+        };
+        if !is_valid_identifier(id_str) {
+            bail!("Invalid meta ID: '{id_str}', expected /^[a-z][a-z0-9_]*$/");
+        }
+
+        for (k, _) in meta_map {
+            let Some(key_str) = k.as_str() else {
+                bail!("Invalid non-string key in meta block");
+            };
+            if !key_str.starts_with('-') && !LEGAL_KEYS_META.contains(&key_str) {
+                bail!("Unknown key found in meta: '{key_str}'");
+            }
+        }
+
+        // Validate endianness
+        if let Some(endian_val) = meta_map.get(Value::String("endian".to_string())) {
+            match endian_val {
+                Value::String(s) => {
+                    if s != "le" && s != "be" && s != "inherited" {
+                        bail!("Unable to parse endianness: expected 'le', 'be', or 'inherited', got '{s}'");
+                    }
                 }
-                spec_modules.push((mod_name, name));
+                Value::Mapping(sw) => {
+                    for (k, _) in sw {
+                        let Some(ks) = k.as_str() else {
+                            bail!("Invalid key in endian switch");
+                        };
+                        if !LEGAL_KEYS_TYPE_SWITCH.contains(&ks) {
+                            bail!("Unknown key in endian switch: '{ks}'");
+                        }
+                    }
+                }
+                _ => bail!("Endianness must be a string or switch map"),
+            }
+        }
+
+        // Validate bit-endianness
+        if let Some(bit_val) = meta_map.get(Value::String("bit-endian".to_string())) {
+            let Some(s) = bit_val.as_str() else {
+                bail!("bit-endian must be a string");
+            };
+            if s != "le" && s != "be" {
+                bail!("Unable to parse bit-endianness: expected 'le' or 'be', got '{s}'");
+            }
+        }
+
+        // Validate ks-version
+        if let Some(ver_val) = meta_map.get(Value::String("ks-version".to_string())) {
+            let ver_str = match ver_val {
+                Value::String(s) => s.clone(),
+                Value::Number(n) => n.to_string(),
+                _ => bail!("ks-version must be a string or number"),
+            };
+            if !is_valid_ks_version(&ver_str) {
+                bail!("Invalid compiler version '{ver_str}'");
+            }
+            let parts: Vec<u64> = ver_str
+                .split('.')
+                .map(|p| p.parse::<u64>().unwrap_or(0))
+                .collect();
+            let v_major = parts.first().copied().unwrap_or(0);
+            let v_minor = parts.get(1).copied().unwrap_or(0);
+            if v_major == 0 && v_minor < 6 {
+                bail!("Minimum allowed version is 0.6, but got {ver_str}");
+            }
+            if v_major > 0 || v_minor > 11 {
+                bail!("This ksy requires compiler version at least {ver_str}, but you have 0.11");
             }
         }
     }
-    spec_modules.sort();
 
-    let mut spec_rs_content = String::new();
-    spec_rs_content.push_str("// @generated by ctb-formats-kaitai::build\n\n");
-    for (mod_name, filename) in &spec_modules {
-        spec_rs_content.push_str(&format!(
-            "#[path = \"{filename}\"]\nmod {mod_name};\n"
-        ));
+    // 3. Validate params
+    if let Some(params_val) = map.get(Value::String("params".to_string())) {
+        let Some(params_seq) = params_val.as_sequence() else {
+            bail!("'params' must be a sequence");
+        };
+        for param in params_seq {
+            let Some(param_map) = param.as_mapping() else {
+                bail!("Each param must be a mapping");
+            };
+            for (k, _) in param_map {
+                let Some(ks) = k.as_str() else {
+                    bail!("Invalid key in param");
+                };
+                if !ks.starts_with('-') && !LEGAL_KEYS_PARAM.contains(&ks) {
+                    bail!("Unknown key found in param: '{ks}'");
+                }
+            }
+            let Some(id_val) = param_map.get(Value::String("id".to_string())) else {
+                bail!("Missing 'id' in param definition");
+            };
+            let Some(id_str) = id_val.as_str() else {
+                bail!("Param 'id' must be a string");
+            };
+            if !is_valid_identifier(id_str) {
+                bail!("Invalid param ID: '{id_str}', expected /^[a-z][a-z0-9_]*$/");
+            }
+        }
     }
-    write_if_changed(&spec_modules_file, &spec_rs_content)?;
+
+    // 4. Validate seq
+    if let Some(seq_val) = map.get(Value::String("seq".to_string())) {
+        let Some(seq_list) = seq_val.as_sequence() else {
+            bail!("'seq' must be a sequence");
+        };
+        for attr in seq_list {
+            let Some(attr_map) = attr.as_mapping() else {
+                bail!("Each seq attribute must be a mapping");
+            };
+            validate_attr_mapping(attr_map, false)?;
+        }
+    }
+
+    // 5. Validate instances
+    if let Some(insts_val) = map.get(Value::String("instances".to_string())) {
+        let Some(insts_map) = insts_val.as_mapping() else {
+            bail!("'instances' must be a mapping");
+        };
+        for (k, v) in insts_map {
+            let Some(name_str) = k.as_str() else {
+                bail!("Instance name must be a string");
+            };
+            if !is_valid_identifier(name_str) {
+                bail!("Invalid instance ID: '{name_str}', expected /^[a-z][a-z0-9_]*$/");
+            }
+            let Some(inst_map) = v.as_mapping() else {
+                bail!("Instance definition for '{name_str}' must be a mapping");
+            };
+            validate_instance_mapping(name_str, inst_map)?;
+        }
+    }
+
+    // 6. Validate enums
+    if let Some(enums_val) = map.get(Value::String("enums".to_string())) {
+        let Some(enums_map) = enums_val.as_mapping() else {
+            bail!("'enums' must be a mapping");
+        };
+        for (k, v) in enums_map {
+            let Some(enum_name) = k.as_str() else {
+                bail!("Enum name must be a string");
+            };
+            if !is_valid_identifier(enum_name) {
+                bail!("Invalid enum ID: '{enum_name}', expected /^[a-z][a-z0-9_]*$/");
+            }
+            let Some(vals_map) = v.as_mapping() else {
+                bail!("Enum values for '{enum_name}' must be a mapping");
+            };
+            let mut member_names = HashSet::new();
+            for (_, member_val) in vals_map {
+                let name = match member_val {
+                    Value::String(s) => s.clone(),
+                    Value::Mapping(m) => {
+                        let id_val = m.get(Value::String("id".to_string()));
+                        id_val.and_then(|v| v.as_str()).unwrap_or_default().to_string()
+                    }
+                    _ => member_val.as_str().unwrap_or_default().to_string(),
+                };
+                if !is_valid_identifier(&name) {
+                    bail!("Invalid enum member ID: '{name}', expected /^[a-z][a-z0-9_]*$/");
+                }
+                if !member_names.insert(name.clone()) {
+                    bail!("Duplicate enum member ID: '{name}' in enum '{enum_name}'");
+                }
+            }
+        }
+    }
+
+    // 7. Validate types recursively
+    if let Some(types_val) = map.get(Value::String("types".to_string())) {
+        let Some(types_map) = types_val.as_mapping() else {
+            bail!("'types' must be a mapping");
+        };
+        for (k, v) in types_map {
+            let Some(type_name) = k.as_str() else {
+                bail!("Type name must be a string");
+            };
+            if !is_valid_identifier(type_name) {
+                bail!("Invalid type ID: '{type_name}', expected /^[a-z][a-z0-9_]*$/");
+            }
+            validate_raw_yaml(v, false)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> Result<()> {
+    for (k, _) in attr_map {
+        let Some(ks) = k.as_str() else {
+            bail!("Invalid key in attribute");
+        };
+        if !ks.starts_with('-') && !LEGAL_KEYS_SEQ_ATTR.contains(&ks) {
+            bail!("Unknown key found in attribute: '{ks}'");
+        }
+    }
+
+    if let Some(id_val) = attr_map.get(Value::String("id".to_string())) {
+        if let Some(id_str) = id_val.as_str() {
+            if !is_valid_identifier(id_str) {
+                bail!("Invalid attribute ID: '{id_str}', expected /^[a-z][a-z0-9_]*$/");
+            }
+        }
+    }
+
+    // Repeat conditions
+    let repeat_val = attr_map.get(Value::String("repeat".to_string()));
+    let repeat_expr_val = attr_map.get(Value::String("repeat-expr".to_string()));
+    let repeat_until_val = attr_map.get(Value::String("repeat-until".to_string()));
+
+    match repeat_val.and_then(|v| v.as_str()) {
+        Some("expr") => {
+            if repeat_expr_val.is_none() {
+                bail!("`repeat: expr` requires a `repeat-expr` expression");
+            }
+            if repeat_until_val.is_some() {
+                bail!("`repeat: expr` cannot be used with `repeat-until`");
+            }
+        }
+        Some("until") => {
+            if repeat_until_val.is_none() {
+                bail!("`repeat: until` requires a `repeat-until` expression");
+            }
+            if repeat_expr_val.is_some() {
+                bail!("`repeat: until` cannot be used with `repeat-expr`");
+            }
+        }
+        Some("eos") => {
+            if repeat_expr_val.is_some() || repeat_until_val.is_some() {
+                bail!("`repeat: eos` cannot be used with `repeat-expr` or `repeat-until`");
+            }
+        }
+        Some(other) => {
+            bail!("Expected repeat to be 'expr', 'until', or 'eos', got '{other}'");
+        }
+        None => {
+            if repeat_expr_val.is_some() || repeat_until_val.is_some() {
+                bail!("`repeat-expr` or `repeat-until` used without `repeat` condition");
+            }
+        }
+    }
+
+    // Range checks
+    if let Some(pad_val) = attr_map.get(Value::String("pad-right".to_string())) {
+        if let Some(n) = pad_val.as_i64() {
+            if !(0..=255).contains(&n) {
+                bail!("Expected pad-right integer from 0 to 255, got {n}");
+            }
+        }
+    }
+    if let Some(term_val) = attr_map.get(Value::String("terminator".to_string())) {
+        if let Some(n) = term_val.as_i64() {
+            if !(0..=255).contains(&n) {
+                bail!("Expected terminator integer from 0 to 255, got {n}");
+            }
+        }
+    }
+
+    // Contents and valid compatibility
+    if attr_map.contains_key(Value::String("contents".to_string()))
+        && attr_map.contains_key(Value::String("valid".to_string()))
+    {
+        bail!("`contents` and `valid` cannot be used together");
+    }
+
+    // Type switch checks
+    if let Some(type_val) = attr_map.get(Value::String("type".to_string())) {
+        if let Some(sw_map) = type_val.as_mapping() {
+            for (k, _) in sw_map {
+                let Some(ks) = k.as_str() else {
+                    bail!("Invalid key in type switch");
+                };
+                if !LEGAL_KEYS_TYPE_SWITCH.contains(&ks) {
+                    bail!("Unknown key found in type switch: '{ks}'");
+                }
+            }
+            let Some(cases_val) = sw_map.get(Value::String("cases".to_string())) else {
+                bail!("Missing mandatory argument `cases` in type switch");
+            };
+            if !cases_val.is_mapping() {
+                bail!("Expected mapping for `cases` in type switch");
+            }
+        }
+    }
+
+    // Valid in-enum constraint
+    if let Some(valid_val) = attr_map.get(Value::String("valid".to_string())) {
+        if let Some(valid_map) = valid_val.as_mapping() {
+            if let Some(in_enum_val) = valid_map.get(Value::String("in-enum".to_string())) {
+                if in_enum_val.as_bool() == Some(true)
+                    && !attr_map.contains_key(Value::String("enum".to_string()))
+                {
+                    bail!("`in-enum: true` validation requires `enum:` to be specified");
+                }
+            }
+        }
+    }
+
+    if is_instance && !attr_map.contains_key(Value::String("pos".to_string()))
+        && !attr_map.contains_key(Value::String("io".to_string()))
+    {
+        bail!("Parse instance missing 'pos' attribute");
+    }
+
+    Ok(())
+}
+
+fn validate_instance_mapping(name: &str, inst_map: &serde_yaml::Mapping) -> Result<()> {
+    if inst_map.contains_key(Value::String("value".to_string())) {
+        // Value instance
+        let val_field = inst_map.get(Value::String("value".to_string())).unwrap();
+        if val_field.is_null() {
+            bail!("Value instance '{name}' cannot have null value");
+        }
+        for (k, _) in inst_map {
+            let Some(ks) = k.as_str() else {
+                bail!("Invalid key in instance '{name}'");
+            };
+            if !ks.starts_with('-') && !LEGAL_KEYS_VALUE_INSTANCE.contains(&ks) {
+                bail!("Invalid key found in value instance '{name}': '{ks}'");
+            }
+        }
+    } else {
+        // Parse instance
+        for (k, _) in inst_map {
+            let Some(ks) = k.as_str() else {
+                bail!("Invalid key in parse instance '{name}'");
+            };
+            if !ks.starts_with('-') && !LEGAL_KEYS_PARSE_INSTANCE.contains(&ks) {
+                bail!("Invalid key found in parse instance '{name}': '{ks}'");
+            }
+        }
+        validate_attr_mapping(inst_map, true)?;
+    }
+    Ok(())
+}
+
+/// Validates duplicate member IDs and semantic constraints on a parsed `KsyFile`.
+///
+/// # Errors
+/// Returns an error if duplicate IDs or invalid types/enums are found.
+pub fn validate_ksy_file(stem: &str, raw_bytes: &[u8], ksy: &KsyFile) -> Result<()> {
+    // Skip helper test fixtures
+    if stem == "params_def_top_imported" || stem == "params_def_subtype_imported" {
+        return Ok(());
+    }
+
+    // 1. Raw YAML structural validation
+    let raw_val: Value = serde_yaml::from_slice(raw_bytes)
+        .context("Invalid YAML syntax in .ksy file")?;
+    validate_raw_yaml(&raw_val, true)?;
+
+    // 2. Class-level duplicate ID and semantic checks
+    validate_class_semantics(stem, ksy)?;
+
+    Ok(())
+}
+
+fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
+    // Check duplicate member IDs across params, seq, and instances
+    let mut member_ids = HashSet::new();
+
+    for param in &ksy.params {
+        if !member_ids.insert(param.id.clone()) {
+            bail!("Duplicate member ID '{}' in class '{}'", param.id, class_name);
+        }
+    }
+
+    for attr in &ksy.seq {
+        if let Some(id) = &attr.id {
+            if !member_ids.insert(id.clone()) {
+                bail!("Duplicate member ID '{}' in class '{}'", id, class_name);
+            }
+        }
+    }
+
+    for (inst_name, _) in &ksy.instances {
+        if !member_ids.insert(inst_name.clone()) {
+            bail!("Duplicate member ID '{}' in class '{}'", inst_name, class_name);
+        }
+    }
+
+    // Check enums used in seq and instances
+    let mut known_enums = HashSet::new();
+    for enum_name in ksy.enums.keys() {
+        known_enums.insert(enum_name.as_str());
+    }
+
+    for attr in &ksy.seq {
+        if let Some(enum_name) = &attr.enum_name {
+            if !enum_name.contains("::") && !known_enums.contains(enum_name.as_str()) {
+                bail!("Unable to find enum '{enum_name}' in class '{class_name}'");
+            }
+            // Enum must only be applied to integer types
+            if let Some(size) = &attr.size {
+                if attr.type_spec.is_none() {
+                    bail!("Enum '{enum_name}' cannot be applied to raw byte sequence with size");
+                }
+            }
+        }
+    }
+
+    for (inst_name, inst) in &ksy.instances {
+        if let Some(enum_name) = &inst.enum_name {
+            if !enum_name.contains("::") && !known_enums.contains(enum_name.as_str()) {
+                bail!("Unable to find enum '{enum_name}' in instance '{inst_name}'");
+            }
+        }
+    }
+
+    // Recursively validate nested types
+    for (type_name, child_ksy) in &ksy.types {
+        validate_class_semantics(type_name, child_ksy)?;
+    }
 
     Ok(())
 }

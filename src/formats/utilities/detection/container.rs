@@ -1236,6 +1236,14 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
         }
     }
 
+    // Check DROID declarative OLE2 container signatures
+    if let Ok(Some(cand)) = crate::detection::droid::evaluate_droid_ole2_container(
+        &stream_names,
+        &crate::detection::droid::DROID_CONTAINER_DB,
+    ) {
+        return Ok(Some(cand));
+    }
+
     for name in &stream_names {
         if name == "WordDocument" {
             return Ok(Some(DetectionCandidate {

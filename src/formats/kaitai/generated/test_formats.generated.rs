@@ -209,6 +209,9 @@ pub use expr_bytes_ops::*;
 #[path = "test_formats/expr_enum.generated.rs"]
 pub mod expr_enum;
 pub use expr_enum::*;
+#[path = "test_formats/expr_fstring_0.generated.rs"]
+pub mod expr_fstring_0;
+pub use expr_fstring_0::*;
 #[path = "test_formats/expr_if_int_eq.generated.rs"]
 pub mod expr_if_int_eq;
 pub use expr_if_int_eq::*;
@@ -335,6 +338,9 @@ pub use integers_double_overflow::*;
 #[path = "test_formats/integers_min_max.generated.rs"]
 pub mod integers_min_max;
 pub use integers_min_max::*;
+#[path = "test_formats/io_local_var.generated.rs"]
+pub mod io_local_var;
+pub use io_local_var::*;
 #[path = "test_formats/js_signed_right_shift.generated.rs"]
 pub mod js_signed_right_shift;
 pub use js_signed_right_shift::*;

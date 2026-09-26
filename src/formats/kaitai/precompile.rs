@@ -49,11 +49,14 @@ pub mod imports;
 pub mod resolver;
 #[path = "precompile/types.rs"]
 pub mod types;
+#[path = "precompile/validator.rs"]
+pub mod validator;
 
 pub use hierarchy::*;
 pub use imports::*;
 pub use resolver::*;
 pub use types::*;
+pub use validator::*;
 
 #[cfg(test)]
 #[allow(

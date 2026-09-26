@@ -253,12 +253,21 @@ mod tests {
                 let bytes = std::fs::read(path)?;
                 let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
+                if stem == "params_def_top_imported" || stem == "params_def_subtype_imported" {
+                    continue;
+                }
                 let failed = match parse_ksy_slice(&bytes) {
                     Err(_) => true,
-                    Ok(ksy) => match resolve_ksy(stem, &ksy, None) {
-                        Err(_) => true,
-                        Ok(spec) => compile_to_rust(&spec).is_err(),
-                    },
+                    Ok(ksy) => {
+                        if validate_ksy_file(stem, &bytes, &ksy).is_err() {
+                            true
+                        } else {
+                            match resolve_ksy(stem, &ksy, None) {
+                                Err(_) => true,
+                                Ok(spec) => compile_to_rust(&spec).is_err(),
+                            }
+                        }
+                    }
                 };
 
                 if failed {

@@ -138,6 +138,8 @@ mod test_expr_bytes_non_literal;
 mod test_expr_bytes_ops;
 #[path = "test_expr_enum.generated.rs"]
 mod test_expr_enum;
+#[path = "test_expr_fstring_0.generated.rs"]
+mod test_expr_fstring_0;
 #[path = "test_expr_if_int_eq.generated.rs"]
 mod test_expr_if_int_eq;
 #[path = "test_expr_if_int_ops.generated.rs"]
@@ -210,6 +212,8 @@ mod test_integers;
 mod test_integers_double_overflow;
 #[path = "test_integers_min_max.generated.rs"]
 mod test_integers_min_max;
+#[path = "test_io_local_var.generated.rs"]
+mod test_io_local_var;
 #[path = "test_js_signed_right_shift.generated.rs"]
 mod test_js_signed_right_shift;
 #[path = "test_meta_tags.generated.rs"]
