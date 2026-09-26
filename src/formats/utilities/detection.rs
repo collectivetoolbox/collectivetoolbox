@@ -613,8 +613,10 @@ pub fn guess_format_report(
     }
 
     // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
-    for rule in COMPILED_MAGIC_RULES.iter() {
+    for (idx, rule) in COMPILED_MAGIC_RULES.iter().enumerate() {
         if let Some(match_res) = evaluate_rule(rule, source) {
+            println!("MATCHED RULE {idx}: test={:?}, off={:?}, desc={:?}, res_desc={:?}, res_mime={:?}, res_score={}",
+                rule.test, rule.offset, rule.description, match_res.description, match_res.mime, match_res.score);
             if match_res.description.trim().is_empty() && match_res.mime.is_none() {
                 continue;
             }
@@ -1099,6 +1101,7 @@ mod tests {
         let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
         let mut slice: &[u8] = c_data;
         let report = guess_format_report(&mut slice, None).unwrap();
+        println!("TEST CANDIDATES: {:?}", report.candidates);
         assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
         let top = &report.candidates[0];
         assert_eq!(top.format_id, Some(FormatId::C));
