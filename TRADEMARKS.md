@@ -3,13 +3,13 @@
 Our trademarks—including the Collective Toolbox name, logo, and any project names and logos—represent the quality and reliability that our community expects. This document, the "Policy," defines our terms for the use of Collective Toolbox's trademarks.
 
 > [!NOTE]
-> While our software is available under open source licenses, these licenses do not grant any rights to use our trademarks. This Policy is not intended to limit the lawful use of our trademarks but to clarify what we consider lawful use to be.
+> While our software is available under free/libre software licenses, these licenses do not grant any rights to use our trademarks. This Policy is not intended to limit the lawful use of our trademarks but to clarify what we consider lawful use to be.
 >
 > Trademark law can be ambiguous, so we aim to provide enough clarity for you to understand whether we will consider your use acceptable, either because it is licensed or it is non-infringing.
 
 <!--
 - [Purpose and Scope](#purpose-and-scope)
-- [Commitment to Open Source principles](#commitment-to-open-source-principles)
+- [Commitment to Free/Libre Software principles](#commitment-to-open-source-principles)
 - [Covered Trademarks](#covered-trademarks)
 - [Trademark usage guidelines](#trademark-usage-guidelines)
 - [Restrictions on Similar Trademarks](#restrictions-on-similar-trademarks)
@@ -31,14 +31,14 @@ Our trademarks—including the Collective Toolbox name, logo, and any project na
 ## Purpose and Scope
 
 Trademarks assure that products meet a certain standard of quality.
-However, because open source licenses allow anyone to modify the software freely, we cannot guarantee that modified versions distributed by others under the same name will maintain that standard.
+However, because free/libre software licenses allow anyone to modify the software freely, we cannot guarantee that modified versions distributed by others under the same name will maintain that standard.
 Following these guidelines will ensure that users know they are using or receiving software that meets the standards associated with Collective Toolbox.
 
 The sections that follow describe what trademarks are covered by this Policy and the uses of the trademarks that are allowed without additional permission from us.
 
 If your intended use is not covered here and you have not received separate written permission, you are responsible for assessing whether your use is lawful. For questions or clarification, please contact us by e-mailing [info@collectivetoolbox.com](mailto:info@collectivetoolbox.com).
 
-## Commitment to Open Source principles
+## Commitment to Free/Libre Software principles
 
 Collective Toolbox aims to foster community engagement with our trademarks, supporting their use in ways that highlight and extend the reach of our projects.
 
