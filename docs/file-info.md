@@ -127,12 +127,12 @@
   - [x] Explicit detection and candidate generation for 0-byte `Empty` files and 1-3 byte `VeryShort` files.
   - [x] Reporting special filesystem entities: directory packages/bundles, symlinks, FIFOs, sockets, block and character devices.
 
-- [ ] **Sub-Phase 5F: DROID / PRONOM Signatures & PolyFile Attribution:**
-  - [ ] Container signatures for ZIP-based formats (DOCX, XLSX, PPTX, EPUB, JAR, APK, ODF) via central directory inspection without extraction.
-  - [ ] Dual-anchored BOF / EOF signatures with variable offset windows.
-  - [ ] PolyFile-style byte-range attribution and polyglot container detection.
-  - [ ] Nested file parsing like and/or ported from polyfile.
-  - [ ] Integrate DROID database.
+- [x] **Sub-Phase 5F: DROID / PRONOM Signatures & PolyFile Attribution (`detection/droid.rs` & `detection/polyfile.rs`):**
+  - [x] Container signatures for ZIP-based formats (DOCX, XLSX, PPTX, EPUB, JAR, APK, ODF, CBZ, KMZ, iWork) via central directory inspection without extraction (`parse_zip_central_directory`, `classify_zip_container`).
+  - [x] Dual-anchored BOF / EOF signatures with variable offset windows (`evaluate_dual_anchored_signatures`, `DROID_DUAL_ANCHORED_SIGNATURES`).
+  - [x] PolyFile-style byte-range attribution and polyglot container detection (`detect_polyglots`, `ByteRangeAttribution`).
+  - [x] Nested file parsing like and/or ported from polyfile (`inspect_nested_archive_entries`).
+  - [x] Integrate DROID database patterns and container triggers.
 
 - [x] **Sub-Phase 5G: Automated Upstream `file` Test Suite Harness & Differential Verification (`detection/upstream_suite.rs`):**
   - [x] Test suite discovery & loader: parse and index all 88 canonical test files and `.result` expectations in `src/formats/dcdata/data/magic/upstream/magic/tests/`.

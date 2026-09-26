@@ -719,7 +719,7 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
     source: &mut S,
 ) -> Result<Vec<DetectionCandidate>> {
     let mut candidates = Vec::new();
-    let bof_sample = source.read_bof(65536.saturating_add(1024))?;
+    let bof_sample = source.read_bof(65536_usize.saturating_add(1024))?;
     let eof_sample = source.read_eof(65558)?;
 
     for sig in DROID_DUAL_ANCHORED_SIGNATURES {
@@ -1645,6 +1645,100 @@ mod tests {
         assert_eq!(cand.mime.as_deref(), Some("application/vnd.oasis.opendocument.text"));
         assert_eq!(cand.description, "OpenDocument Text (ODT)");
         assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
+    }
+
+    #[crate::ctb_test]
+    fn test_zip_central_directory_docx() {
+        let entries = vec![
+            ZipEntrySummary {
+                name: "[Content_Types].xml".to_string(),
+                compressed_size: 100,
+                uncompressed_size: 200,
+                compression_method: 8,
+                local_header_offset: 0,
+            },
+            ZipEntrySummary {
+                name: "word/document.xml".to_string(),
+                compressed_size: 500,
+                uncompressed_size: 1500,
+                compression_method: 8,
+                local_header_offset: 200,
+            },
+        ];
+        let mut empty: &[u8] = &[];
+        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
+        assert_eq!(
+            cand.mime.as_deref(),
+            Some("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        );
+        assert_eq!(cand.description, "Microsoft Word 2007+");
+        assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
+    }
+
+    #[crate::ctb_test]
+    fn test_zip_central_directory_apk() {
+        let entries = vec![
+            ZipEntrySummary {
+                name: "AndroidManifest.xml".to_string(),
+                compressed_size: 200,
+                uncompressed_size: 400,
+                compression_method: 8,
+                local_header_offset: 0,
+            },
+            ZipEntrySummary {
+                name: "classes.dex".to_string(),
+                compressed_size: 1000,
+                uncompressed_size: 3000,
+                compression_method: 8,
+                local_header_offset: 300,
+            },
+        ];
+        let mut empty: &[u8] = &[];
+        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
+        assert_eq!(
+            cand.mime.as_deref(),
+            Some("application/vnd.android.package-archive")
+        );
+        assert_eq!(cand.description, "Android package (APK)");
+    }
+
+    #[crate::ctb_test]
+    fn test_zip_central_directory_cbz() {
+        let entries = vec![
+            ZipEntrySummary {
+                name: "001.jpg".to_string(),
+                compressed_size: 2000,
+                uncompressed_size: 2000,
+                compression_method: 0,
+                local_header_offset: 0,
+            },
+            ZipEntrySummary {
+                name: "002.png".to_string(),
+                compressed_size: 3000,
+                uncompressed_size: 3000,
+                compression_method: 0,
+                local_header_offset: 2100,
+            },
+        ];
+        let mut empty: &[u8] = &[];
+        let cand = classify_zip_container(&mut empty, &entries).unwrap().unwrap();
+        assert_eq!(
+            cand.mime.as_deref(),
+            Some("application/vnd.comicbook+zip")
+        );
+        assert_eq!(cand.description, "Comic Book Archive (CBZ)");
+    }
+
+    #[crate::ctb_test]
+    fn test_dual_anchored_gif89a_trailer() {
+        let mut gif_data = Vec::new();
+        gif_data.extend_from_slice(b"GIF89a\x0A\x00\x0A\x00\x80\x00\x00\x00\x00\x00\xFF\xFF\xFF");
+        gif_data.resize(50, 0);
+        gif_data.push(b';'); // Trailer byte ';'
+
+        let mut source: &[u8] = &gif_data;
+        let cands = evaluate_dual_anchored_signatures(&mut source).unwrap();
+        assert!(cands.iter().any(|c| c.mime.as_deref() == Some("image/gif")));
     }
 }
 /*

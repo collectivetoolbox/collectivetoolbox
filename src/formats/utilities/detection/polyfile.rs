@@ -683,6 +683,114 @@ mod tests {
         assert!(cand.description.contains("GIF image and JavaScript source"));
         assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
     }
+
+    #[crate::ctb_test]
+    fn test_image_zip_polyglot() {
+        let mut data = Vec::new();
+        // PNG header
+        data.extend_from_slice(b"\x89PNG\r\n\x1a\n");
+        data.resize(200, 0x41);
+
+        // Append minimal ZIP
+        let cd_offset = u32::try_from(data.len()).unwrap_or(0);
+        data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]); // CD header
+        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&4u16.to_le_bytes()); // flen
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&0u32.to_le_bytes()); // local offset
+        data.extend_from_slice(b"test");
+
+        let zip_len = u32::try_from(data.len()).unwrap_or(0);
+        let cd_size = zip_len.saturating_sub(cd_offset);
+
+        // EOCD record
+        data.extend_from_slice(&[0x50, 0x4B, 0x05, 0x06]);
+        data.extend_from_slice(&[0, 0, 0, 0]);
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&cd_size.to_le_bytes());
+        data.extend_from_slice(&cd_offset.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+
+        let mut source: &[u8] = &data;
+        let poly = detect_polyglots(&mut source, &[]).unwrap();
+        assert!(poly.is_some());
+        let cand = poly.unwrap();
+        assert!(cand.description.contains("PNG image and ZIP archive"));
+        assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
+    }
+
+    #[crate::ctb_test]
+    fn test_pdf_zip_polyglot() {
+        let mut data = Vec::new();
+        // PDF header
+        data.extend_from_slice(b"%PDF-1.4\n");
+        data.resize(300, 0x20);
+
+        let cd_offset = u32::try_from(data.len()).unwrap_or(0);
+        data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]);
+        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&4u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&0u32.to_le_bytes());
+        data.extend_from_slice(b"doc1");
+
+        let zip_len = u32::try_from(data.len()).unwrap_or(0);
+        let cd_size = zip_len.saturating_sub(cd_offset);
+
+        data.extend_from_slice(&[0x50, 0x4B, 0x05, 0x06]);
+        data.extend_from_slice(&[0, 0, 0, 0]);
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&cd_size.to_le_bytes());
+        data.extend_from_slice(&cd_offset.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+
+        let mut source: &[u8] = &data;
+        let poly = detect_polyglots(&mut source, &[]).unwrap();
+        assert!(poly.is_some());
+        let cand = poly.unwrap();
+        assert!(cand.description.contains("PDF document and ZIP archive"));
+    }
+
+    #[crate::ctb_test]
+    fn test_sfx_polyglot() {
+        let mut data = Vec::new();
+        // MZ stub
+        data.extend_from_slice(b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xFF\xFF\x00\x00");
+        data.resize(500, 0);
+
+        let cd_offset = u32::try_from(data.len()).unwrap_or(0);
+        data.extend_from_slice(&[0x50, 0x4B, 0x01, 0x02]);
+        data.extend_from_slice(&[20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&5u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+        data.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+        data.extend_from_slice(&0u32.to_le_bytes());
+        data.extend_from_slice(b"setup");
+
+        let zip_len = u32::try_from(data.len()).unwrap_or(0);
+        let cd_size = zip_len.saturating_sub(cd_offset);
+
+        data.extend_from_slice(&[0x50, 0x4B, 0x05, 0x06]);
+        data.extend_from_slice(&[0, 0, 0, 0]);
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&1u16.to_le_bytes());
+        data.extend_from_slice(&cd_size.to_le_bytes());
+        data.extend_from_slice(&cd_offset.to_le_bytes());
+        data.extend_from_slice(&0u16.to_le_bytes());
+
+        let mut source: &[u8] = &data;
+        let poly = detect_polyglots(&mut source, &[]).unwrap();
+        assert!(poly.is_some());
+        let cand = poly.unwrap();
+        assert!(cand.description.contains("Self-extracting archive"));
+    }
 }
 /*
 /*

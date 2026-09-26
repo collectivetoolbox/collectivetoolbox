@@ -814,6 +814,11 @@ pub fn guess_format_report(
         }
     }
 
+    // 2.4. Evaluate PolyFile polyglot container detection (polyfile.rs)
+    if let Ok(Some(poly_cand)) = detect_polyglots(source, &candidates) {
+        candidates.push(poly_cand);
+    }
+
     // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
     let has_strong_binary_magic = candidates.iter().any(|c| {
         (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
