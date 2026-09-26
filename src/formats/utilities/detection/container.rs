@@ -1189,6 +1189,10 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
         header.get(30).copied().unwrap_or(9),
         header.get(31).copied().unwrap_or(0),
     ]);
+    // OLE2 specification requires sector shift of 9 (512 bytes) or 12 (4096 bytes)
+    if sector_shift != 9 && sector_shift != 12 {
+        return Ok(None);
+    }
     let sector_size: u64 = 1u64.checked_shl(u32::from(sector_shift)).unwrap_or(512);
 
     let first_dir_sector = u32::from_le_bytes([
@@ -1203,6 +1207,9 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
 
     let mut dir_buf = vec![0u8; usize::try_from(sector_size.min(4096)).unwrap_or(512)];
     let dir_read = source.read_at(dir_offset, &mut dir_buf)?;
+    if dir_read < 128 {
+        return Ok(None);
+    }
 
     // Scan directory entries (128 bytes each)
     let mut stream_names = Vec::new();
@@ -1667,6 +1674,43 @@ mod tests {
         assert_eq!(cand.description, "POSIX tar archive");
         assert_eq!(cand.mime.as_deref(), Some("application/x-tar"));
         assert_eq!(cand.format_id, Some(FormatId::Tar));
+    }
+
+    #[ctb_test]
+    fn test_inspect_ole2_cdf_malformed_and_valid() {
+        // Truncated header (< 512 bytes)
+        let mut malformed_short = [0u8; 100];
+        malformed_short[..8].copy_from_slice(&OLE2_MAGIC);
+        let mut src_short: &[u8] = &malformed_short;
+        assert!(inspect_ole2_cdf(&mut src_short).unwrap().is_none());
+
+        // Corrupted sector shift / out of bounds directory sector
+        let mut malformed_sectors = vec![0u8; 1024];
+        malformed_sectors[..8].copy_from_slice(&OLE2_MAGIC);
+        malformed_sectors[30..32].copy_from_slice(&60u16.to_le_bytes());
+        malformed_sectors[48..52].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        let mut src_sectors: &[u8] = &malformed_sectors;
+        assert!(inspect_ole2_cdf(&mut src_sectors).unwrap().is_none());
+
+        // Valid minimal OLE2 CDF with WordDocument stream entry
+        let sector_size: usize = 512;
+        let mut valid_cdf = vec![0u8; sector_size.saturating_mul(3)];
+        valid_cdf[..8].copy_from_slice(&OLE2_MAGIC);
+        valid_cdf[30..32].copy_from_slice(&9u16.to_le_bytes());
+        valid_cdf[48..52].copy_from_slice(&0u32.to_le_bytes());
+
+        let dir_offset: usize = 512;
+        let word_doc_utf16: Vec<u16> = "WordDocument\0".encode_utf16().collect();
+        for (i, &w) in word_doc_utf16.iter().enumerate() {
+            let byte_idx = dir_offset.saturating_add(i.saturating_mul(2));
+            valid_cdf[byte_idx..byte_idx.saturating_add(2)].copy_from_slice(&w.to_le_bytes());
+        }
+        let name_bytes_len = u16::try_from(word_doc_utf16.len().saturating_mul(2)).unwrap();
+        valid_cdf[dir_offset.saturating_add(64)..dir_offset.saturating_add(66)].copy_from_slice(&name_bytes_len.to_le_bytes());
+
+        let mut src_valid: &[u8] = &valid_cdf;
+        let cand = inspect_ole2_cdf(&mut src_valid).unwrap().unwrap();
+        assert!(cand.description.contains("Microsoft Word"));
     }
 }
 /*

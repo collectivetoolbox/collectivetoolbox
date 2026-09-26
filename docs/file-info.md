@@ -139,7 +139,7 @@
   - [x] Execution safety & denial-of-service verification: execute all 88 test cases through `guess_format_report` asserting zero panics, crashes, or hangs (verifying recursion protection on `CVE-2014-1943.testfile`).
   - [x] Full feature parity on all 88 test cases (100% pass rate: 88/88 passing, 0 mismatches, 0 pending).
   - [x] Live differential testing with system `file`: implement host `file` probing (`query_real_file`), comparing MIME types and format classifications with semantic alias tolerance (`application/xml` <-> `text/plain`, `text/x-shellscript` <-> `text/plain`, `application/zstd` <-> `application/x-zstd`).
-  - [x] Unit test coverage for upstream features beyond the 88 test cases (boundary offsets, unusual search limits, negative indirect base/multiplier offsets, ID3 synchsafe, search negation, recursive indirect magic, etc.).
+  - [x] Unit test coverage for upstream features beyond the 88 test cases (boundary offsets, unusual search limits, negative date stamps, malformed nested CDFs, negative indirect base/multiplier offsets, ID3 synchsafe, search negation, recursive indirect magic).
 
 - [ ] Sub-phase: Other types of formats
   - [ ] Identifying files that are valid hexadecimal or other base strings (octet-oriented or just numbers - e.g. detecting that a text file containing only ASCII digits can be considered an Integer as well as a text file and a string).

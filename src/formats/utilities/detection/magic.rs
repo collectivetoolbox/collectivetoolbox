@@ -1291,7 +1291,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let ok = eval_rel_op(raw, *op, *value);
                 if ok {
                     match_len = 4;
-                    let raw_i64 = i64::from(raw);
+                    let raw_i64 = i64::from(i32::from_le_bytes(buf));
                     let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
                     format_val = FormatValue::Date(adj);
                 }
@@ -1308,7 +1308,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let ok = eval_rel_op(raw, *op, *value);
                 if ok {
                     match_len = 4;
-                    let raw_i64 = i64::from(raw);
+                    let raw_i64 = i64::from(i32::from_be_bytes(buf));
                     let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
                     format_val = FormatValue::Date(adj);
                 }
@@ -1325,7 +1325,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let ok = eval_rel_op(raw, *op, *value);
                 if ok {
                     match_len = 8;
-                    let raw_i64 = i64::try_from(raw).unwrap_or(i64::MAX);
+                    let raw_i64 = i64::from_le_bytes(buf);
                     let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
                     format_val = FormatValue::Date(adj);
                 }
@@ -1342,7 +1342,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let ok = eval_rel_op(raw, *op, *value);
                 if ok {
                     match_len = 8;
-                    let raw_i64 = i64::try_from(raw).unwrap_or(i64::MAX);
+                    let raw_i64 = i64::from_be_bytes(buf);
                     let adj = raw_i64.checked_add(*adjustment).unwrap_or(raw_i64);
                     format_val = FormatValue::Date(adj);
                 }
@@ -1866,6 +1866,24 @@ mod tests {
         let res = evaluate_rule(&rules[0], &mut slice).unwrap();
         assert!(res.description.contains("0102030405060708"));
         assert!(res.description.contains("Jan") && res.description.contains("2021"));
+    }
+
+    #[ctb_test]
+    fn test_negative_date_stamps() {
+        let content = r#"
+0	string		HIST		Historical record
+>4	ledate		x		\b, date %s
+"#;
+        let rules = parse_magic_content(content);
+        let mut data = vec![0u8; 16];
+        data[0..4].copy_from_slice(b"HIST");
+        // -86400 = 1969-12-31 00:00:00 UTC
+        data[4..8].copy_from_slice(&(-86400i32).to_le_bytes());
+
+        let mut slice: &[u8] = &data;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        assert!(res.description.contains("Historical record"));
+        assert!(res.description.contains("Dec") && res.description.contains("1969"));
     }
 
     #[ctb_test]
