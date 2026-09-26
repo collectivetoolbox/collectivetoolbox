@@ -1,0 +1,1 @@
+https://github.com/kaitai-io/kaitai_struct_tests/commit/59afee013e1a8e5fb894ca99838f55ef7b329cb3

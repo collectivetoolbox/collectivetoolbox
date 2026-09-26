@@ -151,3 +151,28 @@ pub fn get_dc_magdir_files() -> Vec<(&'static str, &'static [u8])> {
         Vec::new()
     }
 }
+
+/// Returns the canonical DROID PRONOM binary signature file (V125) as raw bytes.
+pub fn get_droid_signature_xml() -> Option<&'static [u8]> {
+    DC_DATA_DIR
+        .get_file("droid/signatures/DROID_SignatureFile_V125.xml")
+        .map(|f| f.contents())
+}
+
+/// Returns the canonical DROID container signature file as raw bytes.
+pub fn get_droid_container_signature_xml() -> Option<&'static [u8]> {
+    DC_DATA_DIR
+        .get_file("droid/signatures/container-signature-20260119.xml")
+        .map(|f| f.contents())
+}
+
+/// Returns the embedded DROID signatures directory containing canonical signature XMLs.
+pub fn get_droid_signatures_dir() -> Option<&'static Dir<'static>> {
+    DC_DATA_DIR.get_dir("droid/signatures")
+}
+
+/// Returns the embedded DROID tests directory containing test suites, containers, and skeletons.
+pub fn get_droid_tests_dir() -> Option<&'static Dir<'static>> {
+    DC_DATA_DIR.get_dir("droid/tests")
+}
+
