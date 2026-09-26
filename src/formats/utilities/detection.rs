@@ -469,7 +469,7 @@ pub mod source;
 pub mod special;
 pub mod text;
 pub mod types;
-pub mod upstream_suite;
+pub mod file_upstream_suite;
 
 pub use chain::*;
 pub use conflict::*;
@@ -481,7 +481,7 @@ pub use source::*;
 pub use special::*;
 pub use text::*;
 pub use types::*;
-pub use upstream_suite::*;
+pub use file_upstream_suite::*;
 
 use self::container::detect_container_candidates;
 use self::extension::resolve_extension_candidates;
