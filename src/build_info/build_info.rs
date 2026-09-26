@@ -67,6 +67,8 @@ pub fn build_info() -> BuildInfo {
         .to_string();
 
     let commit = env!("VERGEN_GIT_SHA").to_string();
+    // Reason for fallback: when CTB_BUILD_ID is unset at compile time, fall back
+    // to the git commit SHA as the default build identifier.
     let build_id = option_env!("CTB_BUILD_ID")
         .map_or_else(|| commit.clone(), ToString::to_string);
 
@@ -77,6 +79,18 @@ pub fn build_info() -> BuildInfo {
         build_date,
         commit,
     }
+}
+
+/// Returns a user-friendly version string that includes the build ID for CLI and display.
+#[must_use]
+pub fn ctb_version_display() -> &'static str {
+    const VERSION: &str = env!("CTB_VERSION");
+    const BUILD_ID: &str = match option_env!("CTB_BUILD_ID") {
+        Some(id) => id,
+        None => "dev",
+    };
+    const VERSION_DISPLAY: &str = constcat::concat!(VERSION, " (build ", BUILD_ID, ")");
+    VERSION_DISPLAY
 }
 
 #[cfg(test)]

@@ -91,6 +91,8 @@ fn main() -> Result<()> {
                     }
                 })
         })
+        // Reason for fallback: builds outside a git worktree or without CTB_BUILD_ID
+        // default to "dev" as the build identifier.
         .unwrap_or_else(|| "dev".to_string());
 
     println!("cargo:rustc-env=CTB_BUILD_ID={build_id}");

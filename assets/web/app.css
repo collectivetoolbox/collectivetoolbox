@@ -547,4 +547,16 @@ ctb-segmented-control ctb-button ::slotted(label) {
     box-shadow: 0px 3px 5px light-dark(lightgray, #333);
 }
 
+.badge-debug {
+    display: inline-block;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    border-radius: 0.25rem;
+    background-color: light-dark(#ea580c, #f97316);
+    color: #ffffff;
+    vertical-align: middle;
+}
+
 

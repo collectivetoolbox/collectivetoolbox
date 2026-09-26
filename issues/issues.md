@@ -1,9 +1,9 @@
-- [ ] Icons do not have consistent size (compare "Restart" and "Reload")
-- [ ] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
+- [x] Icons do not have consistent size (compare "Restart" and "Reload")
+- [x] Add a clear badge for when it's running in debug mode, and a warning about not logging in with your real account
   - [ ] Make the debug logging less of a footgun somehow?
 - [ ] Web UI: Errors should have a clear way of knowing whether they are serious errors that require a restart, or "normal" errors like password didn't match.
 - [ ] Support for request logging as a configurable option
-- [ ] Record a build ID and expose it via --version
+- [x] Record a build ID and expose it via --version
 - [ ] Make sure to have a build with no bundled browser for linux if it stays 700mb
 - [ ] Scrolling by tapping top bar doesn’t work on iOS
 - [ ] Minifying middleware?
@@ -13,12 +13,12 @@
 	- [ ] SVG:
 		- [ ] https://github.com/noahbald/oxvg
 		- [ ] https://github.com/bearcove/svag
-- [ ] One crate (don't remember which, workspace maybe?) doesn't get a link in the rustdocs for some reason
+- [x] One crate (don't remember which, workspace maybe?) doesn't get a link in the rustdocs for some reason
 - [ ] Format build date nicely as a sortable numeric string and include in file names maybe instead of the commit
 - [ ] Implement HTTPS authenticated fetch for Cloudflare
 - [ ] Maybe: "tighten the logging so the next IPC failure reports which method failed to deserialize (service/method + arg sizes)"
 - [ ] Generate remaining IPC service boilerplate in build.rs and include date/timestamp in the generated files
-- [ ] Have some sort of environment helper function to avoid having a "Restart PC" button on the web
+- [x] Have some sort of environment helper function to avoid having a "Restart PC" button on the web
 - [ ] 404 is not nice looking now it redirects to the SPA
 - [ ] SPA pages in subdirectories can't use directory-relative links (e.g. newsletters.rss (doesn't work) versus /newsletters/newsletters.rss (works))
   - [ ] This might actually work now. Need to check
@@ -87,7 +87,8 @@ db_impl has accumulated a whole bunch of unrelated concerns.
 
 Include optional verification step in compression (default when writing to a file?)
 
-BUILD_ID should probably be moved from utiilities to build-info crate
+- [maybe done?] BUILD_ID should probably be moved from utilities/environment.rs to build-info crate to avoid issues like in memories/build_performance.md
+- I'm thinking can_restart_pc should probably go in a new io/system (or similar) crate - there will be more "managing the system" type of APIs needed, so they might want a dedicated home (e.g. connecting to WIFI, etc. for systems that are booting to CTB).
 
 node type should be an enum in database and backed enum with same values in code.
 
@@ -105,11 +106,11 @@ Cancelling installation just makes it start the download over, rather than stopp
 
 Add JS/frontend tests.
 
-Please check the Handlebars templates for all elements with button styling classes, and without changing their appearance, change them to <button> elements so that they respond as expected for buttons.
+- [x] Please check the Handlebars templates for all elements with button styling classes, and without changing their appearance, change them to <button> elements so that they respond as expected for buttons.
 
 Confirm Homebrew packaging works.
 
-Avoid need for duplicate exclude paths in deno.json.
+- [x] Avoid need for duplicate exclude paths in deno.json.
 
 Cache busting parameters on URLs.
 
@@ -118,12 +119,12 @@ Update Guix packaging.
 Hi! I'd like you to work on some issues in the installer:
 
 - Keyboard input is still somewhat laggy, and frequently keys "stick" when pressed. (Mouse input, by contrast, is relatively smooth, and un-"stick"s the stuck keyboard event - keyboard events work smoothly if I'm continuously moving the mouse.)
-- The license text view doesn't capture keyboard focus and can't be closed nor the controls tabbed between using only the keyboard; focus remains on the outer window. It should capture the tab focus like the file picker modal.
+- [x] The license text view doesn't capture keyboard focus and can't be closed nor the controls tabbed between using only the keyboard; focus remains on the outer window. It should capture the tab focus like the file picker modal.
 
 - Navigating the file tree by arrow keys isn't working: it appears to do *something* sometimes when I press the arrow keys, but the effects seem unrelated to the keys I'm pressing. Pressing Up should move the selected item to the preceding entry in the current column. Pressing Down should move to the following entry in the current column. Pressing Down when at the last selectable item in a column should do nothing; similarly for pressing Up when at the first. Pressing Right should move focus to the top item in the next column to the right. Pressing Left should move focus to the enclosing directory in the column before the currently selected column. (In other words the Left key should do the same thing as the Up toolbar button.)
 
 - Home, End, Page Up, and Page Down aren't doing anything.
-- It's possible to type into the license text box.
+- [x] It's possible to type into the license text box.
 -
 
 At narrow screen sizes (e.g. mobile portrait mode), the installer's file picker exhibits bugs. I suspect these are all *symptoms* of a single bug:
@@ -151,8 +152,8 @@ Could you investigate what the root cause of this broken behavior is, and correc
   - Pressing Left should move focus to the enclosing directory in the column before the currently selected column. (In other words the Left key should do the same thing as the Up toolbar button.)
 - The file picker toolbar is currently treated as a single tab-stop; instead, each button should have its own tab stop.
 - The Path field in the file picker is not reachable by tab key.
-- The License modal does not trap keyboard focus, so it's possible to tab out of it. It should use `set_focus_lock_filter` like the file picker to ensure you can't tab out.
-- The License modal does not respond to pressing the escape key to close it.
+- [x] The License modal does not trap keyboard focus, so it's possible to tab out of it. It should use `set_focus_lock_filter` like the file picker to ensure you can't tab out.
+- [x] The License modal does not respond to pressing the escape key to close it.
 
 - Scripts with cursive joining are badly mangled. See https://github.com/emilk/egui/issues/2517 (I guess the claim in the readme that it works with non-Latin characters is *technically* true, but I wish I'd realized this up front)
 

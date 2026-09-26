@@ -526,6 +526,7 @@ fn hbs_render<T: serde::Serialize>(
             ("ui_build_id", json!(build_info.build_id)),
             ("ui_build_date", json!(build_info.build_date)),
             ("can_restart_pc", json!(environment::can_restart_pc())),
+            ("is_debug_build", json!(environment::is_debug_build())),
             ("is_branded_build", json!(branding::is_branded_build())),
             ("official_domain", json!(branding::official_domain())),
             ("official_url", json!(branding::official_url())),

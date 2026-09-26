@@ -9,6 +9,7 @@ crate-type = ["lib"]
 [dependencies]
 ctb-utilities = { path = "../utilities" }
 serde = { version = "1.0.228", features = ["derive"] }
+constcat = "0.6.1"
 
 [build-dependencies]
 anyhow = "1.0.100"

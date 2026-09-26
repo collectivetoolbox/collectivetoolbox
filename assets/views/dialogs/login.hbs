@@ -1,4 +1,14 @@
 <div class="w-full h-full mx-auto flex flex-col justify-evenly content-center items-center">
+    {{#if is_debug_build}}
+    <div class="alert-banner alert-banner-warning mb-4" role="alert">
+        <div class="alert-banner-icon">
+            {{> icons._icon name="warning" alt="Warning" }}
+        </div>
+        <div class="alert-banner-content">
+            <strong>Debug Mode Active:</strong> Do not log in with your real account.
+        </div>
+    </div>
+    {{/if}}
     <form action="/login" method="POST" class="w-80 flex flex-col gap-4">
         <table>
             <tbody>
