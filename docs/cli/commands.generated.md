@@ -283,21 +283,21 @@ Supported compression formats:
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
   bz2, bzip2: Bzip2 compressed stream
   bz, bzip: Original bzip compression
-  compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
+  zst, zstd: Zstandard compression
+  lz, lzip: Lzip compression
+  xz: XZ compression
   compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
-  compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
+  compress: `compress` format, modern LZW block format
+  compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
-  compress1, compress-1.0: `compress` 1.0 (LZW headerless format)
+  compress2, compress-2: `compress` 2.0 (LZW non-block format)
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
   lz4: LZ4
+  lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
-  lz, lzip: Lzip compression
-  xz: XZ compression
-  zst, zstd: Zstandard compression
-  lzo: LZO (Lempel-Ziv-Oberhumer)
 ```
 
 ### `ctoolbox cp`
@@ -733,21 +733,21 @@ Supported compression formats:
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
   bz2, bzip2: Bzip2 compressed stream
   bz, bzip: Original bzip compression
-  compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
+  zst, zstd: Zstandard compression
+  lz, lzip: Lzip compression
+  xz: XZ compression
   compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
-  compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
+  compress: `compress` format, modern LZW block format
+  compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
-  compress1, compress-1.0: `compress` 1.0 (LZW headerless format)
+  compress2, compress-2: `compress` 2.0 (LZW non-block format)
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
   lz4: LZ4
+  lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
-  lz, lzip: Lzip compression
-  xz: XZ compression
-  zst, zstd: Zstandard compression
-  lzo: LZO (Lempel-Ziv-Oberhumer)
 ```
 
 ### `ctoolbox file2metadatajson`
