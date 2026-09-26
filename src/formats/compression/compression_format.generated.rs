@@ -147,29 +147,6 @@ impl CompressionFormat {
             _ => None,
         }
     }
-
-    /// Returns true if this compression format is implemented natively in this repository.
-    #[must_use]
-    pub fn is_implemented_in_repo(&self) -> bool {
-        matches!(
-            self,
-            Self::Bzip
-                | Self::ScoCompress
-                | Self::CompressLzw
-                | Self::CompressLzw2
-                | Self::CompressLzw1
-                | Self::CompressLzw16
-                | Self::Pack
-                | Self::OldPack
-                | Self::Compact
-        )
-    }
-
-    /// Returns the default verification setting for this format when compressing.
-    #[must_use]
-    pub fn default_verify(&self) -> bool {
-        self.is_implemented_in_repo()
-    }
 }
 
 impl From<CompressionFormat> for FormatId {

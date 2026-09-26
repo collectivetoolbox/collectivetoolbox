@@ -167,16 +167,21 @@ where
 
     let compression_format = match explicit_format {
         Some(fmt) => fmt,
-        None => crate::CompressionFormat::detect(
-            Some(&data),
-            resolved_input_path.to_str(),
-        )
-        .ok_or_else(|| {
-            anyhow!(
-                "Could not determine compression format for '{}'",
-                resolved_input_path.display()
-            )
-        })?,
+        None => crate::CompressionFormat::detect_path(&resolved_input_path)
+            .ok()
+            .flatten()
+            .or_else(|| {
+                crate::CompressionFormat::detect(
+                    Some(&data),
+                    resolved_input_path.to_str(),
+                )
+            })
+            .ok_or_else(|| {
+                anyhow!(
+                    "Could not determine compression format for '{}'",
+                    resolved_input_path.display()
+                )
+            })?,
     };
 
     let decompressed = crate::decompress(&data, compression_format)?;

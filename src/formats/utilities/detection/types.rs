@@ -590,9 +590,71 @@ pub struct DetectionHint {
     pub extension: Option<String>,
     pub platform: Option<FormatId>,
     pub expected_category: Option<FormatCategory>,
+    pub expected_categories: Vec<FormatCategory>,
+    pub limit_to_categories: bool,
     pub apple_type_code: Option<[u8; 4]>,
     pub stream_candidates: Vec<DetectionCandidate>,
     pub special_kind: Option<String>,
+}
+
+impl DetectionHint {
+    /// Creates a detection hint strictly limited to a single format category.
+    #[must_use]
+    pub fn for_category(cat: FormatCategory) -> Self {
+        Self {
+            expected_category: Some(cat),
+            expected_categories: vec![cat],
+            limit_to_categories: true,
+            ..Default::default()
+        }
+    }
+
+    /// Creates a detection hint strictly limited to a list of format categories.
+    #[must_use]
+    pub fn for_categories(cats: &[FormatCategory]) -> Self {
+        Self {
+            expected_category: cats.first().copied(),
+            expected_categories: cats.to_vec(),
+            limit_to_categories: true,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the expected category and limits detection to it.
+    #[must_use]
+    pub fn with_category(mut self, cat: FormatCategory) -> Self {
+        self.expected_category = Some(cat);
+        if !self.expected_categories.contains(&cat) {
+            self.expected_categories.push(cat);
+        }
+        self.limit_to_categories = true;
+        self
+    }
+
+    /// Sets multiple allowed categories and limits detection to them.
+    #[must_use]
+    pub fn with_categories(mut self, cats: &[FormatCategory]) -> Self {
+        self.expected_categories = cats.to_vec();
+        if self.expected_category.is_none() {
+            self.expected_category = cats.first().copied();
+        }
+        self.limit_to_categories = true;
+        self
+    }
+
+    /// Checks if a candidate category matches the hint's category constraints.
+    #[must_use]
+    pub fn allows_category(&self, cat: FormatCategory) -> bool {
+        if !self.limit_to_categories {
+            return true;
+        }
+        if let Some(exp) = self.expected_category {
+            if exp == cat {
+                return true;
+            }
+        }
+        self.expected_categories.contains(&cat)
+    }
 }
 
 /// Detailed outcome of format detection.

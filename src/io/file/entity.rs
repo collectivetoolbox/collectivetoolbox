@@ -286,6 +286,39 @@ impl FileEntity {
         }
     }
 
+    /// Creates a `FileEntity` representing a streaming input (such as standard input or pipe).
+    #[must_use]
+    pub fn from_fifo(name: Option<&str>) -> Self {
+        let name_str = name;
+        let name_bytes = name_str.as_bytes().to_vec();
+        Self {
+            identity: FileIdentity {
+                origin: FileOrigin::Fifo,
+                relative_path: name_str.is_some() ? PathBuf::from(name_str) : None,
+                enclosing_path: None,
+                raw_relative_path: name_str.is_some() ? name_str.as_bytes().to_vec() : None,
+                raw_filename: name_bytes,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: None,
+                uid: None,
+                gid: None,
+                timestamps: None,
+                flags: None,
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Fifo,
+            streams: None,
+        }
+    }
+
     /// Guesses file format candidates using multi-signal evidence: magic byte patterns,
     /// Evaluates multiple detection signals including primary payload magic,
     /// hierarchical libmagic rules, file extension hints, platform priors,
@@ -298,6 +331,23 @@ impl FileEntity {
         self.detect_format_report(payload)
             .map(|rep| rep.candidates)
             .unwrap_or_default()
+    }
+
+    /// Evaluates multiple detection signals and produces the top matching `FormatId`,
+    /// optionally restricted to a specific `FormatCategory`.
+    pub fn detect_format(
+        &self,
+        payload: &mut dyn PayloadSource,
+        expected_category: Option<ctb_formats_utilities::detection::FormatCategory>,
+    ) -> Option<ctb_formats_utilities::format_id::FormatId> {
+        let report = self.detect_format_report(payload).ok()?;
+        if let Some(cat) = expected_category {
+            report.candidates.into_iter().find_map(|c| {
+                c.format_id.filter(|fid| fid.category() == cat)
+            })
+        } else {
+            report.candidates.into_iter().find_map(|c| c.format_id)
+        }
     }
 
     /// Evaluates multiple detection signals and produces a comprehensive `DetectionReport`
@@ -490,6 +540,7 @@ impl FileEntity {
             apple_type_code,
             stream_candidates,
             special_kind,
+            ..Default::default()
         };
 
         // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.

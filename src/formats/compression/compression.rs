@@ -20,10 +20,10 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
 use ctb_formats_utilities::detection::{FormatCategory, detect_format_id};
-use ctb_formats_utilities::extension_data::{
-    lookup_format_by_extension, primary_extension_for_format,
-};
+use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
+use ctb_formats_utilities::format_info::FormatInfoOptionExt;
+use std::path::Path;
 #[expect(
     unused_imports,
     clippy::wildcard_imports,
@@ -69,31 +69,39 @@ pub static COMPRESSION_AFTER_HELP: std::sync::LazyLock<String> =
 impl CompressionFormat {
     /// Retrieves format metadata from the shared registry.
     #[must_use]
-    pub fn format_info(&self) -> Option<ctb_formats_utilities::FormatInfo> {
+    pub fn format_info(&self) -> Option<&'static ctb_formats_utilities::FormatInfo> {
         ctb_formats_utilities::get_format_info_by_id(self.to_format_id())
     }
 
     /// Returns the standard default file extension associated with the format.
     pub fn extension(&self) -> &'static str {
-        primary_extension_for_format(self.to_format_id()).unwrap_or("bin")
+        // Reason for fallback: default to generic "bin" when format metadata has no primary extension
+        self.format_info().get_primary_extension().unwrap_or("bin")
     }
 
-    /// Infers compression format from file extension if recognized.
-    pub fn from_extension(ext: &str) -> Option<Self> {
-        let clean = ext.trim_start_matches('.');
-        let matched = lookup_format_by_extension(clean);
-        for id in matched {
-            if let Some(fmt) = Self::from_format_id(id) {
-                return Some(fmt);
-            }
-        }
-        None
-    }
-
-    /// Infers compression format from magic header bytes if possible.
-    pub fn from_magic_bytes(header: &[u8]) -> Option<Self> {
-        detect_format_id(Some(header), None, Some(FormatCategory::Compression))
+    /// Detects the compression format using the full multi-signal detection
+    /// engine on an `io/file` FileEntity and PayloadSource.
+    pub fn detect_entity(
+        entity: &ctb_io_file::FileEntity,
+        payload: &mut dyn ctb_io_file::PayloadSource,
+    ) -> Option<Self> {
+        entity
+            .detect_format(payload, Some(FormatCategory::Compression))
             .and_then(Self::from_format_id)
+    }
+
+    /// Detects the compression format for a given file path (or "-" for stdin)
+    /// using the `io/file` detection engine without slurping streams.
+    pub fn detect_path(path: &Path) -> Result<Option<Self>> {
+        if path == Path::new("-") {
+            let entity = ctb_io_file::FileEntity::from_stream(Some("-"));
+            let mut payload = ctb_io_file::ReaderPayloadSource::new(std::io::stdin());
+            Ok(Self::detect_entity(&entity, &mut payload))
+        } else {
+            let entity = ctb_io_file::FileEntity::from_filesystem(path, None)?;
+            let mut payload = ctb_io_file::DiskPayloadSource::open(path)?;
+            Ok(Self::detect_entity(&entity, &mut payload))
+        }
     }
 
     /// Performs multi-signal detection using both header bytes and file extension.
@@ -107,7 +115,38 @@ impl CompressionFormat {
             Some(FormatCategory::Compression),
         )
         .and_then(Self::from_format_id)
-        .or_else(|| filename_or_ext.and_then(Self::from_extension))
+        .or_else(|| {
+            filename_or_ext.and_then(|name| {
+                let clean = name.trim().trim_start_matches('.');
+                lookup_format_by_extension(clean)
+                    .into_iter()
+                    .find_map(Self::from_format_id)
+            })
+        })
+    }
+
+    /// Returns true if this compression format is implemented natively in this
+    /// repository, rather than being provided by an external crate.
+    pub fn is_implemented_in_repo(&self) -> bool {
+        matches!(
+            self,
+            Self::Bzip
+                | Self::ScoCompress
+                | Self::CompressLzw
+                | Self::CompressLzw2
+                | Self::CompressLzw1
+                | Self::CompressLzw16
+                | Self::Pack
+                | Self::OldPack
+                | Self::Compact
+        )
+    }
+
+    /// Returns the default verification setting for this format when compressing.
+    /// In-tree implementations default to verifying output, while external crate
+    /// implementations default to not verifying.
+    pub fn default_verify(&self) -> bool {
+        self.is_implemented_in_repo()
     }
 }
 
@@ -121,8 +160,10 @@ impl TryFrom<&str> for CompressionFormat {
                 return Ok(fmt);
             }
         }
-        if let Some(fmt) = Self::from_extension(clean) {
-            return Ok(fmt);
+        for fid in lookup_format_by_extension(clean) {
+            if let Some(fmt) = Self::from_format_id(fid) {
+                return Ok(fmt);
+            }
         }
         bail!("Unknown compression format: '{s}'")
     }
@@ -706,15 +747,21 @@ mod tests {
     #[crate::ctb_test]
     fn test_case_sensitive_extension_matching() {
         assert_eq!(
-            CompressionFormat::from_extension("Z"),
+            lookup_format_by_extension("Z")
+                .into_iter()
+                .find_map(CompressionFormat::from_format_id),
             Some(CompressionFormat::ScoCompress)
         );
         assert_eq!(
-            CompressionFormat::from_extension("z"),
+            lookup_format_by_extension("z")
+                .into_iter()
+                .find_map(CompressionFormat::from_format_id),
             Some(CompressionFormat::Pack)
         );
         assert_eq!(
-            CompressionFormat::from_extension("C"),
+            lookup_format_by_extension("C")
+                .into_iter()
+                .find_map(CompressionFormat::from_format_id),
             Some(CompressionFormat::Compact)
         );
     }
@@ -722,65 +769,76 @@ mod tests {
     #[crate::ctb_test]
     fn test_magic_detection() {
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0xA0]),
+            CompressionFormat::detect(Some(&[0x1F, 0xA0]), None),
             Some(CompressionFormat::ScoCompress)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0x8B]),
+            CompressionFormat::detect(Some(&[0x1F, 0x8B]), None),
             Some(CompressionFormat::Gzip)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x42, 0x5A, 0x68]),
+            CompressionFormat::detect(Some(&[0x42, 0x5A, 0x68]), None),
             Some(CompressionFormat::Bzip2)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x42, 0x5A, 0x30]),
+            CompressionFormat::detect(Some(&[0x42, 0x5A, 0x30]), None),
             Some(CompressionFormat::Bzip)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0x1E]),
+            CompressionFormat::detect(Some(&[0x1F, 0x1E]), None),
             Some(CompressionFormat::Pack)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0x1F]),
+            CompressionFormat::detect(Some(&[0x1F, 0x1F]), None),
             Some(CompressionFormat::OldPack)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0x9D, 0x90]),
+            CompressionFormat::detect(Some(&[0x1F, 0x9D, 0x90]), None),
             Some(CompressionFormat::CompressLzw)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x1F, 0x9D, 0x10]),
+            CompressionFormat::detect(Some(&[0x1F, 0x9D, 0x10]), None),
             Some(CompressionFormat::CompressLzw2)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0xFF, 0x1F]),
+            CompressionFormat::detect(Some(&[0xFF, 0x1F]), None),
             Some(CompressionFormat::Compact)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x04, 0x22, 0x4D, 0x18]),
+            CompressionFormat::detect(Some(&[0x04, 0x22, 0x4D, 0x18]), None),
             Some(CompressionFormat::Lz4)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[
-                0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00
-            ]),
+            CompressionFormat::detect(
+                Some(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]),
+                None
+            ),
             Some(CompressionFormat::Xz)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x4C, 0x5A, 0x49, 0x50]),
+            CompressionFormat::detect(Some(&[0x4C, 0x5A, 0x49, 0x50]), None),
             Some(CompressionFormat::Lzip)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[0x28, 0xB5, 0x2F, 0xFD]),
+            CompressionFormat::detect(Some(&[0x28, 0xB5, 0x2F, 0xFD]), None),
             Some(CompressionFormat::Zstd)
         );
         assert_eq!(
-            CompressionFormat::from_magic_bytes(&[
-                0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A
-            ]),
+            CompressionFormat::detect(
+                Some(&[0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A]),
+                None
+            ),
             Some(CompressionFormat::Lzo)
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_reader_payload_source_detection() {
+        let gzip_stream: &[u8] = &[0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04];
+        let entity = ctb_io_file::FileEntity::from_stream(Some("input.gz"));
+        let mut payload = ctb_io_file::ReaderPayloadSource::new(gzip_stream);
+        let detected = CompressionFormat::detect_entity(&entity, &mut payload);
+        assert_eq!(detected, Some(CompressionFormat::Gzip));
     }
 
     fn run_format_test_suite(format: CompressionFormat) {

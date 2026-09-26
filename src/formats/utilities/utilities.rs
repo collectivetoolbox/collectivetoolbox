@@ -29,8 +29,9 @@ pub mod format_info;
 pub use ctb_utilities::format_id;
 pub use ctb_utilities::FormatId;
 pub use format_info::{
-    FormatInfo, describe_format, format_help_table, get_format_info,
-    get_format_info_by_id, infer_decompressed_path, strip_format_extension,
+    FormatInfo, FormatInfoOptionExt, describe_format, format_help_table,
+    get_format_info, get_format_info_by_id, infer_decompressed_path,
+    strip_format_extension,
 };
 
 #[expect(

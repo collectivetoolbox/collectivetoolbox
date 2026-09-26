@@ -98,6 +98,9 @@ pub enum FileOrigin {
     /// Synthetic in-memory file.
     #[dc(short = 354)]
     Synthetic,
+    /// A FIFO such as stdin or a named pipe.
+    #[dc(short = 534)]
+    Fifo,
 }
 
 /// Multifaceted identity information for a file entity.
