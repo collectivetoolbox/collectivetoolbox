@@ -44,8 +44,6 @@ Windows-style streams (:Zone.Identifier)
 
 - Restore semantic definitions of coordinate types in formats/math (removed recently; could probably find it in a commit, though a new implementation would need to be different)
 
-- Path Dcs have :~ ([string] | [data]) or whatever, not path
-
 - Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/expr_io_ternary.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_int.generated.rs: unexpected end of input, expected an expression
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/generated/test_formats/params_pass_array_struct.generated.rs: expected one of: identifier, `self`, `super`, `crate`, `try`, `*`, curly braces
@@ -54,17 +52,11 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated
 
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
-- [x] Kaitai Struct make sure all fixtures are tested
-
-- Kaitai should use Result (bail on violated invariants) and remove all panicking code
-
 - kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
 
 - [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
 
 - Regenerate Guix packaging in CI
-
-Deprecate Dcs duplicating Unicode
 
 Pull and export oldest container
 
@@ -86,9 +78,6 @@ HQX
 db_impl has accumulated a whole bunch of unrelated concerns.
 
 Include optional verification step in compression (default when writing to a file?)
-
-- [x] BUILD_ID should probably be moved from utilities/environment.rs to build-info crate to avoid issues like in memories/build_performance.md
-- [x] I'm thinking can_restart_pc should probably go in a new io/system (or similar) crate - there will be more "managing the system" type of APIs needed, so they might want a dedicated home (e.g. connecting to WIFI, etc. for systems that are booting to CTB).
 
 node type should be an enum in database and backed enum with same values in code.
 
