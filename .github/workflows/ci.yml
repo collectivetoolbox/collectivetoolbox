@@ -6,10 +6,25 @@ on:
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+    inputs:
+      run_ci_build:
+        description: 'Run standard Build & Core CI'
+        required: false
+        type: boolean
+        default: true
+      test_initrd:
+        description: 'Build and verify Guix POSIX initrd from scratch'
+        required: false
+        type: boolean
+        default: false
+  schedule:
+    # Run weekly on Sundays at 03:00 UTC to guard against bit-rot
+    - cron: '0 3 * * 0'
 
 jobs:
   build-ci:
     name: Build & Core CI
+    if: github.event_name != 'workflow_dispatch' || inputs.run_ci_build
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
@@ -71,4 +86,27 @@ jobs:
             built/*.png
             ci-logs/
           retention-days: 7
+
+  verify-initrd:
+    name: Guix POSIX Initrd Build Verification
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.test_initrd)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/collectivetoolbox/collectivetoolbox-2026-sept-5-2:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build and verify Guix POSIX initrd
+        run: ./scripts/ci-test-initrd
+
+      - name: Upload verified initrd artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: guix-posix-initrd
+          path: built/guix_posix_initrd.cpio.gz
+          retention-days: 14
 

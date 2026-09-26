@@ -58,7 +58,7 @@ prebuilt_icecat=""
 no_retries=""
 
 usage() {
-    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH] [--keep-failed] [--disable-chroot] [--disable-cross] [--use-prebuilt-icecat] [--no-retries]" >&2
+    echo "Usage: $0 [--build-dillo-native|--cross-dillo|--cross-icecat|--prebuild-tarball PATH|--initrd-only] [--keep-failed] [--disable-chroot] [--disable-cross] [--use-prebuilt-icecat] [--no-retries]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -80,6 +80,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --cross-icecat)
             mode="cross-icecat"
+            ;;
+        --initrd-only)
+            mode="initrd-only"
             ;;
         --prebuild-tarball)
             mode="prebuild-tarball"
@@ -687,6 +690,54 @@ case "$mode" in
         cp "$tarball_img" "$prebuild_dest"
         echo "Prebuilt Guix system image tarball at: $prebuild_dest"
         rm -rf /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-* 2>/dev/null || true
+        ;;
+
+    initrd-only)
+        for drv_dir in /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-*; do
+            if [ -d "$drv_dir" ]; then
+                rm -r "$drv_dir" 2>/dev/null || true
+            fi
+        done
+        start_guix_daemon
+        echo "Building Guix i686 system tarball image from scratch..."
+        tarball_img="$(build_system_tarball)"
+        echo "Guix image built at: $tarball_img"
+        stop_guix_daemon
+
+        echo "Generating initrd and rootfs index from system tarball..."
+        tmp_initrd_out="$(mktemp -d /tmp/ctb-initrd-out-XXXXXX)"
+        out_initrd_flat="$tmp_initrd_out/flat"
+        out_initrd_json="$tmp_initrd_out/guix-fs.json"
+        mkdir -p "$out_initrd_flat"
+
+        if [ -x "$workspace_root/target/release/refresh-asset-bundle" ]; then
+            "$workspace_root/target/release/refresh-asset-bundle" \
+                --pack-v86-tar "$tarball_img" "$out_initrd_flat" "$out_initrd_json"
+        else
+            cargo run -p ctb-build-support --bin refresh-asset-bundle --release -- \
+                --pack-v86-tar "$tarball_img" "$out_initrd_flat" "$out_initrd_json"
+        fi
+
+        built_initrd="$tmp_initrd_out/guix_posix_initrd.cpio.gz"
+        if [ ! -f "$built_initrd" ]; then
+            echo "Error: Failed to produce $built_initrd" >&2
+            exit 1
+        fi
+
+        mkdir -p "$workspace_root/built"
+        if [ -f "$workspace_root/built/guix_posix_initrd.cpio.gz" ]; then
+            rm "$workspace_root/built/guix_posix_initrd.cpio.gz"
+        fi
+        cp "$built_initrd" "$workspace_root/built/guix_posix_initrd.cpio.gz"
+        echo "Successfully generated initrd at $workspace_root/built/guix_posix_initrd.cpio.gz"
+        if [ -d "$tmp_initrd_out" ]; then
+            rm -r "$tmp_initrd_out"
+        fi
+        for drv_dir in /tmp/guix-build-*.drv-* /tmp/nix-build-*.drv-*; do
+            if [ -d "$drv_dir" ]; then
+                rm -r "$drv_dir" 2>/dev/null || true
+            fi
+        done
         ;;
 
     full)
