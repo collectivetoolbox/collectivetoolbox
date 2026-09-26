@@ -28,7 +28,7 @@ impl KStruct for AndroidSuper {
     type Root = AndroidSuper;
     type Parent = AndroidSuper;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -85,7 +85,7 @@ impl KStruct for AndroidSuper_Geometry {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Root;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -182,7 +182,7 @@ impl KStruct for AndroidSuper_Metadata {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Root;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -359,7 +359,7 @@ impl KStruct for AndroidSuper_Metadata_BlockDevice {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -445,7 +445,7 @@ impl KStruct for AndroidSuper_Metadata_Extent {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -541,7 +541,7 @@ impl KStruct for AndroidSuper_Metadata_Group {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -616,7 +616,7 @@ impl KStruct for AndroidSuper_Metadata_Partition {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata_TableDescriptor;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -796,7 +796,7 @@ impl KStruct for AndroidSuper_Metadata_TableDescriptor {
     type Root = AndroidSuper;
     type Parent = AndroidSuper_Metadata;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -915,7 +915,7 @@ impl KStruct for AndroidSuper_Root {
     type Root = AndroidSuper;
     type Parent = AndroidSuper;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

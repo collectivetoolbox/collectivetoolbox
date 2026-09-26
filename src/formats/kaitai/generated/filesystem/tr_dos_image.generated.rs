@@ -40,7 +40,7 @@ impl KStruct for TrDosImage {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -221,7 +221,7 @@ impl KStruct for TrDosImage_File {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -361,7 +361,7 @@ impl KStruct for TrDosImage_Filename {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -424,7 +424,7 @@ impl KStruct for TrDosImage_PositionAndLengthBasic {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -473,7 +473,7 @@ impl KStruct for TrDosImage_PositionAndLengthCode {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -526,7 +526,7 @@ impl KStruct for TrDosImage_PositionAndLengthGeneric {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -576,7 +576,7 @@ impl KStruct for TrDosImage_PositionAndLengthPrint {
     type Root = TrDosImage;
     type Parent = TrDosImage_File;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -653,7 +653,7 @@ impl KStruct for TrDosImage_VolumeInfo {
     type Root = TrDosImage;
     type Parent = TrDosImage;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

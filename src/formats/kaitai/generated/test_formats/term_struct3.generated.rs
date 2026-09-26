@@ -73,7 +73,7 @@ impl KStruct for TermStruct3 {
     type Root = TermStruct3;
     type Parent = TermStruct3;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -154,7 +154,7 @@ impl KStruct for TermStruct3_BytesWrapper {
     type Root = TermStruct3;
     type Parent = TermStruct3;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

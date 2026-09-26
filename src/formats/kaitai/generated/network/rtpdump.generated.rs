@@ -25,7 +25,7 @@ impl KStruct for Rtpdump {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -90,7 +90,7 @@ impl KStruct for Rtpdump_HeaderT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -210,7 +210,7 @@ impl KStruct for Rtpdump_PacketT {
     type Root = Rtpdump;
     type Parent = Rtpdump;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -69,7 +69,7 @@ impl KStruct for ParamsPassStruct {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,7 +120,7 @@ impl KStruct for ParamsPassStruct_Block {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -163,7 +163,7 @@ impl KStruct for ParamsPassStruct_StructType {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -218,7 +218,7 @@ impl KStruct for ParamsPassStruct_StructType_Baz {
     type Root = ParamsPassStruct;
     type Parent = ParamsPassStruct_StructType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

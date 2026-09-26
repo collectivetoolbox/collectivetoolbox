@@ -38,7 +38,7 @@ impl KStruct for Regf {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -121,7 +121,7 @@ impl KStruct for Regf_FileHeader {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -339,7 +339,7 @@ impl KStruct for Regf_Filetime {
     type Root = Regf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -382,7 +382,7 @@ impl KStruct for Regf_HiveBin {
     type Root = Regf;
     type Parent = Regf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -555,7 +555,7 @@ impl KStruct for Regf_HiveBinCell {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -716,7 +716,7 @@ impl KStruct for Regf_HiveBinCell_NamedKey {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -941,7 +941,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -995,7 +995,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLhLf_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLhLf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1044,7 +1044,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1097,7 +1097,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListLi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListLi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1140,7 +1140,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1193,7 +1193,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListRi_Item {
     type Root = Regf;
     type Parent = Regf_HiveBinCell_SubKeyListRi;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1238,7 +1238,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListSk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1305,7 +1305,7 @@ impl KStruct for Regf_HiveBinCell_SubKeyListVk {
     type Root = Regf;
     type Parent = Regf_HiveBinCell;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1487,7 +1487,7 @@ impl KStruct for Regf_HiveBinHeader {
     type Root = Regf;
     type Parent = Regf_HiveBin;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

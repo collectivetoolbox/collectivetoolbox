@@ -85,7 +85,7 @@ impl KStruct for Rpm {
     type Root = Rpm;
     type Parent = Rpm;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2159,7 +2159,7 @@ impl KStruct for Rpm_Dummy {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2207,7 +2207,7 @@ impl KStruct for Rpm_Header {
     type Root = Rpm;
     type Parent = Rpm;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2419,7 +2419,7 @@ impl KStruct for Rpm_HeaderIndexRecord {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2611,7 +2611,7 @@ impl KStruct for Rpm_HeaderRecord {
     type Root = Rpm;
     type Parent = Rpm_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2702,7 +2702,7 @@ impl KStruct for Rpm_HeaderTagsStep {
     type Root = Rpm;
     type Parent = Rpm;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2794,7 +2794,7 @@ impl KStruct for Rpm_Lead {
     type Root = Rpm;
     type Parent = Rpm;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2902,7 +2902,7 @@ impl KStruct for Rpm_RecordTypeBin {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2963,7 +2963,7 @@ impl KStruct for Rpm_RecordTypeString {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3010,7 +3010,7 @@ impl KStruct for Rpm_RecordTypeStringArray {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3067,7 +3067,7 @@ impl KStruct for Rpm_RecordTypeUint16 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3124,7 +3124,7 @@ impl KStruct for Rpm_RecordTypeUint32 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3181,7 +3181,7 @@ impl KStruct for Rpm_RecordTypeUint64 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3238,7 +3238,7 @@ impl KStruct for Rpm_RecordTypeUint8 {
     type Root = Rpm;
     type Parent = Rpm_HeaderIndexRecord;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3295,7 +3295,7 @@ impl KStruct for Rpm_RpmVersion {
     type Root = Rpm;
     type Parent = Rpm_Lead;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3369,7 +3369,7 @@ impl KStruct for Rpm_SignatureTagsStep {
     type Root = Rpm;
     type Parent = Rpm;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

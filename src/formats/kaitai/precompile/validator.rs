@@ -588,9 +588,8 @@ fn validate_attr_mapping(attr_map: &serde_yaml::Mapping, is_instance: bool) -> R
 }
 
 fn validate_instance_mapping(name: &str, inst_map: &serde_yaml::Mapping) -> Result<()> {
-    if inst_map.contains_key(Value::String("value".to_string())) {
+    if let Some(val_field) = inst_map.get(Value::String("value".to_string())) {
         // Value instance
-        let val_field = inst_map.get(Value::String("value".to_string())).unwrap();
         if val_field.is_null() {
             bail!("Value instance '{name}' cannot have null value");
         }
@@ -649,7 +648,7 @@ fn is_primitive_type(t: &str) -> bool {
             | "s1" | "s2" | "s2le" | "s2be" | "s4" | "s4le" | "s4be" | "s8" | "s8le" | "s8be"
             | "f4" | "f4le" | "f4be" | "f8" | "f8le" | "f8be"
             | "str" | "strz" | "bool"
-    ) || t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit())
+    ) || t.strip_prefix('b').is_some_and(|rem| rem.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
@@ -784,14 +783,14 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
             }
 
             // Check parameter count if instantiating local type
-            if t.contains('(') && t.ends_with(')') {
-                let args_str = t[t.find('(').unwrap().saturating_add(1)..t.len().saturating_sub(1)].trim();
-                let args: Vec<&str> = if args_str.is_empty() {
-                    Vec::new()
-                } else {
-                    args_str.split(',').map(str::trim).collect()
-                };
-                for arg in &args {
+            if let Some(inside) = t.split_once('(').and_then(|(_, rest)| rest.strip_suffix(')')) {
+                let args_str = inside.trim();
+                    let args: Vec<&str> = if args_str.is_empty() {
+                        Vec::new()
+                    } else {
+                        args_str.split(',').map(str::trim).collect()
+                    };
+                    for arg in &args {
                     if is_valid_identifier(arg)
                         && !member_ids.contains(*arg)
                         && !known_enums.contains(*arg)
@@ -842,16 +841,18 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
                     bail!("Unable to access '{case_str}' in switch cases context");
                 }
                 if let Some(t) = cv.as_str() {
-                    if t.contains('(') && t.ends_with(')') {
-                        let args_str = t[t.find('(').unwrap().saturating_add(1)..t.len().saturating_sub(1)].trim();
-                        for arg in args_str.split(',').map(str::trim) {
-                            if is_valid_identifier(arg)
-                                && !member_ids.contains(arg)
-                                && !known_enums.contains(arg)
-                                && arg != "true"
-                                && arg != "false"
-                            {
-                                bail!("Unable to access '{arg}' in switch cases call context");
+                    if let Some((_, rest)) = t.split_once('(') {
+                        if let Some(inside) = rest.strip_suffix(')') {
+                            let args_str = inside.trim();
+                            for arg in args_str.split(',').map(str::trim) {
+                                if is_valid_identifier(arg)
+                                    && !member_ids.contains(arg)
+                                    && !known_enums.contains(arg)
+                                    && arg != "true"
+                                    && arg != "false"
+                                {
+                                    bail!("Unable to access '{arg}' in switch cases call context");
+                                }
                             }
                         }
                     }
@@ -986,14 +987,14 @@ fn validate_if_expr(
     if trimmed.contains("unknown_enum::") {
         bail!("Unable to find enum 'unknown_enum'");
     }
-    if let Some(colon_pos) = trimmed.find("::") {
+    if let Some((before, after)) = trimmed.split_once("::") {
         // Reason for fallback: prefix identifier before '::' defaults to empty when expression begins with '::'
-        let prefix = trimmed[..colon_pos]
+        let prefix = before
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next_back()
             .unwrap_or("");
         // Reason for fallback: suffix identifier after '::' defaults to empty when expression ends with '::'
-        let suffix = trimmed[colon_pos.saturating_add(2)..]
+        let suffix = after
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next()
             .unwrap_or("");
@@ -1033,10 +1034,9 @@ fn validate_value_expr(
     if trimmed.contains("frobnicate") {
         bail!("Don't know how to call method 'frobnicate' of object type CalcBytesType");
     }
-    if trimmed.contains(".to_s(") {
-        let after = &trimmed[trimmed.find(".to_s(").unwrap().saturating_add(6)..];
-        if let Some(close_idx) = after.rfind(')') {
-            let inner = after[..close_idx].trim();
+    if let Some((_, after)) = trimmed.split_once(".to_s(") {
+        if let Some((inner_raw, _)) = after.rsplit_once(')') {
+            let inner = inner_raw.trim();
             if inner.is_empty() {
                 bail!("to_s requires exactly 1 argument (encoding)");
             }
@@ -1070,14 +1070,14 @@ fn validate_value_expr(
     if trimmed.contains("animal::unknown") {
         bail!("Unable to find enum member 'unknown'");
     }
-    if let Some(colon_pos) = trimmed.find("::") {
+    if let Some((before, after)) = trimmed.split_once("::") {
         // Reason for fallback: prefix identifier before '::' defaults to empty when expression begins with '::'
-        let prefix = trimmed[..colon_pos]
+        let prefix = before
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next_back()
             .unwrap_or("");
         // Reason for fallback: suffix identifier after '::' defaults to empty when expression ends with '::'
-        let suffix = trimmed[colon_pos.saturating_add(2)..]
+        let suffix = after
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next()
             .unwrap_or("");

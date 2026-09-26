@@ -23,7 +23,7 @@ impl KStruct for MicrosoftPe {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -125,7 +125,7 @@ impl KStruct for MicrosoftPe_Annoyingstring {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CoffSymbol;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -246,7 +246,7 @@ impl KStruct for MicrosoftPe_CertificateEntry {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CertificateTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -424,7 +424,7 @@ impl KStruct for MicrosoftPe_CertificateTable {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -492,7 +492,7 @@ impl KStruct for MicrosoftPe_CoffHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -870,7 +870,7 @@ impl KStruct for MicrosoftPe_CoffSymbol {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_CoffHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -978,7 +978,7 @@ impl KStruct for MicrosoftPe_DataDir {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeaderDataDirs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1029,7 +1029,7 @@ impl KStruct for MicrosoftPe_MzPlaceholder {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1097,7 +1097,7 @@ impl KStruct for MicrosoftPe_OptionalHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1168,7 +1168,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderDataDirs {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1317,7 +1317,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderStd {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1434,7 +1434,7 @@ impl KStruct for MicrosoftPe_OptionalHeaderWindows {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_OptionalHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1715,7 +1715,7 @@ impl KStruct for MicrosoftPe_PeHeader {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1830,7 +1830,7 @@ impl KStruct for MicrosoftPe_Section {
     type Root = MicrosoftPe;
     type Parent = MicrosoftPe_PeHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

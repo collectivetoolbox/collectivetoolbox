@@ -315,6 +315,7 @@ impl FormatInfo {
             .next()
             .map(|ext| {
                 let trimmed = ext.trim();
+                // Reason for fallback: extensions without "case:" prefix are kept as-is
                 let clean = trimmed.strip_prefix("case:").unwrap_or(trimmed);
                 clean.trim_start_matches('.')
             })

@@ -25,7 +25,7 @@ impl KStruct for HeroesOfMightAndMagicAgg {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -112,7 +112,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Entry {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -187,7 +187,7 @@ impl KStruct for HeroesOfMightAndMagicAgg_Filename {
     type Root = HeroesOfMightAndMagicAgg;
     type Parent = HeroesOfMightAndMagicAgg;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

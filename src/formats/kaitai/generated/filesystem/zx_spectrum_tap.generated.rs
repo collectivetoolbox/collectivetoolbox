@@ -27,7 +27,7 @@ impl KStruct for ZxSpectrumTap {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -149,7 +149,7 @@ impl KStruct for ZxSpectrumTap_ArrayParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -216,7 +216,7 @@ impl KStruct for ZxSpectrumTap_Block {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -301,7 +301,7 @@ impl KStruct for ZxSpectrumTap_BytesParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -407,7 +407,7 @@ impl KStruct for ZxSpectrumTap_Header {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Block;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -501,7 +501,7 @@ impl KStruct for ZxSpectrumTap_ProgramParams {
     type Root = ZxSpectrumTap;
     type Parent = ZxSpectrumTap_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

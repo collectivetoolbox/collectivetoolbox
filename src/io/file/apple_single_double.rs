@@ -141,8 +141,8 @@ pub fn create_apple_archive_from_entity(
     let apple_meta = entity.metadata.apple.as_ref();
     let mut finder_info = apple_meta.and_then(|a| a.finder_info.clone());
 
-    let empty_flags = Vec::new();
-    let entity_flags = entity.metadata.flags.as_ref().unwrap_or(&empty_flags);
+    // Reason for fallback: absent flags metadata defaults to empty slice
+    let entity_flags = entity.metadata.flags.as_deref().unwrap_or(&[]);
 
     let has_mac_flags = entity_flags.iter().any(|f| matches!(
         f,

@@ -40,7 +40,7 @@ impl KStruct for JavaClass {
     type Root = JavaClass;
     type Parent = JavaClass;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -291,7 +291,7 @@ impl KStruct for JavaClass_AttributeInfo {
     type Root = JavaClass;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -406,7 +406,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -514,7 +514,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyCode_ExceptionEntry {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyCode;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -612,7 +612,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -669,7 +669,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyExceptions_ExceptionTableEntry 
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyExceptions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -739,7 +739,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -793,7 +793,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodyLineNumberTable_LineNumberTable
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo_AttrBodyLineNumberTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -847,7 +847,7 @@ impl KStruct for JavaClass_AttributeInfo_AttrBodySourceFile {
     type Root = JavaClass;
     type Parent = JavaClass_AttributeInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -909,7 +909,7 @@ impl KStruct for JavaClass_ClassCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1225,7 +1225,7 @@ impl KStruct for JavaClass_ConstantPoolEntry {
     type Root = JavaClass;
     type Parent = JavaClass;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1450,7 +1450,7 @@ impl KStruct for JavaClass_DoubleCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1498,7 +1498,7 @@ impl KStruct for JavaClass_DynamicCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1564,7 +1564,7 @@ impl KStruct for JavaClass_FieldInfo {
     type Root = JavaClass;
     type Parent = JavaClass;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1656,7 +1656,7 @@ impl KStruct for JavaClass_FieldRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1730,7 +1730,7 @@ impl KStruct for JavaClass_FloatCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1776,7 +1776,7 @@ impl KStruct for JavaClass_IntegerCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1827,7 +1827,7 @@ impl KStruct for JavaClass_InterfaceMethodRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1903,7 +1903,7 @@ impl KStruct for JavaClass_InvokeDynamicCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1963,7 +1963,7 @@ impl KStruct for JavaClass_LongCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2011,7 +2011,7 @@ impl KStruct for JavaClass_MethodHandleCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2130,7 +2130,7 @@ impl KStruct for JavaClass_MethodInfo {
     type Root = JavaClass;
     type Parent = JavaClass;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2222,7 +2222,7 @@ impl KStruct for JavaClass_MethodRefCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2297,7 +2297,7 @@ impl KStruct for JavaClass_MethodTypeCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2359,7 +2359,7 @@ impl KStruct for JavaClass_ModulePackageCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2445,7 +2445,7 @@ impl KStruct for JavaClass_NameAndTypeCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2543,7 +2543,7 @@ impl KStruct for JavaClass_StringCpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2591,7 +2591,7 @@ impl KStruct for JavaClass_Utf8CpInfo {
     type Root = JavaClass;
     type Parent = JavaClass_ConstantPoolEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2657,7 +2657,7 @@ impl KStruct for JavaClass_VersionGuard {
     type Root = JavaClass;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

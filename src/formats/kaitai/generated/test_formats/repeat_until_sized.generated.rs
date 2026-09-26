@@ -69,7 +69,7 @@ impl KStruct for RepeatUntilSized {
     type Root = RepeatUntilSized;
     type Parent = RepeatUntilSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -130,7 +130,7 @@ impl KStruct for RepeatUntilSized_Record {
     type Root = RepeatUntilSized;
     type Parent = RepeatUntilSized;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

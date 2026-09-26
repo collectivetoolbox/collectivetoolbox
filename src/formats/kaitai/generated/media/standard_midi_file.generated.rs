@@ -36,7 +36,7 @@ impl KStruct for StandardMidiFile {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -90,7 +90,7 @@ impl KStruct for StandardMidiFile_ChannelPressureEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -133,7 +133,7 @@ impl KStruct for StandardMidiFile_ControllerEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -185,7 +185,7 @@ impl KStruct for StandardMidiFile_Header {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -257,7 +257,7 @@ impl KStruct for StandardMidiFile_MetaEventBody {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -389,7 +389,7 @@ impl KStruct for StandardMidiFile_NoteOffEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -438,7 +438,7 @@ impl KStruct for StandardMidiFile_NoteOnEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -491,7 +491,7 @@ impl KStruct for StandardMidiFile_PitchBendEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -564,7 +564,7 @@ impl KStruct for StandardMidiFile_PolyphonicPressureEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -612,7 +612,7 @@ impl KStruct for StandardMidiFile_ProgramChangeEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -656,7 +656,7 @@ impl KStruct for StandardMidiFile_SysexEventBody {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvent;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -713,7 +713,7 @@ impl KStruct for StandardMidiFile_Track {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -895,7 +895,7 @@ impl KStruct for StandardMidiFile_TrackEvent {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_TrackEvents;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1024,7 +1024,7 @@ impl KStruct for StandardMidiFile_TrackEvents {
     type Root = StandardMidiFile;
     type Parent = StandardMidiFile_Track;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

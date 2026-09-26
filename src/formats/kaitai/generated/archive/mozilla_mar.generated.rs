@@ -33,7 +33,7 @@ impl KStruct for MozillaMar {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -236,7 +236,7 @@ impl KStruct for MozillaMar_AdditionalSection {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -306,7 +306,7 @@ impl KStruct for MozillaMar_IndexEntries {
     type Root = MozillaMar;
     type Parent = MozillaMar_MarIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -361,7 +361,7 @@ impl KStruct for MozillaMar_IndexEntry {
     type Root = MozillaMar;
     type Parent = MozillaMar_IndexEntries;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -443,7 +443,7 @@ impl KStruct for MozillaMar_MarIndex {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -503,7 +503,7 @@ impl KStruct for MozillaMar_ProductInformationBlock {
     type Root = MozillaMar;
     type Parent = MozillaMar_AdditionalSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -564,7 +564,7 @@ impl KStruct for MozillaMar_Signature {
     type Root = MozillaMar;
     type Parent = MozillaMar;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

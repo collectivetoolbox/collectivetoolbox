@@ -44,7 +44,7 @@ impl KStruct for WindowsResourceFile {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -117,7 +117,7 @@ impl KStruct for WindowsResourceFile_Resource {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -389,7 +389,7 @@ impl KStruct for WindowsResourceFile_UnicodeOrId {
     type Root = WindowsResourceFile;
     type Parent = WindowsResourceFile_Resource;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

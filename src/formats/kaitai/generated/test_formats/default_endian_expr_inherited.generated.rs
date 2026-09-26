@@ -68,7 +68,7 @@ impl KStruct for DefaultEndianExprInherited {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -120,7 +120,7 @@ impl KStruct for DefaultEndianExprInherited_Doc {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -175,7 +175,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited_Doc;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -238,7 +238,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited_Doc_MainObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -297,7 +297,7 @@ impl KStruct for DefaultEndianExprInherited_Doc_MainObj_SubObj_SubsubObj {
     type Root = DefaultEndianExprInherited;
     type Parent = DefaultEndianExprInherited_Doc_MainObj_SubObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

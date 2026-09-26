@@ -94,7 +94,7 @@ impl KStruct for SshPublicKey {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -177,7 +177,7 @@ impl KStruct for SshPublicKey_Bignum2 {
     type Root = SshPublicKey;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -256,7 +256,7 @@ impl KStruct for SshPublicKey_Cstring {
     type Root = SshPublicKey;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -321,7 +321,7 @@ impl KStruct for SshPublicKey_EllipticCurve {
     type Root = SshPublicKey;
     type Parent = SshPublicKey_KeyEcdsa;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -381,7 +381,7 @@ impl KStruct for SshPublicKey_KeyDsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -450,7 +450,7 @@ impl KStruct for SshPublicKey_KeyEcdsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -506,7 +506,7 @@ impl KStruct for SshPublicKey_KeyEd25519 {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -566,7 +566,7 @@ impl KStruct for SshPublicKey_KeyRsa {
     type Root = SshPublicKey;
     type Parent = SshPublicKey;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

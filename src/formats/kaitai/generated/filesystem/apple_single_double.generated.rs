@@ -45,7 +45,7 @@ impl KStruct for AppleSingleDouble {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -195,7 +195,7 @@ impl KStruct for AppleSingleDouble_Entry {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -367,7 +367,7 @@ impl KStruct for AppleSingleDouble_FinderInfo {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_Entry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -457,7 +457,7 @@ impl KStruct for AppleSingleDouble_Point {
     type Root = AppleSingleDouble;
     type Parent = AppleSingleDouble_FinderInfo;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

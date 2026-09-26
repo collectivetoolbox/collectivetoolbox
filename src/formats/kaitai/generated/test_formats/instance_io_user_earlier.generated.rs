@@ -79,7 +79,7 @@ impl KStruct for InstanceIoUserEarlier {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -205,7 +205,7 @@ impl KStruct for InstanceIoUserEarlier_Baz {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -253,7 +253,7 @@ impl KStruct for InstanceIoUserEarlier_Foo {
     type Root = InstanceIoUserEarlier;
     type Parent = InstanceIoUserEarlier;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -329,7 +329,7 @@ impl KStruct for InstanceIoUserEarlier_Slot {
     type Root = InstanceIoUserEarlier;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -179,7 +179,7 @@ impl KStruct for PhpSerializedValue {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -446,7 +446,7 @@ impl KStruct for PhpSerializedValue_ArrayContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -511,7 +511,7 @@ impl KStruct for PhpSerializedValue_BoolContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -600,7 +600,7 @@ impl KStruct for PhpSerializedValue_CountPrefixedMapping {
     type Root = PhpSerializedValue;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -709,7 +709,7 @@ impl KStruct for PhpSerializedValue_CustomSerializedObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -845,7 +845,7 @@ impl KStruct for PhpSerializedValue_FloatContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -916,7 +916,7 @@ impl KStruct for PhpSerializedValue_IntContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1002,7 +1002,7 @@ impl KStruct for PhpSerializedValue_LengthPrefixedQuotedString {
     type Root = PhpSerializedValue;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1104,7 +1104,7 @@ impl KStruct for PhpSerializedValue_MappingEntry {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue_CountPrefixedMapping;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1167,7 +1167,7 @@ impl KStruct for PhpSerializedValue_NullContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1220,7 +1220,7 @@ impl KStruct for PhpSerializedValue_ObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1303,7 +1303,7 @@ impl KStruct for PhpSerializedValue_Php3ObjectContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1371,7 +1371,7 @@ impl KStruct for PhpSerializedValue_StringContents {
     type Root = PhpSerializedValue;
     type Parent = PhpSerializedValue;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

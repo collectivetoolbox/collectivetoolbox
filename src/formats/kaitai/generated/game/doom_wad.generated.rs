@@ -22,7 +22,7 @@ impl KStruct for DoomWad {
     type Root = DoomWad;
     type Parent = DoomWad;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,7 +113,7 @@ impl KStruct for DoomWad_Blockmap {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -206,7 +206,7 @@ impl KStruct for DoomWad_Blockmap_Blocklist {
     type Root = DoomWad;
     type Parent = DoomWad_Blockmap;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -426,7 +426,7 @@ impl KStruct for DoomWad_IndexEntry {
     type Root = DoomWad;
     type Parent = DoomWad;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -579,7 +579,7 @@ impl KStruct for DoomWad_Linedef {
     type Root = DoomWad;
     type Parent = DoomWad_Linedefs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -657,7 +657,7 @@ impl KStruct for DoomWad_Linedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -713,7 +713,7 @@ impl KStruct for DoomWad_Pnames {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -782,7 +782,7 @@ impl KStruct for DoomWad_Sector {
     type Root = DoomWad;
     type Parent = DoomWad_Sectors;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -979,7 +979,7 @@ impl KStruct for DoomWad_Sectors {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1037,7 +1037,7 @@ impl KStruct for DoomWad_Sidedef {
     type Root = DoomWad;
     type Parent = DoomWad_Sidedefs;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1124,7 +1124,7 @@ impl KStruct for DoomWad_Sidedefs {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1184,7 +1184,7 @@ impl KStruct for DoomWad_Texture12 {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1245,7 +1245,7 @@ impl KStruct for DoomWad_Texture12_Patch {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureBody;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1330,7 +1330,7 @@ impl KStruct for DoomWad_Texture12_TextureBody {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12_TextureIndex;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1432,7 +1432,7 @@ impl KStruct for DoomWad_Texture12_TextureIndex {
     type Root = DoomWad;
     type Parent = DoomWad_Texture12;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1493,7 +1493,7 @@ impl KStruct for DoomWad_Thing {
     type Root = DoomWad;
     type Parent = DoomWad_Things;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1559,7 +1559,7 @@ impl KStruct for DoomWad_Things {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1610,7 +1610,7 @@ impl KStruct for DoomWad_Vertex {
     type Root = DoomWad;
     type Parent = DoomWad_Vertexes;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1658,7 +1658,7 @@ impl KStruct for DoomWad_Vertexes {
     type Root = DoomWad;
     type Parent = DoomWad_IndexEntry;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

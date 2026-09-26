@@ -241,17 +241,8 @@ if [[ ! -f "built/guix_posix_initrd.cpio.gz" && -f "/var/cache/ctoolbox/guix_pos
     cp /var/cache/ctoolbox/guix_posix_initrd.cpio.gz built/guix_posix_initrd.cpio.gz
 fi
 
-echo "Configuring Cargo offline..."
-mkdir -p .cargo
-if [[ -f .cargo/config.toml ]]; then
-    # Patch jobs = ... to jobs = 2 inside docker to reduce load
-    sed -i 's/jobs\s*=\s*[0-9]\+/jobs = 2/' .cargo/config.toml
-else
-    cat <<'EOF' > .cargo/config.toml
-[build]
-jobs = 2
-EOF
-fi
+echo "Configuring Cargo concurrency..."
+export CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}"
 
 echo "Installing Rust..."
 if ! command -v cargo; then

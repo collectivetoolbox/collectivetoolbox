@@ -37,7 +37,7 @@ impl KStruct for AmlogicEmmcPartitions {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -141,7 +141,7 @@ impl KStruct for AmlogicEmmcPartitions_Partition {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -232,7 +232,7 @@ impl KStruct for AmlogicEmmcPartitions_Partition_PartFlags {
     type Root = AmlogicEmmcPartitions;
     type Parent = AmlogicEmmcPartitions_Partition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

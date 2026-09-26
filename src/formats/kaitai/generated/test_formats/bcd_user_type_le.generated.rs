@@ -73,7 +73,7 @@ impl KStruct for BcdUserTypeLe {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -177,7 +177,7 @@ impl KStruct for BcdUserTypeLe_LeadingZeroLtrObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -380,7 +380,7 @@ impl KStruct for BcdUserTypeLe_LtrObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -583,7 +583,7 @@ impl KStruct for BcdUserTypeLe_RtlObj {
     type Root = BcdUserTypeLe;
     type Parent = BcdUserTypeLe;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

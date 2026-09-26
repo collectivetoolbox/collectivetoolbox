@@ -68,7 +68,7 @@ impl KStruct for ProcessCoerceUsertype1 {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -115,7 +115,7 @@ impl KStruct for ProcessCoerceUsertype1_Foo {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -163,7 +163,7 @@ impl KStruct for ProcessCoerceUsertype1_Record {
     type Root = ProcessCoerceUsertype1;
     type Parent = ProcessCoerceUsertype1;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

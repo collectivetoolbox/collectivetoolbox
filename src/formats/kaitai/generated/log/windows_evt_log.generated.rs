@@ -43,7 +43,7 @@ impl KStruct for WindowsEvtLog {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -108,7 +108,7 @@ impl KStruct for WindowsEvtLog_CursorRecordBody {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -192,7 +192,7 @@ impl KStruct for WindowsEvtLog_Header {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -337,7 +337,7 @@ impl KStruct for WindowsEvtLog_Header_Flags {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Header;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -476,7 +476,7 @@ impl KStruct for WindowsEvtLog_Record {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -600,7 +600,7 @@ impl KStruct for WindowsEvtLog_RecordBody {
     type Root = WindowsEvtLog;
     type Parent = WindowsEvtLog_Record;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

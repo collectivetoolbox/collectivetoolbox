@@ -43,7 +43,7 @@ impl KStruct for Elf {
     type Root = Elf;
     type Parent = Elf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3790,7 +3790,7 @@ impl KStruct for Elf_DtFlag1Values {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4335,7 +4335,7 @@ impl KStruct for Elf_DtFlagValues {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4655,7 +4655,7 @@ impl KStruct for Elf_EndianElf {
     type Root = Elf;
     type Parent = Elf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4919,7 +4919,7 @@ impl KStruct for Elf_EndianElf_DynsymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5017,7 +5017,7 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_DynsymSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5236,7 +5236,7 @@ impl KStruct for Elf_EndianElf_NoteSection {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5308,7 +5308,7 @@ impl KStruct for Elf_EndianElf_NoteSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_NoteSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5449,7 +5449,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5636,7 +5636,7 @@ impl KStruct for Elf_EndianElf_PhDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_PhDynamicSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6197,7 +6197,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6473,7 +6473,7 @@ impl KStruct for Elf_EndianElf_ProgramHeader_PhInterpreter {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6527,7 +6527,7 @@ impl KStruct for Elf_EndianElf_RelocationSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6761,7 +6761,7 @@ impl KStruct for Elf_EndianElf_RelocationSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_RelocationSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7350,7 +7350,7 @@ impl KStruct for Elf_EndianElf_SectionHeader {
     type Root = Elf;
     type Parent = Elf_EndianElf;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7689,7 +7689,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7890,7 +7890,7 @@ impl KStruct for Elf_EndianElf_ShDynamicSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_ShDynamicSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8040,7 +8040,7 @@ impl KStruct for Elf_EndianElf_StringsStruct {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8110,7 +8110,7 @@ impl KStruct for Elf_EndianElf_VerdauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8269,7 +8269,7 @@ impl KStruct for Elf_EndianElf_VerdefSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8378,7 +8378,7 @@ impl KStruct for Elf_EndianElf_VerdefSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerdefSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8628,7 +8628,7 @@ impl KStruct for Elf_EndianElf_VernauxEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8837,7 +8837,7 @@ impl KStruct for Elf_EndianElf_VerneedSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8942,7 +8942,7 @@ impl KStruct for Elf_EndianElf_VerneedSectionEntry {
     type Root = Elf;
     type Parent = Elf_EndianElf_VerneedSection;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9152,7 +9152,7 @@ impl KStruct for Elf_EndianElf_VersionFlags {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9264,7 +9264,7 @@ impl KStruct for Elf_EndianElf_VersionIndex {
     type Root = Elf;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9395,7 +9395,7 @@ impl KStruct for Elf_EndianElf_VersymSection {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9472,7 +9472,7 @@ impl KStruct for Elf_PhdrTypeFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_ProgramHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9606,7 +9606,7 @@ impl KStruct for Elf_SectionHeaderFlags {
     type Root = Elf;
     type Parent = Elf_EndianElf_SectionHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

@@ -907,15 +907,11 @@ fn prepare_runtime_assets(
 
     let mut v86_asset_pack_uuid = None;
     let mut v86_asset_pack_sha256 = None;
-    if dest_rsrc.is_file() {
-        let bytes = fs::read(&dest_rsrc)?;
-        if let Ok(hdr) = asset_bundle_format::parse_asset_bundle_header(&bytes)
-        {
-            v86_asset_pack_uuid = Some(hdr.bundle_uuid.to_string());
-            v86_asset_pack_sha256 = Some(
-                asset_bundle_format::format_sha256_hex(&hdr.content_sha256),
-            );
-        }
+    if let Some(hdr) = read_existing_asset_bundle_header(&dest_rsrc)? {
+        v86_asset_pack_uuid = Some(hdr.bundle_uuid.to_string());
+        v86_asset_pack_sha256 = Some(
+            asset_bundle_format::format_sha256_hex(&hdr.content_sha256),
+        );
     }
 
     let (asset_pack_uuid, asset_pack_sha256) = write_resource_bundle(
@@ -1237,6 +1233,25 @@ mod tests {
         let (uuid2, sha2) = write_resource_bundle(&stage_dir, &bundle_path)?;
         assert_eq!(uuid1, uuid2);
         assert_eq!(sha1, sha2);
+
+        File::options()
+            .write(true)
+            .open(&bundle_path)?
+            .set_len(17_179_869_184)?;
+        let large_header = read_existing_asset_bundle_header(&bundle_path)?
+            .context("large bundle header should exist")?;
+        assert_eq!(large_header.bundle_uuid, header.bundle_uuid);
+        assert_eq!(large_header.content_sha256, header.content_sha256);
+
+        let invalid_bundle = temp_dir.join("invalid.rsrc");
+        assert!(read_existing_asset_bundle_header(&invalid_bundle)?.is_none());
+        fs::write(&invalid_bundle, b"short")?;
+        assert!(read_existing_asset_bundle_header(&invalid_bundle)?.is_none());
+        fs::write(
+            &invalid_bundle,
+            vec![0_u8; asset_bundle_format::RESOURCE_BUNDLE_HEADER_SIZE],
+        )?;
+        assert!(read_existing_asset_bundle_header(&invalid_bundle)?.is_none());
 
         // Clean up
         let _ = fs::remove_dir_all(&temp_dir);

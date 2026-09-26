@@ -57,7 +57,7 @@ impl KStruct for VlqBase128Le {
     type Root = VlqBase128Le;
     type Parent = VlqBase128Le;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -173,7 +173,7 @@ impl KStruct for VlqBase128Le_Group {
     type Root = VlqBase128Le;
     type Parent = VlqBase128Le;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

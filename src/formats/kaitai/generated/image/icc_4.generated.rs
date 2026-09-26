@@ -18,7 +18,7 @@ impl KStruct for Icc4 {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -73,7 +73,7 @@ impl KStruct for Icc4_DateTimeNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -150,7 +150,7 @@ impl KStruct for Icc4_DeviceAttributes {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -350,7 +350,7 @@ impl KStruct for Icc4_DeviceManufacturer {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1208,7 +1208,7 @@ impl KStruct for Icc4_PositionNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1277,7 +1277,7 @@ impl KStruct for Icc4_ProfileHeader {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1787,7 +1787,7 @@ impl KStruct for Icc4_ProfileHeader_ProfileFlags {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1844,7 +1844,7 @@ impl KStruct for Icc4_ProfileHeader_VersionField {
     type Root = Icc4;
     type Parent = Icc4_ProfileHeader;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1913,7 +1913,7 @@ impl KStruct for Icc4_Response16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -1972,7 +1972,7 @@ impl KStruct for Icc4_S15Fixed16Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2019,7 +2019,7 @@ impl KStruct for Icc4_StandardIlluminantEncoding {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2115,7 +2115,7 @@ impl KStruct for Icc4_TagTable {
     type Root = Icc4;
     type Parent = Icc4;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -2926,7 +2926,7 @@ impl KStruct for Icc4_TagTable_TagDefinition {
     type Root = Icc4;
     type Parent = Icc4_TagTable;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3729,7 +3729,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3840,7 +3840,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -3951,7 +3951,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_AToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4062,7 +4062,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4173,7 +4173,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4284,7 +4284,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToA2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4365,7 +4365,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4438,7 +4438,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4511,7 +4511,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4584,7 +4584,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BToD3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4657,7 +4657,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4745,7 +4745,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_BlueTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4822,7 +4822,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CalibrationDateTimeTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4895,7 +4895,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CharTargetTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -4968,7 +4968,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticAdaptationTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5041,7 +5041,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5098,7 +5098,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5208,7 +5208,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ChromaticityType_CiexyCoordinateVal
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticityType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5275,7 +5275,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5331,7 +5331,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantOrderType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantOrderTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5411,7 +5411,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableOutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5484,7 +5484,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5540,7 +5540,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5605,7 +5605,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorantTableType_Colorant {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ColorantTableType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5690,7 +5690,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ColorimetricIntentImageStateTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5763,7 +5763,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CopyrightTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5820,7 +5820,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_CurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5910,7 +5910,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -5983,7 +5983,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6056,7 +6056,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6129,7 +6129,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DToB3Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6183,7 +6183,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DataType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6258,7 +6258,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DateTimeType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CalibrationDateTimeTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6329,7 +6329,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceMfgDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6402,7 +6402,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_DeviceModelDescTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6505,7 +6505,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6601,7 +6601,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GrayTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6678,7 +6678,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6766,7 +6766,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_GreenTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6843,7 +6843,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LuminanceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -6910,7 +6910,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut16Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7050,7 +7050,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Lut8Type {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7186,7 +7186,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutAToBType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7297,7 +7297,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_LutBToAType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7418,7 +7418,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7477,7 +7477,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MeasurementType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MeasurementTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7675,7 +7675,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MediaWhitePointTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7732,7 +7732,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7805,7 +7805,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType_Record {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_MultiLocalizedUnicodeType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7885,7 +7885,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_MultiProcessElementsType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -7984,7 +7984,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8046,7 +8046,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Tag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8162,7 +8162,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_NamedColor2Type_NamedColourDefiniti
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_NamedColor2Type;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8259,7 +8259,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_OutputResponseTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8394,7 +8394,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8525,7 +8525,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsCie122199
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8583,7 +8583,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619662
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8652,7 +8652,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsIec619663
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8718,7 +8718,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsOb
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8796,7 +8796,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ParametricCurveType_ParamsYEqualsXT
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ParametricCurveType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8857,7 +8857,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_PerceptualRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -8975,7 +8975,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview0Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9090,7 +9090,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview1Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9201,7 +9201,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_Preview2Tag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9282,7 +9282,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileDescriptionTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9338,7 +9338,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9406,7 +9406,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceDescType_ProfileDesc
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceDescType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9507,7 +9507,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9564,7 +9564,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9639,7 +9639,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType_Profi
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ProfileSequenceIdentifierType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9712,7 +9712,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ProfileSequenceTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9785,7 +9785,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedMatrixColumnTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9873,7 +9873,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_RedTrcTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -9935,7 +9935,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ResponseCurveSet16Type {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_OutputResponseTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10009,7 +10009,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_S15Fixed16ArrayType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ChromaticAdaptationTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10087,7 +10087,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SaturationRenderingIntentGamutTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10143,7 +10143,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_SignatureType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10218,7 +10218,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TechnologyTag {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10273,7 +10273,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_TextType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_CharTargetTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10325,7 +10325,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_U16Fixed16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10385,7 +10385,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt16ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10444,7 +10444,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt32ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10503,7 +10503,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt64ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10562,7 +10562,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_UInt8ArrayType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10639,7 +10639,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingCondDescTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10712,7 +10712,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsTag {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10769,7 +10769,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_ViewingConditionsType {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_ViewingConditionsTag;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10836,7 +10836,7 @@ impl KStruct for Icc4_TagTable_TagDefinition_XyzType {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10896,7 +10896,7 @@ impl KStruct for Icc4_U16Fixed16Number {
     type Root = Icc4;
     type Parent = Icc4_TagTable_TagDefinition_U16Fixed16ArrayType;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10944,7 +10944,7 @@ impl KStruct for Icc4_U1Fixed15Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -10992,7 +10992,7 @@ impl KStruct for Icc4_U8Fixed8Number {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -11044,7 +11044,7 @@ impl KStruct for Icc4_XyzNumber {
     type Root = Icc4;
     type Parent = KStructUnit;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

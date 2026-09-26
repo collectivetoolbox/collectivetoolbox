@@ -569,7 +569,7 @@ fn emit_kstruct_impl(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) 
     w.puts(&format!("type Parent = {parent_class_name};"));
     w.newline();
 
-    w.puts("#[allow(clippy::unnecessary_fallible_conversions, reason = \"Generic validation value conversion\")]");
+    w.puts("#[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = \"Generic validation value conversion\")]");
     w.puts("fn read<S: KStream>(");
     w.inc();
     w.puts("self_rc: &OptRc<Self>,");

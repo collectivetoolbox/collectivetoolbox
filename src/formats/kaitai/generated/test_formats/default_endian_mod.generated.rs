@@ -68,7 +68,7 @@ impl KStruct for DefaultEndianMod {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -113,7 +113,7 @@ impl KStruct for DefaultEndianMod_MainObj {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -169,7 +169,7 @@ impl KStruct for DefaultEndianMod_MainObj_Subnest {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod_MainObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -211,7 +211,7 @@ impl KStruct for DefaultEndianMod_MainObj_SubnestBe {
     type Root = DefaultEndianMod;
     type Parent = DefaultEndianMod_MainObj;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

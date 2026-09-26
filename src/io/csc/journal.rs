@@ -1840,6 +1840,8 @@ mod tests {
         fs::write(&file1, b"hello file 1").unwrap();
         fs::write(&file2, b"hello file 2").unwrap();
 
+        let scope = ctb_io_environment::EnvironmentScope::enter_fresh();
+
         // 1. FileEntity::from_filesystem automatically populates environment metadata
         let mut entity1 = ctb_io::file::FileEntity::from_filesystem(&file1, None).unwrap();
         assert!(entity1.metadata.environment.is_some());
@@ -1854,7 +1856,7 @@ mod tests {
         assert!(stream.entity.metadata.environment.is_some());
         entity1.streams.push(stream);
 
-        // 3. Unscoped calls within the same operation epoch share the exact same Arc (pointer equality)
+        // 3. Calls within the same operation scope share the exact same Arc (pointer equality)
         let entity2 = ctb_io::file::FileEntity::from_filesystem(&file2, None).unwrap();
         let env1 = entity1.metadata.environment.as_ref().unwrap();
         let env2 = entity2.metadata.environment.as_ref().unwrap();
@@ -1871,6 +1873,7 @@ mod tests {
             entity1.streams[0].entity.metadata.environment.as_ref().unwrap(),
             &custom_env
         ));
+        drop(scope);
 
         // 5. Simulate two separate operations within a single process (e.g. successive csc runs):
         // Each operation enters its own GlobalEnvironmentScope, getting a distinct Arc snapshot.

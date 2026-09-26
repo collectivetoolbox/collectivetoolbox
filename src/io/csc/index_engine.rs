@@ -653,6 +653,7 @@ pub(crate) async fn ingest_journal_snapshot(
         conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
 
         for entity in chunk {
+            // Reason for fallback: absent relative path defaults to empty string in search database index
             let path_str = entity
                 .identity
                 .relative_path
@@ -698,10 +699,15 @@ pub(crate) async fn ingest_journal_snapshot(
                 _ => (0_i64, None, None),
             };
 
+            // Reason for fallback: absent metadata timestamps default to 0 epoch seconds
             let mtime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.mtime_sec);
+            // Reason for fallback: absent metadata timestamps default to 0 nanoseconds
             let mtime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.mtime_nsec));
+            // Reason for fallback: absent metadata timestamps default to 0 epoch seconds
             let ctime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.ctime_sec);
+            // Reason for fallback: absent metadata timestamps default to 0 nanoseconds
             let ctime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.ctime_nsec));
+            // Reason for fallback: absent mode defaults to 0 permissions in search index
             let mode = entity.metadata.mode.map_or(0, i64::from);
             // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
             let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);

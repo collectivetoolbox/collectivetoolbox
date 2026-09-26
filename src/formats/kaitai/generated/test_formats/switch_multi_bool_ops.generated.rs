@@ -68,7 +68,7 @@ impl KStruct for SwitchMultiBoolOps {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,
@@ -218,7 +218,7 @@ impl KStruct for SwitchMultiBoolOps_Opcode {
     type Root = SwitchMultiBoolOps;
     type Parent = SwitchMultiBoolOps;
 
-    #[allow(clippy::unnecessary_fallible_conversions, reason = "Generic validation value conversion")]
+    #[allow(clippy::unnecessary_fallible_conversions, clippy::absurd_extreme_comparisons, reason = "Generic validation value conversion")]
     fn read<S: KStream>(
         self_rc: &OptRc<Self>,
         io: &S,

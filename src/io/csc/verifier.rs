@@ -1290,6 +1290,10 @@ mod tests {
 
         // Overwrite destination file with non-sparse zero bytes
         let dest_file_path = dest.join("sparse.bin");
+        let orig_meta = fs::metadata(&dest_file_path).expect("read dest metadata before overwrite");
+        let orig_atime = filetime::FileTime::from_last_access_time(&orig_meta);
+        let orig_mtime = filetime::FileTime::from_last_modification_time(&orig_meta);
+
         let mut df = fs::File::create(&dest_file_path).expect("recreate dest non-sparse");
         df.write_all(b"Header").expect("write header");
         let zeroes_len = 1024_usize.saturating_mul(1024).saturating_sub(6);
@@ -1298,6 +1302,7 @@ mod tests {
         df.write_all(b"Tail").expect("write tail");
         df.sync_data().expect("sync non-sparse dest");
         drop(df);
+        filetime::set_file_times(&dest_file_path, orig_atime, orig_mtime).expect("restore file times");
 
         let meta = fs::metadata(&dest).expect("read dest metadata");
         let dev_id = extract_device_id(&meta).expect("dev id");
