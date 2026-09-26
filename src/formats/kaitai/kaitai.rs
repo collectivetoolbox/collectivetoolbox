@@ -223,7 +223,7 @@ mod tests {
             }
         }
 
-        ensure!(total_files > 0, "No format files found in {formats_dir:?}");
+        ensure!(total_files == 339, "Expected exactly 339 format files, found {}", total_files);
         ensure!(
             parse_failures.is_empty(),
             "Expected all formats to parse cleanly, but {} failed:\n{}",
@@ -279,12 +279,22 @@ mod tests {
         }
 
         unexpected_successes.sort();
-        println!(
-            "Negative validation: {}/{} detected errors. Unexpected successes ({}): {:?}",
-            errors_detected, total_files, unexpected_successes.len(), unexpected_successes
+        ensure!(
+            unexpected_successes.is_empty(),
+            "Expected all invalid formats to fail validation, but {} succeeded:\n{}",
+            unexpected_successes.len(),
+            unexpected_successes.join("\n")
         );
-        ensure!(total_files > 150, "Expected at least 150 error files, found {}", total_files);
-        ensure!(errors_detected > 0, "No errors were caught across invalid formats");
+        ensure!(
+            total_files == 156,
+            "Expected exactly 156 format files in formats_err, found {}",
+            total_files
+        );
+        ensure!(
+            errors_detected == 154,
+            "Expected exactly 154 detected errors in formats_err, found {}",
+            errors_detected
+        );
         Ok(())
     }
 
@@ -335,7 +345,7 @@ mod tests {
             }
         }
 
-        ensure!(total > 0, "No format files found in {formats_dir:?}");
+        ensure!(total == 339, "Expected exactly 339 format files in formats, found {}", total);
         ensure!(
             compile_failures.is_empty(),
             "Expected all formats to compile successfully, but {} failed:\n{}",

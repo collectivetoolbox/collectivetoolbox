@@ -1313,6 +1313,10 @@ fn extract_ipc_methods(rs_files: &[PathBuf]) -> Result<Vec<ExtractedMethod>> {
         let src = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
 
+        if !src.contains("ipc_method") {
+            continue;
+        }
+
         let file = syn::parse_file(&src)
             .with_context(|| format!("Failed to parse {}", path.display()))?;
 
@@ -1333,6 +1337,10 @@ fn extract_ipc_dtos(rs_files: &[PathBuf]) -> Result<Vec<ExtractedDtoFileItem>> {
     for path in rs_files {
         let src = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
+
+        if !src.contains("ipc_dto") {
+            continue;
+        }
 
         let file = syn::parse_file(&src)
             .with_context(|| format!("Failed to parse {}", path.display()))?;

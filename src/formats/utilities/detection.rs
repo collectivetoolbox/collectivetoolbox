@@ -623,8 +623,17 @@ pub fn guess_format_report(
             for existing in &mut candidates {
                 let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
                 let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
-                if matches_fmt || matches_desc {
+                    && (existing.description.eq_ignore_ascii_case(&cand.description)
+                        || existing
+                            .description
+                            .to_ascii_lowercase()
+                            .contains(&cand.description.to_ascii_lowercase())
+                        || cand
+                            .description
+                            .to_ascii_lowercase()
+                            .contains(&existing.description.to_ascii_lowercase()));
+                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
+                if matches_fmt || matches_desc || matches_mime {
                     if existing.format_id.is_none() && cand.format_id.is_some() {
                         existing.format_id = cand.format_id;
                     }
@@ -653,8 +662,17 @@ pub fn guess_format_report(
             for existing in &mut candidates {
                 let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
                 let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
-                if matches_fmt || matches_desc {
+                    && (existing.description.eq_ignore_ascii_case(&cand.description)
+                        || existing
+                            .description
+                            .to_ascii_lowercase()
+                            .contains(&cand.description.to_ascii_lowercase())
+                        || cand
+                            .description
+                            .to_ascii_lowercase()
+                            .contains(&existing.description.to_ascii_lowercase()));
+                let matches_mime = cand.mime.is_some() && existing.mime == cand.mime;
+                if matches_fmt || matches_desc || matches_mime {
                     if existing.format_id.is_none() && cand.format_id.is_some() {
                         existing.format_id = cand.format_id;
                     }

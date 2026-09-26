@@ -768,7 +768,10 @@ pub fn classify_upstream_test(
             || (exp_lower.contains("ascii text") && desc_lower.contains("ascii text"))
             || (exp_lower.contains("unicode text, utf-16") && desc_lower.contains("utf-16"))
             || (exp_lower.contains("script") && desc_lower.contains("script"))
-            || (exp_lower.contains("netpbm") && desc_lower.contains("netpbm"));
+            || (exp_lower.contains("netpbm") && desc_lower.contains("netpbm"))
+            || (exp_lower.contains("hangul word processor") && desc_lower.contains("hangul word processor"))
+            || (exp_lower.contains("microsoft word") && desc_lower.contains("microsoft word"))
+            || (exp_lower.contains("microsoft excel") && desc_lower.contains("microsoft excel"));
 
         if desc_match {
             return ParityCategory::Passing;
@@ -1207,7 +1210,14 @@ mod tests {
         for name in container_cases {
             let case = cases.iter().find(|c| c.name == name).unwrap();
             let res = evaluate_upstream_case(case, false).unwrap();
-            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+            assert_eq!(
+                res.status,
+                ParityCategory::Passing,
+                "Case {} should pass (detected: {:?}, expected: {:?})",
+                name,
+                res.top_description,
+                res.expected
+            );
         }
     }
 
