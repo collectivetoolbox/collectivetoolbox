@@ -757,7 +757,7 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
 pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {
     let mut matches = Vec::new();
     for entry in EXTENSION_REGISTRY {
-        if entry.rule.matches(ext) && !matches.contains(&entry.format_id) {
+        if entry.rule.matches_extension(ext) && !matches.contains(&entry.format_id) {
             matches.push(entry.format_id);
         }
     }

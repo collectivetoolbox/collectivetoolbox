@@ -153,7 +153,11 @@ impl TryFrom<&str> for CompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let clean = s.trim().trim_start_matches('.');
+        let trimmed = s.trim();
+        if trimmed.contains('/') || trimmed.contains('\\') {
+            bail!("Unknown compression format: '{s}'");
+        }
+        let clean = trimmed.trim_start_matches('.');
         if let Some(format_id) = FormatId::from_ident(clean) {
             if let Some(fmt) = Self::from_format_id(format_id) {
                 return Ok(fmt);

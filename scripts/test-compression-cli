@@ -179,14 +179,14 @@ $CARGO_CMD decompress old-pack "$TMP_DIR/sample.txt.old.z" -o "$TMP_DIR/old_pack
 cmp "$TEST_FILE" "$TMP_DIR/old_pack_decompressed.txt" || exit 1
 
 # Test CompressLzw (compress 3.0+ / 4.0 / ncompress) format
-echo "Testing compress4 (CompressLzw block mode) format..."
-$CARGO_CMD compress compress4 "$TEST_FILE" -o "$TMP_DIR/sample.txt.Z" --force
+echo "Testing compress (CompressLzw block mode) format..."
+$CARGO_CMD compress compress "$TEST_FILE" -o "$TMP_DIR/sample.txt.Z" --force
 MAGIC=$(od -An -t x1 "$TMP_DIR/sample.txt.Z" | tr -d ' \n' | cut -c 1-4)
 if [ "$MAGIC" != "1f9d" ]; then
     echo "Error: Magic header expected 1f9d, got $MAGIC"
     exit 1
 fi
-echo "Verifying compress4 magic header 1f9d... OK"
+echo "Verifying compress magic header 1f9d... OK"
 
 $CARGO_CMD decompress "$TMP_DIR/sample.txt.Z" -o "$TMP_DIR/lzw_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/lzw_decompressed.txt" || exit 1
@@ -194,7 +194,7 @@ cmp "$TEST_FILE" "$TMP_DIR/lzw_decompressed.txt" || exit 1
 if command -v gzip >/dev/null 2>&1; then
     gzip -d -c "$TMP_DIR/sample.txt.Z" > "$TMP_DIR/lzw_gzip_out.txt"
     cmp "$TEST_FILE" "$TMP_DIR/lzw_gzip_out.txt" || exit 1
-    echo "Verifying GNU gzip decompression of compress4 format... OK"
+    echo "Verifying GNU gzip decompression of compress format... OK"
 fi
 
 # Test CompressLzw2 (compress 2.0 non-block) format

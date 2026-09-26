@@ -504,6 +504,17 @@ impl ExtensionRule {
         }
     }
 
+    /// Checks if a raw extension string (e.g. "gz" or ".gz") matches this rule.
+    pub fn matches_extension(&self, candidate_ext: &str) -> bool {
+        let clean = candidate_ext.trim().trim_start_matches('.');
+        match self.case_sensitivity {
+            CaseSensitivity::Sensitive => clean == self.extension,
+            CaseSensitivity::Insensitive => {
+                clean.eq_ignore_ascii_case(self.extension)
+            }
+        }
+    }
+
     /// Checks if a given filename or extension matches this rule.
     pub fn matches(&self, candidate: &str) -> bool {
         // Reason for fallback: rsplit yields at least one component, so fallback candidate handles empty rsplit iterator.
@@ -511,9 +522,14 @@ impl ExtensionRule {
         if self.extension.contains('.') {
             let dot_ext = format!(".{}", self.extension);
             return match self.case_sensitivity {
-                CaseSensitivity::Sensitive => cand.ends_with(&dot_ext),
+                CaseSensitivity::Sensitive => {
+                    cand == self.extension || cand.ends_with(&dot_ext)
+                }
                 CaseSensitivity::Insensitive => {
-                    cand.to_ascii_lowercase().ends_with(&dot_ext.to_ascii_lowercase())
+                    cand.eq_ignore_ascii_case(self.extension)
+                        || cand
+                            .to_ascii_lowercase()
+                            .ends_with(&dot_ext.to_ascii_lowercase())
                 }
             };
         }

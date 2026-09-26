@@ -155,9 +155,11 @@ where
                 crate::CompressionFormat::try_from(fmt_str.as_str())
             {
                 (args.input_path.clone(), Some(parsed_fmt))
-            } else {
+            } else if args.input_path.as_path() == Path::new("-") {
                 let in_path = PathBuf::from(fmt_str);
                 (in_path, None)
+            } else {
+                return Err(anyhow!("Unknown compression format: '{fmt_str}'"));
             }
         }
         None => (args.input_path.clone(), None),
@@ -444,6 +446,53 @@ mod tests {
                     crate::CompressionFormat::Gzip,
                 )
                 .unwrap();
+                assert_eq!(decompressed, sample_data);
+            }
+            _ => panic!("Expected Stdout output"),
+        }
+    }
+
+    #[ctb_test]
+    fn test_cli_decompress_execution() {
+        let sample_data =
+            b"Hello, world! Decompression CLI test data.".to_vec();
+        let compressed_gzip =
+            crate::compress(&sample_data, crate::CompressionFormat::Gzip)
+                .unwrap();
+
+        let compressed_for_read = compressed_gzip.clone();
+        let read_mock = move |_path: &Path| Ok(compressed_for_read.clone());
+        let overwrite_mock = |_path: &Path, _force: bool| Ok(true);
+
+        // Decompress with single positional file path (inferred format)
+        let args = CliDecompressArgs {
+            format: Some("sample.txt.gz".to_string()),
+            input_path: PathBuf::from("-"),
+            output_path: Some(PathBuf::from("-")),
+            force: true,
+        };
+        let out =
+            execute_cli_decompress(args, read_mock.clone(), overwrite_mock)
+                .unwrap();
+        match out {
+            CliCompressionOutput::Stdout(decompressed) => {
+                assert_eq!(decompressed, sample_data);
+            }
+            _ => panic!("Expected Stdout output"),
+        }
+
+        // Decompress with explicit format and input path
+        let args = CliDecompressArgs {
+            format: Some("gzip".to_string()),
+            input_path: PathBuf::from("sample.txt.gz"),
+            output_path: Some(PathBuf::from("-")),
+            force: true,
+        };
+        let out =
+            execute_cli_decompress(args, read_mock, overwrite_mock)
+                .unwrap();
+        match out {
+            CliCompressionOutput::Stdout(decompressed) => {
                 assert_eq!(decompressed, sample_data);
             }
             _ => panic!("Expected Stdout output"),

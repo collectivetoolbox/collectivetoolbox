@@ -153,7 +153,7 @@ fn is_detection_file(file_path: &Path) -> bool {
     let normalized = file_path.to_string_lossy().replace('\\', "/");
     let trimmed = normalized.strip_prefix("./").unwrap_or(&normalized);
     let relative = if let Some(pos) = trimmed.rfind("src/formats/") {
-        &trimmed[pos..]
+        trimmed.get(pos..).unwrap_or(trimmed)
     } else {
         trimmed
     };
