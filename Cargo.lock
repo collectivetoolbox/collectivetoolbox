@@ -2621,6 +2621,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "cargo_metadata 0.23.1",
+ "constcat",
  "ctb-utilities",
  "serde",
  "vergen-gix",
@@ -2653,6 +2654,7 @@ name = "ctb-cli"
 version = "0.0.0"
 dependencies = [
  "clap",
+ "ctb-build-info",
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-ctb-asset-bundle",
@@ -3431,6 +3433,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-io-environment",
  "ctb-io-file",
+ "ctb-io-system",
  "ctb-io-webui",
  "ctb-utilities",
  "filetime",
@@ -3519,6 +3522,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-io-system"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
 name = "ctb-io-webui"
 version = "0.0.0"
 dependencies = [
@@ -3549,6 +3559,7 @@ dependencies = [
  "ctb-formats-useragent",
  "ctb-installer",
  "ctb-io-environment",
+ "ctb-io-system",
  "ctb-storage",
  "ctb-utilities",
  "flate2",
@@ -3958,6 +3969,7 @@ dependencies = [
  "ctb-io-csc",
  "ctb-io-environment",
  "ctb-io-file",
+ "ctb-io-system",
  "ctb-io-webui",
  "ctb-ipc-macro",
  "ctb-network",

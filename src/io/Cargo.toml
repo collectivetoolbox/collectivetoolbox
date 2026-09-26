@@ -10,6 +10,7 @@ crate-type = ["lib"]
 ctb-utilities = { path = "../utilities" }
 ctb-io-file = { path = "./file" }
 ctb-io-environment = { path = "./environment" }
+ctb-io-system = { path = "./system" }
 ctb-io-webui = { path = "./webui" }
 ctb-formats-checksum = { path = "../formats/checksum" }
 filetime = "0.2"

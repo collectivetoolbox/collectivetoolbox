@@ -1,0 +1,13 @@
+[package]
+name = "ctb-io-system"
+edition = "2024"
+
+[lib]
+path = "system.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+
+[lints]
+workspace = true

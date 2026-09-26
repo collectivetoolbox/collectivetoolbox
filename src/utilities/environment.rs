@@ -85,35 +85,9 @@ pub fn ctb_version() -> &'static str {
     option_env!("CTB_VERSION").unwrap_or("0.0.0")
 }
 
-pub fn ctb_build_id() -> &'static str {
-    // Reason for fallback: builds without explicit CTB_BUILD_ID env var default to dev
-    option_env!("CTB_BUILD_ID").unwrap_or("dev")
-}
-
-pub fn ctb_version_display() -> &'static str {
-    // Reason for fallback: static formatted version string with build ID for --version
-    const VERSION: &str = match option_env!("CTB_VERSION") {
-        Some(v) => v,
-        None => "0.0.0",
-    };
-    const BUILD_ID: &str = match option_env!("CTB_BUILD_ID") {
-        Some(id) => id,
-        None => "dev",
-    };
-    const VERSION_DISPLAY: &str = constcat::concat!(VERSION, " (build ", BUILD_ID, ")");
-    VERSION_DISPLAY
-}
-
 pub fn ctb_version_semver() -> semver::Version {
     // Reason for fallback: unparseable version string falls back to 0.0.0 semver
     semver::Version::parse(ctb_version()).unwrap_or_else(|_| semver::Version::new(0, 0, 0))
-}
-
-/// Can the environment restart the host computer?
-///
-/// Always returns false on web and unprivileged platforms.
-pub fn can_restart_pc() -> bool {
-    false
 }
 
 pub fn is_debug_build() -> bool {
