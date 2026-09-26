@@ -1214,7 +1214,7 @@ pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
                 entry.get(64).copied().unwrap_or(0),
                 entry.get(65).copied().unwrap_or(0),
             ]);
-            let name_bytes_len = usize::try_from(name_len).unwrap_or(0).min(64);
+            let name_bytes_len = usize::from(name_len).min(64);
             if name_bytes_len >= 2 {
                 let name_words: Vec<u16> = entry
                     .get(..name_bytes_len.saturating_sub(2))
@@ -1501,22 +1501,23 @@ pub fn probe_decompression<S: DetectionSource + ?Sized>(
             let mut decompressed = vec![0u8; 2048];
             if let Ok(d_len) = decoder.read(&mut decompressed) {
                 if d_len >= 512 {
-                    let mut slice = &decompressed[..d_len];
-                    if let Ok(Some(inner_tar)) = inspect_tar(&mut slice) {
-                        return Ok(Some(DetectionCandidate {
-                            format_id: Some(FormatId::TarGz),
-                            dc_id: None,
-                            mime: Some("application/x-tar".to_string()),
-                            description: "POSIX tar archive (gzip compressed)".to_string(),
-                            confidence: ConfidenceTier::HighestConfidence,
-                            score: 95,
-                            evidence: vec![
-                                DetectionEvidence::ContainerStructure {
-                                    detail: "Decompressed inner TAR header validated".to_string(),
-                                    score: 95,
-                                },
-                            ],
-                        }));
+                    if let Some(mut slice) = decompressed.get(..d_len) {
+                        if let Ok(Some(inner_tar)) = inspect_tar(&mut slice) {
+                            return Ok(Some(DetectionCandidate {
+                                format_id: Some(FormatId::TarGz),
+                                dc_id: None,
+                                mime: Some("application/x-tar".to_string()),
+                                description: "POSIX tar archive (gzip compressed)".to_string(),
+                                confidence: ConfidenceTier::HighestConfidence,
+                                score: 95,
+                                evidence: vec![
+                                    DetectionEvidence::ContainerStructure {
+                                        detail: "Decompressed inner TAR header validated".to_string(),
+                                        score: 95,
+                                    },
+                                ],
+                            }));
+                        }
                     }
                 }
             }

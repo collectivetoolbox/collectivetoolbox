@@ -3325,9 +3325,11 @@ dependencies = [
 name = "ctb-formats-utilities"
 version = "0.0.0"
 dependencies = [
+ "chrono",
  "ctb-formats-dcdata",
  "ctb-utilities",
  "flate2",
+ "regex",
  "serde",
 ]
 

@@ -94,22 +94,22 @@
     - [x] Integrate text detection pass in `guess_format_report` as fallback when binary magic does not match, eliminating false `TrueNegative` results on plain text files.
     - [x] Output character set encoding and line ending style in candidate evidence (`DetectionEvidence::Encoding`, `DetectionEvidence::TextProperties`).
 
-- [ ] **Sub-Phase 5C: Hierarchical Magic Engine Feature Parity & Magdir Compilation (`magic_parser.rs` & `magic.rs`):**
-  - [ ] Relative offset support: parse and evaluate relative offsets (`&<offset>`) relative to the end of the previous match level.
-  - [ ] Indirect offset pointer dereferencing: parse and evaluate `(<offset>.<type>+<adjustment>)` (e.g., `(0x3c.l)` for MS-DOS PE headers, `(&4.s)` relative indirect pointers).
-  - [ ] Comprehensive data type parity:
-    - [ ] Fix 64-bit quad integers (`quad`, `lequad`, `bequad`, `ulequad`, `ubequad`) in `MagicTest` (distinguish from 32-bit `long`).
-    - [ ] Date types (`date`, `ldate`, `qdate`, `medate`, `bedate`, `ledate`).
-    - [ ] Regex patterns (`regex` with flags `/c`, `/s`, `/l`).
-    - [ ] Pascal strings (`pstring` with length variants `/B`, `/H`, `/h`, `/L`, `/l`, `/J`).
-    - [ ] String matching flags (`/c` case-insensitive, `/b` blank-insensitive, `/t` trim whitespace, `/W` compact whitespace).
-  - [ ] Formatted description strings:
-    - [ ] Parse printf-style format specifiers (`%s`, `%d`, `%u`, `%x`, etc.) in rule descriptions and format extracted values dynamically.
-    - [ ] Handle backspace `\b` space-suppression and punctuation formatting in child rules.
-  - [ ] Macro subroutines: parse and execute named rule templates (`name` declaration and `use` invocation).
-  - [ ] Ingestion & compilation pipeline for full upstream `Magdir/` database:
-    - [ ] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
-    - [ ] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
+- [x] **Sub-Phase 5C: Hierarchical Magic Engine Feature Parity & Magdir Compilation (`magic_parser.rs` & `magic.rs`):**
+  - [x] Relative offset support: parse and evaluate relative offsets (`&<offset>`) relative to the end of the previous match level.
+  - [x] Indirect offset pointer dereferencing: parse and evaluate `(<offset>.<type>+<adjustment>)` (e.g., `(0x3c.l)` for MS-DOS PE headers, `(&4.s)` relative indirect pointers).
+  - [x] Comprehensive data type parity:
+    - [x] Fix 64-bit quad integers (`quad`, `lequad`, `bequad`, `ulequad`, `ubequad`) in `MagicTest` (distinguish from 32-bit `long`).
+    - [x] Date types (`date`, `ldate`, `qdate`, `medate`, `bedate`, `ledate`).
+    - [x] Regex patterns (`regex` with flags `/c`, `/s`, `/l`).
+    - [x] Pascal strings (`pstring` with length variants `/B`, `/H`, `/h`, `/L`, `/l`, `/J`).
+    - [x] String matching flags (`/c` case-insensitive, `/b` blank-insensitive, `/t` trim whitespace, `/W` compact whitespace).
+  - [x] Formatted description strings:
+    - [x] Parse printf-style format specifiers (`%s`, `%d`, `%u`, `%x`, etc.) in rule descriptions and format extracted values dynamically.
+    - [x] Handle backspace `\b` space-suppression and punctuation formatting in child rules.
+  - [x] Macro subroutines: parse and execute named rule templates (`name` declaration and `use` invocation).
+  - [x] Ingestion & compilation pipeline for full upstream `Magdir/` database:
+    - [x] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
+    - [x] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
 
 - [x] **Sub-Phase 5D: Specialized Deep Parsers & Container Inspection (`detection/container.rs`):**
   - [x] TAR archive verification: validate octal checksums across the 512-byte header block (V7, ustar, GNU, pax) without full extraction (`is_tar.c`).

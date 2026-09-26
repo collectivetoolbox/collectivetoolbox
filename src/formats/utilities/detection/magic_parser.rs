@@ -459,11 +459,50 @@ pub enum Offset {
     Bof(u64),
     /// End-of-file negative offset (bytes backwards from end).
     Eof(u64),
+    /// Relative offset relative to the end of the previous match level (`&<offset>`).
+    Relative(i64),
+    /// Indirect offset pointer dereference: `(<offset>.<type>+<adjustment>)`.
+    Indirect {
+        base: Box<Offset>,
+        ind_type: IndirectType,
+        adjustment: i64,
+    },
     /// Search within window starting at given offset.
     Search {
         start: u64,
         max_bytes: usize,
     },
+}
+
+/// Data type dereferenced by an indirect offset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IndirectType {
+    Byte,
+    ShortLe,
+    ShortBe,
+    LongLe,
+    LongBe,
+    QuadLe,
+    QuadBe,
+}
+
+/// String matching modifiers for `string` and `search` tests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct StringFlags {
+    pub case_insensitive: bool,
+    pub blank_insensitive: bool,
+    pub trim: bool,
+    pub compact_whitespace: bool,
+}
+
+/// Pascal string length prefix specification.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PascalLengthSize {
+    Byte,
+    ShortLe,
+    ShortBe,
+    LongLe,
+    LongBe,
 }
 
 /// Relational comparison operator for tests.
@@ -484,6 +523,20 @@ pub enum MagicTest {
     MaskedBytes {
         bytes: Vec<u8>,
         mask: Vec<u8>,
+    },
+    String {
+        pattern: Vec<u8>,
+        flags: StringFlags,
+    },
+    PascalString {
+        pattern: Vec<u8>,
+        length_size: PascalLengthSize,
+        length_includes_itself: bool,
+    },
+    Regex {
+        pattern: String,
+        case_insensitive: bool,
+        max_bytes: usize,
     },
     U8 {
         value: u8,
@@ -520,10 +573,29 @@ pub enum MagicTest {
         op: RelOp,
         mask: Option<u64>,
     },
+    Date32Le {
+        value: u32,
+        op: RelOp,
+    },
+    Date32Be {
+        value: u32,
+        op: RelOp,
+    },
+    Date64Le {
+        value: u64,
+        op: RelOp,
+    },
+    Date64Be {
+        value: u64,
+        op: RelOp,
+    },
     Search {
         pattern: Vec<u8>,
         max_bytes: usize,
+        flags: StringFlags,
     },
+    Use(String),
+    Name(String),
 }
 
 /// A parsed hierarchical libmagic rule with optional child rules.
@@ -686,6 +758,149 @@ fn parse_magic_int(val: &str) -> Option<u64> {
     }
 }
 
+/// Parses a signed integer string with optional `+` or `-` prefix.
+fn parse_signed_magic_int(val: &str) -> Option<i64> {
+    let trimmed = val.trim();
+    if let Some(stripped) = trimmed.strip_prefix('-') {
+        let u = parse_magic_int(stripped)?;
+        let i = i64::try_from(u).ok()?;
+        (0i64).checked_sub(i)
+    } else if let Some(stripped) = trimmed.strip_prefix('+') {
+        let u = parse_magic_int(stripped)?;
+        i64::try_from(u).ok()
+    } else {
+        let u = parse_magic_int(trimmed)?;
+        i64::try_from(u).ok()
+    }
+}
+
+/// Parses an indirect offset specification: `(<offset>.<type>+<adjustment>)`.
+fn parse_indirect_offset(raw: &str) -> Option<Offset> {
+    let inner = raw.strip_prefix('(')?.strip_suffix(')')?.trim();
+    let (before_adj, adjustment) = if let Some(idx) = inner.rfind('+') {
+        if idx > 0 {
+            let adj = parse_signed_magic_int(inner.get(idx..)?)?;
+            (inner.get(..idx)?, adj)
+        } else {
+            (inner, 0)
+        }
+    } else if let Some(idx) = inner.rfind('-') {
+        if idx > 0 && !inner.ends_with('-') {
+            let adj = parse_signed_magic_int(inner.get(idx..)?)?;
+            (inner.get(..idx)?, adj)
+        } else {
+            (inner, 0)
+        }
+    } else {
+        (inner, 0)
+    };
+
+    let (base_part, ind_type) = if let Some((base_str, type_str)) = before_adj.split_once('.') {
+        let t = match type_str.trim() {
+            "b" | "B" | "c" | "C" => IndirectType::Byte,
+            "s" | "h" => IndirectType::ShortLe,
+            "S" | "H" => IndirectType::ShortBe,
+            "l" | "i" => IndirectType::LongLe,
+            "L" | "I" => IndirectType::LongBe,
+            "q" | "m" => IndirectType::QuadLe,
+            "Q" => IndirectType::QuadBe,
+            _ => IndirectType::LongLe,
+        };
+        (base_str.trim(), t)
+    } else {
+        (before_adj.trim(), IndirectType::LongLe)
+    };
+
+    let base = if let Some(stripped) = base_part.strip_prefix('&') {
+        let rel_val = parse_signed_magic_int(stripped)?;
+        Offset::Relative(rel_val)
+    } else {
+        let abs_val = parse_magic_int(base_part)?;
+        Offset::Bof(abs_val)
+    };
+
+    Some(Offset::Indirect {
+        base: Box::new(base),
+        ind_type,
+        adjustment,
+    })
+}
+
+/// Parses offset string into an `Offset` enum variant.
+pub fn parse_offset(offset_str: &str) -> Option<Offset> {
+    let trimmed = offset_str.trim();
+    if trimmed.starts_with('(') && trimmed.ends_with(')') {
+        parse_indirect_offset(trimmed)
+    } else if let Some(stripped) = trimmed.strip_prefix('&') {
+        let rel_val = parse_signed_magic_int(stripped)?;
+        Some(Offset::Relative(rel_val))
+    } else if let Some(stripped) = trimmed.strip_prefix('-') {
+        let off = parse_magic_int(stripped)?;
+        Some(Offset::Eof(off))
+    } else {
+        let off = parse_magic_int(trimmed)?;
+        Some(Offset::Bof(off))
+    }
+}
+
+fn parse_string_flags(flags_str: Option<&str>) -> StringFlags {
+    let mut flags = StringFlags::default();
+    if let Some(s) = flags_str {
+        flags.case_insensitive = s.contains('c') || s.contains('C');
+        flags.blank_insensitive = s.contains('b') || s.contains('B');
+        flags.trim = s.contains('t') || s.contains('T');
+        flags.compact_whitespace = s.contains('w') || s.contains('W');
+    }
+    flags
+}
+
+fn parse_pstring_flags(flags_str: Option<&str>) -> (PascalLengthSize, bool) {
+    let mut size = PascalLengthSize::Byte;
+    let mut inc = false;
+    if let Some(s) = flags_str {
+        if s.contains('H') {
+            size = PascalLengthSize::ShortBe;
+        } else if s.contains('h') {
+            size = PascalLengthSize::ShortLe;
+        } else if s.contains('L') {
+            size = PascalLengthSize::LongBe;
+        } else if s.contains('l') {
+            size = PascalLengthSize::LongLe;
+        } else if s.contains('B') {
+            size = PascalLengthSize::Byte;
+        }
+        inc = s.contains('J') || s.contains('j');
+    }
+    (size, inc)
+}
+
+fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize) {
+    let mut case_insensitive = false;
+    let mut max_bytes = 4096;
+    if let Some(s) = flags_str {
+        case_insensitive = s.contains('c') || s.contains('C');
+        for part in s.split('/') {
+            if let Ok(num) = part.parse::<usize>() {
+                max_bytes = num;
+            }
+        }
+    }
+    (case_insensitive, max_bytes)
+}
+
+fn parse_search_flags(flags_str: Option<&str>) -> (StringFlags, usize) {
+    let flags = parse_string_flags(flags_str);
+    let mut max_bytes = 4096;
+    if let Some(s) = flags_str {
+        for part in s.split('/') {
+            if let Ok(num) = part.parse::<usize>() {
+                max_bytes = num;
+            }
+        }
+    }
+    (flags, max_bytes)
+}
+
 /// Parses a single libmagic rule line into components.
 pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<String>)> {
     let trimmed = line.trim();
@@ -719,38 +934,71 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         None => return None,
     };
 
-    // Description is the remainder of the line after token 2
+    // Description is the remainder of the line after token 2 with backspace decoding
     let description = if tokens.len() > 3 {
-        Some(tokens.get(3..)?.join(" "))
+        let raw = tokens.get(3..)?.join(" ");
+        let decoded = raw
+            .replace(r"\b", "\u{8}")
+            .replace(r"\n", "\n")
+            .replace(r"\t", "\t");
+        Some(decoded)
     } else {
         None
     };
 
-    // Parse offset
-    let offset = if let Some(stripped) = offset_str.strip_prefix('-') {
-        let Ok(off) = stripped.parse::<u64>() else {
-            return None;
-        };
-        Offset::Eof(off)
-    } else {
-        let off = parse_magic_int(offset_str)?;
-        Offset::Bof(off)
-    };
+    let offset = parse_offset(offset_str)?;
 
-    // Parse type and optional mask
-    let (base_type, mask_str) = if let Some(idx) = type_str.find('&') {
+    // Handle named templates and use invocations
+    if type_str == "name" {
+        return Some((cont_level, offset, MagicTest::Name(val_str.to_string()), description));
+    }
+    if type_str == "use" {
+        return Some((cont_level, offset, MagicTest::Use(val_str.to_string()), description));
+    }
+
+    // Parse type and optional mask (&...)
+    let (type_no_mask, mask_str) = if let Some(idx) = type_str.find('&') {
         let (t, m) = type_str.split_at(idx);
-        // Reason for fallback: '&' was located via find('&'), so strip_prefix('&') yields mask string
-        (t, Some(m.strip_prefix('&').unwrap_or("")))
+        (t, m.strip_prefix('&'))
     } else {
         (type_str, None)
     };
 
+    // Parse type and optional flags (/...)
+    let (base_type, flags_str) = if let Some(idx) = type_no_mask.find('/') {
+        let (t, f) = type_no_mask.split_at(idx);
+        (t, f.strip_prefix('/'))
+    } else {
+        (type_no_mask, None)
+    };
+
     // Parse test
     let test = match base_type {
-        "string" | "pstring" => {
+        "string" => {
+            let flags = parse_string_flags(flags_str);
             let bytes = decode_magic_escapes(val_str);
-            MagicTest::ExactBytes(bytes)
+            if flags == StringFlags::default() {
+                MagicTest::ExactBytes(bytes)
+            } else {
+                MagicTest::String { pattern: bytes, flags }
+            }
+        }
+        "pstring" => {
+            let (length_size, length_includes_itself) = parse_pstring_flags(flags_str);
+            let bytes = decode_magic_escapes(val_str);
+            MagicTest::PascalString {
+                pattern: bytes,
+                length_size,
+                length_includes_itself,
+            }
+        }
+        "regex" => {
+            let (case_insensitive, max_bytes) = parse_regex_flags(flags_str);
+            MagicTest::Regex {
+                pattern: val_str.to_string(),
+                case_insensitive,
+                max_bytes,
+            }
         }
         "byte" | "ubyte" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u8::try_from(v).ok()));
@@ -785,7 +1033,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U16Be { value: val, op, mask }
             }
         }
-        "lelong" | "long" | "ulong" | "ulelong" | "lequad" | "ulequad" | "quad" => {
+        "lelong" | "long" | "ulong" | "ulelong" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -796,7 +1044,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U32Le { value: val, op, mask }
             }
         }
-        "belong" | "ubelong" | "bequad" | "ubequad" => {
+        "belong" | "ubelong" => {
             let mask = mask_str.and_then(|m| parse_magic_int(m).and_then(|v| u32::try_from(v).ok()));
             let (op, num_str) = parse_op_and_val(val_str);
             if op == RelOp::Any {
@@ -807,9 +1055,68 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 MagicTest::U32Be { value: val, op, mask }
             }
         }
+        "lequad" | "ulequad" => {
+            let mask = mask_str.and_then(parse_magic_int);
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::U64Le { value: 0, op: RelOp::Any, mask }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::U64Le { value: val, op, mask }
+            }
+        }
+        "bequad" | "ubequad" | "quad" => {
+            let mask = mask_str.and_then(parse_magic_int);
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::U64Be { value: 0, op: RelOp::Any, mask }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::U64Be { value: val, op, mask }
+            }
+        }
+        "date" | "bedate" | "ldate" | "beldate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::Date32Be { value: 0, op: RelOp::Any }
+            } else {
+                let val_u64 = parse_magic_int(num_str)?;
+                let val = u32::try_from(val_u64).ok()?;
+                MagicTest::Date32Be { value: val, op }
+            }
+        }
+        "ledate" | "leldate" | "medate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::Date32Le { value: 0, op: RelOp::Any }
+            } else {
+                let val_u64 = parse_magic_int(num_str)?;
+                let val = u32::try_from(val_u64).ok()?;
+                MagicTest::Date32Le { value: val, op }
+            }
+        }
+        "qdate" | "beqdate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::Date64Be { value: 0, op: RelOp::Any }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::Date64Be { value: val, op }
+            }
+        }
+        "leqdate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::Date64Le { value: 0, op: RelOp::Any }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::Date64Le { value: val, op }
+            }
+        }
         _ if base_type.starts_with("search") => {
+            let (flags, max_bytes) = parse_search_flags(flags_str);
             let bytes = decode_magic_escapes(val_str);
-            MagicTest::Search { pattern: bytes, max_bytes: 4096 }
+            MagicTest::Search { pattern: bytes, max_bytes, flags }
         }
         _ => return None,
     };
@@ -836,12 +1143,15 @@ fn parse_op_and_val(raw: &str) -> (RelOp, &str) {
     }
 }
 
-/// Parses an entire libmagic file content into a list of hierarchical root rules.
-pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
+/// Parses an entire libmagic file content into hierarchical root rules and named templates.
+pub fn parse_magic_content_with_templates(
+    content: &str,
+) -> (Vec<HierarchicalMagicRule>, std::collections::HashMap<String, HierarchicalMagicRule>) {
     let mut root_rules = Vec::new();
-    // Stack of active rules at each level: (level, rule)
+    let mut named_templates: std::collections::HashMap<String, HierarchicalMagicRule> =
+        std::collections::HashMap::new();
     let mut stack: Vec<HierarchicalMagicRule> = Vec::new();
-    let mut in_named_subroutine = false;
+    let mut current_template_name: Option<String> = None;
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -851,13 +1161,8 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
 
         // Check directives: !:mime, !:ext, !:apple, !:strength
         if let Some(directive) = trimmed.strip_prefix("!:") {
-            if in_named_subroutine {
-                continue;
-            }
             let parts: Vec<&str> = directive.splitn(2, char::is_whitespace).collect();
-            // Reason for fallback: directive without whitespace has empty value and defaults to empty name
             let name = parts.first().copied().unwrap_or("");
-            // Reason for fallback: directive without a value parameter defaults to empty string
             let val = parts.get(1).copied().unwrap_or("").trim();
 
             if let Some(target) = stack.last_mut() {
@@ -876,66 +1181,70 @@ pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
             continue;
         }
 
-        // Check for named subroutines (e.g. `0 name gzip-info`)
-        if !trimmed.starts_with('>') {
-            let tokens = split_magic_tokens(trimmed);
-            if tokens.len() >= 2 && tokens.get(1).map(|s| s.as_str()) == Some("name") {
-                in_named_subroutine = true;
-                if let Some(root) = collapse_stack(&mut stack) {
-                    root_rules.push(root);
-                }
-                continue;
-            } else {
-                in_named_subroutine = false;
-            }
-        } else if in_named_subroutine {
+        let Some((level, offset, test, description)) = parse_magic_line(trimmed) else {
             continue;
-        }
+        };
 
-        if let Some((level, offset, test, description)) = parse_magic_line(trimmed) {
-            let new_rule = HierarchicalMagicRule {
-                cont_level: level,
-                offset,
-                test,
-                description,
-                mime: None,
-                ext: None,
-                apple: None,
-                strength: 50,
-                children: Vec::new(),
-            };
+        let new_rule = HierarchicalMagicRule {
+            cont_level: level,
+            offset,
+            test,
+            description,
+            mime: None,
+            ext: None,
+            apple: None,
+            strength: 50,
+            children: Vec::new(),
+        };
 
-            if level == 0 {
-                // Pop entire stack and store in root_rules
-                if let Some(root) = collapse_stack(&mut stack) {
+        if level == 0 {
+            // Pop entire stack and store in root_rules or named_templates
+            if let Some(root) = collapse_stack(&mut stack) {
+                if let Some(tpl_name) = current_template_name.take() {
+                    named_templates.insert(tpl_name, root);
+                } else {
                     root_rules.push(root);
                 }
-                stack.push(new_rule);
-            } else {
-                if stack.is_empty() {
-                    // Orphaned continuation line with no active parent root rule; ignore
-                    continue;
-                }
-                // Pop stack until parent level is level - 1
-                while stack.len() > level {
-                    let popped = match stack.pop() {
-                        Some(p) => p,
-                        None => break,
-                    };
-                    if let Some(parent) = stack.last_mut() {
-                        parent.children.push(popped);
-                    }
-                }
-                stack.push(new_rule);
             }
+
+            if let MagicTest::Name(ref tpl_name) = new_rule.test {
+                current_template_name = Some(tpl_name.clone());
+            } else {
+                current_template_name = None;
+            }
+
+            stack.push(new_rule);
+        } else {
+            if stack.is_empty() {
+                continue;
+            }
+            while stack.len() > level {
+                let popped = match stack.pop() {
+                    Some(p) => p,
+                    None => break,
+                };
+                if let Some(parent) = stack.last_mut() {
+                    parent.children.push(popped);
+                }
+            }
+            stack.push(new_rule);
         }
     }
 
     if let Some(root) = collapse_stack(&mut stack) {
-        root_rules.push(root);
+        if let Some(tpl_name) = current_template_name.take() {
+            named_templates.insert(tpl_name, root);
+        } else {
+            root_rules.push(root);
+        }
     }
 
-    root_rules
+    (root_rules, named_templates)
+}
+
+/// Parses an entire libmagic file content into a list of hierarchical root rules.
+pub fn parse_magic_content(content: &str) -> Vec<HierarchicalMagicRule> {
+    parse_magic_content_with_templates(content).0
 }
 
 fn collapse_stack(stack: &mut Vec<HierarchicalMagicRule>) -> Option<HierarchicalMagicRule> {
@@ -981,6 +1290,97 @@ mod tests {
         assert_eq!(root.ext, Some("gz".to_string()));
         assert_eq!(root.children.len(), 1);
         assert_eq!(root.children[0].cont_level, 1);
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_relative_and_indirect_offsets() {
+        let content = r#"
+0	string		MZ		DOS executable
+>(0x3c.l)	string	PE\0\0		PE executable
+>>&0	leshort		0x014c		for Intel 80386
+>>(&4.s+2)	byte	x		subsystem
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let pe_child = &rules[0].children[0];
+        assert_eq!(
+            pe_child.offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(0x3c)),
+                ind_type: IndirectType::LongLe,
+                adjustment: 0,
+            }
+        );
+        let rel_child = &pe_child.children[0];
+        assert_eq!(rel_child.offset, Offset::Relative(0));
+        let ind_rel = &pe_child.children[1];
+        assert_eq!(
+            ind_rel.offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Relative(4)),
+                ind_type: IndirectType::ShortLe,
+                adjustment: 2,
+            }
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_quad_dates_and_flags() {
+        let content = r#"
+0	lequad		0x123456789abcdef0	quad match
+>8	date		x			modified %s
+>12	pstring/H	foo			pascal string
+>20	string/c	bar			case-insensitive bar
+>30	regex/c/1024	^BEGIN			regex match
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let root = &rules[0];
+        assert_eq!(
+            root.test,
+            MagicTest::U64Le {
+                value: 0x123456789abcdef0,
+                op: RelOp::Eq,
+                mask: None,
+            }
+        );
+        assert_eq!(root.children.len(), 4);
+        assert_eq!(
+            root.children[0].test,
+            MagicTest::Date32Be {
+                value: 0,
+                op: RelOp::Any,
+            }
+        );
+        assert_eq!(
+            root.children[1].test,
+            MagicTest::PascalString {
+                pattern: b"foo".to_vec(),
+                length_size: PascalLengthSize::ShortBe,
+                length_includes_itself: false,
+            }
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_named_templates_and_use() {
+        let content = r#"
+0	name		elf-details
+>4	byte		1		32-bit
+>4	byte		2		64-bit
+
+0	string		\177ELF		ELF file
+>0	use		elf-details
+"#;
+        let (rules, templates) = parse_magic_content_with_templates(content);
+        assert_eq!(templates.len(), 1);
+        assert!(templates.contains_key("elf-details"));
+        let tpl = &templates["elf-details"];
+        assert_eq!(tpl.children.len(), 2);
+
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].children.len(), 1);
+        assert_eq!(rules[0].children[0].test, MagicTest::Use("elf-details".to_string()));
     }
 }
 /*

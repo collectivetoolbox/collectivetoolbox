@@ -136,5 +136,18 @@ pub(crate) fn get_dc_categories_dir() -> Option<&'static Dir<'static>> {
 pub static FORMATS_CATEGORIES_DIR: Dir =
     include_dir!("$CARGO_MANIFEST_DIR/data/categories/formats");
 
+/// Returns the embedded Magdir directory containing upstream libmagic rule files.
+pub fn get_dc_magdir_dir() -> Option<&'static Dir<'static>> {
+    DC_DATA_DIR.get_dir("magic/upstream/magic/Magdir")
+}
 
-
+/// Returns all embedded Magdir rule files as (relative_path, content_bytes) pairs.
+pub fn get_dc_magdir_files() -> Vec<(&'static str, &'static [u8])> {
+    if let Some(dir) = DC_DATA_DIR.get_dir("magic/upstream/magic/Magdir") {
+        dir.files()
+            .filter_map(|f| f.path().to_str().map(|p| (p, f.contents())))
+            .collect()
+    } else {
+        Vec::new()
+    }
+}

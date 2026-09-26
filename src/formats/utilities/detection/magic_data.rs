@@ -452,10 +452,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use crate::format_id::FormatId;
 use super::magic::MagicPattern;
-use super::magic_parser::{HierarchicalMagicRule, parse_magic_content};
-use std::sync::LazyLock;
+use super::magic_parser::{HierarchicalMagicRule, parse_magic_content_with_templates};
 
 /// An entry associating a `FormatId` with a `MagicPattern` (legacy compatibility).
 #[derive(Debug, Clone)]
@@ -557,40 +559,43 @@ pub static MAGIC_REGISTRY: &[MagicEntry] = &[
     },
 ];
 
-/// Global compiled hierarchical magic rules loaded from in-repo custom definitions
-/// and upstream Magdir rule files.
-pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> = LazyLock::new(|| {
+/// Global compiled hierarchical magic database (rules and named templates) loaded from
+/// in-repo custom definitions and upstream Magdir rule files.
+pub static COMPILED_MAGIC_DATABASE: LazyLock<(
+    Vec<HierarchicalMagicRule>,
+    HashMap<String, HierarchicalMagicRule>,
+)> = LazyLock::new(|| {
     let mut all_rules = Vec::new();
+    let mut all_templates = HashMap::new();
 
     // 1. In-repo custom rules (ctoolbox.magic)
     if let Some(bytes) = ctb_formats_dcdata::get_dc_data_file("magic/ctoolbox.magic") {
         if let Ok(content) = std::str::from_utf8(&bytes) {
-            let rules = parse_magic_content(content);
+            let (rules, tpls) = parse_magic_content_with_templates(content);
             all_rules.extend(rules);
+            all_templates.extend(tpls);
         }
     }
 
-    // 2. Upstream Magdir core modules (compress, archive, images, mach, apple, pdf)
-    let core_magdir_files = [
-        "magic/upstream/magic/Magdir/compress",
-        "magic/upstream/magic/Magdir/archive",
-        "magic/upstream/magic/Magdir/images",
-        "magic/upstream/magic/Magdir/mach",
-        "magic/upstream/magic/Magdir/apple",
-        "magic/upstream/magic/Magdir/pdf",
-    ];
-
-    for path in core_magdir_files {
-        if let Some(bytes) = ctb_formats_dcdata::get_dc_data_file(path) {
-            if let Ok(content) = std::str::from_utf8(&bytes) {
-                let rules = parse_magic_content(content);
-                all_rules.extend(rules);
-            }
+    // 2. Upstream Magdir rule files
+    for (_path, bytes) in ctb_formats_dcdata::get_dc_magdir_files() {
+        if let Ok(content) = std::str::from_utf8(bytes) {
+            let (rules, tpls) = parse_magic_content_with_templates(content);
+            all_rules.extend(rules);
+            all_templates.extend(tpls);
         }
     }
 
-    all_rules
+    (all_rules, all_templates)
 });
+
+/// Global compiled hierarchical magic rules.
+pub static COMPILED_MAGIC_RULES: LazyLock<Vec<HierarchicalMagicRule>> =
+    LazyLock::new(|| COMPILED_MAGIC_DATABASE.0.clone());
+
+/// Global compiled named template subroutines.
+pub static COMPILED_MAGIC_TEMPLATES: LazyLock<HashMap<String, HierarchicalMagicRule>> =
+    LazyLock::new(|| COMPILED_MAGIC_DATABASE.1.clone());
 /*
 /*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the

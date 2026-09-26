@@ -1344,7 +1344,10 @@ pub fn profile_text_layout(data: &[u8], encoding: IdentifiedEncoding) -> TextPro
 }
 
 /// Helper updating layout counters for a single decoded character code.
-#[allow(clippy::too_many_arguments)]
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Layout counters are tracked individually for accurate newline profiling"
+)]
 fn process_char_for_layout(
     uc: u32,
     seen_cr: &mut bool,
