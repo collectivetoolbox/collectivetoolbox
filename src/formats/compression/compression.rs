@@ -610,9 +610,9 @@ mod tests {
     fn test_all_format_aliases_parsing() {
         for &fmt in CompressionFormat::SUPPORTED {
             let info = fmt.format_info().expect("format info must exist");
-            for &alias in &info.sorted_nicknames() {
-                let parsed =
-                    CompressionFormat::try_from(alias).unwrap_or_else(|_| {
+            for alias in &info.sorted_nicknames() {
+                let parsed = CompressionFormat::try_from(alias.as_str())
+                    .unwrap_or_else(|_| {
                         panic!(
                             "Failed to parse alias '{alias}' for format {fmt:?}"
                         )

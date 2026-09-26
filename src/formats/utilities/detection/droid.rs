@@ -2821,7 +2821,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_zip_container_xlsx() {
-        let test_dir = crate::detection::upstream_suite::locate_upstream_tests_dir().unwrap();
+        let test_dir = crate::detection::file_upstream_suite::locate_upstream_tests_dir().unwrap();
         let path = test_dir.join("issue359xlsx.testfile");
         let data = std::fs::read(path).unwrap();
         let mut source: &[u8] = &data;
