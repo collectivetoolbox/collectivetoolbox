@@ -130,6 +130,7 @@ ctb-formats-useragent = { path = "src/formats/useragent" }
 ctb-formats-utf-8e-128 = { path = "src/formats/utf_8e_128" }
 ctb-formats-utf8 = { path = "src/formats/utf8" }
 ctb-formats-utilities = { path = "src/formats/utilities" }
+ctb-formats-uuid = { path = "src/formats/uuid" }
 ctb-formats-warc = { path = "src/formats/warc" }
 ctb-formats-wfscan = { path = "src/formats/wfscan" }
 ctb-formats-wtf8 = { path = "src/formats/wtf8" }

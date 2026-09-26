@@ -11,6 +11,11 @@ ctb-utilities = { path = "../../utilities" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-dcdata = { path = "../dcdata" }
 ctb-formats-dcstring = { path = "../dcstring" }
+ctb-formats-ipaddr = { path = "../ipaddr" }
+ctb-formats-checksum = { path = "../checksum" }
+ctb-formats-uuid = { path = "../uuid" }
+ctb-formats-math = { path = "../math" }
+ctb-formats-uri = { path = "../uri" }
 ctb-io-file = { path = "../../io/file" }
 serde = { version = "1.0", features = ["derive"] }
 flate2 = "1.1.9"

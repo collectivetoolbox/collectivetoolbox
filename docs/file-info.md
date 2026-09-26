@@ -151,7 +151,7 @@
       - [ ] Grammars for ctoolbox-supported languages
     - [ ] Natural languages:
       - [ ] Lingua (Rust crate https://crates.io/crates/lingua)
-      - [ ] CLD3 (Rust wrapper around C++)?
+      - [ ] https://github.com/facebookresearch/fastText? or CLD3 (Rust wrapper around C++)?
     - [ ] Dictionary-based detection for constructed languages and less-common natural languages?
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog

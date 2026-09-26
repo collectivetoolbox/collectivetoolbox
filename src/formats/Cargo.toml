@@ -53,6 +53,7 @@ ctb-formats-uri = { path = "uri" }
 ctb-formats-useragent = { path = "useragent" }
 ctb-formats-utf-8e-128 = { path = "utf_8e_128" }
 ctb-formats-utf8 = { path = "utf8" }
+ctb-formats-uuid = { path = "uuid" }
 ctb-formats-warc = { path = "warc" }
 ctb-formats-wfscan = { path = "wfscan" }
 ctb-formats-wtf8 = { path = "wtf8" }

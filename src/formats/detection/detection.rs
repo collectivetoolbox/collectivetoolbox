@@ -626,6 +626,7 @@ pub mod polyfile;
 pub mod source;
 pub mod special;
 pub mod text;
+pub mod small_formats;
 pub mod types;
 pub mod file_upstream_suite;
 
@@ -641,6 +642,7 @@ use self::magic::evaluate_rule;
 use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
 use self::mime_derivation::FORMAT_CATALOG;
 use self::polyfile::detect_polyglots;
+use self::small_formats::detect_small_format_candidates;
 use self::special::detect_special_entity;
 use self::text::{TEXT_ENCODING_MAX_BYTES, detect_text_candidate};
 
@@ -710,7 +712,7 @@ pub fn guess_format_report(
                         .unwrap_or_else(|| fmt.ident().to_string());
                     let mime = mapping.and_then(|m| m.mime_types.first().cloned());
                     let mut score = entry.pattern.priority;
-                    let mut evidence = vec![DetectionEvidence::Magic {
+                    let mut evidence = vec![DetectionEvidence::CtbMagic {
                         description: label.clone(),
                         score: entry.pattern.priority,
                     }];
@@ -859,7 +861,7 @@ pub fn guess_format_report(
             }
             let mut score = match_res.score;
             let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Magic {
+            evidence.push(DetectionEvidence::FileMagic {
                 description: match_res.description.clone(),
                 score: match_res.score,
             });
@@ -1067,6 +1069,20 @@ pub fn guess_format_report(
             }
             if !merged {
                 candidates.push(text_cand);
+            }
+        }
+    }
+
+    // 2.6. Evaluate small specialized textual formats (IP addresses, UUIDs, checksums, math expressions)
+    if !has_strong_binary_magic {
+        let mut sample_buf = vec![0u8; 4096];
+        if let Ok(n) = source.read_at(0, &mut sample_buf) {
+            if n > 0 {
+                let sample_slice = sample_buf.get(..n).unwrap_or(&sample_buf);
+                let small_cands = detect_small_format_candidates(sample_slice, source.total_len(), hint);
+                for sc in small_cands {
+                    candidates.push(sc);
+                }
             }
         }
     }

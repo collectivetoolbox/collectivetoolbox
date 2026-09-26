@@ -1686,7 +1686,7 @@ pub fn detect_text_candidate(
 
     if let Some(syntax) = &profile.syntax {
         score = score.saturating_add(10);
-        evidence.push(DetectionEvidence::Magic {
+        evidence.push(DetectionEvidence::CtbRule {
             description: syntax.description_prefix().to_string(),
             score: 10,
         });

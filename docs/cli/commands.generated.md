@@ -335,6 +335,8 @@ Options:
           Recreate special files (FIFOs, device nodes) faithfully as special nodes. Default is to skip special files
       --copy-block-devices-as-regular-files
           Copy block devices by reading their data and creating regular files
+      --copy-fifos-as-regular-files
+          Copy FIFOs (named pipes) by reading their content and creating regular files
   -x, --one-file-system
           Stay on the current filesystem and do not cross mount boundaries
       --best-effort-metadata
@@ -428,6 +430,8 @@ Options:
           Recreate special files (FIFOs, device nodes) faithfully as special nodes. Default is to skip special files
       --copy-block-devices-as-regular-files
           Copy block devices by reading their data and creating regular files
+      --copy-fifos-as-regular-files
+          Copy FIFOs (named pipes) by reading their content and creating regular files
   -x, --one-file-system
           Stay on the current filesystem and do not cross mount boundaries
       --best-effort-metadata

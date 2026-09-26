@@ -108,6 +108,10 @@ pub struct CscArgs {
     #[arg(long)]
     pub copy_block_devices_as_regular_files: bool,
 
+    /// Copy FIFOs (named pipes) by reading their content and creating regular files.
+    #[arg(long)]
+    pub copy_fifos_as_regular_files: bool,
+
     /// Stay on the current filesystem and do not cross mount boundaries.
     #[arg(short = 'x', long = "one-file-system")]
     pub one_file_system: bool,
@@ -915,6 +919,7 @@ pub(crate) fn default_test_args(paths: Vec<PathBuf>, state_dir: PathBuf) -> CscA
         on_source_change: crate::args::SourceChangePolicy::Error,
         copy_specials_as_specials: false,
         copy_block_devices_as_regular_files: false,
+        copy_fifos_as_regular_files: false,
         one_file_system: false,
         best_effort_metadata: true,
         allow_unknown_fs: false,

@@ -1278,6 +1278,24 @@ pub enum FormatId {
     BrowserVmMobile,
     /// Web-based user interface hosted in system browser (Short 599, Category: device_caps)
     WebUiSystemBrowser,
+    /// UUID (Universally Unique Identifier) (Short 600, Category: identifier)
+    Uuid,
+    /// UUID (canonical 8-4-4-4-12 hex with hyphens) (Short 601, Category: identifier)
+    UuidCanonical,
+    /// UUID (32-character hexadecimal without hyphens) (Short 602, Category: identifier)
+    UuidHex32,
+    /// UUID (braced Windows registry format) (Short 603, Category: identifier)
+    UuidBraced,
+    /// UUID (URN namespace format: urn:uuid:...) (Short 604, Category: identifier)
+    UuidUrn,
+    /// UUID (legacy Apollo NCS format) (Short 605, Category: identifier)
+    UuidApollo,
+    /// UUID (OID 2.25 arc format) (Short 606, Category: identifier)
+    UuidOid,
+    /// IPv4 address string (Short 607, Category: identifier)
+    IpV4String,
+    /// IPv6 address string (Short 608, Category: identifier)
+    IpV6String,
 }
 
 impl FormatId {
@@ -1657,7 +1675,16 @@ impl FormatId {
             | Self::DcIdentifier
             | Self::DcShortIdentifier
             | Self::IpV4
-            | Self::IpV6 => FormatCategory::Identifier,
+            | Self::IpV6
+            | Self::Uuid
+            | Self::UuidCanonical
+            | Self::UuidHex32
+            | Self::UuidBraced
+            | Self::UuidUrn
+            | Self::UuidApollo
+            | Self::UuidOid
+            | Self::IpV4String
+            | Self::IpV6String => FormatCategory::Identifier,
             Self::Linux
             | Self::BsdKernel
             | Self::Mach
@@ -2494,6 +2521,15 @@ impl FormatId {
             "browservmfullscreen" | "browser_vm_fullscreen" => Some(Self::BrowserVmFullscreen),
             "browservmmobile" | "browser_vm_mobile" => Some(Self::BrowserVmMobile),
             "webuisystembrowser" | "web_ui_system_browser" => Some(Self::WebUiSystemBrowser),
+            "uuid" => Some(Self::Uuid),
+            "uuidcanonical" | "uuid_canonical" => Some(Self::UuidCanonical),
+            "uuidhex32" | "uuid_hex32" => Some(Self::UuidHex32),
+            "uuidbraced" | "uuid_braced" => Some(Self::UuidBraced),
+            "uuidurn" | "uuid_urn" => Some(Self::UuidUrn),
+            "uuidapollo" | "uuid_apollo" => Some(Self::UuidApollo),
+            "uuidoid" | "uuid_oid" => Some(Self::UuidOid),
+            "ipv4string" | "ip_v4_string" => Some(Self::IpV4String),
+            "ipv6string" | "ip_v6_string" => Some(Self::IpV6String),
             _ => None,
         }
     }
@@ -3102,6 +3138,15 @@ impl FormatId {
             Self::BrowserVmFullscreen => "BrowserVmFullscreen",
             Self::BrowserVmMobile => "BrowserVmMobile",
             Self::WebUiSystemBrowser => "WebUiSystemBrowser",
+            Self::Uuid => "Uuid",
+            Self::UuidCanonical => "UuidCanonical",
+            Self::UuidHex32 => "UuidHex32",
+            Self::UuidBraced => "UuidBraced",
+            Self::UuidUrn => "UuidUrn",
+            Self::UuidApollo => "UuidApollo",
+            Self::UuidOid => "UuidOid",
+            Self::IpV4String => "IpV4String",
+            Self::IpV6String => "IpV6String",
         }
     }
 
@@ -3148,8 +3193,11 @@ impl FormatId {
             Self::Natural0 => &[Self::AbstractNumber, Self::Integer],
             Self::Positive => &[Self::AbstractNumber],
             Self::Negative => &[Self::AbstractNumber],
-            Self::Magnet => &[Self::Uri],
+            Self::MathExpression => &[Self::Text],
+            Self::Uri => &[Self::Text],
+            Self::Magnet => &[Self::Text, Self::Uri],
             Self::IaArchiveTorrent => &[Self::Torrent],
+            Self::UriProtocol => &[Self::Text],
             Self::Rational => &[Self::AbstractNumber],
             Self::Real => &[Self::AbstractNumber],
             Self::Complex => &[Self::AbstractNumber],
@@ -3159,11 +3207,13 @@ impl FormatId {
             Self::DcNumberB64Int => &[Self::DcNumber],
             Self::AlphabetBase36Uppercase => &[Self::AlphabetBase36],
             Self::AlphabetBase36Lowercase => &[Self::AlphabetBase36],
-            Self::ArithmeticExpression => &[Self::MathExpression],
-            Self::SymbolicExpression => &[Self::MathExpression],
-            Self::Equation => &[Self::MathRelation],
-            Self::Inequality => &[Self::MathRelation],
-            Self::Approximation => &[Self::MathRelation],
+            Self::ArithmeticExpression => &[Self::MathExpression, Self::Text],
+            Self::SymbolicExpression => &[Self::MathExpression, Self::Text],
+            Self::MathRelation => &[Self::Text],
+            Self::Equation => &[Self::MathRelation, Self::Text],
+            Self::Inequality => &[Self::MathRelation, Self::Text],
+            Self::Approximation => &[Self::MathRelation, Self::Text],
+            Self::EquationSystem => &[Self::Text],
             Self::ChineseNumeralSmall => &[Self::ChineseNumeral],
             Self::ChineseNumeralBig => &[Self::ChineseNumeral],
             Self::amd64 => &[Self::x86],
@@ -3266,6 +3316,14 @@ impl FormatId {
             Self::BrowserVmFullscreen => &[Self::BrowserVm],
             Self::BrowserVmMobile => &[Self::BrowserVm],
             Self::WebUiSystemBrowser => &[Self::RasterDisplay, Self::WebUi],
+            Self::UuidCanonical => &[Self::Text, Self::Uuid],
+            Self::UuidHex32 => &[Self::Text, Self::Uuid],
+            Self::UuidBraced => &[Self::Text, Self::Uuid],
+            Self::UuidUrn => &[Self::Text, Self::Uri, Self::Uuid],
+            Self::UuidApollo => &[Self::Text, Self::Uuid],
+            Self::UuidOid => &[Self::Text, Self::Uuid],
+            Self::IpV4String => &[Self::IpAddr, Self::IpV4, Self::Text],
+            Self::IpV6String => &[Self::IpAddr, Self::IpV6, Self::Text],
             _ => &[],
         }
     }
@@ -3874,6 +3932,15 @@ impl FormatId {
             Self::BrowserVmFullscreen => "f597",
             Self::BrowserVmMobile => "f598",
             Self::WebUiSystemBrowser => "f599",
+            Self::Uuid => "f600",
+            Self::UuidCanonical => "f601",
+            Self::UuidHex32 => "f602",
+            Self::UuidBraced => "f603",
+            Self::UuidUrn => "f604",
+            Self::UuidApollo => "f605",
+            Self::UuidOid => "f606",
+            Self::IpV4String => "f607",
+            Self::IpV6String => "f608",
         }
     }
 
@@ -4482,6 +4549,15 @@ impl FormatId {
             "f597" => Some(Self::BrowserVmFullscreen),
             "f598" => Some(Self::BrowserVmMobile),
             "f599" => Some(Self::WebUiSystemBrowser),
+            "f600" => Some(Self::Uuid),
+            "f601" => Some(Self::UuidCanonical),
+            "f602" => Some(Self::UuidHex32),
+            "f603" => Some(Self::UuidBraced),
+            "f604" => Some(Self::UuidUrn),
+            "f605" => Some(Self::UuidApollo),
+            "f606" => Some(Self::UuidOid),
+            "f607" => Some(Self::IpV4String),
+            "f608" => Some(Self::IpV6String),
             _ => None,
         }
     }
@@ -5090,6 +5166,15 @@ impl FormatId {
             Self::BrowserVmFullscreen => Some(2228821_u128),
             Self::BrowserVmMobile => Some(2228822_u128),
             Self::WebUiSystemBrowser => Some(2228823_u128),
+            Self::Uuid => Some(2228824_u128),
+            Self::UuidCanonical => Some(2228825_u128),
+            Self::UuidHex32 => Some(2228826_u128),
+            Self::UuidBraced => Some(2228827_u128),
+            Self::UuidUrn => Some(2228828_u128),
+            Self::UuidApollo => Some(2228829_u128),
+            Self::UuidOid => Some(2228830_u128),
+            Self::IpV4String => Some(2228831_u128),
+            Self::IpV6String => Some(2228832_u128),
         }
     }
 
@@ -5710,6 +5795,15 @@ impl FormatId {
             2228821_u128 => Some(Self::BrowserVmFullscreen),
             2228822_u128 => Some(Self::BrowserVmMobile),
             2228823_u128 => Some(Self::WebUiSystemBrowser),
+            2228824_u128 => Some(Self::Uuid),
+            2228825_u128 => Some(Self::UuidCanonical),
+            2228826_u128 => Some(Self::UuidHex32),
+            2228827_u128 => Some(Self::UuidBraced),
+            2228828_u128 => Some(Self::UuidUrn),
+            2228829_u128 => Some(Self::UuidApollo),
+            2228830_u128 => Some(Self::UuidOid),
+            2228831_u128 => Some(Self::IpV4String),
+            2228832_u128 => Some(Self::IpV6String),
             _ => None,
         }
     }
@@ -6915,3 +7009,21 @@ pub const DC_BROWSER_VM_FULLSCREEN: DcChar = DcChar::from_format(597);
 pub const DC_BROWSER_VM_MOBILE: DcChar = DcChar::from_format(598);
 /// DcChar constant for Format `WebUiSystemBrowser` (Short f599, Category: device_caps): Web-based user interface hosted in system browser
 pub const DC_WEB_UI_SYSTEM_BROWSER: DcChar = DcChar::from_format(599);
+/// DcChar constant for Format `Uuid` (Short f600, Category: identifier): UUID (Universally Unique Identifier)
+pub const DC_UUID: DcChar = DcChar::from_format(600);
+/// DcChar constant for Format `UuidCanonical` (Short f601, Category: identifier): UUID (canonical 8-4-4-4-12 hex with hyphens)
+pub const DC_UUID_CANONICAL: DcChar = DcChar::from_format(601);
+/// DcChar constant for Format `UuidHex32` (Short f602, Category: identifier): UUID (32-character hexadecimal without hyphens)
+pub const DC_UUID_HEX32: DcChar = DcChar::from_format(602);
+/// DcChar constant for Format `UuidBraced` (Short f603, Category: identifier): UUID (braced Windows registry format)
+pub const DC_UUID_BRACED: DcChar = DcChar::from_format(603);
+/// DcChar constant for Format `UuidUrn` (Short f604, Category: identifier): UUID (URN namespace format: urn:uuid:...)
+pub const DC_UUID_URN: DcChar = DcChar::from_format(604);
+/// DcChar constant for Format `UuidApollo` (Short f605, Category: identifier): UUID (legacy Apollo NCS format)
+pub const DC_UUID_APOLLO: DcChar = DcChar::from_format(605);
+/// DcChar constant for Format `UuidOid` (Short f606, Category: identifier): UUID (OID 2.25 arc format)
+pub const DC_UUID_OID: DcChar = DcChar::from_format(606);
+/// DcChar constant for Format `IpV4String` (Short f607, Category: identifier): IPv4 address string
+pub const DC_IP_V4_STRING: DcChar = DcChar::from_format(607);
+/// DcChar constant for Format `IpV6String` (Short f608, Category: identifier): IPv6 address string
+pub const DC_IP_V6_STRING: DcChar = DcChar::from_format(608);

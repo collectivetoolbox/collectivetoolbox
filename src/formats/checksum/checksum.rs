@@ -241,6 +241,184 @@ pub fn hash_hex(data: &[u8], algo: HashAlgorithm, prefix_0x: bool) -> String {
     }
 }
 
+/// Result of identifying a checksum digest or manifest format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChecksumDetection {
+    /// Primary detected `FormatId` (e.g. `FormatId::Sha256`, `FormatId::Md5`, etc.).
+    pub format_id: FormatId,
+    /// Possible candidate hash algorithm format IDs of equal digest length.
+    pub candidate_algorithms: Vec<FormatId>,
+    /// Indicates whether the input is a checksum manifest file/line (e.g. `sha256sum`).
+    pub is_manifest: bool,
+    /// Digest length in characters if standalone hex digest.
+    pub digest_len: usize,
+    /// Human-readable description.
+    pub description: String,
+}
+
+/// Parses a line in GNU coreutils checksum format (`<hex>  <file>` or `<hex> *<file>`).
+fn parse_coreutils_line(line: &str) -> Option<(&str, &str)> {
+    let (digest, rest) = line.split_once(' ')?;
+    let filename = if let Some(bin_file) = rest.strip_prefix('*') {
+        bin_file.trim()
+    } else if let Some(text_file) = rest.strip_prefix(' ') {
+        text_file.trim()
+    } else {
+        return None;
+    };
+    if filename.is_empty() {
+        return None;
+    }
+    if digest.bytes().all(|b| b.is_ascii_hexdigit()) {
+        Some((digest, filename))
+    } else {
+        None
+    }
+}
+
+/// Parses a line in BSD checksum format (`<ALGO> (<file>) = <hex>`).
+fn parse_bsd_line(line: &str) -> Option<(&str, &str, &str)> {
+    let (algo_and_file, digest) = line.split_once(" = ")?;
+    let (algo, rest) = algo_and_file.split_once(" (")?;
+    let filename = rest.strip_suffix(')')?;
+    if filename.is_empty() || !digest.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    Some((algo.trim(), filename.trim(), digest.trim()))
+}
+
+/// Detects whether `s` represents a standalone cryptographic/non-cryptographic
+/// hex digest or a checksum manifest file/line.
+#[must_use]
+pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    // 1. Check if it's a checksum manifest file / line
+    let lines: Vec<&str> = trimmed
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
+
+    if !lines.is_empty() {
+        let all_coreutils = lines.iter().all(|l| parse_coreutils_line(l).is_some());
+        if all_coreutils {
+            if let Some((first_digest, _)) = parse_coreutils_line(lines.first().unwrap_or(&"")) {
+                let dlen = first_digest.len();
+                let (fmt, candidates, name) = match dlen {
+                    64 => (FormatId::Sha256, vec![FormatId::Sha256, FormatId::Blake3], "SHA-256"),
+                    32 => (FormatId::Md5, vec![FormatId::Md5, FormatId::XxHash3_128], "MD5"),
+                    40 => (FormatId::Sha1, vec![FormatId::Sha1], "SHA-1"),
+                    128 => (FormatId::Sha512, vec![FormatId::Sha512], "SHA-512"),
+                    _ => (FormatId::Sha256, vec![FormatId::Sha256], "checksum"),
+                };
+                return Some(ChecksumDetection {
+                    format_id: fmt,
+                    candidate_algorithms: candidates,
+                    is_manifest: true,
+                    digest_len: dlen,
+                    description: format!("{} checksum manifest", name),
+                });
+            }
+        }
+
+        let all_bsd = lines.iter().all(|l| parse_bsd_line(l).is_some());
+        if all_bsd {
+            if let Some((algo, _, digest)) = parse_bsd_line(lines.first().unwrap_or(&"")) {
+                let algo_clean = algo.to_ascii_lowercase();
+                let fmt = match algo_clean.as_str() {
+                    "md5" => FormatId::Md5,
+                    "sha1" => FormatId::Sha1,
+                    "sha256" => FormatId::Sha256,
+                    "sha512" => FormatId::Sha512,
+                    _ => FormatId::Sha256,
+                };
+                return Some(ChecksumDetection {
+                    format_id: fmt,
+                    candidate_algorithms: vec![fmt],
+                    is_manifest: true,
+                    digest_len: digest.len(),
+                    description: format!("BSD {} checksum file", algo),
+                });
+            }
+        }
+    }
+
+    // 2. Standalone single hex digest
+    if !trimmed.contains('\n') && !trimmed.contains(' ') {
+        let clean = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
+        if !clean.is_empty() && clean.bytes().all(|b| b.is_ascii_hexdigit()) {
+            let len = clean.len();
+            match len {
+                64 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::Sha256,
+                        candidate_algorithms: vec![FormatId::Sha256, FormatId::Blake3],
+                        is_manifest: false,
+                        digest_len: 64,
+                        description: "SHA-256 (256-bit hex digest)".to_string(),
+                    });
+                }
+                32 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::Md5,
+                        candidate_algorithms: vec![FormatId::Md5, FormatId::XxHash3_128],
+                        is_manifest: false,
+                        digest_len: 32,
+                        description: "MD5 (128-bit hex digest)".to_string(),
+                    });
+                }
+                40 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::Sha1,
+                        candidate_algorithms: vec![FormatId::Sha1],
+                        is_manifest: false,
+                        digest_len: 40,
+                        description: "SHA-1 (160-bit hex digest)".to_string(),
+                    });
+                }
+                128 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::Sha512,
+                        candidate_algorithms: vec![FormatId::Sha512],
+                        is_manifest: false,
+                        digest_len: 128,
+                        description: "SHA-512 (512-bit hex digest)".to_string(),
+                    });
+                }
+                8 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::Crc32,
+                        candidate_algorithms: vec![
+                            FormatId::Crc32,
+                            FormatId::Adler32,
+                            FormatId::XxHash32,
+                        ],
+                        is_manifest: false,
+                        digest_len: 8,
+                        description: "CRC-32 / 32-bit hex checksum".to_string(),
+                    });
+                }
+                16 => {
+                    return Some(ChecksumDetection {
+                        format_id: FormatId::XxHash64,
+                        candidate_algorithms: vec![FormatId::XxHash64, FormatId::XxHash3_64],
+                        is_manifest: false,
+                        digest_len: 16,
+                        description: "xxHash64 / 64-bit hex checksum".to_string(),
+                    });
+                }
+                _ => {}
+            }
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -340,4 +518,47 @@ mod tests {
         assert!(help.contains("xxh32, xxhash32: xxHash32"));
         assert!(help.contains("sha256"));
     }
+
+    #[crate::ctb_test]
+    fn test_detect_checksum_cases() {
+        // SHA-256
+        let sha256_hex = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let det = detect_checksum(sha256_hex).unwrap();
+        assert_eq!(det.format_id, FormatId::Sha256);
+        assert!(!det.is_manifest);
+        assert_eq!(det.digest_len, 64);
+
+        // MD5
+        let md5_hex = "d41d8cd98f00b204e9800998ecf8427e";
+        let det = detect_checksum(md5_hex).unwrap();
+        assert_eq!(det.format_id, FormatId::Md5);
+        assert!(!det.is_manifest);
+
+        // SHA-1
+        let sha1_hex = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+        let det = detect_checksum(sha1_hex).unwrap();
+        assert_eq!(det.format_id, FormatId::Sha1);
+
+        // CRC32
+        let crc_hex = "00000000";
+        let det = detect_checksum(crc_hex).unwrap();
+        assert_eq!(det.format_id, FormatId::Crc32);
+
+        // Coreutils manifest
+        let manifest = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  empty.txt\n\
+                        ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad *abc.txt";
+        let det = detect_checksum(manifest).unwrap();
+        assert_eq!(det.format_id, FormatId::Sha256);
+        assert!(det.is_manifest);
+
+        // BSD format
+        let bsd = "SHA256 (file.tar.gz) = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let det = detect_checksum(bsd).unwrap();
+        assert_eq!(det.format_id, FormatId::Sha256);
+        assert!(det.is_manifest);
+
+        assert!(detect_checksum("").is_none());
+        assert!(detect_checksum("not-a-hash").is_none());
+    }
 }
+

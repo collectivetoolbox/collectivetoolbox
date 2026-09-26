@@ -485,7 +485,18 @@ pub enum DetectionQuotaType {
 /// Specific evidence item contributing to a candidate's confidence score.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DetectionEvidence {
-    Magic {
+    /// Magic pattern matched from upstream `file` / Magdir rules.
+    FileMagic {
+        description: String,
+        score: u32,
+    },
+    /// Fast static magic pattern added specifically by ctoolbox (`MAGIC_REGISTRY`).
+    CtbMagic {
+        description: String,
+        score: u32,
+    },
+    /// Rule-based or specialized format detection logic in ctoolbox (small formats, etc.).
+    CtbRule {
         description: String,
         score: u32,
     },

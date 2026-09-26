@@ -37,6 +37,7 @@ pub mod range_generator;
 pub use cli::{
     BaseArgs, BaseToBaseArgs, CliBaseAlphabet, run_base_convert, run_base2base,
 };
+pub use parsing::{MathDetection, detect_math_format, detect_numeric_format};
 
 #[cfg(test)]
 #[allow(

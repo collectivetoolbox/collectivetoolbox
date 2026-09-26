@@ -214,7 +214,7 @@ pub fn run_csc(args: CscArgs) -> Result<ToolResult> {
         )?;
         writeln!(
             summary,
-            "WARNING: {} special file(s) were skipped. Pass --copy-specials-as-specials to preserve them as device nodes, or --copy-block-devices-as-regular-files to copy block devices as disk image files.",
+            "WARNING: {} special file(s) were skipped. Pass --copy-specials-as-specials to preserve them as device nodes, or --copy-block-devices-as-regular-files / --copy-fifos-as-regular-files to copy block devices or FIFOs as regular files.",
             stats.special_files_skipped
         )?;
     }

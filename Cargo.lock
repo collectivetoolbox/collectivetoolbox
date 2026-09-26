@@ -2746,6 +2746,7 @@ dependencies = [
  "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
+ "ctb-formats-uuid",
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-wtf8",
@@ -2924,9 +2925,14 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "ctb-formats-checksum",
  "ctb-formats-dcdata",
  "ctb-formats-dcstring",
+ "ctb-formats-ipaddr",
+ "ctb-formats-math",
+ "ctb-formats-uri",
  "ctb-formats-utilities",
+ "ctb-formats-uuid",
  "ctb-io-file",
  "ctb-utilities",
  "flate2",
@@ -3355,6 +3361,15 @@ dependencies = [
  "flate2",
  "regex",
  "serde",
+]
+
+[[package]]
+name = "ctb-formats-uuid"
+version = "0.0.0"
+dependencies = [
+ "ctb-formats-utilities",
+ "ctb-utilities",
+ "uuid",
 ]
 
 [[package]]
@@ -3981,6 +3996,7 @@ dependencies = [
  "ctb-formats-utf-8e-128",
  "ctb-formats-utf8",
  "ctb-formats-utilities",
+ "ctb-formats-uuid",
  "ctb-formats-warc",
  "ctb-formats-wfscan",
  "ctb-formats-wtf8",

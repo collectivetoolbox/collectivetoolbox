@@ -112,20 +112,108 @@ fn list_iana_schemes_by_status(status: &str) -> Result<Vec<String>> {
     Ok(schemes)
 }
 
+static IANA_SCHEMES_SET: std::sync::LazyLock<std::collections::HashSet<String>> =
+    std::sync::LazyLock::new(|| {
+        list_iana_schemes()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| s.to_ascii_lowercase())
+            .collect()
+    });
+
+/// Checks whether `scheme` matches a known registered IANA URI scheme.
+#[must_use]
+pub fn is_known_scheme(scheme: &str) -> bool {
+    let clean = scheme.trim().strip_suffix(':').unwrap_or(scheme.trim());
+    if clean.is_empty() {
+        return false;
+    }
+    let lower = clean.to_ascii_lowercase();
+    IANA_SCHEMES_SET.contains(&lower)
+}
+
+/// Result of URI or URI protocol scheme detection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UriDetection {
+    /// FormatId: `FormatId::UriProtocol` for standalone schemes, `FormatId::Uri` (or `Magnet`) for full URIs.
+    pub format_id: FormatId,
+    /// Human-readable description.
+    pub description: String,
+    /// Lowercase URI scheme (e.g. "http", "https", "mailto", "urn", "ftp").
+    pub scheme: String,
+    /// True if the input represents only a scheme identifier rather than a complete URI.
+    pub is_scheme_only: bool,
+}
+
+/// Detects whether `s` represents a full URI or a standalone URI scheme/protocol.
+#[must_use]
+pub fn detect_uri(s: &str) -> Option<UriDetection> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    // URIs and URI schemes must not contain unencoded whitespace
+    if trimmed.bytes().any(|b| b.is_ascii_whitespace()) {
+        return None;
+    }
+
+    // 1. Check if it's a full URI with scheme prefix (e.g. "https://example.com", "mailto:user@domain.com")
+    if let Some((scheme, rest)) = trimmed.split_once(':') {
+        if !rest.is_empty() {
+            let scheme_valid = !scheme.is_empty()
+                && scheme.bytes().next().is_some_and(|b| b.is_ascii_alphabetic())
+                && scheme
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
+            if scheme_valid && is_known_scheme(scheme) {
+                let lower_scheme = scheme.to_ascii_lowercase();
+                let fmt = if lower_scheme == "magnet" {
+                    FormatId::Magnet
+                } else {
+                    FormatId::Uri
+                };
+                return Some(UriDetection {
+                    format_id: fmt,
+                    description: format!("URI ({lower_scheme})"),
+                    scheme: lower_scheme,
+                    is_scheme_only: false,
+                });
+            }
+        }
+    }
+
+    // 2. Check if it's a standalone URI scheme / protocol (e.g. "http", "https", "ftp", "http:")
+    let scheme_candidate = trimmed.strip_suffix(':').unwrap_or(trimmed);
+    let is_valid_scheme_syntax = !scheme_candidate.is_empty()
+        && scheme_candidate
+            .bytes()
+            .next()
+            .is_some_and(|b| b.is_ascii_alphabetic())
+        && scheme_candidate
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
+
+    if is_valid_scheme_syntax && is_known_scheme(scheme_candidate) {
+        let lower = scheme_candidate.to_ascii_lowercase();
+        return Some(UriDetection {
+            format_id: FormatId::UriProtocol,
+            description: format!("URI protocol ({lower})"),
+            scheme: lower,
+            is_scheme_only: true,
+        });
+    }
+
+    None
+}
+
+/// Checks whether `uri` begins with a known registered IANA URI scheme.
+#[must_use]
 pub fn is_iana_scheme(uri: &str) -> bool {
     if let Some(colon_pos) = uri.find(':') {
         let Some(scheme) = uri.get(..colon_pos) else {
             return false;
         };
-        if let Ok(schemes_table) = uri_schemes() {
-            for row in schemes_table.rows_iter() {
-                if let Some(first_col) = row.first() {
-                    if scheme.eq_ignore_ascii_case(first_col) {
-                        return true;
-                    }
-                }
-            }
-        }
+        return is_known_scheme(scheme);
     }
     false
 }
@@ -232,5 +320,32 @@ mod tests {
             ));
         }
         Ok(())
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_uri_and_scheme() {
+        let http_scheme = detect_uri("http").unwrap();
+        assert_eq!(http_scheme.format_id, FormatId::UriProtocol);
+        assert!(http_scheme.is_scheme_only);
+        assert_eq!(http_scheme.scheme, "http");
+
+        let https_scheme_colon = detect_uri("https:").unwrap();
+        assert_eq!(https_scheme_colon.format_id, FormatId::UriProtocol);
+        assert!(https_scheme_colon.is_scheme_only);
+
+        let full_uri = detect_uri("https://collectivetoolbox.com/path?q=1#top").unwrap();
+        assert_eq!(full_uri.format_id, FormatId::Uri);
+        assert!(!full_uri.is_scheme_only);
+        assert_eq!(full_uri.scheme, "https");
+
+        let mailto_uri = detect_uri("mailto:info@example.com").unwrap();
+        assert_eq!(mailto_uri.format_id, FormatId::Uri);
+        assert!(!mailto_uri.is_scheme_only);
+
+        let magnet = detect_uri("magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a").unwrap();
+        assert_eq!(magnet.format_id, FormatId::Magnet);
+
+        assert!(detect_uri("not a uri with spaces").is_none());
+        assert!(detect_uri("unknownscheme12345:resource").is_none());
     }
 }

@@ -443,177 +443,471 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Candidate conflict resolution, subsumption hierarchies, and MIME
-//! specialization scoring for format detection.
+//! Detection of small specialized formats including IP address strings,
+//! checksums, UUIDs, mathematical expressions/relations, and base numerals.
 
-#[allow(
+#[expect(
     unused_imports,
     clippy::wildcard_imports,
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
 
-use crate::detection::mime_derivation::FORMAT_CATALOG;
-use crate::detection::types::{ConfidenceTier, DetectionCandidate, DetectionEvidence};
-use crate::format_id::FormatId;
+use crate::mime_derivation::FORMAT_CATALOG;
+use crate::types::{ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint};
+use ctb_utilities::FormatId;
 
-/// Resolves conflicts among format candidates using priority scores and the format
-/// inheritance graph (`sub-class-of`).
-///
-/// Specialized child formats subsume generic parent formats (e.g. `Svg` subsumes `Xml`,
-/// and `Docx` subsumes `Zip`), recording the parent as a subsumed ancestor rather than
-/// creating an artificial conflict. True non-hierarchical ambiguities are classified as
-/// `ConfidenceTier::Conflicted`.
+/// Evaluates small textual sources to produce candidate classifications for
+/// IP addresses, UUIDs, checksums, math expressions/relations, and base numerals.
 #[must_use]
-pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> Vec<DetectionCandidate> {
-    if candidates.len() <= 1 {
+pub fn detect_small_format_candidates(
+    sample: &[u8],
+    total_len: Option<u64>,
+    hint: Option<&DetectionHint>,
+) -> Vec<DetectionCandidate> {
+    // Only inspect samples that are valid text and within reasonable size bounds
+    let max_inspect_len = total_len.unwrap_or(u64::try_from(sample.len()).unwrap_or(0));
+    if max_inspect_len > 65_536 {
+        return Vec::new();
+    }
+
+    let Ok(sample_str) = std::str::from_utf8(sample) else {
+        return Vec::new();
+    };
+
+    let trimmed = sample_str.trim();
+    if trimmed.is_empty() {
+        return Vec::new();
+    }
+
+    let mut candidates = Vec::new();
+
+    // 1. UUID detection (via ctb-formats-uuid)
+    let mut has_uuid_hex32 = false;
+    if let Some(uuid_det) = ctb_formats_uuid::detect_uuid_format(trimmed) {
+        let fmt = uuid_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let mut score = if fmt == FormatId::UuidHex32 { 80u32 } else { 90u32 };
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: uuid_det.description.clone(),
+            score,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: uuid_det.description,
+            confidence: if score >= 85 {
+                ConfidenceTier::HighestConfidence
+            } else {
+                ConfidenceTier::Strong
+            },
+            score,
+            evidence,
+        });
+
+        if fmt != FormatId::UuidHex32 {
+            return candidates;
+        }
+        has_uuid_hex32 = true;
+    }
+
+    // 2. URI and URI Scheme/Protocol detection (via ctb-formats-uri)
+    if let Some(uri_det) = ctb_formats_uri::detect_uri(trimmed) {
+        let fmt = uri_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let mut score = if uri_det.is_scheme_only { 80u32 } else { 85u32 };
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: uri_det.description.clone(),
+            score,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: uri_det.description,
+            confidence: if score >= 85 {
+                ConfidenceTier::HighestConfidence
+            } else {
+                ConfidenceTier::Strong
+            },
+            score,
+            evidence,
+        });
         return candidates;
     }
 
-    let mut subsumed_indices = std::collections::HashSet::new();
-    let num_candidates = candidates.len();
+    // 3. Apple Uniform Type Identifier (UTI) detection (e.g. "public.jpeg", "com.adobe.pdf")
+    if (trimmed.starts_with("public.") || trimmed.starts_with("com.apple.") || trimmed.starts_with("com.adobe."))
+        || (trimmed.contains('.') && !trimmed.contains('/') && !trimmed.contains(' ') && trimmed.split('.').all(|seg| !seg.is_empty() && seg.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')))
+    {
+        if let Some(mapping) = FORMAT_CATALOG.lookup_apple_uti(trimmed) {
+            let fmt = mapping.format_id;
+            let mut score = 90u32;
+            let desc = format!("Apple Uniform Type Identifier (UTI): {trimmed}");
+            let mut evidence = vec![DetectionEvidence::CtbRule {
+                description: desc.clone(),
+                score: 90,
+            }];
 
-    // 1. Identify subsumption relationships
-    for i in 0..num_candidates {
-        for j in 0..num_candidates {
-            if i == j || subsumed_indices.contains(&j) {
-                continue;
-            }
-            let Some(child_candidate) = candidates.get(i) else {
-                continue;
-            };
-            let Some(parent_candidate) = candidates.get(j) else {
-                continue;
-            };
-
-            let is_subclass = match (child_candidate.format_id, parent_candidate.format_id) {
-                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
-                _ => match (&child_candidate.mime, &parent_candidate.mime) {
-                    (Some(c_mime), Some(p_mime)) => {
-                        FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
+            if let (Some(h), Some(fid)) = (hint, fmt) {
+                if let Some(exp_cat) = h.expected_category {
+                    if fid.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
                     }
-                    _ => false,
-                },
-            };
-
-            let is_container_parent = parent_candidate.format_id == Some(FormatId::Zip)
-                || parent_candidate.mime.as_deref() == Some("application/zip")
-                || parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
-                || parent_candidate.description.starts_with("OLE 2 Compound Document")
-                || parent_candidate.description.starts_with("Composite Document File");
-
-            let is_child_of_container = is_container_parent
-                && child_candidate.evidence.iter().any(|e| match e {
-                    DetectionEvidence::ContainerStructure { detail, .. } => {
-                        (parent_candidate.format_id == Some(FormatId::Zip)
-                            || parent_candidate.mime.as_deref() == Some("application/zip"))
-                            && (detail.contains("ZIP") || detail.contains("Central Directory"))
-                            || (parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
-                                || parent_candidate.description.starts_with("OLE 2 Compound Document")
-                                || parent_candidate.description.starts_with("Composite Document File"))
-                                && (detail.contains("OLE2")
-                                    || detail.contains("Compound Document")
-                                    || detail.contains("Hancom")
-                                    || detail.contains("Word")
-                                    || detail.contains("Excel")
-                                    || detail.contains("PowerPoint"))
-                    }
-                    _ => false,
-                });
-
-            // If i is a subtype of j and i has equal or higher score (or within 35 points, or is a specialized format in a container)
-            if (is_subclass || is_child_of_container)
-                && (child_candidate.score.saturating_add(35) >= parent_candidate.score
-                    || (is_container_parent && child_candidate.score >= 65))
-            {
-                subsumed_indices.insert(j);
-            }
-        }
-    }
-
-    // 2. Attach subsumed ancestors as evidence to child formats
-    let parent_summaries: Vec<(usize, Option<FormatId>, Option<String>, u32)> = subsumed_indices
-        .iter()
-        .filter_map(|&sub_idx| {
-            candidates
-                .get(sub_idx)
-                .map(|p| (sub_idx, p.format_id, p.mime.clone(), p.score))
-        })
-        .collect();
-
-    for (i, cand) in candidates.iter_mut().enumerate() {
-        if subsumed_indices.contains(&i) {
-            continue;
-        }
-        for &(_sub_idx, parent_fmt, ref parent_mime, parent_score) in &parent_summaries {
-            let is_subclass = match (cand.format_id, parent_fmt) {
-                (Some(c_fmt), Some(p_fmt)) => FORMAT_CATALOG.is_subclass_of(c_fmt, p_fmt),
-                _ => match (&cand.mime, parent_mime) {
-                    (Some(c_mime), Some(p_mime)) => {
-                        FORMAT_CATALOG.is_mime_subclass_of(c_mime, p_mime)
-                    }
-                    _ => false,
-                },
-            };
-            if is_subclass {
-                cand.evidence.push(DetectionEvidence::SubsumedAncestor {
-                    parent_id: parent_fmt,
-                    parent_mime: parent_mime.clone(),
-                    score: parent_score,
-                });
-            }
-        }
-    }
-
-    // 3. Demote subsumed candidates in score so they do not compete with their specialization
-    for &idx in &subsumed_indices {
-        if let Some(c) = candidates.get_mut(idx) {
-            c.score = c.score.saturating_sub(50).min(60);
-            c.confidence = if c.score >= 65 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-        }
-    }
-
-    // 4. Detect true non-hierarchical conflicts:
-    // Partition candidates into encoding formats and content formats so character encodings
-    // do not conflict with document/identifier/data content formats.
-    let is_encoding = |c: &DetectionCandidate| {
-        c.format_id
-            .map(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
-            .unwrap_or(false)
-    };
-    let non_subsumed_content_count = candidates
-        .iter()
-        .enumerate()
-        .filter(|(idx, c)| !subsumed_indices.contains(idx) && c.score >= 70 && !is_encoding(c))
-        .count();
-    let non_subsumed_encoding_count = candidates
-        .iter()
-        .enumerate()
-        .filter(|(idx, c)| !subsumed_indices.contains(idx) && c.score >= 70 && is_encoding(c))
-        .count();
-
-    for (idx, c) in candidates.iter_mut().enumerate() {
-        if !subsumed_indices.contains(&idx) && c.score >= 70 {
-            if is_encoding(c) {
-                if non_subsumed_encoding_count > 1 {
-                    c.confidence = ConfidenceTier::Conflicted;
                 }
-            } else if non_subsumed_content_count > 1 {
-                c.confidence = ConfidenceTier::Conflicted;
+            }
+
+            candidates.push(DetectionCandidate {
+                format_id: fmt,
+                dc_id: Some(mapping.dc_id),
+                mime: mapping.mime_types.first().cloned(),
+                description: desc,
+                confidence: ConfidenceTier::HighestConfidence,
+                score,
+                evidence,
+            });
+            return candidates;
+        }
+    }
+
+    // 4. MIME type string detection (e.g. "image/jpeg", "application/json", "text/plain")
+    if trimmed.contains('/') && !trimmed.contains(' ') {
+        let mime_base = trimmed.split(';').next().unwrap_or(trimmed).trim();
+        if let Some((top, sub)) = mime_base.split_once('/') {
+            let is_standard_top = matches!(
+                top.to_ascii_lowercase().as_str(),
+                "application"
+                    | "audio"
+                    | "font"
+                    | "example"
+                    | "image"
+                    | "message"
+                    | "model"
+                    | "multipart"
+                    | "text"
+                    | "video"
+            );
+            let is_valid_sub = !sub.is_empty()
+                && sub
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'.' || b == b'-' || b == b'_');
+            if is_standard_top && is_valid_sub {
+                if let Some(mapping) = FORMAT_CATALOG.lookup_mime(mime_base) {
+                    let fmt = mapping.format_id;
+                    let mut score = 90u32;
+                    let desc = format!("MIME type string: {trimmed}");
+                    let mut evidence = vec![DetectionEvidence::CtbRule {
+                        description: desc.clone(),
+                        score: 90,
+                    }];
+
+                    if let (Some(h), Some(fid)) = (hint, fmt) {
+                        if let Some(exp_cat) = h.expected_category {
+                            if fid.category() == exp_cat {
+                                score = score.saturating_add(20);
+                                evidence.push(DetectionEvidence::CategoryMatch {
+                                    category: exp_cat,
+                                    score: 20,
+                                });
+                            }
+                        }
+                    }
+
+                    candidates.push(DetectionCandidate {
+                        format_id: fmt,
+                        dc_id: Some(mapping.dc_id),
+                        mime: Some(mime_base.to_string()),
+                        description: desc,
+                        confidence: ConfidenceTier::HighestConfidence,
+                        score,
+                        evidence,
+                    });
+                    return candidates;
+                }
             }
         }
     }
 
-    // 5. Final sort: Highest confidence and score first
-    candidates.sort_by(|a, b| {
-        b.confidence
-            .cmp(&a.confidence)
-            .then_with(|| b.score.cmp(&a.score))
-    });
+    // 5. Apple OS / Creator Type detection (exact 4-character code recognized in format database)
+    // e.g. "TEXT", "PDF ", "JPEG", "PNGf"
+    if let Ok(bytes) = <[u8; 4]>::try_from(trimmed.as_bytes()) {
+        if bytes.iter().all(|b| b.is_ascii_graphic() || *b == b' ') {
+            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&bytes) {
+                let fmt = mapping.format_id;
+                let mut score = 85u32;
+                let desc = format!("Apple OS / Creator Type: '{trimmed}'");
+                let mut evidence = vec![DetectionEvidence::CtbRule {
+                    description: desc.clone(),
+                    score: 85,
+                }];
+
+                if let (Some(h), Some(fid)) = (hint, fmt) {
+                    if let Some(exp_cat) = h.expected_category {
+                        if fid.category() == exp_cat {
+                            score = score.saturating_add(20);
+                            evidence.push(DetectionEvidence::CategoryMatch {
+                                category: exp_cat,
+                                score: 20,
+                            });
+                        }
+                    }
+                }
+
+                candidates.push(DetectionCandidate {
+                    format_id: fmt,
+                    dc_id: Some(mapping.dc_id),
+                    mime: mapping.mime_types.first().cloned(),
+                    description: desc,
+                    confidence: ConfidenceTier::HighestConfidence,
+                    score,
+                    evidence,
+                });
+                return candidates;
+            }
+        }
+    }
+
+    // 6. Numeric formats check (prioritize decimal integer and prefixed base numerals over 8-char CRC32)
+    let is_prefixed_numeral = trimmed.starts_with("0x")
+        || trimmed.starts_with("0X")
+        || trimmed.starts_with("0b")
+        || trimmed.starts_with("0B")
+        || trimmed.starts_with("0o")
+        || trimmed.starts_with("0O");
+    if is_prefixed_numeral || trimmed.bytes().all(|b| b.is_ascii_digit()) {
+        if let Some(num_det) = ctb_formats_math::detect_numeric_format(trimmed) {
+            let fmt = num_det.format_id;
+            let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+            let dc_id = mapping.map(|m| m.dc_id);
+            let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+            let mut score = 85u32;
+            let mut evidence = vec![DetectionEvidence::CtbRule {
+                description: num_det.description.clone(),
+                score: 85,
+            }];
+
+            if let Some(h) = hint {
+                if let Some(exp_cat) = h.expected_category {
+                    if fmt.category() == exp_cat {
+                        score = score.saturating_add(20);
+                        evidence.push(DetectionEvidence::CategoryMatch {
+                            category: exp_cat,
+                            score: 20,
+                        });
+                    }
+                }
+            }
+
+            candidates.push(DetectionCandidate {
+                format_id: Some(fmt),
+                dc_id,
+                mime,
+                description: num_det.description,
+                confidence: ConfidenceTier::HighestConfidence,
+                score,
+                evidence,
+            });
+            return candidates;
+        }
+    }
+
+    // 7. IP address detection (via ctb-formats-ipaddr)
+    if let Some(ip_det) = ctb_formats_ipaddr::detect_ip_format(trimmed) {
+        let fmt = ip_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let mut score = 90u32;
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: ip_det.description.clone(),
+            score: 90,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: ip_det.description,
+            confidence: ConfidenceTier::HighestConfidence,
+            score,
+            evidence,
+        });
+        return candidates;
+    }
+
+    // 8. Checksum detection (via ctb-formats-checksum)
+    if let Some(csum_det) = ctb_formats_checksum::detect_checksum(trimmed) {
+        let fmt = csum_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let base_score = if csum_det.is_manifest {
+            85u32
+        } else if has_uuid_hex32 {
+            80u32
+        } else {
+            85u32
+        };
+        let mut score = base_score;
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: csum_det.description.clone(),
+            score: base_score,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        let confidence = if score >= 85 {
+            ConfidenceTier::HighestConfidence
+        } else {
+            ConfidenceTier::Strong
+        };
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: csum_det.description,
+            confidence,
+            score,
+            evidence,
+        });
+        if !has_uuid_hex32 {
+            return candidates;
+        }
+    }
+
+    if has_uuid_hex32 {
+        return candidates;
+    }
+
+    // 9. Mathematical expressions and relations (via ctb-formats-math)
+    if let Some(math_det) = ctb_formats_math::detect_math_format(trimmed) {
+        let fmt = math_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let mut score = 85u32;
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: math_det.description.clone(),
+            score: 85,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: math_det.description,
+            confidence: ConfidenceTier::HighestConfidence,
+            score,
+            evidence,
+        });
+        return candidates;
+    }
+
+    // 10. Numeric and base numeral formats (via ctb-formats-math)
+    if let Some(num_det) = ctb_formats_math::detect_numeric_format(trimmed) {
+        let fmt = num_det.format_id;
+        let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
+        let dc_id = mapping.map(|m| m.dc_id);
+        let mime = mapping.and_then(|m| m.mime_types.first().cloned());
+        let mut score = 75u32;
+        let mut evidence = vec![DetectionEvidence::CtbRule {
+            description: num_det.description.clone(),
+            score: 75,
+        }];
+
+        if let Some(h) = hint {
+            if let Some(exp_cat) = h.expected_category {
+                if fmt.category() == exp_cat {
+                    score = score.saturating_add(20);
+                    evidence.push(DetectionEvidence::CategoryMatch {
+                        category: exp_cat,
+                        score: 20,
+                    });
+                }
+            }
+        }
+
+        candidates.push(DetectionCandidate {
+            format_id: Some(fmt),
+            dc_id,
+            mime,
+            description: num_det.description,
+            confidence: ConfidenceTier::Strong,
+            score,
+            evidence,
+        });
+        return candidates;
+    }
 
     candidates
 }
@@ -632,44 +926,96 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
 mod tests {
     use super::*;
 
-    #[ctb_test]
-    fn test_resolve_candidate_conflicts_subsumption() {
-        let candidates = vec![
-            DetectionCandidate {
-                format_id: Some(FormatId::IaFilesXml),
-                dc_id: None,
-                mime: Some("application/xml".to_string()),
-                description: "Internet Archive files XML".to_string(),
-                confidence: ConfidenceTier::Strong,
-                score: 85,
-                evidence: vec![DetectionEvidence::Extension {
-                    ext: "xml".to_string(),
-                    is_primary: true,
-                    score: 85,
-                }],
-            },
-            DetectionCandidate {
-                format_id: Some(FormatId::Xml),
-                dc_id: None,
-                mime: Some("application/xml".to_string()),
-                description: "XML".to_string(),
-                confidence: ConfidenceTier::Strong,
-                score: 80,
-                evidence: vec![DetectionEvidence::FileMagic {
-                    description: "xml_magic".to_string(),
-                    score: 80,
-                }],
-            },
-        ];
+    #[crate::ctb_test]
+    fn test_detect_small_format_ip() {
+        let cands = detect_small_format_candidates(b"192.168.1.1", None, None);
+        assert!(!cands.is_empty());
+        assert_eq!(cands[0].format_id, Some(FormatId::IpV4String));
 
-        let resolved = resolve_candidate_conflicts(candidates);
-        assert!(!resolved.is_empty());
-        let top = &resolved[0];
-        assert_eq!(top.format_id, Some(FormatId::IaFilesXml));
-        assert!(top.evidence.iter().any(|ev| matches!(
-            ev,
-            DetectionEvidence::SubsumedAncestor { parent_id: Some(p), .. } if *p == FormatId::Xml
-        )));
+        let cands6 = detect_small_format_candidates(b"::1", None, None);
+        assert!(!cands6.is_empty());
+        assert_eq!(cands6[0].format_id, Some(FormatId::IpV6String));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_uuid() {
+        let cands = detect_small_format_candidates(
+            b"550e8400-e29b-41d4-a716-446655440000",
+            None,
+            None,
+        );
+        assert!(!cands.is_empty());
+        assert_eq!(cands[0].format_id, Some(FormatId::UuidCanonical));
+
+        let urn = detect_small_format_candidates(
+            b"urn:uuid:550e8400-e29b-41d4-a716-446655440000",
+            None,
+            None,
+        );
+        assert_eq!(urn[0].format_id, Some(FormatId::UuidUrn));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_checksum() {
+        let sha256 = b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        let cands = detect_small_format_candidates(sha256, None, None);
+        assert!(!cands.is_empty());
+        assert_eq!(cands[0].format_id, Some(FormatId::Sha256));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_math() {
+        let eq = detect_small_format_candidates(b"2x = 6", None, None);
+        assert_eq!(eq[0].format_id, Some(FormatId::Equation));
+
+        let ineq = detect_small_format_candidates(b"x^2 + y^2 <= 1", None, None);
+        assert_eq!(ineq[0].format_id, Some(FormatId::Inequality));
+
+        let approx = detect_small_format_candidates(b"1 oz ~= 28 g", None, None);
+        assert_eq!(approx[0].format_id, Some(FormatId::Approximation));
+
+        let arith = detect_small_format_candidates(b"(23 mod 2) + 6", None, None);
+        assert_eq!(arith[0].format_id, Some(FormatId::ArithmeticExpression));
+
+        let symb = detect_small_format_candidates(b"1 + 2x", None, None);
+        assert_eq!(symb[0].format_id, Some(FormatId::SymbolicExpression));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_numbers() {
+        let int_cand = detect_small_format_candidates(b"12345", None, None);
+        assert_eq!(int_cand[0].format_id, Some(FormatId::Integer));
+
+        let hex_cand = detect_small_format_candidates(b"0xDEADBEEF", None, None);
+        assert_eq!(hex_cand[0].format_id, Some(FormatId::HexadecimalNumeral));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_uri_and_scheme() {
+        let scheme_cand = detect_small_format_candidates(b"http", None, None);
+        assert_eq!(scheme_cand[0].format_id, Some(FormatId::UriProtocol));
+
+        let uri_cand = detect_small_format_candidates(b"https://collectivetoolbox.com", None, None);
+        assert_eq!(uri_cand[0].format_id, Some(FormatId::Uri));
+
+        let magnet_cand = detect_small_format_candidates(
+            b"magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a",
+            None,
+            None,
+        );
+        assert_eq!(magnet_cand[0].format_id, Some(FormatId::Magnet));
+    }
+
+    #[crate::ctb_test]
+    fn test_detect_small_format_uti_and_mime_and_creator() {
+        let uti_cand = detect_small_format_candidates(b"com.apple.alias-file", None, None);
+        assert_eq!(uti_cand[0].format_id, Some(FormatId::MacAlias));
+
+        let mime_cand = detect_small_format_candidates(b"application/json", None, None);
+        assert_eq!(mime_cand[0].format_id, Some(FormatId::Json));
+
+        let creator_cand = detect_small_format_candidates(b"alis", None, None);
+        assert_eq!(creator_cand[0].format_id, Some(FormatId::MacAlias));
     }
 }
 /*

@@ -14,14 +14,14 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228448,224,MathExpression,Math expression (not an equation/relation),math,,,,,,,,,,,,
+2228448,224,MathExpression,Math expression (not an equation/relation),math,@implies(f14),,,,,,,,,,,
 2228588,364,ArithmeticExpression,Arithmetic expression,math,@implies(f224),,,,,,,,,,"e.g. ""(23 mod 2) + 6"", ""sin(pi/4)""",
 2228589,365,SymbolicExpression,Math expression with variables,math,@implies(f224),,,,,,,,,,"e.g. ""1 + 2x"", ""x^2 - 4x + 4""",
-2228590,366,MathRelation,Math relation,math,,,,,,,,,,,,
+2228590,366,MathRelation,Math relation,math,@implies(f14),,,,,,,,,,,
 2228591,367,Equation,Predicate asserting equality,math,@implies(f366),,,,,,,,,,"e.g. ""2x = 6"", ""E = mc^2"", ""1 lb = 16 oz""",
 2228592,368,Inequality,Predicate asserting ordering,math,@implies(f366),,,,,,,,,,"e.g. ""x^2 + y^2 <= 1"", ""1 ≠ 2""",
 2228593,369,Approximation,Predicate asserting approximate equality,math,@implies(f366),,,,,,,,,,"e.g. ""1 oz ~= 28 g""",
-2228594,370,EquationSystem,"A system of equations, inequalities, and/or approximations",math,,,,,,,,,,,"e.g. ""1 lb = 16 oz; 1 oz ~= 28 g; solve for x""",
+2228594,370,EquationSystem,"A system of equations, inequalities, and/or approximations",math,@implies(f14),,,,,,,,,,"e.g. ""1 lb = 16 oz; 1 oz ~= 28 g; solve for x""",
 2228728,504,Point,Point in n-dimensional space,math,:~ [number $dimensions] [list($dimensions):number],,,,,,,,,,An absolute location or position within an affine reference frame. Meaningless without an origin anchor.,
 2228729,505,Point1D,Point in 1-dimensional space,math,"@implies(f504), :~ [number]",,,,,,,,,,1D coordinate or scalar position.,
 2228730,506,Point2D,Point in 2-dimensional space,math,"@implies(f504), :~ [number] [number]",,,,,,,,,,2D planar coordinate.,

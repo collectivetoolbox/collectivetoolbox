@@ -152,6 +152,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                     on_source_change: SourceChangePolicy::Error,
                     copy_specials_as_specials: true,
                     copy_block_devices_as_regular_files: false,
+                    copy_fifos_as_regular_files: false,
                     one_file_system: false,
                     best_effort_metadata: args.best_effort_metadata,
                     allow_unknown_fs: args.allow_unknown_fs,

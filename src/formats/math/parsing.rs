@@ -879,6 +879,402 @@ pub fn evaluate_expression(expr: &str) -> Result<f64> {
     Ok(result)
 }
 
+/// Result of identifying a mathematical expression, relation, or numeral format.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MathDetection {
+    /// Format identifier (e.g. `FormatId::Equation`, `FormatId::ArithmeticExpression`, etc.).
+    pub format_id: FormatId,
+    /// Human-readable format description.
+    pub description: String,
+}
+
+/// Detects whether `s` represents a numeric or base numeral format (Integer,
+/// Float, HexadecimalNumeral, BinaryNumeral, or OctalNumeral).
+#[must_use]
+pub fn detect_numeric_format(s: &str) -> Option<MathDetection> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    // 1. Hexadecimal numeral prefix `0x` / `0X`
+    if let Some(rest) = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")) {
+        if !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Some(MathDetection {
+                format_id: FormatId::HexadecimalNumeral,
+                description: "Hexadecimal numeral (base 16)".to_string(),
+            });
+        }
+    }
+
+    // 2. Binary numeral prefix `0b` / `0B`
+    if let Some(rest) = trimmed.strip_prefix("0b").or_else(|| trimmed.strip_prefix("0B")) {
+        if !rest.is_empty() && rest.bytes().all(|b| b == b'0' || b == b'1') {
+            return Some(MathDetection {
+                format_id: FormatId::BinaryNumeral,
+                description: "Binary numeral (base 2)".to_string(),
+            });
+        }
+    }
+
+    // 3. Octal numeral prefix `0o` / `0O`
+    if let Some(rest) = trimmed.strip_prefix("0o").or_else(|| trimmed.strip_prefix("0O")) {
+        if !rest.is_empty() && rest.bytes().all(|b| (b'0'..=b'7').contains(&b)) {
+            return Some(MathDetection {
+                format_id: FormatId::OctalNumeral,
+                description: "Octal numeral (base 8)".to_string(),
+            });
+        }
+    }
+
+    let clean = trimmed
+        .strip_prefix('+')
+        .or_else(|| trimmed.strip_prefix('-'))
+        .unwrap_or(trimmed);
+
+    // 4. Integer (strictly digits)
+    if !clean.is_empty() && clean.bytes().all(|b| b.is_ascii_digit()) {
+        return Some(MathDetection {
+            format_id: FormatId::Integer,
+            description: "Integer number".to_string(),
+        });
+    }
+
+    // 5. Floating-point number (has decimal point or exponent notation)
+    if clean.contains('.') || clean.contains('e') || clean.contains('E') {
+        if clean.parse::<f64>().is_ok() {
+            return Some(MathDetection {
+                format_id: FormatId::Float,
+                description: "Floating-point number".to_string(),
+            });
+        }
+    }
+
+    None
+}
+
+/// Helper checking if a string looks like code or config assignment rather than math.
+fn looks_like_code_or_config(s: &str) -> bool {
+    let lower = s.to_ascii_lowercase();
+    lower.starts_with("let ")
+        || lower.starts_with("const ")
+        || lower.starts_with("var ")
+        || lower.starts_with("fn ")
+        || lower.starts_with("def ")
+        || lower.starts_with("import ")
+        || lower.starts_with("#define ")
+        || lower.starts_with("#!")
+        || lower.starts_with("//")
+        || lower.contains("/*")
+        || lower.contains("*/")
+        || lower.contains("<?xml")
+        || lower.contains("<html")
+        || lower.starts_with("md5 (")
+        || lower.starts_with("sha256 (")
+        || lower.starts_with("sha1 (")
+}
+
+/// Known mathematical identifier tokens, functions, and standard units.
+fn is_math_ident(w: &str) -> bool {
+    let lower = w.to_ascii_lowercase();
+    matches!(
+        lower.as_str(),
+        "x" | "y"
+            | "z"
+            | "a"
+            | "b"
+            | "c"
+            | "d"
+            | "f"
+            | "g"
+            | "h"
+            | "k"
+            | "m"
+            | "n"
+            | "p"
+            | "q"
+            | "r"
+            | "s"
+            | "t"
+            | "u"
+            | "v"
+            | "w"
+            | "sin"
+            | "cos"
+            | "tan"
+            | "cot"
+            | "sec"
+            | "csc"
+            | "arcsin"
+            | "arccos"
+            | "arctan"
+            | "sinh"
+            | "cosh"
+            | "tanh"
+            | "log"
+            | "ln"
+            | "exp"
+            | "sqrt"
+            | "pi"
+            | "theta"
+            | "phi"
+            | "psi"
+            | "omega"
+            | "alpha"
+            | "beta"
+            | "gamma"
+            | "delta"
+            | "sigma"
+            | "lambda"
+            | "mu"
+            | "mod"
+            | "solve"
+            | "for"
+            | "oz"
+            | "lb"
+            | "kg"
+            | "cm"
+            | "mm"
+            | "in"
+            | "ft"
+            | "yd"
+            | "min"
+            | "hr"
+    )
+}
+
+fn is_word_non_math(w: &str) -> bool {
+    if w.is_empty() {
+        return false;
+    }
+    let lower = w.to_ascii_lowercase();
+    if is_math_ident(&lower) {
+        return false;
+    }
+    // Words of length >= 4 that are not math identifiers are non-math words
+    if w.len() >= 4 {
+        return true;
+    }
+    // Common 2-3 char natural language words and paths
+    matches!(
+        lower.as_str(),
+        "is" | "an"
+            | "at"
+            | "by"
+            | "to"
+            | "in"
+            | "on"
+            | "or"
+            | "the"
+            | "and"
+            | "not"
+            | "all"
+            | "any"
+            | "cmd"
+            | "usr"
+            | "bin"
+            | "who"
+            | "how"
+            | "what"
+    )
+}
+
+/// Checks if string contains words that indicate natural language or code rather than math.
+fn has_non_math_words(s: &str) -> bool {
+    let mut current_word = String::new();
+    for c in s.chars() {
+        if c.is_ascii_alphabetic() {
+            current_word.push(c);
+        } else {
+            if is_word_non_math(&current_word) {
+                return true;
+            }
+            current_word.clear();
+        }
+    }
+    if is_word_non_math(&current_word) {
+        return true;
+    }
+    false
+}
+
+/// Detects whether `s` represents a mathematical expression (arithmetic,
+/// symbolic) or relation (equation, inequality, approximation, system).
+#[must_use]
+pub fn detect_math_format(s: &str) -> Option<MathDetection> {
+    let trimmed = s.trim();
+    if trimmed.is_empty() || looks_like_code_or_config(trimmed) || has_non_math_words(trimmed) {
+        return None;
+    }
+
+    // Pure numbers are handled by detect_numeric_format, not math expressions/relations
+    if detect_numeric_format(trimmed).is_some() {
+        return None;
+    }
+
+    // 1. Equation system: multiple clauses separated by ';' or newlines
+    let segments: Vec<&str> = trimmed
+        .split([';', '\n'])
+        .map(str::trim)
+        .filter(|seg| !seg.is_empty())
+        .collect();
+
+    if trimmed.contains('\n') || segments.len() > 1 {
+        let all_relations = segments.iter().all(|seg| {
+            seg.contains('=')
+                || seg.contains('<')
+                || seg.contains('>')
+                || seg.contains("!=")
+                || seg.contains('≠')
+                || seg.contains("~=")
+                || seg.contains('≈')
+        });
+        if all_relations && segments.len() > 1 {
+            return Some(MathDetection {
+                format_id: FormatId::EquationSystem,
+                description: "System of mathematical equations/relations".to_string(),
+            });
+        }
+        if trimmed.contains('\n') {
+            return None;
+        }
+    }
+
+    // 2. Approximation predicates: ~=, ≈, ≅
+    if trimmed.contains("~=") || trimmed.contains('≈') || trimmed.contains('≅') {
+        let (left, right) = if let Some((l, r)) = trimmed.split_once("~=") {
+            (l.trim(), r.trim())
+        } else if let Some((l, r)) = trimmed.split_once('≈') {
+            (l.trim(), r.trim())
+        } else if let Some((l, r)) = trimmed.split_once('≅') {
+            (l.trim(), r.trim())
+        } else {
+            ("", "")
+        };
+        if !left.is_empty() && !right.is_empty() {
+            return Some(MathDetection {
+                format_id: FormatId::Approximation,
+                description: "Mathematical approximation".to_string(),
+            });
+        }
+    }
+
+    // 3. Inequality predicates: <=, >=, !=, ≠, ≤, ≥, <, >
+    let has_inequality_op = trimmed.contains("<=")
+        || trimmed.contains(">=")
+        || trimmed.contains("!=")
+        || trimmed.contains('≠')
+        || trimmed.contains('≤')
+        || trimmed.contains('≥')
+        || (trimmed.contains('<') && !trimmed.contains("</") && !trimmed.contains("<xml"))
+        || (trimmed.contains('>') && !trimmed.contains("->") && !trimmed.contains("=>"));
+
+    if has_inequality_op {
+        let op_match = if trimmed.contains("<=") {
+            trimmed.split_once("<=")
+        } else if trimmed.contains(">=") {
+            trimmed.split_once(">=")
+        } else if trimmed.contains("!=") {
+            trimmed.split_once("!=")
+        } else if trimmed.contains('≠') {
+            trimmed.split_once('≠')
+        } else if trimmed.contains('≤') {
+            trimmed.split_once('≤')
+        } else if trimmed.contains('≥') {
+            trimmed.split_once('≥')
+        } else if trimmed.contains('<') {
+            trimmed.split_once('<')
+        } else {
+            trimmed.split_once('>')
+        };
+
+        if let Some((left, right)) = op_match {
+            let (l_clean, r_clean) = (left.trim(), right.trim());
+            if !l_clean.is_empty() && !r_clean.is_empty() {
+                return Some(MathDetection {
+                    format_id: FormatId::Inequality,
+                    description: "Mathematical inequality".to_string(),
+                });
+            }
+        }
+    }
+
+    // 4. Equation predicates: `=` or `==`
+    if (trimmed.contains('=') || trimmed.contains("==")) && !trimmed.starts_with('=') {
+        let op_match = trimmed
+            .split_once("==")
+            .or_else(|| trimmed.split_once('='));
+
+        if let Some((left, right)) = op_match {
+            let (l, r) = (left.trim(), right.trim());
+            // Filter out shell assignments like `FOO=bar` where left has no spaces and right has no spaces
+            let is_shell_assign = !trimmed.contains(' ') && !l.is_empty() && l.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_');
+            if !is_shell_assign && !l.is_empty() && !r.is_empty() {
+                // Ensure at least one side looks like a math expression or quantity
+                let has_math_tokens = l.contains('+')
+                    || l.contains('-')
+                    || l.contains('*')
+                    || l.contains('/')
+                    || l.contains('^')
+                    || l.contains('%')
+                    || r.contains('+')
+                    || r.contains('-')
+                    || r.contains('*')
+                    || r.contains('/')
+                    || r.contains('^')
+                    || r.contains('%')
+                    || l.bytes().any(|b| b.is_ascii_digit())
+                    || r.bytes().any(|b| b.is_ascii_digit());
+
+                if has_math_tokens {
+                    return Some(MathDetection {
+                        format_id: FormatId::Equation,
+                        description: "Mathematical equation".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    // 5. Arithmetic expression (evaluates with numeric arithmetic)
+    if evaluate_expression(trimmed).is_ok() {
+        let has_ops = trimmed.contains('+')
+            || trimmed.contains('-')
+            || trimmed.contains('*')
+            || trimmed.contains('/')
+            || trimmed.contains('^')
+            || trimmed.contains('%')
+            || trimmed.contains("mod")
+            || unicode_vulgar_fraction(trimmed.chars().next().unwrap_or(' ')).is_some();
+        if has_ops {
+            return Some(MathDetection {
+                format_id: FormatId::ArithmeticExpression,
+                description: "Arithmetic expression".to_string(),
+            });
+        }
+    }
+
+    // 6. Symbolic expression with algebraic variables (e.g. `1 + 2x`, `x^2 - 4x + 4`)
+    let has_algebraic_ops = trimmed.contains('+')
+        || trimmed.contains('-')
+        || trimmed.contains('*')
+        || trimmed.contains('/')
+        || trimmed.contains('^');
+
+    if has_algebraic_ops {
+        let has_vars = trimmed.chars().any(|c| c.is_ascii_alphabetic());
+        let has_numbers = trimmed.chars().any(|c| c.is_ascii_digit());
+        if has_vars && (has_numbers || trimmed.contains('^') || trimmed.contains('*')) {
+            return Some(MathDetection {
+                format_id: FormatId::SymbolicExpression,
+                description: "Symbolic mathematical expression".to_string(),
+            });
+        }
+    }
+
+    None
+}
+
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -1005,4 +1401,107 @@ mod tests {
         evaluate_expression("2 + (3 *").unwrap_err();
         evaluate_expression("2 + +").unwrap_err();
     }
+
+    #[crate::ctb_test]
+    fn test_detect_math_and_numeric_formats() {
+        // Numeric formats
+        assert_eq!(
+            detect_numeric_format("12345").unwrap().format_id,
+            FormatId::Integer
+        );
+        assert_eq!(
+            detect_numeric_format("-42").unwrap().format_id,
+            FormatId::Integer
+        );
+        assert_eq!(
+            detect_numeric_format("3.14159").unwrap().format_id,
+            FormatId::Float
+        );
+        assert_eq!(
+            detect_numeric_format("-0.05").unwrap().format_id,
+            FormatId::Float
+        );
+        assert_eq!(
+            detect_numeric_format("0xDEADBEEF").unwrap().format_id,
+            FormatId::HexadecimalNumeral
+        );
+        assert_eq!(
+            detect_numeric_format("0b101010").unwrap().format_id,
+            FormatId::BinaryNumeral
+        );
+        assert_eq!(
+            detect_numeric_format("0o755").unwrap().format_id,
+            FormatId::OctalNumeral
+        );
+
+        // Equations
+        assert_eq!(
+            detect_math_format("2x = 6").unwrap().format_id,
+            FormatId::Equation
+        );
+        assert_eq!(
+            detect_math_format("E = mc^2").unwrap().format_id,
+            FormatId::Equation
+        );
+        assert_eq!(
+            detect_math_format("y = 2x + 1").unwrap().format_id,
+            FormatId::Equation
+        );
+
+        // Inequalities
+        assert_eq!(
+            detect_math_format("x^2 + y^2 <= 1").unwrap().format_id,
+            FormatId::Inequality
+        );
+        assert_eq!(
+            detect_math_format("x > 0").unwrap().format_id,
+            FormatId::Inequality
+        );
+        assert_eq!(
+            detect_math_format("1 != 2").unwrap().format_id,
+            FormatId::Inequality
+        );
+
+        // Approximations
+        assert_eq!(
+            detect_math_format("1 oz ~= 28 g").unwrap().format_id,
+            FormatId::Approximation
+        );
+        assert_eq!(
+            detect_math_format("pi ≈ 3.14159").unwrap().format_id,
+            FormatId::Approximation
+        );
+
+        // Equation systems
+        assert_eq!(
+            detect_math_format("2x + y = 5; x - y = 1").unwrap().format_id,
+            FormatId::EquationSystem
+        );
+
+        // Arithmetic expressions
+        assert_eq!(
+            detect_math_format("(23 mod 2) + 6").unwrap().format_id,
+            FormatId::ArithmeticExpression
+        );
+        assert_eq!(
+            detect_math_format("2 + 3 * 4").unwrap().format_id,
+            FormatId::ArithmeticExpression
+        );
+
+        // Symbolic expressions
+        assert_eq!(
+            detect_math_format("1 + 2x").unwrap().format_id,
+            FormatId::SymbolicExpression
+        );
+        assert_eq!(
+            detect_math_format("x^2 - 4x + 4").unwrap().format_id,
+            FormatId::SymbolicExpression
+        );
+
+        // Non-math / code / config
+        assert!(detect_math_format("let x = 5;").is_none());
+        assert!(detect_math_format("import math").is_none());
+        assert!(detect_math_format("hello world").is_none());
+    }
 }
+

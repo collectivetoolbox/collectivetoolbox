@@ -162,7 +162,10 @@ pub fn execute_copy_pipeline(
     let mut deferred_symlinks: Vec<DeferredSymlink> = Vec::new();
     let mut files_to_verify: Vec<(PathBuf, PathBuf, FileEntity)> = Vec::new();
 
-    if !args.copy_specials_as_specials && !args.copy_block_devices_as_regular_files {
+    if !args.copy_specials_as_specials
+        && !args.copy_block_devices_as_regular_files
+        && !args.copy_fifos_as_regular_files
+    {
         progress.message(
             "Notice: Special files (FIFOs, device nodes, sockets) will be skipped by default. Pass --copy-specials-as-specials to preserve them.",
         );
@@ -708,22 +711,33 @@ pub fn execute_copy_pipeline(
         for (src_path, dest_path, entity) in &files_to_verify {
             let check_atime = args.should_check_atime()
                 || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
-            if let Err(e) = verify_materialized_entity_ext(
-                src_path,
-                entity,
-                !args.best_effort_metadata,
-                check_atime,
-                args.should_check_ctime(),
-            ) {
-                let _ = handle_item_error(
+            #[cfg(unix)]
+            let is_special_as_regular = (args.copy_block_devices_as_regular_files
+                || args.copy_fifos_as_regular_files)
+                && std::fs::symlink_metadata(src_path).map_or(false, |m| {
+                    m.file_type().is_block_device() || m.file_type().is_fifo()
+                });
+            #[cfg(not(unix))]
+            let is_special_as_regular = false;
+
+            if !is_special_as_regular {
+                if let Err(e) = verify_materialized_entity_ext(
                     src_path,
-                    JournalErrorStage::PostCheck,
-                    e,
-                    args,
-                    journal,
-                    &mut stats,
-                )?;
-                continue;
+                    entity,
+                    !args.best_effort_metadata,
+                    check_atime,
+                    args.should_check_ctime(),
+                ) {
+                    let _ = handle_item_error(
+                        src_path,
+                        JournalErrorStage::PostCheck,
+                        e,
+                        args,
+                        journal,
+                        &mut stats,
+                    )?;
+                    continue;
+                }
             }
             if let Err(e) = verify_materialized_entity_ext(
                 dest_path,
@@ -907,13 +921,92 @@ fn copy_single_item(
     }
 
     // 4. Special files (FIFOs, device nodes, sockets, doors)
+    let mut fifo_payload_data: Option<Vec<u8>> = None;
     match &entity.kind {
         FileEntityKind::Fifo
         | FileEntityKind::CharDevice { .. }
         | FileEntityKind::BlockDevice { .. }
         | FileEntityKind::Socket
         | FileEntityKind::Door => {
-            if args.copy_block_devices_as_regular_files
+            if args.copy_fifos_as_regular_files
+                && matches!(entity.kind, FileEntityKind::Fifo)
+            {
+                #[cfg(unix)]
+                {
+                    if args.dry_run {
+                        entity.kind = FileEntityKind::Regular {
+                            size: 0,
+                            sha256: [0_u8; 32],
+                            is_sparse: false,
+                            extents: Vec::new(),
+                        };
+                    } else {
+                        let mut fifo_file = match std::fs::File::open(src_path).with_context(|| {
+                            format!("Failed to open FIFO: {}", src_path.display())
+                        }) {
+                            Ok(f) => f,
+                            Err(err) => {
+                                return handle_item_error(
+                                    src_path,
+                                    JournalErrorStage::PayloadOpen,
+                                    err,
+                                    args,
+                                    journal,
+                                    stats,
+                                );
+                            }
+                        };
+                        let mut data = Vec::new();
+                        use std::io::Read;
+                        if let Err(err) = fifo_file.read_to_end(&mut data).with_context(|| {
+                            format!("Failed to read FIFO: {}", src_path.display())
+                        }) {
+                            return handle_item_error(
+                                src_path,
+                                JournalErrorStage::PayloadRead,
+                                err,
+                                args,
+                                journal,
+                                stats,
+                            );
+                        }
+                        let Ok(size) = u64::try_from(data.len()) else {
+                            let err = anyhow::anyhow!(
+                                "FIFO data length exceeds u64::MAX: {}",
+                                src_path.display()
+                            );
+                            return handle_item_error(
+                                src_path,
+                                JournalErrorStage::PayloadRead,
+                                err,
+                                args,
+                                journal,
+                                stats,
+                            );
+                        };
+                        let extents = if size > 0 {
+                            vec![ctb_io::file::payload::Extent::Data {
+                                offset: 0,
+                                length: size,
+                            }]
+                        } else {
+                            Vec::new()
+                        };
+                        entity.kind = FileEntityKind::Regular {
+                            size,
+                            sha256: [0_u8; 32],
+                            is_sparse: false,
+                            extents,
+                        };
+                        fifo_payload_data = Some(data);
+                    }
+                }
+                #[cfg(not(unix))]
+                {
+                    stats.special_files_skipped = stats.special_files_skipped.saturating_add(1);
+                    return Ok(None);
+                }
+            } else if args.copy_block_devices_as_regular_files
                 && matches!(entity.kind, FileEntityKind::BlockDevice { .. })
             {
                 let dev_file = match std::fs::File::open(src_path).with_context(|| {
@@ -1013,10 +1106,12 @@ fn copy_single_item(
         None
     };
 
+    let memory_payload_data = apple_single_data.or(fifo_payload_data);
+
     let mut entity = entity;
     let (receipt, file_used_noatime) = if args.dry_run {
         (materialize_entity(&entity, None, dest_dir, options), false)
-    } else if let Some(mem_bytes) = apple_single_data.as_ref() {
+    } else if let Some(mem_bytes) = memory_payload_data.as_ref() {
         let mut mem_payload = match ctb_io::file::MemoryPayloadSource::new(mem_bytes.clone()) {
             Ok(p) => p,
             Err(err) => {
@@ -1098,22 +1193,27 @@ fn copy_single_item(
     #[cfg(unix)]
     let is_block_device_as_regular = args.copy_block_devices_as_regular_files
         && after_meta.file_type().is_block_device();
+    #[cfg(unix)]
+    let is_fifo_as_regular = args.copy_fifos_as_regular_files
+        && after_meta.file_type().is_fifo();
     #[cfg(not(unix))]
     let is_block_device_as_regular = false;
+    #[cfg(not(unix))]
+    let is_fifo_as_regular = false;
 
     #[cfg(unix)]
     let changed = captured_mtime.is_some_and(|m| after_meta.mtime() != m)
         || captured_ctime.is_some_and(|c| after_meta.ctime() != c)
         || entity.metadata.timestamps.as_ref().is_some_and(|ts| after_meta.mtime_nsec() != i64::from(ts.mtime_nsec))
-        || (apple_single_data.is_none() && after_meta.len() != initial_size);
+        || (memory_payload_data.is_none() && after_meta.len() != initial_size);
     #[cfg(not(unix))]
-    let changed = (apple_single_data.is_none() && after_meta.len() != initial_size)
+    let changed = (memory_payload_data.is_none() && after_meta.len() != initial_size)
         || entity.metadata.timestamps.as_ref().is_some_and(|ts| {
             filetime::FileTime::from_last_modification_time(&after_meta)
                 != filetime::FileTime::from_unix_time(ts.mtime_sec, ts.mtime_nsec)
         });
 
-    if !is_block_device_as_regular && changed {
+    if !is_block_device_as_regular && !is_fifo_as_regular && changed {
         if args.on_source_change == SourceChangePolicy::Error {
             let err = anyhow::anyhow!(
                 "Source file {} was modified concurrently during copy (timestamps or size changed)",
@@ -1792,6 +1892,101 @@ mod tests {
         let dest_fifo_node = dest_copy.join("test.fifo");
         let meta = fs::symlink_metadata(&dest_fifo_node).expect("fifo metadata");
         assert!(meta.file_type().is_fifo(), "Expected created node to be a FIFO");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_fifo_copied_as_regular_file() {
+        use nix::sys::stat::Mode;
+        use nix::unistd::mkfifo;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_fifo_reg");
+        let dest = temp.path().join("dest_fifo_reg");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let fifo_path = src.join("test.fifo");
+        mkfifo(&fifo_path, Mode::from_bits_truncate(0o660)).expect("mkfifo");
+
+        let writer_path = fifo_path.clone();
+        let writer_handle = std::thread::spawn(move || {
+            use std::io::Write;
+            let mut file = fs::OpenOptions::new()
+                .write(true)
+                .open(&writer_path)
+                .expect("open fifo for write");
+            file.write_all(b"Payload from named pipe")
+                .expect("write to fifo");
+        });
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+        args.copy_fifos_as_regular_files = true;
+
+        let res = run_csc(args).expect("run csc with copy_fifos_as_regular_files");
+        writer_handle.join().expect("writer thread join");
+
+        if let ToolResult::Immediate { stdout, .. } = res {
+            let out_str = String::from_utf8_lossy(&stdout);
+            assert!(out_str.contains("Files copied:             1"));
+            assert!(out_str.contains("Bytes transferred:        23"));
+        }
+
+        let dest_file = dest.join("test.fifo");
+        let meta = fs::symlink_metadata(&dest_file).expect("dest file metadata");
+        assert!(meta.is_file(), "Expected created item to be a regular file");
+        let contents = fs::read(&dest_file).expect("read dest file");
+        assert_eq!(contents, b"Payload from named pipe");
+    }
+
+    #[cfg(unix)]
+    #[crate::ctb_test]
+    fn test_empty_fifo_copied_as_regular_file() {
+        use nix::sys::stat::Mode;
+        use nix::unistd::mkfifo;
+
+        let temp = tempdir().expect("create tempdir");
+        let src = temp.path().join("src_empty_fifo");
+        let dest = temp.path().join("dest_empty_fifo");
+        let state = temp.path().join("state_dir");
+        fs::create_dir_all(&src).expect("create src");
+        fs::create_dir_all(&state).expect("create state");
+
+        let fifo_path = src.join("empty.fifo");
+        mkfifo(&fifo_path, Mode::from_bits_truncate(0o660)).expect("mkfifo");
+
+        let writer_path = fifo_path.clone();
+        let writer_handle = std::thread::spawn(move || {
+            let _file = fs::OpenOptions::new()
+                .write(true)
+                .open(&writer_path)
+                .expect("open fifo for write");
+        });
+
+        let mut args = default_test_args(
+            vec![
+                PathBuf::from(format!("{}/", src.display())),
+                dest.clone(),
+            ],
+            state,
+        );
+        args.copy_fifos_as_regular_files = true;
+
+        run_csc(args).expect("run csc with copy_fifos_as_regular_files for empty fifo");
+        writer_handle.join().expect("writer thread join");
+
+        let dest_file = dest.join("empty.fifo");
+        let meta = fs::symlink_metadata(&dest_file).expect("dest file metadata");
+        assert!(meta.is_file(), "Expected created item to be a regular file");
+        let contents = fs::read(&dest_file).expect("read dest file");
+        assert_eq!(contents, b"");
     }
 
     #[crate::ctb_test]
