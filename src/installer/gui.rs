@@ -314,6 +314,8 @@ impl InstallerApp {
             }
         }
 
+        self.render_license_dialog(ctx);
+
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::both()
                 .scroll_bar_visibility(
@@ -356,11 +358,13 @@ impl InstallerApp {
                         });
                 });
         });
-
-        self.render_license_dialog(ctx);
     }
 
     fn render_license_dialog(&mut self, ctx: &egui::Context) {
+        if !self.license_modal.is_open() {
+            return;
+        }
+
         let license_text = self
             .license_text
             .get_or_insert_with(ctb_storage_minimal::get_license_text);
@@ -377,6 +381,7 @@ impl InstallerApp {
                 .show(ui, |ui| {
                     ui.add(
                         egui::TextEdit::multiline(&mut license_ref)
+                            .interactive(false)
                             .font(FontId::monospace(12.0))
                             .desired_width(f32::INFINITY)
                             .desired_rows(24),
@@ -389,7 +394,22 @@ impl InstallerApp {
                     egui::Vec2::new(80.0, 24.0),
                     egui::Button::new("Close"),
                 );
-                if close_btn.clicked() {
+                if ui.memory(|m| m.focused().is_none()) {
+                    close_btn.request_focus();
+                }
+                ui.memory_mut(|mem| {
+                    mem.set_focus_lock_filter(
+                        close_btn.id,
+                        egui::EventFilter {
+                            tab: true,
+                            escape: false,
+                            ..Default::default()
+                        },
+                    );
+                });
+                if close_btn.clicked()
+                    || ui.input(|i| i.key_pressed(egui::Key::Escape))
+                {
                     should_close_license_modal = true;
                 }
             });

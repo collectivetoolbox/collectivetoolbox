@@ -31,6 +31,7 @@ use serde::Serialize;
 pub struct BuildInfo {
     pub name: String,
     pub version: String,
+    pub build_id: String,
     pub build_date: String,
     pub commit: String,
 }
@@ -43,6 +44,12 @@ impl BuildInfo {
     #[must_use]
     pub fn build_date(&self) -> &str {
         &self.build_date
+    }
+
+    /// Returns the build ID string.
+    #[must_use]
+    pub fn build_id(&self) -> &str {
+        &self.build_id
     }
 }
 
@@ -59,11 +66,16 @@ pub fn build_info() -> BuildInfo {
         .unwrap_or(env!("VERGEN_BUILD_TIMESTAMP"))
         .to_string();
 
+    let commit = env!("VERGEN_GIT_SHA").to_string();
+    let build_id = option_env!("CTB_BUILD_ID")
+        .map_or_else(|| commit.clone(), ToString::to_string);
+
     BuildInfo {
         name: "ctoolbox".to_string(),
         version: env!("CTB_VERSION").to_string(),
+        build_id,
         build_date,
-        commit: env!("VERGEN_GIT_SHA").to_string(),
+        commit,
     }
 }
 
@@ -86,8 +98,10 @@ mod tests {
         let info = build_info();
         assert_eq!(info.name, "ctoolbox");
         assert!(!info.version.is_empty());
+        assert!(!info.build_id.is_empty());
         assert!(!info.build_date.is_empty());
         assert!(!info.commit.is_empty());
         assert_eq!(info.build_date(), &info.build_date);
+        assert_eq!(info.build_id(), &info.build_id);
     }
 }

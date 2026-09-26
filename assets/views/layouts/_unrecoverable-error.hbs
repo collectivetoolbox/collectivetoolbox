@@ -13,13 +13,15 @@
         </div>
         <div class="modal-footer flex flex-wrap justify-between items-center gap-2">
             <div>
-                <a href="#" data-modal-close class="btn-close">Ignore</a>
+                <button type="button" data-modal-close>Ignore</button>
             </div>
             <div class="flex gap-2">
+                {{#if can_restart_pc}}
                 <button type="button" onclick="location.reload()">
                     {{> icons._icon name="restart" alt="" }}
                     <span>Restart PC</span>
                 </button>
+                {{/if}}
                 <button type="button" onclick="location.reload()">
                     {{> icons._icon name="reload" alt="" }}
                     <span>Reload Toolbox</span>

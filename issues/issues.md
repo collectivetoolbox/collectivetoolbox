@@ -87,6 +87,8 @@ db_impl has accumulated a whole bunch of unrelated concerns.
 
 Include optional verification step in compression (default when writing to a file?)
 
+BUILD_ID should probably be moved from utiilities to build-info crate
+
 node type should be an enum in database and backed enum with same values in code.
 
 Incorrect file size estimates on home page for gzip. Add spinny loading indication that takes up the time until a dynamic responder is necessary .

@@ -37,6 +37,27 @@ fn main() -> Result<()> {
 
     println!("cargo:rustc-env=CTB_VERSION={ctb_version}");
 
+    let build_id = std::env::var("CTB_BUILD_ID")
+        .ok()
+        .or_else(|| {
+            std::process::Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .ok()
+                .and_then(|output| {
+                    if output.status.success() {
+                        String::from_utf8(output.stdout)
+                            .ok()
+                            .map(|s| s.trim().to_string())
+                    } else {
+                        None
+                    }
+                })
+        })
+        .unwrap_or_else(|| "dev".to_string());
+
+    println!("cargo:rustc-env=CTB_BUILD_ID={build_id}");
+
     let build = BuildBuilder::all_build()?;
     let cargo = CargoBuilder::all_cargo()?;
     let gix = GixBuilder::all_git()?;
