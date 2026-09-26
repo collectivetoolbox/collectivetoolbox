@@ -184,7 +184,7 @@ pub fn parse_invocation(args: Option<Vec<String>>) -> Result<Invocation> {
 #[derive(Parser, Debug)]
 #[command(
     name = "ctoolbox",
-    version = environment::ctb_version_display(),
+    version = ctb_build_info::ctb_version_display(),
     about = "Collective Toolbox",
     disable_help_subcommand = true
 )]

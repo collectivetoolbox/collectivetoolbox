@@ -87,8 +87,8 @@ db_impl has accumulated a whole bunch of unrelated concerns.
 
 Include optional verification step in compression (default when writing to a file?)
 
-- [maybe done?] BUILD_ID should probably be moved from utilities/environment.rs to build-info crate to avoid issues like in memories/build_performance.md
-- I'm thinking can_restart_pc should probably go in a new io/system (or similar) crate - there will be more "managing the system" type of APIs needed, so they might want a dedicated home (e.g. connecting to WIFI, etc. for systems that are booting to CTB).
+- [x] BUILD_ID should probably be moved from utilities/environment.rs to build-info crate to avoid issues like in memories/build_performance.md
+- [x] I'm thinking can_restart_pc should probably go in a new io/system (or similar) crate - there will be more "managing the system" type of APIs needed, so they might want a dedicated home (e.g. connecting to WIFI, etc. for systems that are booting to CTB).
 
 node type should be an enum in database and backed enum with same values in code.
 

@@ -1,0 +1,1 @@
+These files are from DROID: https://github.com/digital-preservation/droid/commit/2541b7499dc995431a398b849b868037fb2bccc0
