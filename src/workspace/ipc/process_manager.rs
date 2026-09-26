@@ -180,7 +180,17 @@ where
 
     let acknowledged = match time::timeout(ack_timeout, send_shutdown()).await {
         Ok(Ok(resp)) => resp.acknowledged,
-        Ok(Err(_)) => false,
+        Ok(Err(_)) => {
+            let exited = process_manager.wait_for_exit(pid, exit_timeout).await?;
+            if exited {
+                return Ok(GracefulShutdownOutcome {
+                    acknowledged: false,
+                    exited: true,
+                    forced: false,
+                });
+            }
+            false
+        }
         Err(_elapsed) => false,
     };
 
@@ -470,6 +480,64 @@ mod tests {
             },
             Duration::from_millis(20),
             Duration::from_millis(200),
+        )
+        .await?;
+
+        anyhow::ensure!(!outcome.acknowledged);
+        anyhow::ensure!(outcome.forced);
+        anyhow::ensure!(outcome.exited);
+        anyhow::ensure!(pm.killed.load(Ordering::SeqCst) == 1);
+        anyhow::ensure!(pm.waited.load(Ordering::SeqCst) >= 1);
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn graceful_shutdown_closed_connection_child_exits_cleanly(
+    ) -> Result<()> {
+        let exited = Arc::new(tokio::sync::Notify::new());
+        let pm = MockProcessManager::new(exited.clone());
+        let pid = ProcessId::default();
+
+        let exited_clone = exited.clone();
+        drop(tokio::spawn(async move {
+            time::sleep(Duration::from_millis(10)).await;
+            exited_clone.notify_waiters();
+        }));
+
+        let outcome = graceful_shutdown_tree(
+            &pm,
+            pid,
+            || async {
+                Err(Error::Internal("target peer not connected".into()))
+            },
+            Duration::from_millis(50),
+            Duration::from_millis(200),
+        )
+        .await?;
+
+        anyhow::ensure!(!outcome.acknowledged);
+        anyhow::ensure!(!outcome.forced);
+        anyhow::ensure!(outcome.exited);
+        anyhow::ensure!(pm.killed.load(Ordering::SeqCst) == 0);
+        anyhow::ensure!(pm.waited.load(Ordering::SeqCst) >= 1);
+        Ok(())
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn graceful_shutdown_closed_connection_child_hung_forces_kill(
+    ) -> Result<()> {
+        let exited = Arc::new(tokio::sync::Notify::new());
+        let pm = MockProcessManager::new(exited.clone());
+        let pid = ProcessId::default();
+
+        let outcome = graceful_shutdown_tree(
+            &pm,
+            pid,
+            || async {
+                Err(Error::Internal("target peer not connected".into()))
+            },
+            Duration::from_millis(50),
+            Duration::from_millis(50),
         )
         .await?;
 
