@@ -1,1 +1,89 @@
-These files are from DROID: https://github.com/digital-preservation/droid/commit/2541b7499dc995431a398b849b868037fb2bccc0
+These files are from DROID (Digital Record Object Identification):
+Repository: https://github.com/digital-preservation/droid
+Commit: 2541b7499dc995431a398b849b868037fb2bccc0
+Local reference clone: old/filedetect/droid
+License: BSD 3-Clause (see LICENSE)
+
+================================================================================
+Directory Structure & Upstream Source Mapping
+================================================================================
+
+1. signatures/
+   Upstream location:
+     - droid-command-line/src/test/resources/signatures/
+     (Also available in: droid-results/src/main/resources/DROID_SignatureFile_V125.xml,
+      and droid-container/src/main/resources/container-signature-20260119.xml)
+   Contents:
+     - DROID_SignatureFile_V125.xml: Canonical PRONOM binary signature file (version 125)
+     - container-signature-20260119.xml: Canonical container signature file for ZIP, OLE2, etc.
+   Purpose:
+     Production signature databases for PRONOM/DROID format identification.
+
+2. tests/containers/
+   Upstream location:
+     - droid-command-line/src/test/resources/testfiles/
+     (Identical to cli-tests/testfiles/)
+   Contents:
+     - expanded.arc, expanded.warc, fat12.img, sample.rar, saved.7z,
+       test.gz, test.tar, test.zip, testXmlFile.xml.bz2, testiso.iso
+   Purpose:
+     Test archive, disk image, and container files for container detection and expansion.
+
+3. tests/resources/
+   Upstream location:
+     - droid-core/src/test/resources/
+   Contents:
+     - allContainerSequenceValues.txt: Extracted byte sequence values from container signatures
+     - allPRONOMByteSequenceValues.txt: Extracted byte sequence values from all PRONOM signatures
+   Purpose:
+     Parser validation and pattern matching unit tests.
+
+4. tests/signatures/
+   Upstream location:
+     - droid-core/test_sig_files/
+   Contents:
+     - Test signature files:
+       - AnyBitmask_SignatureFile.xml
+       - BofEofOffset_SignatureFile.xml
+       - ReverseScan_SignatureFile.xml
+       - ReverseScanSwap_SignatureFile.xml
+       - left-frag-1200.xml, left-frag-1201.xml, left-frag-1201-EOF.xml
+       - right-frag-1680.xml, right-frag-1681.xml, right-frag-1682.xml
+       - malformed.xml, not_valid_sig_file.xml
+       - DROID_SignatureFile_V26.xml, DROID_SignatureFile_V114.xml, DROID_SignatureFile_V125.xml,
+         DROID_SignatureFile_x-fmt-91-only.xml
+       - orm_1_0.xsd
+     - Test payload files corresponding to test signatures:
+       - 819913.eps, AnyBitmask.bit, BofEofOffset.bof, DROID 5  Architecture.doc,
+         DROID.jpeg, ReverseScan.enl, ReverseScanSwap.enl, ReverseScan_1.enl,
+         ReverseScanSwap_1.enl, file1680-*.ext, left1200*.ext, left1201.ext,
+         sample.pdf, saved.zip
+   Purpose:
+     Unit test fixtures for DROID signature engine edge cases (offsets, reverse scans,
+     fragment matching, bitmasks, regression between signature versions).
+
+5. tests/skeletons/
+   Upstream location:
+     - droid-core/test-skeletons/
+   Contents:
+     - fmt/: Minimal synthetic skeleton files for PRONOM fmt/* formats
+     - x-fmt/: Minimal synthetic skeleton files for PRONOM x-fmt/* formats
+     - current-differently-identified-files.txt
+     - current-unidentified-files
+     - current-unidentified-files.txt
+   Purpose:
+     Automated synthetic test suite verifying format identification coverage across
+     PRONOM formats.
+
+================================================================================
+How to Update
+================================================================================
+- Signatures:
+  Download the latest PRONOM signature file (DROID_SignatureFile_V*.xml) and container
+  signature file (container-signature-*.xml) from The National Archives PRONOM release page
+  (https://www.nationalarchives.gov.uk/PRONOM/Format/proFormatSearch.aspx) or the DROID
+  repository releases, and update `signatures/`.
+- Test Suites:
+  Copy updated test files from `droid-core/test-skeletons/`, `droid-core/test_sig_files/`,
+  `droid-core/src/test/resources/`, and `droid-command-line/src/test/resources/testfiles/`
+  in the upstream DROID repository.

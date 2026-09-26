@@ -171,6 +171,23 @@ where
     Ok(out)
 }
 
+/// Helper to deserialize a YAML scalar that may be a number, boolean, or string into `String`.
+pub fn deserialize_string_or_number<'de, D>(
+    deserializer: D,
+) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val = serde_yaml::Value::deserialize(deserializer)?;
+    let s = match val {
+        serde_yaml::Value::String(s) => s,
+        serde_yaml::Value::Number(n) => n.to_string(),
+        serde_yaml::Value::Bool(b) => b.to_string(),
+        other => format!("{other:?}"),
+    };
+    Ok(s)
+}
+
 /// Endianness specification.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
@@ -195,7 +212,7 @@ pub enum TypeSpec {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeSwitch {
     /// Expression to switch on.
-    #[serde(rename = "switch-on")]
+    #[serde(rename = "switch-on", deserialize_with = "deserialize_string_or_number")]
     pub switch_on: String,
     /// Cases mapping condition expression or enum to type name.
     #[serde(default, deserialize_with = "deserialize_string_keyed_map")]

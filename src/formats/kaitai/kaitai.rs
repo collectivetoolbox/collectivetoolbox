@@ -207,7 +207,7 @@ mod tests {
         }
 
         let mut total_files: usize = 0;
-        let mut parsed_ok: usize = 0;
+        let mut parse_failures = Vec::new();
 
         for entry in walkdir::WalkDir::new(&formats_dir) {
             let entry = entry?;
@@ -215,14 +215,19 @@ mod tests {
             if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("ksy") {
                 total_files = total_files.saturating_add(1);
                 let bytes = std::fs::read(path)?;
-                if parse_ksy_slice(&bytes).is_ok() {
-                    parsed_ok = parsed_ok.saturating_add(1);
+                if let Err(e) = parse_ksy_slice(&bytes) {
+                    parse_failures.push(format!("{}: {e:#}", path.display()));
                 }
             }
         }
 
-        ensure!(total_files > 300, "Expected at least 300 format files, found {}", total_files);
-        ensure!(parsed_ok > 300, "Expected at least 300 to parse cleanly, got {}", parsed_ok);
+        ensure!(total_files > 0, "No format files found in {formats_dir:?}");
+        ensure!(
+            parse_failures.is_empty(),
+            "Expected all formats to parse cleanly, but {} failed:\n{}",
+            parse_failures.len(),
+            parse_failures.join("\n")
+        );
         Ok(())
     }
 
@@ -287,8 +292,8 @@ mod tests {
             ensure!(rust_code.contains("impl KStruct for"), "Missing KStruct impl for {format_id}");
         }
 
-        let mut compiled_ok: usize = 0;
         let mut total: usize = 0;
+        let mut compile_failures = Vec::new();
 
         for entry in walkdir::WalkDir::new(&formats_dir) {
             let entry = entry?;
@@ -297,19 +302,27 @@ mod tests {
                 total = total.saturating_add(1);
                 let bytes = std::fs::read(path)?;
                 let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
-                if let Ok(ksy) = parse_ksy_slice(&bytes) {
-                    if let Ok(spec) = resolve_ksy(stem, &ksy, None) {
-                        if compile_to_rust(&spec).is_ok() {
-                            compiled_ok = compiled_ok.saturating_add(1);
+                match parse_ksy_slice(&bytes) {
+                    Ok(ksy) => match resolve_ksy(stem, &ksy, None) {
+                        Ok(spec) => {
+                            if let Err(e) = compile_to_rust(&spec) {
+                                compile_failures.push(format!("{stem} (compile): {e:#}"));
+                            }
                         }
-                    }
+                        Err(e) => compile_failures.push(format!("{stem} (resolve): {e:#}")),
+                    },
+                    Err(e) => compile_failures.push(format!("{stem} (parse): {e:#}")),
                 }
             }
         }
 
-        ensure!(total > 300, "Expected at least 300 format files, found {}", total);
-        // Ensure a substantial majority of the 334 test suite formats compile successfully
-        ensure!(compiled_ok > 200, "Expected at least 200 formats to compile, got {}", compiled_ok);
+        ensure!(total > 0, "No format files found in {formats_dir:?}");
+        ensure!(
+            compile_failures.is_empty(),
+            "Expected all formats to compile successfully, but {} failed:\n{}",
+            compile_failures.len(),
+            compile_failures.join("\n")
+        );
         Ok(())
     }
 
