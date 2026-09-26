@@ -72,8 +72,6 @@ File flags did not have complete implementation
 
 magic-square
 
-New string type for DcText?
-
 ### Installer
 
 
