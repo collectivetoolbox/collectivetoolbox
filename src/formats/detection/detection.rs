@@ -626,7 +626,7 @@ pub mod polyfile;
 pub mod source;
 pub mod special;
 pub mod text;
-pub mod small_formats;
+pub mod extra_rules;
 pub mod types;
 pub mod file_upstream_suite;
 

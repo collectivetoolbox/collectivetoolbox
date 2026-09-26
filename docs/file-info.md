@@ -143,7 +143,7 @@
 
 - [ ] Sub-phase: Other types of formats
   - [ ] Identifying files that are valid hexadecimal or other base strings (octet-oriented or just numbers - e.g. detecting that a text file containing only ASCII digits can be considered an Integer as well as a text file and a string).
-  - [ ] Identifying other "small" formats, if not already - IP address strings; checksums; UUIDs; math expressions/relations; etc.
+  - [x] Identifying other "small" formats, if not already - IP address strings; checksums; UUIDs; math expressions/relations; etc.
   - [ ] Identifying the language of files:
     - [ ] Scripts: Latin; Cyrillic; etc.
     - [ ] Programming languages:
