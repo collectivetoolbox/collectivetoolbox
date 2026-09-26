@@ -496,8 +496,12 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 },
             };
 
-            // If i is a subtype of j and i has equal or higher score (or within 15 points)
-            if is_subclass && child_candidate.score.saturating_add(15) >= parent_candidate.score {
+            let is_container_parent = parent_candidate.format_id == Some(FormatId::Zip)
+                || parent_candidate.mime.as_deref() == Some("application/zip")
+                || parent_candidate.mime.as_deref() == Some("application/x-ole-storage");
+
+            // If i is a subtype of j and i has equal or higher score (or within 35 points, or is a specialized format in a container)
+            if is_subclass && (child_candidate.score.saturating_add(35) >= parent_candidate.score || (is_container_parent && child_candidate.score >= 65)) {
                 subsumed_indices.insert(j);
             }
         }
@@ -540,7 +544,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     // 3. Demote subsumed candidates in score so they do not compete with their specialization
     for &idx in &subsumed_indices {
         if let Some(c) = candidates.get_mut(idx) {
-            c.score = c.score.saturating_sub(30);
+            c.score = c.score.saturating_sub(50).min(60);
             c.confidence = if c.score >= 65 {
                 ConfidenceTier::Moderate
             } else {

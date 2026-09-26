@@ -638,7 +638,13 @@ impl FormatInheritanceGraph {
             {
                 dynamic_parents.push("text/plain".to_string());
             }
-            if current.ends_with("+zip") && current != "application/zip" {
+            if (current.ends_with("+zip")
+                || current.starts_with("application/vnd.openxmlformats-officedocument.")
+                || current.starts_with("application/vnd.oasis.opendocument.")
+                || current == "application/java-archive"
+                || current == "application/vnd.android.package-archive")
+                && current != "application/zip"
+            {
                 dynamic_parents.push("application/zip".to_string());
             }
             if current.ends_with("+json") && current != "application/json" {
@@ -648,6 +654,14 @@ impl FormatInheritanceGraph {
                 && current != "application/x-tar"
             {
                 dynamic_parents.push("application/x-tar".to_string());
+            }
+            if (current == "application/x-hwp"
+                || current == "application/msword"
+                || current == "application/vnd.ms-excel"
+                || current == "application/vnd.ms-powerpoint")
+                && current != "application/x-ole-storage"
+            {
+                dynamic_parents.push("application/x-ole-storage".to_string());
             }
 
             for dp in dynamic_parents {

@@ -1098,7 +1098,7 @@ mod tests {
     #[ctb_test]
     fn test_debug_osm() {
         let cases = load_upstream_test_suite().unwrap();
-        for target in &["osm", "gpkg-1-zst", "keyman-2", "HWP97.hwp", "escapevel"] {
+        for target in &["issue311docx", "issue359xlsx"] {
             if let Some(c) = cases.iter().find(|c| c.name == *target) {
                 let data = fs::read(&c.testfile_path).unwrap();
                 let mut slice: &[u8] = &data;

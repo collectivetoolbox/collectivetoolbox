@@ -456,7 +456,7 @@ use crate::utilities::*;
 
 use super::DetectionSource;
 use super::magic_parser::{
-    HierarchicalMagicRule, IndirectType, MagicTest, Offset, PascalLengthSize, RelOp,
+    HierarchicalMagicRule, IndirectType, MagicTest, NumOp, Offset, PascalLengthSize, RelOp,
 };
 
 /// Result of evaluating a hierarchical magic rule against a payload source.
@@ -474,6 +474,8 @@ pub struct RuleMatchResult {
     pub score: u32,
     /// End offset in payload of the matched sequence.
     pub match_end: u64,
+    /// Suppress space separator before appending to previous text.
+    pub nospace: bool,
 }
 
 /// Evaluates a relational comparison operator.
@@ -488,7 +490,20 @@ fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
         RelOp::Gt => val > target,
         RelOp::Lt => val < target,
         RelOp::BitAnd => (val & target) == target,
+        RelOp::BitClear => (val & target) != target,
         RelOp::Any => true,
+    }
+}
+
+/// Applies arithmetic operation to a 64-bit integer before comparison/format.
+fn apply_num_op_u64(val: u64, op: NumOp) -> u64 {
+    match op {
+        NumOp::None => val,
+        NumOp::Div(d) => if d != 0 { val.checked_div(d).unwrap_or(val) } else { val },
+        NumOp::Mod(m) => if m != 0 { val.checked_rem(m).unwrap_or(0) } else { 0 },
+        NumOp::Mul(m) => val.saturating_mul(m),
+        NumOp::Add(a) => val.saturating_add(a),
+        NumOp::Sub(s) => val.saturating_sub(s),
     }
 }
 
@@ -556,12 +571,16 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
 
             let mut zero_pad = false;
             let mut width: usize = 0;
+            let mut alt_form = false;
 
             while let Some(&f) = chars.get(i) {
                 if f == '0' {
                     zero_pad = true;
                     i = i.saturating_add(1);
-                } else if f == '-' || f == '+' || f == ' ' || f == '#' {
+                } else if f == '#' {
+                    alt_form = true;
+                    i = i.saturating_add(1);
+                } else if f == '-' || f == '+' || f == ' ' {
                     i = i.saturating_add(1);
                 } else {
                     break;
@@ -634,23 +653,43 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
                     apply_padding(&s, width, zero_pad)
                 }
                 ('x', FormatValue::U64(n)) => {
-                    let s = format!("{:x}", n);
+                    let s = if alt_form && *n != 0 {
+                        format!("0x{:x}", n)
+                    } else {
+                        format!("{:x}", n)
+                    };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('x', FormatValue::I64(n)) => {
-                    let s = format!("{:x}", n);
+                    let s = if alt_form && *n != 0 {
+                        format!("0x{:x}", n)
+                    } else {
+                        format!("{:x}", n)
+                    };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('X', FormatValue::U64(n)) => {
-                    let s = format!("{:X}", n);
+                    let s = if alt_form && *n != 0 {
+                        format!("0X{:X}", n)
+                    } else {
+                        format!("{:X}", n)
+                    };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('X', FormatValue::I64(n)) => {
-                    let s = format!("{:X}", n);
+                    let s = if alt_form && *n != 0 {
+                        format!("0X{:X}", n)
+                    } else {
+                        format!("{:X}", n)
+                    };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('o', FormatValue::U64(n)) => {
-                    let s = format!("{:o}", n);
+                    let s = if alt_form && *n != 0 {
+                        format!("0{:o}", n)
+                    } else {
+                        format!("{:o}", n)
+                    };
                     apply_padding(&s, width, zero_pad)
                 }
                 ('c', FormatValue::U64(n)) => {
@@ -725,6 +764,26 @@ fn read_indirect_val<S: DetectionSource + ?Sized>(
             if n < 8 { return None; }
             i64::try_from(u64::from_be_bytes(b)).ok()
         }
+        IndirectType::Id3Be => {
+            let mut b = [0u8; 4];
+            let n = source.read_at(deref_pos, &mut b).ok()?;
+            if n < 4 { return None; }
+            let val = ((u32::from(b[0]) & 0x7f) << 21)
+                | ((u32::from(b[1]) & 0x7f) << 14)
+                | ((u32::from(b[2]) & 0x7f) << 7)
+                | (u32::from(b[3]) & 0x7f);
+            Some(i64::from(val))
+        }
+        IndirectType::Id3Le => {
+            let mut b = [0u8; 4];
+            let n = source.read_at(deref_pos, &mut b).ok()?;
+            if n < 4 { return None; }
+            let val = (u32::from(b[0]) & 0x7f)
+                | ((u32::from(b[1]) & 0x7f) << 7)
+                | ((u32::from(b[2]) & 0x7f) << 14)
+                | ((u32::from(b[3]) & 0x7f) << 21);
+            Some(i64::from(val))
+        }
     }
 }
 
@@ -754,16 +813,16 @@ fn resolve_offset<S: DetectionSource + ?Sized>(
                 prev_match_end.checked_sub(sub)
             }
         }
-        Offset::Indirect { base, ind_type, adjustment } => {
+        Offset::Indirect { base, ind_type, adjustment, multiplier } => {
             let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?;
+            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
             let target_i64 = raw_val.checked_add(*adjustment)?;
             let target_u64 = u64::try_from(target_i64).ok()?;
             base_offset.checked_add(target_u64)
         }
-        Offset::RelativeIndirect { base, ind_type, adjustment } => {
+        Offset::RelativeIndirect { base, ind_type, adjustment, multiplier } => {
             let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?;
+            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
             let rel_val = raw_val.checked_add(*adjustment)?;
             if rel_val >= 0 {
                 let add = u64::try_from(rel_val).ok()?;
@@ -832,32 +891,96 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             }
         }
         MagicTest::String { pattern, flags } => {
-            let mut buf = vec![0u8; pattern.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < pattern.len() {
-                false
-            } else {
-                let ok = if flags.case_insensitive {
-                    buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
-                } else {
-                    buf == *pattern
-                };
-                if ok {
-                    match_len = pattern.len();
-                    format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
+            if flags.compact_whitespace {
+                let max_read = pattern.len().saturating_add(512);
+                let mut buf = vec![0u8; max_read];
+                let n = source.read_at(pos, &mut buf).ok()?;
+                let slice = buf.get(..n).unwrap_or(&[]);
+                let mut a_idx = 0;
+                let mut b_idx = 0;
+                let mut matched = true;
+                while a_idx < pattern.len() {
+                    let pa = *pattern.get(a_idx).unwrap_or(&0);
+                    if pa.is_ascii_whitespace() {
+                        a_idx = a_idx.saturating_add(1);
+                        if flags.blank_insensitive {
+                            while b_idx < slice.len() && slice.get(b_idx).copied().unwrap_or(0).is_ascii_whitespace() {
+                                b_idx = b_idx.saturating_add(1);
+                            }
+                        } else {
+                            if b_idx >= slice.len() {
+                                matched = false;
+                                break;
+                            }
+                            let pb = *slice.get(b_idx).unwrap_or(&0);
+                            if pb.is_ascii_whitespace() {
+                                b_idx = b_idx.saturating_add(1);
+                                while b_idx < slice.len() && slice.get(b_idx).copied().unwrap_or(0).is_ascii_whitespace() {
+                                    b_idx = b_idx.saturating_add(1);
+                                }
+                            } else {
+                                matched = false;
+                                break;
+                            }
+                        }
+                    } else {
+                        if b_idx >= slice.len() {
+                            matched = false;
+                            break;
+                        }
+                        let pb = *slice.get(b_idx).unwrap_or(&0);
+                        let eq = if flags.case_insensitive {
+                            pa.to_ascii_lowercase() == pb.to_ascii_lowercase()
+                        } else {
+                            pa == pb
+                        };
+                        if eq {
+                            a_idx = a_idx.saturating_add(1);
+                            b_idx = b_idx.saturating_add(1);
+                        } else {
+                            matched = false;
+                            break;
+                        }
+                    }
                 }
-                ok
+                if matched {
+                    match_len = b_idx;
+                    format_val = FormatValue::Str(String::from_utf8_lossy(slice.get(..b_idx).unwrap_or(&[])).to_string());
+                    true
+                } else {
+                    false
+                }
+            } else {
+                let mut buf = vec![0u8; pattern.len()];
+                let n = source.read_at(pos, &mut buf).ok()?;
+                if n < pattern.len() {
+                    false
+                } else {
+                    let ok = if flags.case_insensitive {
+                        buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
+                    } else {
+                        buf == *pattern
+                    };
+                    if ok {
+                        match_len = pattern.len();
+                        format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
+                    }
+                    ok
+                }
             }
         }
-        MagicTest::StringAny(_flags) => {
+        MagicTest::StringAny(flags) => {
             let mut buf = [0u8; 256];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n == 0 {
                 false
             } else {
                 let slice = buf.get(..n).unwrap_or(&[]);
-                let len = slice.iter().position(|&b| b == 0).unwrap_or(n);
-                let s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
+                let len = slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(n);
+                let mut s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
+                if flags.trim {
+                    s = s.trim().to_string();
+                }
                 match_len = len;
                 format_val = FormatValue::Str(s);
                 true
@@ -879,7 +1002,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     RelOp::Ne => cmp != std::cmp::Ordering::Equal,
                     RelOp::Gt => cmp == std::cmp::Ordering::Greater,
                     RelOp::Lt => cmp == std::cmp::Ordering::Less,
-                    RelOp::BitAnd | RelOp::Any => true,
+                    RelOp::BitAnd | RelOp::BitClear | RelOp::Any => true,
                 };
                 if ok {
                     let mut full_buf = [0u8; 256];
@@ -980,13 +1103,15 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let mut content_buf = vec![0u8; read_len];
                 let content_pos = pos.saturating_add(u64::try_from(prefix_len).unwrap_or(0));
                 let cn = source.read_at(content_pos, &mut content_buf).ok()?;
-                let s = String::from_utf8_lossy(content_buf.get(..cn).unwrap_or(&[])).to_string();
-                match_len = prefix_len.saturating_add(payload_len);
+                let content_slice = content_buf.get(..cn).unwrap_or(&[]);
+                let str_len = content_slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(cn);
+                let s = String::from_utf8_lossy(content_slice.get(..str_len).unwrap_or(&[])).to_string();
+                match_len = prefix_len.saturating_add(str_len);
                 format_val = FormatValue::Str(s);
                 true
             }
         }
-        MagicTest::Regex { pattern, case_insensitive, max_bytes } => {
+        MagicTest::Regex { pattern, case_insensitive, max_bytes, line_mode, offset_start } => {
             let mut buf = vec![0u8; *max_bytes];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n == 0 {
@@ -994,12 +1119,24 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             } else {
                 let slice = buf.get(..n)?;
                 let text = String::from_utf8_lossy(slice);
+                let search_text = if *line_mode {
+                    match text.find('\n') {
+                        Some(nl) => &text[..nl],
+                        None => &text[..],
+                    }
+                } else {
+                    &text[..]
+                };
                 let re = regex::RegexBuilder::new(pattern)
                     .case_insensitive(*case_insensitive)
                     .build()
                     .ok()?;
-                if let Some(m) = re.find(&text) {
-                    match_len = m.end();
+                if let Some(m) = re.find(search_text) {
+                    match_len = if *offset_start {
+                        m.start()
+                    } else {
+                        m.end()
+                    };
                     format_val = FormatValue::Str(m.as_str().to_string());
                     true
                 } else {
@@ -1007,7 +1144,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 }
             }
         }
-        MagicTest::U8 { value, op, mask } => {
+        MagicTest::U8 { value, op, mask, num_op } => {
             let mut buf = [0u8; 1];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 1 {
@@ -1017,6 +1154,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = u8::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 1;
@@ -1025,7 +1163,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U16Le { value, op, mask } => {
+        MagicTest::U16Le { value, op, mask, num_op } => {
             let mut buf = [0u8; 2];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 2 {
@@ -1035,6 +1173,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 2;
@@ -1043,7 +1182,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U16Be { value, op, mask } => {
+        MagicTest::U16Be { value, op, mask, num_op } => {
             let mut buf = [0u8; 2];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 2 {
@@ -1053,6 +1192,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 2;
@@ -1061,7 +1201,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U32Le { value, op, mask } => {
+        MagicTest::U32Le { value, op, mask, num_op } => {
             let mut buf = [0u8; 4];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 4 {
@@ -1071,6 +1211,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 4;
@@ -1079,7 +1220,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U32Be { value, op, mask } => {
+        MagicTest::U32Be { value, op, mask, num_op } => {
             let mut buf = [0u8; 4];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 4 {
@@ -1089,6 +1230,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 4;
@@ -1097,7 +1239,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U64Le { value, op, mask } => {
+        MagicTest::U64Le { value, op, mask, num_op } => {
             let mut buf = [0u8; 8];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 8 {
@@ -1107,6 +1249,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = apply_num_op_u64(val, *num_op);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 8;
@@ -1115,7 +1258,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 ok
             }
         }
-        MagicTest::U64Be { value, op, mask } => {
+        MagicTest::U64Be { value, op, mask, num_op } => {
             let mut buf = [0u8; 8];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n < 8 {
@@ -1125,6 +1268,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 if let Some(m) = mask {
                     val &= m;
                 }
+                val = apply_num_op_u64(val, *num_op);
                 let ok = eval_rel_op(val, *op, *value);
                 if ok {
                     match_len = 8;
@@ -1212,8 +1356,12 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let month_num = (raw >> 5) & 0x0F;
                 let year_diff = u32::from((raw >> 9) & 0x7F);
                 let year = 1980u32.saturating_add(year_diff);
-                let months = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                let m_str = months.get(usize::from(month_num)).copied().unwrap_or("???");
+                let months = ["Jan", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                let m_str = if month_num >= 1 && month_num <= 12 {
+                    months[usize::from(month_num)]
+                } else {
+                    "Jan"
+                };
                 let s = format!("{m_str} {day:02} {year}");
                 match_len = 2;
                 format_val = FormatValue::Str(s);
@@ -1259,32 +1407,40 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             match_len = 0;
             true
         }
-        MagicTest::Search { pattern, max_bytes, flags } => {
+        MagicTest::Search { pattern, max_bytes, flags, negated } => {
             let mut buf = vec![0u8; *max_bytes];
             let n = source.read_at(pos, &mut buf).ok()?;
             if let Some(slice) = buf.get(..n) {
                 if pattern.is_empty() {
-                    true
+                    !negated
                 } else if flags.case_insensitive {
                     let pat_lower = pattern.to_ascii_lowercase();
                     let slice_lower = slice.to_ascii_lowercase();
                     if let Some(found_idx) = slice_lower.windows(pat_lower.len()).position(|w| w == pat_lower.as_slice()) {
+                        if *negated {
+                            false
+                        } else {
+                            match_len = found_idx.saturating_add(pattern.len());
+                            if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
+                                format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
+                            }
+                            true
+                        }
+                    } else {
+                        *negated
+                    }
+                } else if let Some(found_idx) = slice.windows(pattern.len()).position(|w| w == pattern.as_slice()) {
+                    if *negated {
+                        false
+                    } else {
                         match_len = found_idx.saturating_add(pattern.len());
                         if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
                             format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
                         }
                         true
-                    } else {
-                        false
                     }
-                } else if let Some(found_idx) = slice.windows(pattern.len()).position(|w| w == pattern.as_slice()) {
-                    match_len = found_idx.saturating_add(pattern.len());
-                    if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
-                        format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
-                    }
-                    true
                 } else {
-                    false
+                    *negated
                 }
             } else {
                 false
@@ -1298,6 +1454,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let mut sub_apple = tpl.apple.clone();
                 let mut sub_score = tpl.strength;
                 let mut sub_end = pos;
+                let mut sub_nospace = sub_desc.starts_with('\u{8}');
 
                 let mut matched_any_in_sub = false;
                 for child in &tpl.children {
@@ -1312,63 +1469,120 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                         child,
                         source,
                         pos,
-                        sub_end,
+                        pos,
                         templates,
                         depth.saturating_add(1),
                     ) {
                         matched_any_in_sub = true;
-                        sub_end = cm.match_end;
+                        sub_end = sub_end.max(cm.match_end);
                         if !cm.description.is_empty() {
-                            if sub_desc.is_empty() {
-                                sub_desc.push_str(&cm.description);
-                            } else if cm.description.starts_with('\u{8}') {
-                                sub_desc.push_str(cm.description.trim_start_matches('\u{8}'));
+                            if cm.nospace || cm.description.starts_with('\u{8}') {
+                                let stripped = cm.description.trim_start_matches('\u{8}');
+                                if sub_desc.ends_with(' ') {
+                                    sub_desc.pop();
+                                }
+                                if sub_desc.is_empty() {
+                                    sub_nospace = true;
+                                }
+                                sub_desc.push_str(stripped);
                             } else {
-                                sub_desc.push(' ');
+                                if !sub_desc.is_empty() && !sub_desc.ends_with(' ') {
+                                    let starts_with_punct = cm.description.starts_with(',')
+                                        || cm.description.starts_with(';')
+                                        || cm.description.starts_with(':');
+                                    if !starts_with_punct {
+                                        sub_desc.push(' ');
+                                    }
+                                }
                                 sub_desc.push_str(&cm.description);
                             }
                         }
                         if cm.mime.is_some() { sub_mime = cm.mime; }
                         if cm.ext.is_some() { sub_ext = cm.ext; }
                         if cm.apple.is_some() { sub_apple = cm.apple; }
-                        sub_score = sub_score.saturating_add(15);
+                        sub_score = sub_score.saturating_add(15).max(cm.score);
                     }
                 }
+                if matched_any_in_sub {
+                    use_subroutine_result = Some(RuleMatchResult {
+                        description: sub_desc,
+                        mime: sub_mime,
+                        ext: sub_ext,
+                        apple: sub_apple,
+                        score: sub_score,
+                        match_end: sub_end,
+                        nospace: sub_nospace,
+                    });
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+        MagicTest::Name(_) => false,
+        MagicTest::Indirect => {
+            let mut best_match: Option<RuleMatchResult> = None;
+            for r in super::magic_data::COMPILED_MAGIC_RULES.iter() {
+                if let Some(res) = evaluate_rule_internal(r, source, pos, pos, templates, depth.saturating_add(1)) {
+                    if let Some(ref current_best) = best_match {
+                        if res.score > current_best.score {
+                            best_match = Some(res);
+                        }
+                    } else {
+                        best_match = Some(res);
+                    }
+                }
+            }
+            if let Some(bm) = best_match {
+                let mut full_desc = String::new();
+                if let Some(raw) = &rule.description {
+                    full_desc.push_str(raw);
+                }
+                if !bm.description.is_empty() {
+                    if !full_desc.is_empty() && !full_desc.ends_with(' ') {
+                        let starts_with_punct = bm.description.starts_with(',')
+                            || bm.description.starts_with(';')
+                            || bm.description.starts_with(':');
+                        if !starts_with_punct {
+                            full_desc.push(' ');
+                        }
+                    }
+                    full_desc.push_str(&bm.description);
+                }
                 use_subroutine_result = Some(RuleMatchResult {
-                    description: sub_desc,
-                    mime: sub_mime,
-                    ext: sub_ext,
-                    apple: sub_apple,
-                    score: sub_score,
-                    match_end: sub_end,
+                    description: full_desc,
+                    mime: bm.mime.or_else(|| rule.mime.clone()),
+                    ext: bm.ext.or_else(|| rule.ext.clone()),
+                    apple: bm.apple.or_else(|| rule.apple.clone()),
+                    score: rule.strength.saturating_add(bm.score),
+                    match_end: bm.match_end,
+                    nospace: false,
                 });
                 true
             } else {
                 false
             }
         }
-        MagicTest::Name(_) => false,
     };
 
     if !matched {
         return None;
     }
 
-    let mut description = if let Some(sub_res) = use_subroutine_result {
-        return Some(sub_res);
-    } else if let Some(raw) = &rule.description {
-        format_magic_description(raw, &format_val)
+    let (mut description, mut mime, mut ext, mut apple, mut score, this_match_end, mut nospace, mut overall_match_end) = if let Some(sub_res) = use_subroutine_result {
+        (sub_res.description, sub_res.mime, sub_res.ext, sub_res.apple, sub_res.score, pos, sub_res.nospace, sub_res.match_end)
     } else {
-        String::new()
+        let desc = if let Some(raw) = &rule.description {
+            format_magic_description(raw, &format_val)
+        } else {
+            String::new()
+        };
+        let m_end = pos.saturating_add(u64::try_from(match_len).unwrap_or(0));
+        let starts_with_bs = desc.starts_with('\u{8}');
+        (desc, rule.mime.clone(), rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end)
     };
-
-    let mut mime = rule.mime.clone();
-    let mut ext = rule.ext.clone();
-    let mut apple = rule.apple.clone();
-    let mut score = rule.strength;
-
-    let this_match_end = pos.saturating_add(u64::try_from(match_len).unwrap_or(0));
-    let mut current_offset = this_match_end;
     let mut matched_any_in_level = false;
 
     // Recursively evaluate children to specialize description and boost score
@@ -1384,19 +1598,30 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             child,
             source,
             base_offset,
-            current_offset,
+            this_match_end,
             templates,
             depth.saturating_add(1),
         ) {
             matched_any_in_level = true;
-            current_offset = child_match.match_end;
+            overall_match_end = overall_match_end.max(child_match.match_end);
             if !child_match.description.is_empty() {
-                if child_match.description.starts_with('\u{8}') {
+                if child_match.nospace || child_match.description.starts_with('\u{8}') {
                     let stripped = child_match.description.trim_start_matches('\u{8}');
+                    if description.ends_with(' ') {
+                        description.pop();
+                    }
+                    if description.is_empty() {
+                        nospace = true;
+                    }
                     description.push_str(stripped);
                 } else {
-                    if !description.is_empty() {
-                        description.push(' ');
+                    if !description.is_empty() && !description.ends_with(' ') {
+                        let starts_with_punct = child_match.description.starts_with(',')
+                            || child_match.description.starts_with(';')
+                            || child_match.description.starts_with(':');
+                        if !starts_with_punct {
+                            description.push(' ');
+                        }
                     }
                     description.push_str(&child_match.description);
                 }
@@ -1410,7 +1635,11 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             if child_match.apple.is_some() {
                 apple = child_match.apple;
             }
-            score = score.saturating_add(15);
+            if child.test == MagicTest::Indirect {
+                score = score.saturating_add(child_match.score);
+            } else {
+                score = score.saturating_add(15).max(child_match.score);
+            }
         }
     }
 
@@ -1428,7 +1657,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         ext,
         apple,
         score,
-        match_end: current_offset,
+        match_end: overall_match_end,
+        nospace,
     })
 }
 

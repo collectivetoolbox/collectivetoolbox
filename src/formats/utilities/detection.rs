@@ -780,7 +780,10 @@ pub fn guess_format_report(
     }
 
     // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
-    let has_strong_magic = candidates.iter().any(|c| c.confidence >= ConfidenceTier::Strong);
+    let has_strong_magic = candidates.iter().any(|c| {
+        (c.confidence >= ConfidenceTier::Strong || c.score >= 50)
+            && c.format_id != Some(FormatId::Ascii)
+    });
     if !has_strong_magic {
         if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
             let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);

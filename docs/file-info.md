@@ -141,6 +141,16 @@
   - [x] Live differential testing with system `file`: implement host `file` probing (`query_real_file`), comparing MIME types and format classifications with semantic alias tolerance (`application/xml` <-> `text/plain`, `text/x-shellscript` <-> `text/plain`, `application/zstd` <-> `application/x-zstd`).
   - [ ] Unit test coverage for upstream features beyond the 88 test cases (boundary offsets, unusual search limits, negative date stamps, malformed nested CDFs, etc.).
 
+- [ ] Sub-phase: Other types of formats
+  - [ ] Identifying files that are valid hexadecimal or other base strings (octet-oriented or just numbers - e.g. detecting that a text file containing only ASCII digits can be considered an Integer as well as a text file and a string).
+  - [ ] Identifying the language of files:
+    - [ ] Programming languages:
+      - [ ] GitHub Linguist?
+      - [ ] Grammars for ctoolbox-supported languages
+    - [ ] Natural languages:
+      - [ ] Lingua (Rust crate https://crates.io/crates/lingua)
+      - [ ] CLD3 (Rust wrapper around C++)?
+
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
 - [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
 - [ ] **EITE Number Base Catalog:** Inventory and register all supported EITE number bases, alphabets, digit orderings, case rules, and padding conventions in the format dataset.
