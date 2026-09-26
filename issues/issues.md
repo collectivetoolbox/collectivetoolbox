@@ -102,6 +102,25 @@ Cache busting parameters on URLs.
 
 Update Guix packaging.
 
+EITE edit RPC bug:
+
+```
+POST
+
+scheme
+	http
+host
+	127.0.0.1:9000
+filename
+	/api/rpc/eite
+
+
+{"function":"importDocument","args":["utf8",[244,143,191,187,239,160,129,244,143,191,182,239,160,129,244,131,157,169,239,159,185]]}
+
+
+from_code_point: unknown code point [63489]
+```
+
 Hi! I'd like you to work on some issues in the installer:
 
 - Keyboard input is still somewhat laggy, and frequently keys "stick" when pressed. (Mouse input, by contrast, is relatively smooth, and un-"stick"s the stuck keyboard event - keyboard events work smoothly if I'm continuously moving the mouse.)
