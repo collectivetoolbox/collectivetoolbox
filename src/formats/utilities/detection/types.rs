@@ -538,6 +538,25 @@ pub enum DetectionEvidence {
         detail: String,
         score: u32,
     },
+    /// Dual-anchored BOF / EOF match evidence (DROID/PRONOM style).
+    DualAnchored {
+        bof_offset: u64,
+        eof_offset: Option<u64>,
+        score: u32,
+    },
+    /// PolyFile byte-range attribution spanning [start, end) offsets.
+    ByteRange {
+        start: u64,
+        end: u64,
+        label: String,
+        score: u32,
+    },
+    /// Polyglot container evidence where multiple independent primary formats co-exist.
+    Polyglot {
+        formats: Vec<String>,
+        detail: String,
+        score: u32,
+    },
 }
 
 /// Output candidate produced by format detection.

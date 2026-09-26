@@ -463,6 +463,8 @@ pub mod mime_derivation;
 pub mod platform;
 pub mod resource_fork;
 pub mod container;
+pub mod droid;
+pub mod polyfile;
 pub mod source;
 pub mod special;
 pub mod text;
@@ -472,7 +474,9 @@ pub mod upstream_suite;
 pub use chain::*;
 pub use conflict::*;
 pub use container::*;
+pub use droid::*;
 pub use platform::*;
+pub use polyfile::*;
 pub use source::*;
 pub use special::*;
 pub use text::*;
@@ -608,6 +612,37 @@ pub fn guess_format_report(
             }
             Err(e) => {
                 read_error = Some(e.to_string());
+            }
+        }
+    }
+
+    // 1.5. Evaluate DROID dual-anchored BOF / EOF signatures (droid.rs)
+    if let Ok(dual_cands) = evaluate_dual_anchored_signatures(source) {
+        for cand in dual_cands {
+            let mut merged = false;
+            for existing in &mut candidates {
+                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
+                let matches_desc = !cand.description.is_empty()
+                    && existing.description.eq_ignore_ascii_case(&cand.description);
+                if matches_fmt || matches_desc {
+                    if existing.format_id.is_none() && cand.format_id.is_some() {
+                        existing.format_id = cand.format_id;
+                    }
+                    if cand.score > existing.score {
+                        existing.score = cand.score;
+                        existing.confidence = cand.confidence;
+                        existing.description = cand.description.clone();
+                    }
+                    if existing.mime.is_none() && cand.mime.is_some() {
+                        existing.mime = cand.mime.clone();
+                    }
+                    existing.evidence.extend(cand.evidence.clone());
+                    merged = true;
+                    break;
+                }
+            }
+            if !merged {
+                candidates.push(cand);
             }
         }
     }
