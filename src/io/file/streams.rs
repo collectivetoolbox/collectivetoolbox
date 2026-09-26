@@ -382,39 +382,25 @@ impl AttachedStream {
         hasher.update(&data);
         let sha256 = hasher.finalize();
         let size = u64::try_from(data.len())?;
-        // Reason for fallback: Nameless streams (e.g. macOS resource fork) have no stream name, so raw filename defaults to empty bytes.
-        let name_bytes = name
-            .as_ref()
-            .map(|n| n.as_bytes().into_owned())
-            .unwrap_or_default();
+        let raw_filename = name.as_ref().map(|n| n.as_bytes().into_owned());
 
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::new(),
+                relative_path: None,
                 enclosing_path: None,
-                raw_relative_path: Vec::new(),
-                raw_filename: name_bytes,
+                raw_relative_path: None,
+                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 0,
-                gid: 0,
-                timestamps: FileTimestamps {
-                    atime_sec: 0,
-                    atime_nsec: 0,
-                    mtime_sec: 0,
-                    mtime_nsec: 0,
-                    ctime_sec: 0,
-                    ctime_nsec: 0,
-                    birthtime_sec: None,
-                    birthtime_nsec: None,
-                    resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                mode: None,
+                uid: None,
+                gid: None,
+                timestamps: None,
+                flags: None,
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,

@@ -286,18 +286,22 @@ impl FileEntity {
         }
     }
 
-    /// Creates a `FileEntity` representing a streaming input (such as standard input or pipe).
+    /// Creates a `FileEntity` representing a FIFO such as stdin or a named pipe.
     #[must_use]
     pub fn from_fifo(name: Option<&str>) -> Self {
-        let name_str = name;
-        let name_bytes = name_str.as_bytes().to_vec();
+        let relative_path = name.map(PathBuf::from);
+        let raw_relative_path = name.map(|s| s.as_bytes().to_vec());
+        let raw_filename = name
+            .and_then(|s| std::path::Path::new(s).file_name())
+            .map(|f| f.as_encoded_bytes().to_vec());
+
         Self {
             identity: FileIdentity {
                 origin: FileOrigin::Fifo,
-                relative_path: name_str.is_some() ? PathBuf::from(name_str) : None,
+                relative_path,
                 enclosing_path: None,
-                raw_relative_path: name_str.is_some() ? name_str.as_bytes().to_vec() : None,
-                raw_filename: name_bytes,
+                raw_relative_path,
+                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -315,8 +319,14 @@ impl FileEntity {
                 apple: None,
             },
             kind: FileEntityKind::Fifo,
-            streams: None,
+            streams: Vec::new(),
         }
+    }
+
+    /// Alias for [`from_fifo`](Self::from_fifo) to represent streaming inputs.
+    #[must_use]
+    pub fn from_stream(name: Option<&str>) -> Self {
+        Self::from_fifo(name)
     }
 
     /// Guesses file format candidates using multi-signal evidence: magic byte patterns,
@@ -359,7 +369,8 @@ impl FileEntity {
         let filename = self
             .identity
             .relative_path
-            .file_name()
+            .as_deref()
+            .and_then(|p| p.file_name())
             .and_then(|n| n.to_str());
 
         // Infer platform prior from archive origin (strongest), Apple metadata, or recorded environment
@@ -835,21 +846,21 @@ impl FileEntity {
                 },
                 canonical_path: canonical,
             },
-            relative_path,
+            relative_path: Some(relative_path),
             enclosing_path,
-            raw_relative_path,
-            raw_filename: filename_bytes,
+            raw_relative_path: Some(raw_relative_path),
+            raw_filename: Some(filename_bytes),
             nlink,
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
         };
 
         let metadata = FileMetadata {
             native: Some(native_metadata),
-            mode,
-            uid: 0,
-            gid: 0,
-            timestamps,
-            flags,
+            mode: Some(mode),
+            uid: Some(0),
+            gid: Some(0),
+            timestamps: Some(timestamps),
+            flags: Some(flags),
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
@@ -1045,21 +1056,21 @@ impl FileEntity {
                 },
                 canonical_path: canonical,
             },
-            relative_path,
+            relative_path: Some(relative_path),
             enclosing_path,
-            raw_relative_path,
-            raw_filename: filename_bytes,
+            raw_relative_path: Some(raw_relative_path),
+            raw_filename: Some(filename_bytes),
             nlink,
             hardlink_group: if nlink > 1 { Some(ino) } else { None },
         };
 
         let mut metadata = FileMetadata {
             native: Some(native_metadata),
-            mode,
-            uid,
-            gid,
-            timestamps,
-            flags,
+            mode: Some(mode),
+            uid: Some(uid),
+            gid: Some(gid),
+            timestamps: Some(timestamps),
+            flags: Some(flags),
             platform_raw_flags: platform_raw,
             read_time,
             filesystem_type: Some(fs_info.fs_type),
@@ -1169,19 +1180,21 @@ impl FileEntity {
 
         #[cfg(unix)]
         if is_symlink {
-            let orig_atime = FileTime::from_unix_time(
-                metadata.timestamps.atime_sec,
-                metadata.timestamps.atime_nsec,
-            );
-            let orig_mtime = FileTime::from_unix_time(
-                metadata.timestamps.mtime_sec,
-                metadata.timestamps.mtime_nsec,
-            );
-            if let Ok(after_streams) = std::fs::symlink_metadata(path) {
-                if after_streams.atime() != orig_atime.unix_seconds()
-                    || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
-                {
-                    let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+            if let Some(ref ts) = metadata.timestamps {
+                let orig_atime = FileTime::from_unix_time(
+                    ts.atime_sec,
+                    ts.atime_nsec,
+                );
+                let orig_mtime = FileTime::from_unix_time(
+                    ts.mtime_sec,
+                    ts.mtime_nsec,
+                );
+                if let Ok(after_streams) = std::fs::symlink_metadata(path) {
+                    if after_streams.atime() != orig_atime.unix_seconds()
+                        || after_streams.atime_nsec() != i64::from(orig_atime.nanoseconds())
+                    {
+                        let _ = set_symlink_file_times(path, orig_atime, orig_mtime);
+                    }
                 }
             }
         }
@@ -1437,7 +1450,7 @@ mod tests {
         assert_eq!(entity_with_base.enclosing_path(), Some(base.as_path()));
         assert_eq!(
             entity_with_base.identity.relative_path,
-            PathBuf::from("subdir/sample.txt")
+            Some(PathBuf::from("subdir/sample.txt"))
         );
         assert_eq!(
             entity_with_base.identity.full_original_path(),
@@ -1455,7 +1468,7 @@ mod tests {
         assert_eq!(entity_no_base.enclosing_path(), Some(sub.as_path()));
         assert_eq!(
             entity_no_base.identity.relative_path,
-            PathBuf::from("sample.txt")
+            Some(PathBuf::from("sample.txt"))
         );
         assert_eq!(
             entity_no_base.identity.full_original_path(),
@@ -1475,8 +1488,8 @@ mod tests {
         let fs_type = entity.metadata.filesystem_type.as_ref().unwrap();
         assert!(!fs_type.is_empty());
 
-        assert!(entity.metadata.timestamps.resolution_nsec.is_some());
-        let res = entity.metadata.timestamps.resolution_nsec.unwrap();
+        assert!(entity.metadata.timestamps.as_ref().and_then(|t| t.resolution_nsec).is_some());
+        let res = entity.metadata.timestamps.as_ref().unwrap().resolution_nsec.unwrap();
         assert!(res > 0);
     }
 
@@ -1504,7 +1517,7 @@ mod tests {
             let post_meta = std::fs::symlink_metadata(&link).unwrap();
             let post_atime = FileTime::from_last_access_time(&post_meta);
             assert_eq!(post_atime.unix_seconds(), 1_700_000_000);
-            assert_eq!(entity.metadata.timestamps.mtime_sec, 1_700_000_100);
+            assert_eq!(entity.metadata.timestamps.as_ref().map(|t| t.mtime_sec), Some(1_700_000_100));
         }
     }
 
@@ -1525,8 +1538,8 @@ mod tests {
         assert_eq!(entity.streams[0].data.as_deref(), Some(b"opaque bytes\xff".as_slice()));
         if let Ok(created) = fs::symlink_metadata(&path).unwrap().created() {
             let time = filetime::FileTime::from_system_time(created);
-            assert_eq!(entity.metadata.timestamps.birthtime_sec, Some(time.unix_seconds()));
-            assert_eq!(entity.metadata.timestamps.birthtime_nsec, Some(time.nanoseconds()));
+            assert_eq!(entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_sec), Some(time.unix_seconds()));
+            assert_eq!(entity.metadata.timestamps.as_ref().and_then(|t| t.birthtime_nsec), Some(time.nanoseconds()));
         }
         #[cfg(target_os = "linux")]
         assert!(entity.metadata.native.unwrap().values.contains_key("statx.attributes_mask"));
@@ -1561,8 +1574,8 @@ mod tests {
         entity.metadata.environment = None;
         entity.metadata.native = None;
         entity.metadata.platform_raw_flags = None;
-        entity.identity.raw_relative_path.clear();
-        entity.identity.raw_filename.clear();
+        entity.identity.raw_relative_path = None;
+        entity.identity.raw_filename = None;
 
         // Include AppleMetadata with FinderInfo and ExtendedFinderInfo to test Mac metadata roundtrip
         entity.metadata.apple = Some(crate::AppleMetadata {
@@ -1592,9 +1605,9 @@ mod tests {
         // Add a semantic flag and an attached stream to test full representation
         let mut stream_entity = entity.clone();
         stream_entity.metadata.apple = None;
-        stream_entity.identity.raw_relative_path.clear();
-        stream_entity.identity.raw_filename.clear();
-        entity.metadata.flags.push(crate::FileFlag::Hidden);
+        stream_entity.identity.raw_relative_path = None;
+        stream_entity.identity.raw_filename = None;
+        entity.metadata.flags.get_or_insert_with(Vec::new).push(crate::FileFlag::Hidden);
         entity.streams.push(crate::AttachedStream {
             name: Some(crate::StreamName::from_bytes(b"user.comment")),
             kind: crate::StreamKind::ExtendedAttribute,

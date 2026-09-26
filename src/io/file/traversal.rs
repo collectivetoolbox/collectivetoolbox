@@ -1160,7 +1160,7 @@ mod tests {
         assert_eq!(items.len(), 1);
         let entity = items[0].to_file_entity(Some(root), true).expect("to_file_entity");
 
-        assert_eq!(entity.identity.relative_path, PathBuf::from("sample.txt"));
+        assert_eq!(entity.identity.relative_path, Some(PathBuf::from("sample.txt")));
         assert!(entity.is_regular());
         if let crate::entity::FileEntityKind::Regular { size, .. } = entity.kind {
             assert_eq!(size, 15);

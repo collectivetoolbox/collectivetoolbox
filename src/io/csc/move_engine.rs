@@ -203,7 +203,7 @@ pub fn run_mv(args: MvArgs) -> Result<ToolResult> {
                 let d_path = journal.desc_path().to_path_buf();
                 drop(journal);
                 let retain_metadata = copy_stats.copied_entities.iter().any(|(_, _, entity)|
-                    entity.metadata.native.is_some() || entity.metadata.timestamps.birthtime_sec.is_some()
+                    entity.metadata.native.is_some() || entity.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some()
                     || entity.metadata.platform_raw_flags.is_some() || !entity.streams.is_empty());
                 if retain_metadata {
                     progress.message(&format!("Original metadata retained in {}", j_path.display()));

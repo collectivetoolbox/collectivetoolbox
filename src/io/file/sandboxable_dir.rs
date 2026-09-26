@@ -890,19 +890,19 @@ mod tests {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: rel_path.as_os_str().as_encoded_bytes().to_vec(),
-                raw_filename: b"test.txt".to_vec(),
+                raw_relative_path: Some(rel_path.as_os_str().as_encoded_bytes().to_vec()),
+                raw_filename: Some(b"test.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: nix::unistd::getuid().as_raw(),
-                gid: nix::unistd::getgid().as_raw(),
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(nix::unistd::getuid().as_raw()),
+                gid: Some(nix::unistd::getgid().as_raw()),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -912,8 +912,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,

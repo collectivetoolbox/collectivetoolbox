@@ -616,7 +616,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
                 match read_entity_payload(&payload[..], origin_platform) {
                     Ok(entity) => {
-                        let path_key = entity.identity.path_bytes().to_vec();
+                        let path_key = entity.identity.path_bytes().map_or_else(Vec::new, |b| b.to_vec());
                         pending_entities.insert(path_key, entity);
                     }
                     Err(error) => return Err(error).context("Checksummed journal entity cannot be decoded without losing metadata"),
@@ -734,8 +734,10 @@ struct PreservedStream {
 // Low-level entity serialization
 
 fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
-    write_bytes(w, entity.identity.path_bytes())?;
-    write_bytes(w, &entity.identity.raw_filename)?;
+    // Reason for fallback: streams or entities without relative path write empty path bytes to wire format
+    write_bytes(w, entity.identity.path_bytes().unwrap_or(&[]))?;
+    // Reason for fallback: entities without filename write empty slice to wire format
+    write_bytes(w, entity.identity.raw_filename.as_deref().unwrap_or(&[]))?;
     match &entity.identity.enclosing_path {
         Some(p) => {
             w.write_all(&[1])?;
@@ -760,20 +762,33 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
             w.write_all(&[0])?;
         }
     }
-    write_u32(w, entity.metadata.mode)?;
-    write_u32(w, entity.metadata.uid)?;
-    write_u32(w, entity.metadata.gid)?;
-    write_i64(w, entity.metadata.timestamps.mtime_sec)?;
-    write_u32(w, entity.metadata.timestamps.mtime_nsec)?;
-    write_i64(w, entity.metadata.timestamps.atime_sec)?;
-    write_u32(w, entity.metadata.timestamps.atime_nsec)?;
-    write_i64(w, entity.metadata.timestamps.ctime_sec)?;
-    write_u32(w, entity.metadata.timestamps.ctime_nsec)?;
-    write_opt_timestamp(
-        w,
-        entity.metadata.timestamps.birthtime_sec,
-        entity.metadata.timestamps.birthtime_nsec,
-    )?;
+    // Reason for fallback: default permissions 0o644 written when mode is absent in stream or non-posix entity
+    write_u32(w, entity.metadata.mode.unwrap_or(0o644))?;
+    // Reason for fallback: root uid 0 written when uid is unrecorded in wire format
+    write_u32(w, entity.metadata.uid.unwrap_or(0))?;
+    // Reason for fallback: root gid 0 written when gid is unrecorded in wire format
+    write_u32(w, entity.metadata.gid.unwrap_or(0))?;
+    let (mtime_sec, mtime_nsec, atime_sec, atime_nsec, ctime_sec, ctime_nsec, birthtime_sec, birthtime_nsec) =
+        match &entity.metadata.timestamps {
+            Some(ts) => (
+                ts.mtime_sec,
+                ts.mtime_nsec,
+                ts.atime_sec,
+                ts.atime_nsec,
+                ts.ctime_sec,
+                ts.ctime_nsec,
+                ts.birthtime_sec,
+                ts.birthtime_nsec,
+            ),
+            None => (0, 0, 0, 0, 0, 0, None, None),
+        };
+    write_i64(w, mtime_sec)?;
+    write_u32(w, mtime_nsec)?;
+    write_i64(w, atime_sec)?;
+    write_u32(w, atime_nsec)?;
+    write_i64(w, ctime_sec)?;
+    write_u32(w, ctime_nsec)?;
+    write_opt_timestamp(w, birthtime_sec, birthtime_nsec)?;
     let (read_sec, read_nsec) = match entity.metadata.read_time {
         Some(t) => {
             let d = t
@@ -786,8 +801,10 @@ fn write_entity_payload(w: &mut impl Write, entity: &FileEntity) -> Result<()> {
         None => (None, None),
     };
     write_opt_timestamp(w, read_sec, read_nsec)?;
-    write_u32(w, u32::try_from(entity.metadata.flags.len())?)?;
-    for flag in &entity.metadata.flags {
+    // Reason for fallback: empty flags written when flags are absent
+    let flags_slice = entity.metadata.flags.as_deref().unwrap_or(&[]);
+    write_u32(w, u32::try_from(flags_slice.len())?)?;
+    for flag in flags_slice {
         write_flag(w, *flag)?;
     }
 
@@ -1014,19 +1031,19 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
         let s_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path,
+                relative_path: Some(relative_path),
                 enclosing_path: None,
-                raw_relative_path: sname_bytes.clone(),
-                raw_filename: sname_bytes,
+                raw_relative_path: Some(sname_bytes.clone()),
+                raw_filename: Some(sname_bytes),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 0,
-                gid: 0,
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(0),
+                gid: Some(0),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 0,
                     atime_nsec: 0,
                     mtime_sec: 0,
@@ -1036,8 +1053,8 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1093,19 +1110,19 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let mut entity = FileEntity {
         identity: FileIdentity {
             origin,
-            relative_path,
+            relative_path: Some(relative_path),
             enclosing_path,
-            raw_relative_path: raw_rel_path,
-            raw_filename,
+            raw_relative_path: Some(raw_rel_path),
+            raw_filename: Some(raw_filename),
             nlink,
             hardlink_group,
         },
         metadata: FileMetadata {
             native: None,
-            mode,
-            uid,
-            gid,
-            timestamps: FileTimestamps {
+            mode: Some(mode),
+            uid: Some(uid),
+            gid: Some(gid),
+            timestamps: Some(FileTimestamps {
                 atime_sec,
                 atime_nsec,
                 mtime_sec,
@@ -1115,8 +1132,8 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 birthtime_sec,
                 birthtime_nsec,
                 resolution_nsec: None,
-            },
-            flags,
+            }),
+            flags: Some(flags),
             platform_raw_flags: None,
             read_time,
             filesystem_type: None,
@@ -1290,19 +1307,19 @@ mod tests {
         let mut file_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from("hello.txt"),
+                relative_path: Some(PathBuf::from("hello.txt")),
                 enclosing_path: Some(src.clone()),
-                raw_relative_path: b"hello.txt".to_vec(),
-                raw_filename: b"hello.txt".to_vec(),
+                raw_relative_path: Some(b"hello.txt".to_vec()),
+                raw_filename: Some(b"hello.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 1000,
-                gid: 1000,
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(1000),
+                gid: Some(1000),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 100,
                     mtime_sec: 1_700_000_001,
@@ -1312,8 +1329,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: Some(read_time_expected),
                 filesystem_type: None,
@@ -1332,19 +1349,19 @@ mod tests {
         let link_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from("link.txt"),
+                relative_path: Some(PathBuf::from("link.txt")),
                 enclosing_path: None,
-                raw_relative_path: b"link.txt".to_vec(),
-                raw_filename: b"link.txt".to_vec(),
+                raw_relative_path: Some(b"link.txt".to_vec()),
+                raw_filename: Some(b"link.txt".to_vec()),
                 nlink: 2,
                 hardlink_group: Some(12345),
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 1000,
-                gid: 1000,
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(1000),
+                gid: Some(1000),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1354,8 +1371,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1368,8 +1385,10 @@ mod tests {
             streams: Vec::new(),
         };
 
-        file_entity.metadata.timestamps.birthtime_sec = Some(-123);
-        file_entity.metadata.timestamps.birthtime_nsec = Some(987_654_321);
+        if let Some(ref mut ts) = file_entity.metadata.timestamps {
+            ts.birthtime_sec = Some(-123);
+            ts.birthtime_nsec = Some(987_654_321);
+        }
         file_entity.metadata.native = Some(ctb_io::file::metadata::NativeMetadata {
             source_os: ctb_io::file::OsFamily::Darwin,
             values: std::collections::BTreeMap::from([
@@ -1478,19 +1497,19 @@ mod tests {
         let file_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: PathBuf::from("pre_epoch.txt"),
+                relative_path: Some(PathBuf::from("pre_epoch.txt")),
                 enclosing_path: Some(src),
-                raw_relative_path: b"pre_epoch.txt".to_vec(),
-                raw_filename: b"pre_epoch.txt".to_vec(),
+                raw_relative_path: Some(b"pre_epoch.txt".to_vec()),
+                raw_filename: Some(b"pre_epoch.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 1000,
-                gid: 1000,
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(1000),
+                gid: Some(1000),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1500,8 +1519,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: Some(pre_epoch_time),
                 filesystem_type: None,
@@ -1534,7 +1553,7 @@ mod tests {
         fs::write(&destination, b"old destination").unwrap();
         let _ = std::fs::read_link(&source);
         let original = ctb_io::file::FileEntity::from_filesystem(&source, None).unwrap();
-        assert!(original.metadata.timestamps.birthtime_sec.is_some());
+        assert!(original.metadata.timestamps.as_ref().and_then(|ts| ts.birthtime_sec).is_some());
         let mut args = default_test_args(vec![source.clone(), destination.clone()], state.clone());
         args.best_effort_metadata = false;
         assert!(run_csc(args).is_err());
@@ -1555,12 +1574,16 @@ mod tests {
         assert_eq!(actual_native, expected_native);
         let mut expected_ts = original.metadata.timestamps;
         let mut actual_ts = recorded.metadata.timestamps;
-        expected_ts.atime_sec = 0;
-        expected_ts.atime_nsec = 0;
-        actual_ts.atime_sec = 0;
-        actual_ts.atime_nsec = 0;
-        expected_ts.ctime_nsec = 0;
-        actual_ts.ctime_nsec = 0;
+        if let Some(ref mut ts) = expected_ts {
+            ts.atime_sec = 0;
+            ts.atime_nsec = 0;
+            ts.ctime_nsec = 0;
+        }
+        if let Some(ref mut ts) = actual_ts {
+            ts.atime_sec = 0;
+            ts.atime_nsec = 0;
+            ts.ctime_nsec = 0;
+        }
         assert_eq!(actual_ts, expected_ts);
         assert_eq!(recorded.metadata.platform_raw_flags, original.metadata.platform_raw_flags);
         assert_eq!(recorded.streams, original.streams);
@@ -1578,10 +1601,10 @@ mod tests {
         if nix::unistd::geteuid().as_raw() != 0 {
             let meta = ctb_io::file::FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 0,
-                gid: 0,
-                timestamps: ctb_io::file::FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(0),
+                gid: Some(0),
+                timestamps: Some(ctb_io::file::FileTimestamps {
                     atime_sec: 1_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_000_000,
@@ -1591,8 +1614,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,
@@ -1654,19 +1677,19 @@ mod tests {
         let entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: rel_path.clone(),
+                relative_path: Some(rel_path.clone()),
                 enclosing_path: None,
-                raw_relative_path: b"file_a.txt".to_vec(),
-                raw_filename: b"file_a.txt".to_vec(),
+                raw_relative_path: Some(b"file_a.txt".to_vec()),
+                raw_filename: Some(b"file_a.txt".to_vec()),
                 nlink: 1,
                 hardlink_group: None,
             },
             metadata: FileMetadata {
                 native: None,
-                mode: 0o644,
-                uid: 1000,
-                gid: 1000,
-                timestamps: FileTimestamps {
+                mode: Some(0o644),
+                uid: Some(1000),
+                gid: Some(1000),
+                timestamps: Some(FileTimestamps {
                     atime_sec: 1_700_000_000,
                     atime_nsec: 0,
                     mtime_sec: 1_700_000_000,
@@ -1676,8 +1699,8 @@ mod tests {
                     birthtime_sec: None,
                     birthtime_nsec: None,
                     resolution_nsec: None,
-                },
-                flags: Vec::new(),
+                }),
+                flags: Some(Vec::new()),
                 platform_raw_flags: None,
                 read_time: None,
                 filesystem_type: None,

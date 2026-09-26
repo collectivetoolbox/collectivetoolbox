@@ -353,8 +353,10 @@ fn index_directory_to_journal(
 
         let mut should_record = true;
         if let Some(ref snap) = snapshot {
-            if snap.is_committed(&entity.identity.raw_relative_path) {
-                should_record = false;
+            if let Some(raw) = entity.identity.path_bytes() {
+                if snap.is_committed(raw) {
+                    should_record = false;
+                }
             }
         }
 
@@ -651,18 +653,24 @@ pub(crate) async fn ingest_journal_snapshot(
         conn.execute("BEGIN IMMEDIATE TRANSACTION", ()).await?;
 
         for entity in chunk {
-            let path_str = entity.identity.relative_path.to_string_lossy().to_string();
+            let path_str = entity
+                .identity
+                .relative_path
+                .as_deref()
+                .map_or(String::new(), |p| p.to_string_lossy().to_string());
             // Reason for fallback: Root or empty relative path has empty filename.
             let filename = entity
                 .identity
                 .relative_path
-                .file_name()
+                .as_deref()
+                .and_then(|p| p.file_name())
                 .map_or(String::new(), |s| s.to_string_lossy().to_string());
             // Reason for fallback: Root or single-component relative path has empty parent dir string.
             let parent_dir = entity
                 .identity
                 .relative_path
-                .parent()
+                .as_deref()
+                .and_then(|p| p.parent())
                 .map_or(String::new(), |p| p.to_string_lossy().to_string());
 
             let kind_str = entity.kind.kind_str();
@@ -690,11 +698,11 @@ pub(crate) async fn ingest_journal_snapshot(
                 _ => (0_i64, None, None),
             };
 
-            let mtime_sec = entity.metadata.timestamps.mtime_sec;
-            let mtime_nsec = i64::from(entity.metadata.timestamps.mtime_nsec);
-            let ctime_sec = entity.metadata.timestamps.ctime_sec;
-            let ctime_nsec = i64::from(entity.metadata.timestamps.ctime_nsec);
-            let mode = i64::from(entity.metadata.mode);
+            let mtime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.mtime_sec);
+            let mtime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.mtime_nsec));
+            let ctime_sec = entity.metadata.timestamps.as_ref().map_or(0, |ts| ts.ctime_sec);
+            let ctime_nsec = entity.metadata.timestamps.as_ref().map_or(0, |ts| i64::from(ts.ctime_nsec));
+            let mode = entity.metadata.mode.map_or(0, i64::from);
             // Reason for fallback: hardlink count exceeding signed 64-bit integer limit defaults to 1
             let nlink = <i64 as TryFrom<_>>::try_from(entity.identity.nlink).unwrap_or(1);
 
@@ -725,7 +733,10 @@ pub(crate) async fn ingest_journal_snapshot(
                 let full_text_val = if fulltext_limit.is_some()
                     && matches!(entity.kind, FileEntityKind::Regular { .. })
                 {
-                    let full_path = root_dir.join(&entity.identity.relative_path);
+                    let full_path = match &entity.identity.relative_path {
+                        Some(rel) => root_dir.join(rel),
+                        None => root_dir.to_path_buf(),
+                    };
                     if let Ok(mut f) = std::fs::File::open(&full_path) {
                         ctb_formats_text_extraction::to_text(&mut f, fulltext_limit).ok()
                     } else {

@@ -185,3 +185,45 @@ pub mod text_or_base64 {
         }
     }
 }
+
+/// Serde helper for optional byte sequences (`Option<Vec<u8>>`) that prefer UTF-8 strings when losslessly encodable.
+pub mod opt_text_or_base64 {
+    use super::*;
+
+    /// Serializes optional bytes as a UTF-8 string, Base64, or none.
+    pub fn serialize<S>(val: &Option<Vec<u8>>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match val {
+            Some(bytes) => {
+                if let Ok(utf8_str) = std::str::from_utf8(bytes) {
+                    serializer.serialize_str(utf8_str)
+                } else {
+                    serializer.serialize_str(&BASE64_STANDARD.encode(bytes))
+                }
+            }
+            None => serializer.serialize_none(),
+        }
+    }
+
+    /// Deserializes optional bytes from a UTF-8 string, byte array, or null.
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum StringOrBytes {
+            String(String),
+            Bytes(Vec<u8>),
+            None,
+        }
+
+        match Option::<StringOrBytes>::deserialize(deserializer)? {
+            Some(StringOrBytes::String(s)) => Ok(Some(s.into_bytes())),
+            Some(StringOrBytes::Bytes(b)) => Ok(Some(b)),
+            Some(StringOrBytes::None) | None => Ok(None),
+        }
+    }
+}

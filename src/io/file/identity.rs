@@ -112,19 +112,19 @@ pub struct FileIdentity {
     pub origin: FileOrigin,
     /// Logical relative path within the operation or archive.
     #[dc(short = 337)]
-    pub relative_path: PathBuf,
+    pub relative_path: Option<PathBuf>,
     /// Original enclosing directory or root path from which relative_path was
     /// resolved, if applicable.
     #[dc(short = 357)]
     pub enclosing_path: Option<PathBuf>,
     /// Exact raw bytes of the full relative path with canonical '/' separator.
-    #[serde(default, with = "crate::serde_helpers::text_or_base64")]
+    #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
     #[dc(skip, reason = "Raw relative path bytes are an alternative representation unified with relative_path (Dc 337)")]
-    pub raw_relative_path: Vec<u8>,
+    pub raw_relative_path: Option<Vec<u8>>,
     /// Exact raw bytes of the filename on the origin (avoids lossy Unicode conversions).
-    #[serde(default, with = "crate::serde_helpers::text_or_base64")]
+    #[serde(default, with = "crate::serde_helpers::opt_text_or_base64")]
     #[dc(skip, reason = "Raw filename bytes are an alternative representation unified with relative_path (Dc 337)")]
-    pub raw_filename: Vec<u8>,
+    pub raw_filename: Option<Vec<u8>>,
     /// Link count on the source filesystem.
     #[dc(short = 355)]
     pub nlink: u64,
@@ -134,22 +134,24 @@ pub struct FileIdentity {
 }
 
 impl FileIdentity {
-    /// Returns the raw byte representation of the relative path.
+    /// Returns the raw byte representation of the relative path, if present.
     #[must_use]
-    pub fn path_bytes(&self) -> &[u8] {
-        if !self.raw_relative_path.is_empty() {
-            &self.raw_relative_path
+    pub fn path_bytes(&self) -> Option<&[u8]> {
+        if let Some(ref raw) = self.raw_relative_path {
+            Some(raw.as_slice())
         } else {
-            self.relative_path.as_os_str().as_encoded_bytes()
+            self.relative_path
+                .as_deref()
+                .map(|p| p.as_os_str().as_encoded_bytes())
         }
     }
 
-    /// Returns the full original path if `enclosing_path` is present, otherwise
-    /// falls back to origin's canonical path if available.
+    /// Returns the full original path if `enclosing_path` and `relative_path` are present,
+    /// otherwise falls back to origin's canonical path if available.
     #[must_use]
     pub fn full_original_path(&self) -> Option<PathBuf> {
         if let Some(ref base) = self.enclosing_path {
-            Some(base.join(&self.relative_path))
+            self.relative_path.as_deref().map(|rel| base.join(rel))
         } else {
             match &self.origin {
                 FileOrigin::Filesystem { canonical_path, .. } => {

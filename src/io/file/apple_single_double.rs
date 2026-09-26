@@ -141,7 +141,10 @@ pub fn create_apple_archive_from_entity(
     let apple_meta = entity.metadata.apple.as_ref();
     let mut finder_info = apple_meta.and_then(|a| a.finder_info.clone());
 
-    let has_mac_flags = entity.metadata.flags.iter().any(|f| matches!(
+    let empty_flags = Vec::new();
+    let entity_flags = entity.metadata.flags.as_ref().unwrap_or(&empty_flags);
+
+    let has_mac_flags = entity_flags.iter().any(|f| matches!(
         f,
         crate::metadata::FileFlag::OnDesk
             | crate::metadata::FileFlag::SharedApp
@@ -161,7 +164,7 @@ pub fn create_apple_archive_from_entity(
         finder_info = Some(FinderInfo::default());
     }
     if let Some(ref mut finfo) = finder_info {
-        for flag in &entity.metadata.flags {
+        for flag in entity_flags {
             match flag {
                 crate::metadata::FileFlag::OnDesk => finfo.flags.is_on_desk = true,
                 crate::metadata::FileFlag::SharedApp => finfo.flags.is_shared = true,
@@ -197,11 +200,11 @@ pub fn create_apple_archive_from_entity(
         .map(|a| a.unrecognized_entries.clone())
         .unwrap_or_default();
 
-    let timestamps = Some(AppleDatesInfo {
-        birthtime_sec: entity.metadata.timestamps.birthtime_sec,
-        mtime_sec: entity.metadata.timestamps.mtime_sec,
-        ctime_sec: entity.metadata.timestamps.ctime_sec,
-        atime_sec: entity.metadata.timestamps.atime_sec,
+    let timestamps = entity.metadata.timestamps.as_ref().map(|ts| AppleDatesInfo {
+        birthtime_sec: ts.birthtime_sec,
+        mtime_sec: ts.mtime_sec,
+        ctime_sec: ts.ctime_sec,
+        atime_sec: ts.atime_sec,
         backup_sec: backup_timestamp_sec,
     });
 
@@ -294,7 +297,7 @@ pub fn write_apple_double_companion(
         is_dir,
         style,
         Some(dest_dir_root),
-        Some(&entity.identity.relative_path),
+        entity.identity.relative_path.as_deref(),
     );
 
     if let Some(parent) = companion_path.parent() {
@@ -307,22 +310,26 @@ pub fn write_apple_double_companion(
         .with_context(|| format!("Failed to write AppleDouble companion file: {}", companion_path.display()))?;
 
     // Apply timestamps from entity
-    let atime = filetime::FileTime::from_unix_time(
-        entity.metadata.timestamps.atime_sec,
-        entity.metadata.timestamps.atime_nsec,
-    );
-    let mtime = filetime::FileTime::from_unix_time(
-        entity.metadata.timestamps.mtime_sec,
-        entity.metadata.timestamps.mtime_nsec,
-    );
-    let _ = filetime::set_file_times(&companion_path, atime, mtime);
+    if let Some(ref ts) = entity.metadata.timestamps {
+        let atime = filetime::FileTime::from_unix_time(
+            ts.atime_sec,
+            ts.atime_nsec,
+        );
+        let mtime = filetime::FileTime::from_unix_time(
+            ts.mtime_sec,
+            ts.mtime_nsec,
+        );
+        let _ = filetime::set_file_times(&companion_path, atime, mtime);
+    }
 
     Ok(Some(companion_path))
 }
 
 
 fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix: &str) {
-    let rel = &entity.identity.relative_path;
+    let Some(ref rel) = entity.identity.relative_path else {
+        return;
+    };
     let file_name_opt = rel.file_name().and_then(|n| n.to_str()).map(ToString::to_string);
     if let Some(file_name) = file_name_opt {
         let should_strip = if file_name.len() >= ext_suffix.len() {
@@ -341,9 +348,9 @@ fn strip_apple_single_extension_from_entity(entity: &mut FileEntity, ext_suffix:
                     Some(p) if !p.as_os_str().is_empty() => p.join(stripped_name),
                     _ => PathBuf::from(stripped_name),
                 };
-                entity.identity.relative_path = new_rel.clone();
-                entity.identity.raw_relative_path = new_rel.as_os_str().as_encoded_bytes().to_vec();
-                entity.identity.raw_filename = stripped_name.as_bytes().to_vec();
+                entity.identity.relative_path = Some(new_rel.clone());
+                entity.identity.raw_relative_path = Some(new_rel.as_os_str().as_encoded_bytes().to_vec());
+                entity.identity.raw_filename = Some(stripped_name.as_bytes().to_vec());
             }
         }
     }
@@ -429,7 +436,7 @@ pub fn join_apple_double_or_single(
             is_dir,
             AppleDoubleStyle::Alongside,
             base_dir,
-            Some(&entity.identity.relative_path),
+            entity.identity.relative_path.as_deref(),
         );
         companion_candidates.push(path);
     }
@@ -440,7 +447,7 @@ pub fn join_apple_double_or_single(
             is_dir,
             AppleDoubleStyle::Zip,
             base_dir,
-            Some(&entity.identity.relative_path),
+            entity.identity.relative_path.as_deref(),
         );
         companion_candidates.push(path);
     }
@@ -451,7 +458,7 @@ pub fn join_apple_double_or_single(
             is_dir,
             AppleDoubleStyle::Netatalk,
             base_dir,
-            Some(&entity.identity.relative_path),
+            entity.identity.relative_path.as_deref(),
         );
         companion_candidates.push(path);
     }
@@ -511,20 +518,21 @@ fn join_apple_archive_into_entity(entity: &mut FileEntity, archive: &AppleArchiv
             (finfo.flags.is_invisible, crate::metadata::FileFlag::Invisible),
             (finfo.flags.is_alias, crate::metadata::FileFlag::Alias),
         ];
+        let flags = entity.metadata.flags.get_or_insert_with(Vec::new);
         for (is_set, flag) in flags_to_add {
-            if is_set && !entity.metadata.flags.contains(&flag) {
-                entity.metadata.flags.push(flag);
+            if is_set && !flags.contains(&flag) {
+                flags.push(flag);
             }
         }
         if let Some(ref ext) = finfo.extended {
-            if ext.xflags.custom_badge && !entity.metadata.flags.contains(&crate::metadata::FileFlag::CustomBadge) {
-                entity.metadata.flags.push(crate::metadata::FileFlag::CustomBadge);
+            if ext.xflags.custom_badge && !flags.contains(&crate::metadata::FileFlag::CustomBadge) {
+                flags.push(crate::metadata::FileFlag::CustomBadge);
             }
-            if ext.xflags.routing_info && !entity.metadata.flags.contains(&crate::metadata::FileFlag::RoutingInfo) {
-                entity.metadata.flags.push(crate::metadata::FileFlag::RoutingInfo);
+            if ext.xflags.routing_info && !flags.contains(&crate::metadata::FileFlag::RoutingInfo) {
+                flags.push(crate::metadata::FileFlag::RoutingInfo);
             }
-            if ext.xflags.extended_flags_invalid && !entity.metadata.flags.contains(&crate::metadata::FileFlag::ExtendedFlagsInvalid) {
-                entity.metadata.flags.push(crate::metadata::FileFlag::ExtendedFlagsInvalid);
+            if ext.xflags.extended_flags_invalid && !flags.contains(&crate::metadata::FileFlag::ExtendedFlagsInvalid) {
+                flags.push(crate::metadata::FileFlag::ExtendedFlagsInvalid);
             }
         }
     }
@@ -585,12 +593,12 @@ mod tests {
         std::fs::write(&file_path, b"payload")?;
 
         let mut entity = FileEntity::from_filesystem(&file_path, None)?;
-        entity.metadata.flags = vec![
+        entity.metadata.flags = Some(vec![
             FileFlag::OnDesk,
             FileFlag::NoInits,
             FileFlag::Invisible,
             FileFlag::CustomBadge,
-        ];
+        ]);
 
         let archive = create_apple_archive_from_entity(&entity, AppleFormat::AppleDouble, None)?;
         let finfo = archive.finder_info.as_ref().context("missing finder_info")?;
@@ -601,12 +609,13 @@ mod tests {
         ensure!(ext.xflags.custom_badge);
 
         let mut roundtrip_entity = FileEntity::from_filesystem(&file_path, None)?;
-        roundtrip_entity.metadata.flags.clear();
+        roundtrip_entity.metadata.flags = Some(Vec::new());
         join_apple_archive_into_entity(&mut roundtrip_entity, &archive)?;
-        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::OnDesk));
-        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::NoInits));
-        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::Invisible));
-        ensure!(roundtrip_entity.metadata.flags.contains(&FileFlag::CustomBadge));
+        let rt_flags = roundtrip_entity.metadata.flags.as_ref().context("missing flags")?;
+        ensure!(rt_flags.contains(&FileFlag::OnDesk));
+        ensure!(rt_flags.contains(&FileFlag::NoInits));
+        ensure!(rt_flags.contains(&FileFlag::Invisible));
+        ensure!(rt_flags.contains(&FileFlag::CustomBadge));
 
         Ok(())
     }
