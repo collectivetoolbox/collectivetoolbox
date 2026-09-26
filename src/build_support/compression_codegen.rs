@@ -132,29 +132,6 @@ pub fn generate_compression_format_code(compression_csv: &Path) -> Result<String
     }
     out.push_str("            _ => None,\n");
     out.push_str("        }\n");
-    out.push_str("    }\n\n");
-
-    out.push_str("    /// Returns true if this compression format is implemented natively in this repository.\n");
-    out.push_str("    #[must_use]\n");
-    out.push_str("    pub fn is_implemented_in_repo(&self) -> bool {\n");
-    out.push_str("        matches!(\n");
-    out.push_str("            self,\n");
-    out.push_str("            Self::Bzip\n");
-    out.push_str("                | Self::ScoCompress\n");
-    out.push_str("                | Self::CompressLzw\n");
-    out.push_str("                | Self::CompressLzw2\n");
-    out.push_str("                | Self::CompressLzw1\n");
-    out.push_str("                | Self::CompressLzw16\n");
-    out.push_str("                | Self::Pack\n");
-    out.push_str("                | Self::OldPack\n");
-    out.push_str("                | Self::Compact\n");
-    out.push_str("        )\n");
-    out.push_str("    }\n\n");
-
-    out.push_str("    /// Returns the default verification setting for this format when compressing.\n");
-    out.push_str("    #[must_use]\n");
-    out.push_str("    pub fn default_verify(&self) -> bool {\n");
-    out.push_str("        self.is_implemented_in_repo()\n");
     out.push_str("    }\n");
     out.push_str("}\n\n");
 

@@ -2834,6 +2834,7 @@ dependencies = [
  "bzip2",
  "clap",
  "ctb-formats-utilities",
+ "ctb-io-file",
  "ctb-utilities",
  "flate2",
  "include_dir",

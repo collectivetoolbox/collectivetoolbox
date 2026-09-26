@@ -300,7 +300,13 @@ impl FormatInfo {
 
     /// Returns the primary file extension (without leading dot or case prefix).
     #[must_use]
-    pub fn primary_extension(&self) -> Option<String> {
+    pub fn primary_extension(&self) -> Option<&str> {
+        self.get_primary_extension()
+    }
+
+    /// Returns the primary file extension (without leading dot or case prefix).
+    #[must_use]
+    pub fn get_primary_extension(&self) -> Option<&str> {
         if self.extensions.is_empty() {
             return None;
         }
@@ -310,9 +316,21 @@ impl FormatInfo {
             .map(|ext| {
                 let trimmed = ext.trim();
                 let clean = trimmed.strip_prefix("case:").unwrap_or(trimmed);
-                clean.trim_start_matches('.').to_string()
+                clean.trim_start_matches('.')
             })
             .filter(|s| !s.is_empty())
+    }
+}
+
+/// Extension trait allowing `.get_primary_extension()` on `Option<&'static FormatInfo>`.
+pub trait FormatInfoOptionExt {
+    /// Returns the primary file extension if format info is present.
+    fn get_primary_extension(&self) -> Option<&'static str>;
+}
+
+impl FormatInfoOptionExt for Option<&'static FormatInfo> {
+    fn get_primary_extension(&self) -> Option<&'static str> {
+        self.and_then(FormatInfo::get_primary_extension)
     }
 }
 
@@ -330,15 +348,15 @@ static FORMATS_BY_FORMAT_ID: LazyLock<HashMap<ctb_utilities::FormatId, FormatInf
     });
 
 /// Look up a `FormatInfo` record by short Format ID.
-pub fn get_format_info(fmt_id: usize) -> Option<FormatInfo> {
-    FORMATS_BY_ID.get(&fmt_id).cloned()
+pub fn get_format_info(fmt_id: usize) -> Option<&'static FormatInfo> {
+    FORMATS_BY_ID.get(&fmt_id)
 }
 
 /// Look up a `FormatInfo` record by `FormatId`.
 pub fn get_format_info_by_id(
     format_id: ctb_utilities::FormatId,
-) -> Option<FormatInfo> {
-    FORMATS_BY_FORMAT_ID.get(&format_id).cloned()
+) -> Option<&'static FormatInfo> {
+    FORMATS_BY_FORMAT_ID.get(&format_id)
 }
 
 /// Generates a help table of supported formats and their shorthand aliases for

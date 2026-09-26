@@ -220,3 +220,4 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 1114643,531,Execution environment is running as a public website deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is deployed as a public website.
 1114644,532,Execution environment is running as a local deployment,0,BN,,!Cx,.Semantic,:~ [boolean],Execution environment is executing on a local machine.
 1114645,533,Host kernel version string,0,BN,,!Cx,.Semantic,:~ [string],Kernel version or release string of execution environment host.
+1114646,534,File origin: FIFO,0,BN,,!Cx,.Semantic,,

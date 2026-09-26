@@ -94,7 +94,7 @@ impl HashAlgorithm {
 
     /// Retrieves format metadata from the shared registry.
     #[must_use]
-    pub fn format_info(&self) -> Option<FormatInfo> {
+    pub fn format_info(&self) -> Option<&'static FormatInfo> {
         ctb_formats_utilities::get_format_info_by_id(self.to_format_id())
     }
 }

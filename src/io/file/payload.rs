@@ -460,6 +460,166 @@ impl PayloadSource for MemoryPayloadSource {
     }
 }
 
+/// A streaming payload source wrapping an unseekable reader (e.g. stdin or pipe).
+///
+/// Buffers read bytes dynamically on demand to support non-destructive inspection
+/// and probing by `DetectionSource::read_at` without slurping the entire stream
+/// into memory.
+pub struct ReaderPayloadSource<R: Read + Send> {
+    reader: R,
+    buffer: Vec<u8>,
+    read_pos: usize,
+    reached_eof: bool,
+}
+
+impl<R: Read + Send> ReaderPayloadSource<R> {
+    /// Creates a new `ReaderPayloadSource` wrapping the given reader.
+    pub fn new(reader: R) -> Self {
+        Self {
+            reader,
+            buffer: Vec::new(),
+            read_pos: 0,
+            reached_eof: false,
+        }
+    }
+
+    /// Ensures that at least `needed` bytes are buffered from the stream, or until EOF.
+    fn ensure_buffered(&mut self, needed: usize) -> Result<()> {
+        while self.buffer.len() < needed && !self.reached_eof {
+            let to_read = needed.saturating_sub(self.buffer.len()).max(4096);
+            let mut chunk = vec![0u8; to_read];
+            let n = self.reader.read(&mut chunk)?;
+            if n == 0 {
+                self.reached_eof = true;
+                break;
+            }
+            if let Some(valid_chunk) = chunk.get(..n) {
+                self.buffer.extend_from_slice(valid_chunk);
+            }
+        }
+        Ok(())
+    }
+
+    /// Returns a slice of bytes currently buffered in memory.
+    #[must_use]
+    pub fn buffered_bytes(&self) -> &[u8] {
+        &self.buffer
+    }
+}
+
+impl<R: Read + Send> Read for ReaderPayloadSource<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.read_pos < self.buffer.len() {
+            let Some(available) = self.buffer.get(self.read_pos..) else {
+                return Ok(0);
+            };
+            let n = buf.len().min(available.len());
+            if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+                dst.copy_from_slice(src);
+                self.read_pos = self.read_pos.saturating_add(n);
+                Ok(n)
+            } else {
+                Ok(0)
+            }
+        } else {
+            self.reader.read(buf)
+        }
+    }
+}
+
+impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        match pos {
+            SeekFrom::Start(offset) => {
+                let usize_offset = usize::try_from(offset)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                if usize_offset <= self.buffer.len() {
+                    self.read_pos = usize_offset;
+                    Ok(offset)
+                } else {
+                    self.ensure_buffered(usize_offset)
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                    if usize_offset <= self.buffer.len() {
+                        self.read_pos = usize_offset;
+                        Ok(offset)
+                    } else {
+                        Err(std::io::Error::new(
+                            std::io::ErrorKind::UnexpectedEof,
+                            "Cannot seek beyond stream EOF",
+                        ))
+                    }
+                }
+            }
+            SeekFrom::Current(diff) => {
+                let current = i64::try_from(self.read_pos)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                let target = current.checked_add(diff).ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::InvalidInput, "Seek overflow")
+                })?;
+                if target < 0 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "Cannot seek before start of stream",
+                    ));
+                }
+                let u_target = u64::try_from(target)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                self.seek(SeekFrom::Start(u_target))
+            }
+            SeekFrom::End(_) => Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "SeekFrom::End is not supported on streaming ReaderPayloadSource",
+            )),
+        }
+    }
+}
+
+impl<R: Read + Send> ctb_formats_utilities::detection::DetectionSource for ReaderPayloadSource<R> {
+    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        let end = start.saturating_add(buf.len());
+        self.ensure_buffered(end)?;
+        if start >= self.buffer.len() {
+            return Ok(0);
+        }
+        let Some(available) = self.buffer.get(start..) else {
+            return Ok(0);
+        };
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
+    fn total_len(&self) -> Option<u64> {
+        if self.reached_eof {
+            u64::try_from(self.buffer.len()).ok()
+        } else {
+            None
+        }
+    }
+}
+
+impl<R: Read + Send> PayloadSource for ReaderPayloadSource<R> {
+    fn total_size(&self) -> u64 {
+        // Reason for fallback: usize length conversion cannot fail on standard architectures, default to 0 on failure
+        u64::try_from(self.buffer.len()).unwrap_or(0)
+    }
+
+    fn extents(&self) -> &[Extent] {
+        &[]
+    }
+
+    fn is_sparse(&self) -> bool {
+        false
+    }
+}
+
 pub use crate::block_device_size::query_block_device_size;
 
 /// Computes the cryptographic SHA-256 digest of a payload source, taking
@@ -574,6 +734,61 @@ impl ctb_formats_utilities::detection::DetectionSource for MemoryPayloadSource {
 
     fn total_len(&self) -> Option<u64> {
         Some(self.total_size())
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
+mod tests {
+    use super::*;
+    use ctb_formats_utilities::detection::DetectionSource;
+    use std::io::Read;
+
+    #[crate::ctb_test]
+    fn test_reader_payload_source_buffering_and_streaming() {
+        let sample_data =
+            b"Hello, world! This is a test streaming payload for detection.";
+        let mut source = ReaderPayloadSource::new(&sample_data[..]);
+
+        let mut probe = [0u8; 5];
+        let n = source.read_at(0, &mut probe).unwrap();
+        assert_eq!(n, 5);
+        assert_eq!(&probe, b"Hello");
+
+        let mut probe2 = [0u8; 6];
+        let n2 = source.read_at(7, &mut probe2).unwrap();
+        assert_eq!(n2, 6);
+        assert_eq!(&probe2, b"world!");
+
+        // Stream via Read trait: yields all bytes from the start
+        let mut full_output = Vec::new();
+        source.read_to_end(&mut full_output).unwrap();
+        assert_eq!(&full_output[..], &sample_data[..]);
+    }
+
+    #[crate::ctb_test]
+    fn test_reader_payload_source_seek_within_buffer() {
+        let sample_data = b"0123456789ABCDEF";
+        let mut source = ReaderPayloadSource::new(&sample_data[..]);
+
+        let mut probe = [0u8; 8];
+        source.read_at(0, &mut probe).unwrap();
+
+        let pos = source.seek(SeekFrom::Start(4)).unwrap();
+        assert_eq!(pos, 4);
+
+        let mut out = [0u8; 4];
+        source.read_exact(&mut out).unwrap();
+        assert_eq!(&out, b"4567");
     }
 }
 

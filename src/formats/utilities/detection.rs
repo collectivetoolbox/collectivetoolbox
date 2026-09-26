@@ -977,7 +977,17 @@ pub fn guess_format_report(
     }
 
     // 4. Resolve candidate conflicts and subsumption hierarchies
-    let resolved = resolve_candidate_conflicts(candidates);
+    let mut resolved = resolve_candidate_conflicts(candidates);
+    if let Some(h) = hint {
+        if h.limit_to_categories {
+            resolved.retain(|c| {
+                // Reason for fallback: candidates lacking a format_id are excluded when restricting by category
+                c.format_id
+                    .map(|fid| h.allows_category(fid.category()))
+                    .unwrap_or(false)
+            });
+        }
+    }
 
     let stream_signals_used = hint.is_some_and(|h| {
         !h.stream_candidates.is_empty() || h.apple_type_code.is_some()
@@ -1042,12 +1052,17 @@ pub fn detect_format_id(
     filename_or_ext: Option<&str>,
     expected_category: Option<FormatCategory>,
 ) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| DetectionHint {
-        filename: Some(name.to_string()),
-        extension: None,
-        platform: None,
-        expected_category,
-        ..Default::default()
+    let hint = filename_or_ext.map(|name| {
+        let mut h = DetectionHint {
+            filename: Some(name.to_string()),
+            ..Default::default()
+        };
+        if let Some(cat) = expected_category {
+            h = h.with_category(cat);
+        }
+        h
+    }).or_else(|| {
+        expected_category.map(DetectionHint::for_category)
     });
 
     let candidates = if let Some(bytes) = data {
@@ -1069,6 +1084,36 @@ pub fn detect_format_id(
     }
 
     candidates.into_iter().find_map(|c| c.format_id)
+}
+
+/// Detects `FormatId` restricting candidates strictly to the provided categories.
+pub fn detect_format_id_in_categories(
+    data: Option<&[u8]>,
+    filename_or_ext: Option<&str>,
+    categories: &[FormatCategory],
+) -> Option<FormatId> {
+    let hint = filename_or_ext.map(|name| {
+        let h = DetectionHint {
+            filename: Some(name.to_string()),
+            ..Default::default()
+        };
+        h.with_categories(categories)
+    }).or_else(|| {
+        Some(DetectionHint::for_categories(categories))
+    });
+
+    let candidates = if let Some(bytes) = data {
+        let mut slice = bytes;
+        guess_format_candidates(&mut slice, hint.as_ref())
+    } else {
+        let mut empty = EmptySource;
+        guess_format_candidates(&mut empty, hint.as_ref())
+    };
+
+    candidates
+        .into_iter()
+        .filter_map(|c| c.format_id)
+        .find(|fmt| categories.contains(&fmt.category()))
 }
 
 #[cfg(test)]
