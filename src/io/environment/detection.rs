@@ -386,13 +386,25 @@ pub fn detect_capabilities() -> EnvironmentCapabilities {
 
     // Reason for fallback: unset TERM defaults to empty string baseline
     let term = env::var("TERM").unwrap_or_default();
-    let (terminal_caps, term_device_caps) = detect_terminal_capabilities_for(
+    let (mut terminal_caps, term_device_caps) = detect_terminal_capabilities_for(
         &term,
         is_stdout_terminal,
         is_stdin_terminal,
         is_stderr_terminal,
     );
     device_caps.extend(term_device_caps);
+
+    // Reason for fallback: unset COLORTERM defaults to empty string baseline
+    let colorterm = env::var("COLORTERM")
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if is_stdout_terminal
+        && terminal_caps.contains(&FormatId::Videoterminal)
+        && (colorterm == "truecolor" || colorterm == "24bit")
+        && !terminal_caps.contains(&FormatId::TerminalColors24bit)
+    {
+        terminal_caps.push(FormatId::TerminalColors24bit);
+    }
 
     let mut render_modes = Vec::new();
     if is_stdout_terminal && is_stdin_terminal {
@@ -490,16 +502,10 @@ pub fn detect_terminal_capabilities_for(
                 terminal_caps.push(FormatId::TerminalMouse);
             }
 
-            // Reason for fallback: unset COLORTERM defaults to empty string baseline
-            let colorterm = env::var("COLORTERM")
-                .unwrap_or_default()
-                .to_ascii_lowercase();
             // Reason for fallback: unconfirmed 24-bit color capability defaults to false to avoid emitting unhandled escape sequences
-            let is_truecolor = colorterm == "truecolor"
-                || colorterm == "24bit"
-                || term_info
-                    .as_ref()
-                    .map_or(false, Terminfo::has_truecolor);
+            let is_truecolor = term_info
+                .as_ref()
+                .map_or(false, Terminfo::has_truecolor);
 
             if is_truecolor {
                 terminal_caps.push(FormatId::TerminalColors24bit);
