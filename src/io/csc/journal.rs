@@ -616,6 +616,7 @@ pub fn read_journal_snapshot(path: &Path) -> Result<JournalSnapshot> {
 
                 match read_entity_payload(&payload[..], origin_platform) {
                     Ok(entity) => {
+                        // Reason for fallback: streams or entities without relative path use empty key in journal table
                         let path_key = entity.identity.path_bytes().map_or_else(Vec::new, |b| b.to_vec());
                         pending_entities.insert(path_key, entity);
                     }
@@ -1023,18 +1024,26 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
             .as_ref()
             .map(|n| StreamKind::infer_from_name(&n.as_bytes()))
             .unwrap_or(StreamKind::MacOsResourceFork);
-        // Reason for fallback: Nameless streams lack a filename, so synthetic relative path defaults to empty.
         let relative_path = stream_name
             .as_ref()
-            .map(|n| PathBuf::from(n.to_string_lossy().as_ref()))
-            .unwrap_or_default();
+            .map(|n| PathBuf::from(n.to_string_lossy().as_ref()));
+        let raw_relative_path = if sname_bytes.is_empty() {
+            None
+        } else {
+            Some(sname_bytes.clone())
+        };
+        let raw_filename = if sname_bytes.is_empty() {
+            None
+        } else {
+            Some(sname_bytes)
+        };
         let s_entity = FileEntity {
             identity: FileIdentity {
                 origin: FileOrigin::Synthetic,
-                relative_path: Some(relative_path),
+                relative_path,
                 enclosing_path: None,
-                raw_relative_path: Some(sname_bytes.clone()),
-                raw_filename: Some(sname_bytes),
+                raw_relative_path,
+                raw_filename,
                 nlink: 1,
                 hardlink_group: None,
             },
@@ -1079,7 +1088,19 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     }
 
     let is_windows = origin_platform == PLATFORM_WINDOWS;
-    let relative_path = resolve_relative_path_for_os(&raw_rel_path, is_windows)?;
+    let (relative_path, raw_relative_path) = if raw_rel_path.is_empty() {
+        (None, None)
+    } else {
+        (
+            Some(resolve_relative_path_for_os(&raw_rel_path, is_windows)?),
+            Some(raw_rel_path),
+        )
+    };
+    let raw_filename = if raw_filename.is_empty() {
+        None
+    } else {
+        Some(raw_filename)
+    };
 
     let mut origin = if let Some(grp) = hardlink_group {
         FileOrigin::Filesystem {
@@ -1087,7 +1108,8 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
                 device_id: origin_device_id,
                 inode: grp,
             },
-            canonical_path: relative_path.clone(),
+            // Reason for fallback: root destination used if relative_path is empty for hardlink
+            canonical_path: relative_path.clone().unwrap_or_default(),
         }
     } else {
         FileOrigin::Synthetic
@@ -1110,10 +1132,10 @@ fn read_entity_payload(mut r: &[u8], origin_platform: u8) -> Result<FileEntity> 
     let mut entity = FileEntity {
         identity: FileIdentity {
             origin,
-            relative_path: Some(relative_path),
+            relative_path,
             enclosing_path,
-            raw_relative_path: Some(raw_rel_path),
-            raw_filename: Some(raw_filename),
+            raw_relative_path,
+            raw_filename,
             nlink,
             hardlink_group,
         },
