@@ -30,11 +30,14 @@ pub mod cli;
 pub mod fnv;
 pub mod xxhash;
 
+use ctb_formats_utilities::format_info::{FormatInfo, format_help_table};
+use ctb_utilities::FormatId;
 use ctb_utilities::string::{to_hex, to_hex_0x};
 use sha2::{Digest, Sha256 as Sha256Digest};
+use std::sync::LazyLock;
 
 /// Supported hash algorithms.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HashAlgorithm {
     /// xxHash 32-bit algorithm, non-cryptographic
     XxHash32,
@@ -54,24 +57,89 @@ pub enum HashAlgorithm {
 )]
 pub const Sha256: HashAlgorithm = HashAlgorithm::Sha256;
 
+impl HashAlgorithm {
+    /// List of all supported hash algorithms.
+    pub const ALL_ALGORITHMS: &'static [HashAlgorithm] = &[
+        Self::XxHash32,
+        Self::XxHash64,
+        Self::XxHash3_64,
+        Self::XxHash3_128,
+        Self::Sha256,
+    ];
+
+    /// Maps this hash algorithm variant to its global `FormatId`.
+    #[must_use]
+    pub const fn to_format_id(&self) -> FormatId {
+        match self {
+            Self::XxHash32 => FormatId::XxHash32,
+            Self::XxHash64 => FormatId::XxHash64,
+            Self::XxHash3_64 => FormatId::XxHash3_64,
+            Self::XxHash3_128 => FormatId::XxHash3_128,
+            Self::Sha256 => FormatId::Sha256,
+        }
+    }
+
+    /// Converts a global `FormatId` to a `HashAlgorithm` if recognized.
+    #[must_use]
+    pub const fn from_format_id(id: FormatId) -> Option<Self> {
+        match id {
+            FormatId::XxHash32 => Some(Self::XxHash32),
+            FormatId::XxHash64 => Some(Self::XxHash64),
+            FormatId::XxHash3_64 => Some(Self::XxHash3_64),
+            FormatId::XxHash3_128 => Some(Self::XxHash3_128),
+            FormatId::Sha256 => Some(Self::Sha256),
+            _ => None,
+        }
+    }
+
+    /// Retrieves format metadata from the shared registry.
+    #[must_use]
+    pub fn format_info(&self) -> Option<FormatInfo> {
+        ctb_formats_utilities::get_format_info_by_id(self.to_format_id())
+    }
+}
+
+impl From<HashAlgorithm> for FormatId {
+    fn from(algo: HashAlgorithm) -> Self {
+        algo.to_format_id()
+    }
+}
+
+impl TryFrom<FormatId> for HashAlgorithm {
+    type Error = anyhow::Error;
+
+    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
+        Self::from_format_id(id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "FormatId is not a supported HashAlgorithm: {id:?}"
+            )
+        })
+    }
+}
+
+/// Generates a help table of supported hash algorithms and their aliases.
+pub fn csum_help_table() -> String {
+    let format_ids: Vec<FormatId> = HashAlgorithm::ALL_ALGORITHMS
+        .iter()
+        .map(HashAlgorithm::to_format_id)
+        .collect();
+    format_help_table("Supported hash algorithms:", &format_ids)
+}
+
+/// Global static help table for `csum` CLI command.
+pub static CSUM_AFTER_HELP: LazyLock<String> = LazyLock::new(csum_help_table);
+
 impl TryFrom<&str> for HashAlgorithm {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s.to_ascii_lowercase().as_str() {
-            "xxh32" | "xxhash32" => Ok(HashAlgorithm::XxHash32),
-            "xxh64" | "xxhash64" => Ok(HashAlgorithm::XxHash64),
-            "xxh3" | "xxhash3_64" | "xxhash3-64" => {
-                Ok(HashAlgorithm::XxHash3_64)
+        let clean = s.trim().to_ascii_lowercase();
+        if let Some(format_id) = FormatId::from_ident(&clean) {
+            if let Some(algo) = Self::from_format_id(format_id) {
+                return Ok(algo);
             }
-            "xxh128" | "xxhash128" | "xxhash3_128" | "xxhash3-128" => {
-                Ok(HashAlgorithm::XxHash3_128)
-            }
-            "sha256" | "sha-256" | "sha2_256" | "sha2-256" => {
-                Ok(HashAlgorithm::Sha256)
-            }
-            _ => anyhow::bail!("Unknown hash algorithm: {s}"),
         }
+        anyhow::bail!("Unknown hash algorithm: {s}")
     }
 }
 
@@ -229,5 +297,47 @@ mod tests {
             stream2.finalize_hex(),
             "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9"
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_hash_algorithm_parsing_and_metadata() {
+        assert_eq!(
+            HashAlgorithm::try_from("xxh32").unwrap(),
+            HashAlgorithm::XxHash32
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("xxhash32").unwrap(),
+            HashAlgorithm::XxHash32
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("xxh64").unwrap(),
+            HashAlgorithm::XxHash64
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("xxh3").unwrap(),
+            HashAlgorithm::XxHash3_64
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("xxhash3-64").unwrap(),
+            HashAlgorithm::XxHash3_64
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("xxh128").unwrap(),
+            HashAlgorithm::XxHash3_128
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("sha256").unwrap(),
+            HashAlgorithm::Sha256
+        );
+        assert_eq!(
+            HashAlgorithm::try_from("sha-256").unwrap(),
+            HashAlgorithm::Sha256
+        );
+        assert!(HashAlgorithm::try_from("nonexistent_hash").is_err());
+
+        let help = csum_help_table();
+        assert!(help.contains("Supported hash algorithms:"));
+        assert!(help.contains("xxh32, xxhash32: xxHash32"));
+        assert!(help.contains("sha256"));
     }
 }

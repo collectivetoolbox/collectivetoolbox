@@ -763,3 +763,20 @@ pub fn lookup_format_by_extension(ext: &str) -> Vec<FormatId> {
     }
     matches
 }
+
+/// Returns all extension rules associated with the given `FormatId`.
+pub fn extension_rules_for_format(format_id: FormatId) -> Vec<ExtensionRule> {
+    EXTENSION_REGISTRY
+        .iter()
+        .filter(|entry| entry.format_id == format_id)
+        .map(|entry| entry.rule)
+        .collect()
+}
+
+/// Returns the primary (first registered) extension for the given `FormatId`.
+pub fn primary_extension_for_format(format_id: FormatId) -> Option<&'static str> {
+    EXTENSION_REGISTRY
+        .iter()
+        .find(|entry| entry.format_id == format_id)
+        .map(|entry| entry.rule.extension)
+}

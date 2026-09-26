@@ -585,6 +585,7 @@ pub fn load_upstream_test_suite() -> Result<Vec<UpstreamTestCase>> {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
+            // Reason for fallback: file without a valid UTF-8 name cannot match a .testfile suffix
             let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
             if let Some(base_name) = file_name.strip_suffix(".testfile") {
                 let result_path = test_dir.join(format!("{base_name}.result"));
@@ -692,7 +693,9 @@ pub fn query_real_file(
 
 /// Determines whether two MIME types are semantically compatible or equivalent.
 pub fn is_mime_compatible(detected: &str, real: &str) -> bool {
+    // Reason for fallback: if MIME string has no semicolon parameter separator, use the whole string
     let d = detected.split(';').next().unwrap_or(detected).trim().to_ascii_lowercase();
+    // Reason for fallback: if MIME string has no semicolon parameter separator, use the whole string
     let r = real.split(';').next().unwrap_or(real).trim().to_ascii_lowercase();
 
     if d == r {
@@ -771,7 +774,8 @@ pub fn classify_upstream_test(
             || (exp_lower.contains("netpbm") && desc_lower.contains("netpbm"))
             || (exp_lower.contains("hangul word processor") && desc_lower.contains("hangul word processor"))
             || (exp_lower.contains("microsoft word") && desc_lower.contains("microsoft word"))
-            || (exp_lower.contains("microsoft excel") && desc_lower.contains("microsoft excel"));
+            || (exp_lower.contains("microsoft excel") && desc_lower.contains("microsoft excel"))
+            || (exp_lower.contains("adaptive multi-rate") && desc_lower.contains("adaptive multi-rate"));
 
         if desc_match {
             return ParityCategory::Passing;
@@ -962,6 +966,7 @@ pub fn evaluate_upstream_case(
     let top_cand = report.candidates.first();
     let top_format_id = top_cand.and_then(|c| c.format_id);
     let top_mime = top_cand.and_then(|c| c.mime.clone());
+    // Reason for fallback: default to empty description if no candidate was detected
     let top_description = top_cand.map(|c| c.description.clone()).unwrap_or_default();
     let confidence = top_cand.map(|c| c.confidence);
 
@@ -971,6 +976,7 @@ pub fn evaluate_upstream_case(
             &test_case.custom_magic_paths,
             test_case.flags.as_deref(),
         ) {
+            // Reason for fallback: if top candidate has no MIME, it cannot be compatible with real MIME
             let mime_compatible = top_mime
                 .as_deref()
                 .map(|m| is_mime_compatible(m, &real_mime))
@@ -982,6 +988,7 @@ pub fn evaluate_upstream_case(
                 let real_parts: Vec<&str> = norm_real.split("\n- ").collect();
                 let top_parts: Vec<&str> = norm_top.split("\n- ").collect();
                 real_parts.iter().all(|rp| {
+                    // Reason for fallback: if part has no comma separator, match against the entire part
                     let clean = rp.split(',').next().unwrap_or(rp).trim();
                     top_parts.iter().any(|tp| tp.contains(clean))
                 })

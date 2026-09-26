@@ -583,6 +583,12 @@ pub fn generate_format_id_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n\n");
 
+    // NOTE: Do NOT add `short_id()` or `from_short_id()` integer methods here!
+    // There is no such thing as a "short format ID". Bare integers are confusing
+    // because they look identical to short Dc IDs. Format IDs must always use
+    // the `FormatId` enum, `FormatId::shorthand()` ("f<N>"), or `FormatId::ident()`.
+
+
     out.push_str("    /// Returns the format shorthand string (e.g. \"f0\", \"f405\").\n");
     out.push_str("    #[must_use]\n");
     out.push_str("    pub const fn shorthand(&self) -> &'static str {\n");

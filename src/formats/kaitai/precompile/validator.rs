@@ -231,9 +231,12 @@ pub fn validate_raw_yaml(val: &Value, is_top_level: bool) -> Result<()> {
             }
             let parts: Vec<u64> = ver_str
                 .split('.')
+                // Reason for fallback: version component string defaults to zero if parsing fails
                 .map(|p| p.parse::<u64>().unwrap_or(0))
                 .collect();
+            // Reason for fallback: version major defaults to zero when components are absent
             let v_major = parts.first().copied().unwrap_or(0);
+            // Reason for fallback: version minor defaults to zero when components are absent
             let v_minor = parts.get(1).copied().unwrap_or(0);
             if v_major == 0 && v_minor < 6 {
                 bail!("Minimum allowed version is 0.6, but got {ver_str}");
@@ -326,8 +329,10 @@ pub fn validate_raw_yaml(val: &Value, is_top_level: bool) -> Result<()> {
                     Value::String(s) => s.clone(),
                     Value::Mapping(m) => {
                         let id_val = m.get(Value::String("id".to_string()));
+                        // Reason for fallback: missing or non-string id in enum mapping defaults to empty string and is caught by is_valid_identifier
                         id_val.and_then(|v| v.as_str()).unwrap_or_default().to_string()
                     }
+                    // Reason for fallback: non-string enum member value defaults to empty string and is caught by is_valid_identifier
                     _ => member_val.as_str().unwrap_or_default().to_string(),
                 };
                 if !is_valid_identifier(&name) {
@@ -625,11 +630,6 @@ fn validate_instance_mapping(name: &str, inst_map: &serde_yaml::Mapping) -> Resu
 /// # Errors
 /// Returns an error if duplicate IDs or invalid types/enums are found.
 pub fn validate_ksy_file(stem: &str, raw_bytes: &[u8], ksy: &KsyFile) -> Result<()> {
-    // Skip helper test fixtures
-    if stem == "params_def_top_imported" || stem == "params_def_subtype_imported" {
-        return Ok(());
-    }
-
     // 1. Raw YAML structural validation
     let raw_val: Value = serde_yaml::from_slice(raw_bytes)
         .context("Invalid YAML syntax in .ksy file")?;
@@ -648,7 +648,7 @@ fn is_primitive_type(t: &str) -> bool {
         "u1" | "u2" | "u2le" | "u2be" | "u4" | "u4le" | "u4be" | "u8" | "u8le" | "u8be"
             | "s1" | "s2" | "s2le" | "s2be" | "s4" | "s4le" | "s4be" | "s8" | "s8le" | "s8be"
             | "f4" | "f4le" | "f4be" | "f8" | "f8le" | "f8be"
-            | "str" | "strz"
+            | "str" | "strz" | "bool"
     ) || t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit())
 }
 
@@ -770,12 +770,14 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
     // 5. Check type references and user type calls
     for attr in &ksy.seq {
         if let Some(crate::spec::TypeSpec::Simple(t)) = &attr.type_spec {
+            // Reason for fallback: base type defaults to full type string when not followed by parameter parentheses
             let base = t.split('(').next().unwrap_or(t).trim();
             if !is_primitive_type(base)
                 && !ksy.types.contains_key(base)
                 && !known_enums.contains(base)
                 && !base.contains("::")
                 && !ksy.meta.as_ref().is_some_and(|m| m.imports.iter().any(|i| i.ends_with(base)))
+                // Reason for fallback: ks_opaque_types defaults to false when omitted in meta
                 && !ksy.meta.as_ref().is_some_and(|m| m.ks_opaque_types.unwrap_or(false))
             {
                 bail!("Unable to find type '{base}' in class '{class_name}'");
@@ -789,6 +791,16 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
                 } else {
                     args_str.split(',').map(str::trim).collect()
                 };
+                for arg in &args {
+                    if is_valid_identifier(arg)
+                        && !member_ids.contains(*arg)
+                        && !known_enums.contains(*arg)
+                        && *arg != "true"
+                        && *arg != "false"
+                    {
+                        bail!("Unable to access '{arg}' in call context");
+                    }
+                }
                 if let Some(target) = ksy.types.get(base) {
                     if target.params.len() != args.len() {
                         bail!(
@@ -818,7 +830,7 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
             if is_valid_identifier(on) && !member_ids.contains(on) && !known_enums.contains(on) {
                 bail!("Unable to access '{on}' in type switch context");
             }
-            for (ck, _) in &sw.cases {
+            for (ck, cv) in &sw.cases {
                 let case_str = ck.trim();
                 if case_str != "_"
                     && is_valid_identifier(case_str)
@@ -828,6 +840,21 @@ fn validate_class_semantics(class_name: &str, ksy: &KsyFile) -> Result<()> {
                     && !case_str.contains("::")
                 {
                     bail!("Unable to access '{case_str}' in switch cases context");
+                }
+                if let Some(t) = cv.as_str() {
+                    if t.contains('(') && t.ends_with(')') {
+                        let args_str = t[t.find('(').unwrap().saturating_add(1)..t.len().saturating_sub(1)].trim();
+                        for arg in args_str.split(',').map(str::trim) {
+                            if is_valid_identifier(arg)
+                                && !member_ids.contains(arg)
+                                && !known_enums.contains(arg)
+                                && arg != "true"
+                                && arg != "false"
+                            {
+                                bail!("Unable to access '{arg}' in switch cases call context");
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -960,10 +987,12 @@ fn validate_if_expr(
         bail!("Unable to find enum 'unknown_enum'");
     }
     if let Some(colon_pos) = trimmed.find("::") {
+        // Reason for fallback: prefix identifier before '::' defaults to empty when expression begins with '::'
         let prefix = trimmed[..colon_pos]
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next_back()
             .unwrap_or("");
+        // Reason for fallback: suffix identifier after '::' defaults to empty when expression ends with '::'
         let suffix = trimmed[colon_pos.saturating_add(2)..]
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next()
@@ -1042,10 +1071,12 @@ fn validate_value_expr(
         bail!("Unable to find enum member 'unknown'");
     }
     if let Some(colon_pos) = trimmed.find("::") {
+        // Reason for fallback: prefix identifier before '::' defaults to empty when expression begins with '::'
         let prefix = trimmed[..colon_pos]
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next_back()
             .unwrap_or("");
+        // Reason for fallback: suffix identifier after '::' defaults to empty when expression ends with '::'
         let suffix = trimmed[colon_pos.saturating_add(2)..]
             .split(|c: char| !c.is_alphanumeric() && c != '_')
             .next()

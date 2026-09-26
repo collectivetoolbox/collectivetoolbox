@@ -146,15 +146,15 @@ pub enum FormatId {
     LineSeparatorRs,
     /// Lines separated by NL (NEL) (Short 33, Category: v:lineEndings)
     LineSeparatorNl,
-    /// Brotli compression (RFC 9841) (Short 34, Category: compression)
+    /// Brotli compressed stream (RFC 9841) (Short 34, Category: compression)
     Brotli,
-    /// GNU gzip compression (RFC 1952) (Short 35, Category: compression)
+    /// GNU gzip format (RFC 1952) (Short 35, Category: compression)
     Gzip,
-    /// Deflate compression (RFC 1591), raw (Short 36, Category: compression)
+    /// Raw DEFLATE compressed stream (RFC 1951) (Short 36, Category: compression)
     Deflate,
-    /// Zlib compression (RFC 1950) (wrapped Deflate) (Short 37, Category: compression)
+    /// Zlib-wrapped DEFLATE stream (RFC 1950) (Short 37, Category: compression)
     Zlib,
-    /// Bzip2 compression (Short 38, Category: compression)
+    /// Bzip2 compressed stream (Short 38, Category: compression)
     Bzip2,
     /// Original bzip compression (Short 39, Category: compression)
     Bzip,
@@ -164,7 +164,7 @@ pub enum FormatId {
     Lzip,
     /// XZ compression (Short 42, Category: compression)
     Xz,
-    /// compress`: SCO `compress -H` format (Short 43, Category: compression)
+    /// `compress`: SCO `compress -H` format (Short 43, Category: compression)
     ScoCompress,
     /// `compress` format, modern LZW block format (Short 44, Category: compression)
     CompressLzw,
@@ -1937,7 +1937,7 @@ impl FormatId {
             "zstd" | "zst" => Some(Self::Zstd),
             "lzip" | "lz" => Some(Self::Lzip),
             "xz" => Some(Self::Xz),
-            "scocompress" | "sco_compress" | "sco" | "sco-compress" | "compress-sco" | "compress-h" => Some(Self::ScoCompress),
+            "scocompress" | "sco_compress" | "sco-compress" | "compress-sco" | "compress-h" => Some(Self::ScoCompress),
             "compresslzw" | "compress_lzw" | "compress" | "compress4" | "compress3" | "compress-4.0" | "compress-3.0" => Some(Self::CompressLzw),
             "compresslzw1" | "compress_lzw1" | "compress1" | "compress-1.0" => Some(Self::CompressLzw1),
             "compresslzw16" | "compress_lzw16" | "compress16" | "compress1.6" | "compress-1.6" | "lzw-sorted-chain" => Some(Self::CompressLzw16),
@@ -2132,14 +2132,14 @@ impl FormatId {
             "magnet" => Some(Self::Magnet),
             "iaidentifier" | "ia_identifier" => Some(Self::IaIdentifier),
             "iaarchivetorrent" | "ia_archive_torrent" => Some(Self::IaArchiveTorrent),
-            "xxhash32" | "xx_hash32" => Some(Self::XxHash32),
-            "xxhash64" | "xx_hash64" => Some(Self::XxHash64),
-            "xxhash3_64" | "xx_hash3_64" => Some(Self::XxHash3_64),
-            "xxhash3_128" | "xx_hash3_128" => Some(Self::XxHash3_128),
+            "xxhash32" | "xx_hash32" | "xxh32" => Some(Self::XxHash32),
+            "xxhash64" | "xx_hash64" | "xxh64" => Some(Self::XxHash64),
+            "xxhash3_64" | "xx_hash3_64" | "xxh3" | "xxhash3-64" => Some(Self::XxHash3_64),
+            "xxhash3_128" | "xx_hash3_128" | "xxh128" | "xxhash128" | "xxhash3-128" => Some(Self::XxHash3_128),
             "md5" => Some(Self::Md5),
             "md6" => Some(Self::Md6),
             "sha1" => Some(Self::Sha1),
-            "sha256" => Some(Self::Sha256),
+            "sha256" | "sha-256" | "sha2-256" | "sha2_256" => Some(Self::Sha256),
             "sha512" => Some(Self::Sha512),
             "sha3" => Some(Self::Sha3),
             "tiger" => Some(Self::Tiger),
@@ -5781,15 +5781,15 @@ pub const DC_LINE_SEPARATOR_LF_CR: DcChar = DcChar::from_format(31);
 pub const DC_LINE_SEPARATOR_RS: DcChar = DcChar::from_format(32);
 /// DcChar constant for Format `LineSeparatorNl` (Short f33, Category: v:lineEndings): Lines separated by NL (NEL)
 pub const DC_LINE_SEPARATOR_NL: DcChar = DcChar::from_format(33);
-/// DcChar constant for Format `Brotli` (Short f34, Category: compression): Brotli compression (RFC 9841)
+/// DcChar constant for Format `Brotli` (Short f34, Category: compression): Brotli compressed stream (RFC 9841)
 pub const DC_BROTLI: DcChar = DcChar::from_format(34);
-/// DcChar constant for Format `Gzip` (Short f35, Category: compression): GNU gzip compression (RFC 1952)
+/// DcChar constant for Format `Gzip` (Short f35, Category: compression): GNU gzip format (RFC 1952)
 pub const DC_GZIP: DcChar = DcChar::from_format(35);
-/// DcChar constant for Format `Deflate` (Short f36, Category: compression): Deflate compression (RFC 1591), raw
+/// DcChar constant for Format `Deflate` (Short f36, Category: compression): Raw DEFLATE compressed stream (RFC 1951)
 pub const DC_DEFLATE: DcChar = DcChar::from_format(36);
-/// DcChar constant for Format `Zlib` (Short f37, Category: compression): Zlib compression (RFC 1950) (wrapped Deflate)
+/// DcChar constant for Format `Zlib` (Short f37, Category: compression): Zlib-wrapped DEFLATE stream (RFC 1950)
 pub const DC_ZLIB: DcChar = DcChar::from_format(37);
-/// DcChar constant for Format `Bzip2` (Short f38, Category: compression): Bzip2 compression
+/// DcChar constant for Format `Bzip2` (Short f38, Category: compression): Bzip2 compressed stream
 pub const DC_BZIP2: DcChar = DcChar::from_format(38);
 /// DcChar constant for Format `Bzip` (Short f39, Category: compression): Original bzip compression
 pub const DC_BZIP: DcChar = DcChar::from_format(39);
@@ -5799,7 +5799,7 @@ pub const DC_ZSTD: DcChar = DcChar::from_format(40);
 pub const DC_LZIP: DcChar = DcChar::from_format(41);
 /// DcChar constant for Format `Xz` (Short f42, Category: compression): XZ compression
 pub const DC_XZ: DcChar = DcChar::from_format(42);
-/// DcChar constant for Format `ScoCompress` (Short f43, Category: compression): compress`: SCO `compress -H` format
+/// DcChar constant for Format `ScoCompress` (Short f43, Category: compression): `compress`: SCO `compress -H` format
 pub const DC_SCO_COMPRESS: DcChar = DcChar::from_format(43);
 /// DcChar constant for Format `CompressLzw` (Short f44, Category: compression): `compress` format, modern LZW block format
 pub const DC_COMPRESS_LZW: DcChar = DcChar::from_format(44);

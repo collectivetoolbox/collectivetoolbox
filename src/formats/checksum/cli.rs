@@ -27,29 +27,37 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 use crate::utilities::*;
 
 use crate as ctb_formats_checksum;
-use std::path::{Path, PathBuf};
+use crate::HashAlgorithm;
+use std::path::Path;
 
 pub fn csum<FRead>(
-    algo: &String,
-    file: &PathBuf,
-    prefix_0x: &bool,
+    algo: HashAlgorithm,
+    file: &Path,
+    prefix_0x: bool,
     read_file_or_stdin: FRead,
 ) -> Result<ToolResult>
 where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
 {
-            let data = read_file_or_stdin(file.as_path())?;
-            let hash_algo =
-                ctb_formats_checksum::HashAlgorithm::try_from(algo.as_str())?;
-            let output = format!(
-                "{}\n",
-                ctb_formats_checksum::hash_hex(&data, hash_algo, *prefix_0x)
-            );
-            Ok(ToolResult::immediate_ok(output.into_bytes()))
+    let data = read_file_or_stdin(file)?;
+    let output = format!(
+        "{}\n",
+        ctb_formats_checksum::hash_hex(&data, algo, prefix_0x)
+    );
+    Ok(ToolResult::immediate_ok(output.into_bytes()))
 }
 
 #[cfg(test)]
-#[allow(clippy::panic, clippy::expect_used, clippy::unwrap_used, clippy::unwrap_in_result, clippy::panic_in_result_fn, clippy::indexing_slicing, clippy::arithmetic_side_effects, reason = "Standard repository test boilerplate")]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -61,11 +69,12 @@ mod tests {
             .expect("Write temp file");
 
         let result = super::csum(
-            &"xxhash32".to_string(),
+            HashAlgorithm::XxHash32,
             &temp_file_path,
-            &false,
+            false,
             |p| Ok(std::fs::read(p)?),
-        ).expect("Run csum command");
+        )
+        .expect("Run csum command");
         match result {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "cebb6622\n");
@@ -74,11 +83,12 @@ mod tests {
         }
 
         let result_0x = super::csum(
-            &"xxhash32".to_string(),
+            HashAlgorithm::XxHash32,
             &temp_file_path,
-            &true,
+            true,
             |p| Ok(std::fs::read(p)?),
-        ).expect("Run csum command");
+        )
+        .expect("Run csum command");
         match result_0x {
             ToolResult::Immediate { stdout, .. } => {
                 assert_eq!(String::from_utf8_lossy(&stdout), "0xcebb6622\n");

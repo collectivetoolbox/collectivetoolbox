@@ -555,10 +555,10 @@ pub enum Command {
     #[command(name = "fsearch")]
     Fsearch(ctb_io_csc::args::FsearchArgs),
     /// Calculate checksum for a file or stdin
-    #[command(name = "csum")]
+    #[command(name = "csum", after_help = ctb_formats_checksum::CSUM_AFTER_HELP.as_str())]
     Csum {
-        /// Hash algorithm type (`xxhash32`, `xxhash64`, `xxhash3_64`, `xxhash3_128`)
-        algo: String,
+        /// Hash algorithm type (`sha256`, `xxh32`, `xxh64`, `xxh3`, `xxh128`)
+        algo: ctb_formats_checksum::HashAlgorithm,
         /// Input file path (or - for stdin)
         #[arg(default_value = "-")]
         file: PathBuf,
@@ -1223,9 +1223,9 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             file,
             prefix_0x,
         } => ctb_formats_checksum::cli::csum(
-            algo,
-            file,
-            prefix_0x,
+            *algo,
+            file.as_path(),
+            *prefix_0x,
             read_file_or_stdin,
         ),
         Command::Compress(args) => {

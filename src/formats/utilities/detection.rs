@@ -878,6 +878,7 @@ pub fn guess_format_report(
     });
     if !has_strong_binary_magic {
         if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
+            // Reason for fallback: default to 4096 byte inspection limit if arithmetic conversion overflows
             let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
             bytes_evaluated = bytes_evaluated.max(inspect_size);
 

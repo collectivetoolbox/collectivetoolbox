@@ -511,6 +511,15 @@ impl ExtensionRule {
     pub fn matches(&self, candidate: &str) -> bool {
         // Reason for fallback: rsplit yields at least one component, so fallback candidate handles empty rsplit iterator.
         let cand = candidate.rsplit(['/', '\\']).next().unwrap_or(candidate);
+        if self.extension.contains('.') {
+            let dot_ext = format!(".{}", self.extension);
+            return match self.case_sensitivity {
+                CaseSensitivity::Sensitive => cand.ends_with(&dot_ext),
+                CaseSensitivity::Insensitive => {
+                    cand.to_ascii_lowercase().ends_with(&dot_ext.to_ascii_lowercase())
+                }
+            };
+        }
         let ext = if let Some(dot_idx) = cand.rfind('.') {
             // Reason for fallback: if dot is trailing character in candidate, dot_idx + 1 exceeds length and empty string slice indicates empty extension.
             cand.get(dot_idx.saturating_add(1)..).unwrap_or("")
@@ -523,6 +532,32 @@ impl ExtensionRule {
             CaseSensitivity::Insensitive => {
                 ext.eq_ignore_ascii_case(self.extension)
             }
+        }
+    }
+
+    /// Checks if a filename or path ends with this extension (preceded by a
+    /// dot), and returns the path slice without the extension if matched.
+    pub fn strip_from_filename<'a>(&self, candidate: &'a str) -> Option<&'a str> {
+        let dot_ext_len = self.extension.len().checked_add(1)?;
+        if candidate.len() < dot_ext_len {
+            return None;
+        }
+        let cut_idx = candidate.len().saturating_sub(dot_ext_len);
+        let (prefix, suffix) = candidate.split_at(cut_idx);
+        if !suffix.starts_with('.') {
+            return None;
+        }
+        let ext_part = suffix.get(1..)?;
+        let matches = match self.case_sensitivity {
+            CaseSensitivity::Sensitive => ext_part == self.extension,
+            CaseSensitivity::Insensitive => {
+                ext_part.eq_ignore_ascii_case(self.extension)
+            }
+        };
+        if matches {
+            Some(prefix)
+        } else {
+            None
         }
     }
 }
