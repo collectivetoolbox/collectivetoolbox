@@ -231,7 +231,7 @@ pub fn get_file_extents<T>(_fd: &T, file_size: u64) -> Result<Vec<Extent>> {
 }
 
 /// Abstract streaming provider for file payload data and extents.
-pub trait PayloadSource: Read + Seek + Send + ctb_formats_utilities::detection::DetectionSource {
+pub trait PayloadSource: Read + Seek + Send {
     /// Total logical byte size of the payload.
     fn total_size(&self) -> u64;
     /// Discovered sparse extents.
@@ -500,10 +500,39 @@ impl<R: Read + Send> ReaderPayloadSource<R> {
         Ok(())
     }
 
+    /// Reads up to `buf.len()` bytes at the specified offset without altering
+    /// the sequential read position.
+    pub fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
+        let Ok(start) = usize::try_from(offset) else {
+            return Ok(0);
+        };
+        let end = start.saturating_add(buf.len());
+        self.ensure_buffered(end)?;
+        if start >= self.buffer.len() {
+            return Ok(0);
+        }
+        let Some(available) = self.buffer.get(start..) else {
+            return Ok(0);
+        };
+        let n = buf.len().min(available.len());
+        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
+            dst.copy_from_slice(src);
+            Ok(n)
+        } else {
+            Ok(0)
+        }
+    }
+
     /// Returns a slice of bytes currently buffered in memory.
     #[must_use]
     pub fn buffered_bytes(&self) -> &[u8] {
         &self.buffer
+    }
+
+    /// Returns whether the underlying stream has reached EOF.
+    #[must_use]
+    pub fn reached_eof(&self) -> bool {
+        self.reached_eof
     }
 }
 
@@ -570,37 +599,6 @@ impl<R: Read + Send> Seek for ReaderPayloadSource<R> {
                 std::io::ErrorKind::Unsupported,
                 "SeekFrom::End is not supported on streaming ReaderPayloadSource",
             )),
-        }
-    }
-}
-
-impl<R: Read + Send> ctb_formats_utilities::detection::DetectionSource for ReaderPayloadSource<R> {
-    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        let Ok(start) = usize::try_from(offset) else {
-            return Ok(0);
-        };
-        let end = start.saturating_add(buf.len());
-        self.ensure_buffered(end)?;
-        if start >= self.buffer.len() {
-            return Ok(0);
-        }
-        let Some(available) = self.buffer.get(start..) else {
-            return Ok(0);
-        };
-        let n = buf.len().min(available.len());
-        if let (Some(dst), Some(src)) = (buf.get_mut(..n), available.get(..n)) {
-            dst.copy_from_slice(src);
-            Ok(n)
-        } else {
-            Ok(0)
-        }
-    }
-
-    fn total_len(&self) -> Option<u64> {
-        if self.reached_eof {
-            u64::try_from(self.buffer.len()).ok()
-        } else {
-            None
         }
     }
 }
@@ -716,27 +714,6 @@ fn read_payload_at<P: PayloadSource + ?Sized>(
     Ok(read_bytes)
 }
 
-// FIXME: Make sure this detection uses the OS (where file was observed) data from the file struct for OS hints. May also be good to support retrieving the enclosing archive type from the file (in the case of a file that is being detected while it's within an archive) to also use as an OS hint, since archive formats are associated with OSes. (The OS from an archive type is probably a stronger signal than the OS where the archive is observed/unpacked.)
-impl ctb_formats_utilities::detection::DetectionSource for DiskPayloadSource {
-    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        read_payload_at(self, offset, buf)
-    }
-
-    fn total_len(&self) -> Option<u64> {
-        Some(self.total_size())
-    }
-}
-
-impl ctb_formats_utilities::detection::DetectionSource for MemoryPayloadSource {
-    fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> Result<usize> {
-        read_payload_at(self, offset, buf)
-    }
-
-    fn total_len(&self) -> Option<u64> {
-        Some(self.total_size())
-    }
-}
-
 #[cfg(test)]
 #[allow(
     clippy::panic,
@@ -750,7 +727,6 @@ impl ctb_formats_utilities::detection::DetectionSource for MemoryPayloadSource {
 )]
 mod tests {
     use super::*;
-    use ctb_formats_utilities::detection::DetectionSource;
     use std::io::Read;
 
     #[crate::ctb_test]

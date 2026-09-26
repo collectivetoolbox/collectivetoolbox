@@ -147,13 +147,19 @@ fn is_pan_file(file_path: &Path) -> bool {
         && file_path.to_string_lossy().contains("formats/pan")
 }
 
-/// Determine whether a file is `utilities/detection.rs` or in
-/// `utilities/detection/`.
+/// Determine whether a file is in the formats detection module. `detection.rs` or in
+/// `detection/` or should have the same license headers.
 fn is_detection_file(file_path: &Path) -> bool {
     let normalized = file_path.to_string_lossy().replace('\\', "/");
-    (normalized.ends_with("utilities/detection.rs")
-        || normalized.contains("utilities/detection/"))
-        && normalized.ends_with(".rs")
+    let trimmed = normalized.strip_prefix("./").unwrap_or(&normalized);
+    let relative = if let Some(pos) = trimmed.rfind("src/formats/") {
+        &trimmed[pos..]
+    } else {
+        trimmed
+    };
+    (relative.starts_with("src/formats/detection/") && relative.ends_with(".rs"))
+        || relative == "src/formats/detection.rs"
+        || relative == "src/formats/utilities/extension_rule.rs"
 }
 
 /// Determine whether a file is permitted to use an `AGPL-3.0-only` header.
@@ -441,17 +447,18 @@ fn matches_line_block(lines: &[&str], expected: &[&str]) -> bool {
 /// `utilities/detection/*`:
 /// 1. HASH_BSD_DARWIN_HEADER
 /// 2. SPDX_HEADERS_DETECTION
+/// Check the detection-specific header pattern:
+/// 1. HASH_BSD_DARWIN_HEADER
+/// 2. SPDX_HEADERS_DETECTION
 /// 3. AGPL_COPYRIGHT_BLOCK
 /// 4. DESCRIPTION_DETECTION
-fn parse_detection_header(
-    lines: &[&str],
-) -> Result<ParsedHeader, (usize, String)> {
+fn check_detection_header(lines: &[&str]) -> Result<(), (usize, String)> {
     let darwin_lines: Vec<&str> =
         HASH_BSD_DARWIN_HEADER.trim_end_matches('\n').lines().collect();
     if !matches_line_block(lines, &darwin_lines) {
         return Err((
             1,
-            "Missing or invalid HASH_BSD_DARWIN_HEADER at top of utilities/detection file"
+            "Missing or invalid HASH_BSD_DARWIN_HEADER at top of detection file"
                 .to_string(),
         ));
     }
@@ -466,13 +473,13 @@ fn parse_detection_header(
         }
     }
 
+    let remaining_from_spdx = lines.get(idx..).unwrap_or_default();
     let spdx_lines: Vec<&str> =
         SPDX_HEADERS_DETECTION.trim_end_matches('\n').lines().collect();
-    let remaining_from_spdx = lines.get(idx..).unwrap_or_default();
     if !matches_line_block(remaining_from_spdx, &spdx_lines) {
         return Err((
             idx.saturating_add(1),
-            "Missing or invalid SPDX_HEADERS_DETECTION in utilities/detection header"
+            "Missing or invalid SPDX_HEADERS_DETECTION in detection header"
                 .to_string(),
         ));
     }
@@ -493,7 +500,7 @@ fn parse_detection_header(
     if !matches_line_block(remaining_from_agpl, &agpl_lines) {
         return Err((
             idx.saturating_add(1),
-            "Missing or invalid AGPL_COPYRIGHT_BLOCK in utilities/detection header"
+            "Missing or invalid AGPL_COPYRIGHT_BLOCK in detection header"
                 .to_string(),
         ));
     }
@@ -514,17 +521,12 @@ fn parse_detection_header(
     if !matches_line_block(remaining_from_desc, &desc_lines) {
         return Err((
             idx.saturating_add(1),
-            "Missing or invalid DESCRIPTION_DETECTION in utilities/detection header"
+            "Missing or invalid DESCRIPTION_DETECTION in detection header"
                 .to_string(),
         ));
     }
-    idx = idx.saturating_add(desc_lines.len());
 
-    Ok(ParsedHeader {
-        kind: HeaderKind::Detection,
-        header_end_line: idx,
-        has_darwin_header: true,
-    })
+    Ok(())
 }
 
 /// Check that utilities/detection files end with:
@@ -642,10 +644,10 @@ fn parse_license_header(
 
     let lines: Vec<&str> = normalized.lines().collect();
 
-    // Case 2: Utilities Detection Header
+    // Case 2: Detection-specific Header Rules
     let is_detection = is_detection_file(file_path);
     if is_detection {
-        return parse_detection_header(&lines);
+        check_detection_header(&lines)?;
     }
 
     // Case 3: Default AGPL Header
@@ -933,7 +935,7 @@ fn lint_file(
                 file: file_path.to_path_buf(),
                 line: 1,
                 message:
-                    "Detection license blocks are only permitted in utilities/detection.rs and utilities/detection/*"
+                    "Detection license blocks are only permitted in formats/detection and formats/utilities/extension_rule.rs"
                         .to_string(),
             });
         }
@@ -1722,10 +1724,12 @@ mod tests {
 
     #[test]
     fn test_is_detection_file() {
-        assert!(is_detection_file(Path::new("src/formats/utilities/detection.rs")));
-        assert!(is_detection_file(Path::new("src/formats/utilities/detection/magic.rs")));
-        assert!(is_detection_file(Path::new("src/formats/utilities/detection/mime_derivation.rs")));
-        assert!(is_detection_file(Path::new("/workspaces/ctoolbox/src/formats/utilities/detection/resource_fork.rs")));
+        assert!(is_detection_file(Path::new("src/formats/detection.rs")));
+        assert!(is_detection_file(Path::new("src/formats/detection/magic.rs")));
+        assert!(is_detection_file(Path::new("src/formats/detection/mime_derivation.rs")));
+        assert!(!is_detection_file(Path::new("src/formats/utilities/detection/mime_derivation.rs")));
+        assert!(is_detection_file(Path::new("/workspaces/ctoolbox/src/formats/detection/resource_fork.rs")));
+        assert!(is_detection_file(Path::new("src/formats/utilities/extension_rule.rs")));
         assert!(!is_detection_file(Path::new("src/formats/utilities/utilities.rs")));
         assert!(!is_detection_file(Path::new("src/io/environment/detection.rs")));
         assert!(!is_detection_file(Path::new("src/build_support/license_consts.rs")));
@@ -1738,10 +1742,12 @@ mod tests {
         );
         let normalized = normalize_newlines(&valid_header);
         let lines: Vec<&str> = normalized.lines().collect();
-        let result = parse_detection_header(&lines);
+        let result = check_detection_header(&lines);
         assert!(result.is_ok());
-        let parsed = result.unwrap();
-        assert!(matches!(parsed.kind, HeaderKind::Detection));
+
+        let dummy_path = Path::new("src/formats/detection/dummy.rs");
+        let parsed = parse_license_header(&valid_header, dummy_path).unwrap();
+        assert!(matches!(parsed.kind, HeaderKind::DerivedThirdParty));
         assert!(parsed.has_darwin_header);
 
         let docblock_result = check_module_docblock(&valid_header, &parsed);
@@ -1755,7 +1761,7 @@ mod tests {
         );
         let normalized = normalize_newlines(&invalid_header);
         let lines: Vec<&str> = normalized.lines().collect();
-        let result = parse_detection_header(&lines);
+        let result = check_detection_header(&lines);
         assert!(result.is_err());
         let (line, msg) = result.unwrap_err();
         assert_eq!(line, 1);
@@ -1769,7 +1775,7 @@ mod tests {
         );
         let normalized = normalize_newlines(&invalid_header);
         let lines: Vec<&str> = normalized.lines().collect();
-        let result = parse_detection_header(&lines);
+        let result = check_detection_header(&lines);
         assert!(result.is_err());
         let (_, msg) = result.unwrap_err();
         assert!(msg.contains("SPDX_HEADERS_DETECTION"));
@@ -1782,7 +1788,7 @@ mod tests {
         );
         let normalized = normalize_newlines(&invalid_header);
         let lines: Vec<&str> = normalized.lines().collect();
-        let result = parse_detection_header(&lines);
+        let result = check_detection_header(&lines);
         assert!(result.is_err());
         let (_, msg) = result.unwrap_err();
         assert!(msg.contains("AGPL_COPYRIGHT_BLOCK"));
@@ -1795,7 +1801,7 @@ mod tests {
         );
         let normalized = normalize_newlines(&invalid_header);
         let lines: Vec<&str> = normalized.lines().collect();
-        let result = parse_detection_header(&lines);
+        let result = check_detection_header(&lines);
         assert!(result.is_err());
         let (_, msg) = result.unwrap_err();
         assert!(msg.contains("DESCRIPTION_DETECTION"));
@@ -1808,7 +1814,7 @@ mod tests {
         );
         let mut violations = Vec::new();
         check_detection_footer(
-            Path::new("utilities/detection/dummy.rs"),
+            Path::new("detection/dummy.rs"),
             &content,
             &mut violations,
         );
@@ -1820,7 +1826,7 @@ mod tests {
         let content = format!("fn dummy() {{}}\n\n{FILE_ADDITIONAL_LICENSES}\n");
         let mut violations = Vec::new();
         check_detection_footer(
-            Path::new("utilities/detection/dummy.rs"),
+            Path::new("detection/dummy.rs"),
             &content,
             &mut violations,
         );
@@ -1833,7 +1839,7 @@ mod tests {
         let content = format!("fn dummy() {{}}\n\n{DETECTION_LICENSES_OTHER}\n");
         let mut violations = Vec::new();
         check_detection_footer(
-            Path::new("utilities/detection/dummy.rs"),
+            Path::new("detection/dummy.rs"),
             &content,
             &mut violations,
         );
@@ -1846,7 +1852,7 @@ mod tests {
         let content = format!("{DEFAULT_AGPL_HEADER}\n\n//! Docblock\n");
         let result = parse_license_header(
             &content,
-            Path::new("src/formats/utilities/detection.rs"),
+            Path::new("src/formats/detection.rs"),
         );
         assert!(result.is_err());
         let (_, msg) = result.unwrap_err();
@@ -1862,7 +1868,7 @@ mod tests {
         let lines: Vec<&str> = normalized.lines().collect();
         let parsed = parse_derived_third_party_header(
             &lines,
-            Path::new("src/formats/utilities/detection.rs"),
+            Path::new("src/formats/detection.rs"),
         );
         assert!(parsed.is_ok());
         let parsed_header = parsed.unwrap().expect("Should match derived header");
@@ -1880,7 +1886,7 @@ mod tests {
         }
         let mut violations = Vec::new();
         check_header_licenses(
-            Path::new("src/formats/utilities/detection.rs"),
+            Path::new("src/formats/detection.rs"),
             &header_after_darwin,
             &parsed_header,
             &allowed,

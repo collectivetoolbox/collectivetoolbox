@@ -1,0 +1,25 @@
+[package]
+name = "ctb-formats-detection"
+edition = "2024"
+
+[lib]
+path = "detection.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../utilities" }
+ctb-formats-utilities = { path = "../utilities" }
+ctb-formats-dcdata = { path = "../dcdata" }
+ctb-formats-dcstring = { path = "../dcstring" }
+ctb-io-file = { path = "../../io/file" }
+serde = { version = "1.0", features = ["derive"] }
+flate2 = "1.1.9"
+regex = "1.12"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+
+[dev-dependencies]
+tempfile = "3.27"
+
+[lints]
+workspace = true

@@ -10,6 +10,7 @@
 - Note that you may need to run `killall ctoolbox` or similar to exit the server process (which generally runs until it is shut down).
 - Your operator will sometimes be involved in the coding as you work. If you see edits come in as you're working on files, don't revert them: instead, re-read them and collaboratively take into account the direction of the edits.
 - Don't run temporary builds using Cargo in Antigravity chat folders, because all new files there are loaded in as "Artifacts", and the large file count of Cargo builds locks up the IDE.
+- If your operator prompts you to add something that seems small in scope and you would need to make large changes (like significant refactoring) to accomplish it, ask to confirm before editing, or use /plan mode.
 
 ## Standards and Style Guide
 - Use the `anyhow` crate for error handling in new code, and avoid panics.

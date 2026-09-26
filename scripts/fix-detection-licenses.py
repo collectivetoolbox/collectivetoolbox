@@ -19,8 +19,8 @@
 
 """
 Fixes and ensures the required multi-license headers and footers for files in the
-format detection module (src/formats/utilities/detection.rs and
-src/formats/utilities/detection/*.rs).
+format detection module (src/formats/utilities/extension_rule.rs, src/formats/detection/detection.rs and
+src/formats/detection/*.rs).
 
 The detection module combines elements from `file` (libmagic), polyfile, binwalk,
 fileid, and DROID, and is subject to strict multi-license requirements verified
@@ -133,12 +133,12 @@ def fix_detection_file(
 
 def collect_detection_files(repo_root: Path) -> list[Path]:
     """Find all Rust files belonging to the detection module."""
-    detection_dir = repo_root / "src/formats/utilities/detection"
-    detection_rs = repo_root / "src/formats/utilities/detection.rs"
-
     files: list[Path] = []
-    if detection_rs.is_file():
-        files.append(detection_rs)
+    extension_rule_rs = repo_root / "src/formats/utilities/extension_rule.rs"
+    if extension_rule_rs.is_file():
+        files.append(extension_rule_rs)
+
+    detection_dir = repo_root / "src/formats/detection"
 
     if detection_dir.is_dir():
         for path in sorted(detection_dir.glob("*.rs")):

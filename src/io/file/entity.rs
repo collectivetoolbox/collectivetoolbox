@@ -37,7 +37,6 @@ use filetime::{FileTime, set_file_times};
 #[cfg(unix)]
 use filetime::set_symlink_file_times;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 use ctb_formats_dcstring::DcMixedEncode;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
@@ -248,6 +247,9 @@ impl FileEntityKind {
 }
 
 
+/// Canonical type alias for `FileEntity`.
+pub type File = FileEntity;
+
 /// A complete, self-describing file entity holding identity, metadata, streams,
 /// and payload descriptor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ctb_formats_dcstring::DcMixed)]
@@ -329,266 +331,64 @@ impl FileEntity {
         Self::from_fifo(name)
     }
 
-    /// Guesses file format candidates using multi-signal evidence: magic byte patterns,
-    /// Evaluates multiple detection signals including primary payload magic,
-    /// hierarchical libmagic rules, file extension hints, platform priors,
-    /// directory bundle inspection, and attached streams / resource forks.
-    pub fn guess_format(
-        &self,
-        payload: &mut dyn PayloadSource,
-    ) -> Vec<ctb_formats_utilities::detection::DetectionCandidate> {
-        // Reason for fallback: best-effort entity format guessing defaults to empty candidate list if report evaluation fails
-        self.detect_format_report(payload)
-            .map(|rep| rep.candidates)
-            .unwrap_or_default()
-    }
-
-    /// Evaluates multiple detection signals and produces the top matching `FormatId`,
-    /// optionally restricted to a specific `FormatCategory`.
-    pub fn detect_format(
-        &self,
-        payload: &mut dyn PayloadSource,
-        expected_category: Option<ctb_formats_utilities::detection::FormatCategory>,
-    ) -> Option<ctb_formats_utilities::format_id::FormatId> {
-        let report = self.detect_format_report(payload).ok()?;
-        if let Some(cat) = expected_category {
-            report.candidates.into_iter().find_map(|c| {
-                c.format_id.filter(|fid| fid.category() == cat)
-            })
+    /// Creates a synthetic regular `FileEntity` from raw byte content.
+    #[must_use]
+    pub fn from_vec(bytes: Vec<u8>) -> Self {
+        // Reason for fallback: usize length conversion cannot fail on standard
+        // architectures, default to 0 on conversion failure.
+        let size = u64::try_from(bytes.len()).unwrap_or(0);
+        let sha256 = ctb_formats_checksum::sha256(&bytes);
+        let extents = if size > 0 {
+            vec![Extent::Data {
+                offset: 0,
+                length: size,
+            }]
         } else {
-            report.candidates.into_iter().find_map(|c| c.format_id)
+            Vec::new()
+        };
+        Self {
+            identity: FileIdentity {
+                origin: FileOrigin::Synthetic,
+                relative_path: None,
+                enclosing_path: None,
+                raw_relative_path: None,
+                raw_filename: None,
+                nlink: 1,
+                hardlink_group: None,
+            },
+            metadata: FileMetadata {
+                native: None,
+                mode: None,
+                uid: None,
+                gid: None,
+                timestamps: None,
+                flags: None,
+                platform_raw_flags: None,
+                read_time: None,
+                filesystem_type: None,
+                environment: None,
+                apple: None,
+            },
+            kind: FileEntityKind::Regular {
+                size,
+                sha256,
+                is_sparse: false,
+                extents,
+            },
+            streams: Vec::new(),
         }
     }
 
-    /// Evaluates multiple detection signals and produces a comprehensive `DetectionReport`
-    /// distinguishing matches, insufficient data, quota exhaustion, read errors, and true negatives.
-    pub fn detect_format_report(
-        &self,
-        payload: &mut dyn PayloadSource,
-    ) -> Result<ctb_formats_utilities::detection::DetectionReport> {
-        let filename = self
-            .identity
-            .relative_path
-            .as_deref()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str());
+    /// Creates a synthetic regular `FileEntity` from a String or string slice.
+    #[must_use]
+    pub fn from_string(content: impl Into<String>) -> Self {
+        Self::from_vec(content.into().into_bytes())
+    }
 
-        // Infer platform prior from archive origin (strongest), Apple metadata, or recorded environment
-        let origin_archive_os = if let crate::identity::FileOrigin::Archive {
-            archive_format,
-            ..
-        } = &self.identity.origin
-        {
-            ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG
-                .lookup_ident(archive_format)
-                .and_then(|m| m.os_associations.first().copied())
-        } else {
-            None
-        };
-
-        let env_platform = if self.metadata.apple.is_some() {
-            Some(ctb_formats_utilities::format_id::FormatId::MacOs)
-        } else if let Some(env) = self.environment() {
-            let lower_os = env.os.to_ascii_lowercase();
-            if lower_os.contains("darwin")
-                || lower_os.contains("macos")
-                || env.looks_like_gnustep()
-            {
-                Some(ctb_formats_utilities::format_id::FormatId::MacOs)
-            } else if lower_os.contains("windows") {
-                Some(ctb_formats_utilities::format_id::FormatId::Windows)
-            } else if lower_os.contains("linux") {
-                Some(ctb_formats_utilities::format_id::FormatId::GnuLinux)
-            } else if lower_os.contains("bsd") || lower_os.contains("unix") {
-                Some(ctb_formats_utilities::format_id::FormatId::Unix)
-            } else {
-                ctb_formats_utilities::detection::current_platform_os()
-            }
-        } else {
-            ctb_formats_utilities::detection::current_platform_os()
-        };
-
-        let base_platform = origin_archive_os.or(env_platform);
-
-        // Extract Apple Type code from FinderInfo if present
-        let apple_type_code = self.metadata.apple.as_ref().and_then(|app| {
-            app.finder_info.as_ref().and_then(|info| {
-                let bytes = info.file_type.as_bytes();
-                if bytes.len() == 4 && bytes != b"\0\0\0\0" && bytes != b"    " {
-                    let mut code = [0u8; 4];
-                    code.copy_from_slice(bytes);
-                    Some(code)
-                } else {
-                    None
-                }
-            })
-        });
-
-        // Inspect attached streams / forks as rich detection signals
-        let mut stream_candidates = Vec::new();
-        let mut stream_platform = None;
-        for stream in &self.streams {
-            match stream.kind {
-                crate::StreamKind::MacOsResourceFork => {
-                    stream_platform = Some(ctb_formats_utilities::format_id::FormatId::MacOs);
-                    if let Some(ref data) = stream.data {
-                        let type_codes =
-                            ctb_formats_utilities::detection::resource_fork::extract_resource_fork_type_codes(data);
-                        for code in type_codes {
-                            if let Some(mapping) =
-                                ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG.lookup_apple_type_code(&code)
-                            {
-                                stream_candidates.push(
-                                    ctb_formats_utilities::detection::DetectionCandidate {
-                                        format_id: mapping.format_id,
-                                        dc_id: Some(mapping.dc_id),
-                                        mime: mapping.mime_types.first().cloned(),
-                                        description: mapping.label.clone(),
-                                        confidence:
-                                            ctb_formats_utilities::detection::ConfidenceTier::HighestConfidence,
-                                        score: 95,
-                                        evidence: vec![
-                                            ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
-                                                stream_kind_name: "MacOsResourceFork".to_string(),
-                                                detail: format!(
-                                                    "Resource fork type code '{}'",
-                                                    String::from_utf8_lossy(&code)
-                                                ),
-                                                score: 95,
-                                            },
-                                        ],
-                                    },
-                                );
-                            }
-                        }
-                    }
-                }
-                crate::StreamKind::NtfsAlternateDataStream => {
-                    stream_platform = Some(ctb_formats_utilities::format_id::FormatId::Windows);
-                    if let Some(ref name) = stream.name {
-                        let name_lossy = name.to_string_lossy();
-                        if name_lossy.contains("Zone.Identifier") {
-                            stream_candidates.push(
-                                ctb_formats_utilities::detection::DetectionCandidate {
-                                    format_id: None,
-                                    dc_id: None,
-                                    mime: None,
-                                    description: "Windows Internet Zone Transfer Identifier"
-                                        .to_string(),
-                                    confidence:
-                                        ctb_formats_utilities::detection::ConfidenceTier::Moderate,
-                                    score: 40,
-                                    evidence: vec![
-                                        ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
-                                            stream_kind_name: "NtfsAlternateDataStream".to_string(),
-                                            detail: "Zone.Identifier".to_string(),
-                                            score: 40,
-                                        },
-                                    ],
-                                },
-                            );
-                        }
-                    }
-                }
-                crate::StreamKind::ExtendedAttribute => {
-                    if let Some(ref name) = stream.name {
-                        let name_lossy = name.to_string_lossy();
-                        if name_lossy == "user.mime_type" || name_lossy == "xdg.mime.type" {
-                            if let Some(ref data) = stream.data {
-                                if let Ok(mime_str) = std::str::from_utf8(data) {
-                                    let clean_mime = mime_str.trim().trim_matches('\0');
-                                    if let Some(mapping) =
-                                        ctb_formats_utilities::detection::mime_derivation::FORMAT_CATALOG.lookup_mime(clean_mime)
-                                    {
-                                        stream_candidates.push(
-                                            ctb_formats_utilities::detection::DetectionCandidate {
-                                                format_id: mapping.format_id,
-                                                dc_id: Some(mapping.dc_id),
-                                                mime: Some(clean_mime.to_string()),
-                                                description: mapping.label.clone(),
-                                                confidence:
-                                                    ctb_formats_utilities::detection::ConfidenceTier::Strong,
-                                                score: 85,
-                                                evidence: vec![
-                                                    ctb_formats_utilities::detection::DetectionEvidence::AttachedStream {
-                                                        stream_kind_name: "ExtendedAttribute".to_string(),
-                                                        detail: format!(
-                                                            "Explicit xattr MIME '{}'",
-                                                            clean_mime
-                                                        ),
-                                                        score: 85,
-                                                    },
-                                                ],
-                                            },
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        let effective_platform = stream_platform.or(base_platform);
-
-        let special_kind = match &self.kind {
-            FileEntityKind::Directory => Some("directory".to_string()),
-            FileEntityKind::Symlink { .. } => Some("symlink".to_string()),
-            FileEntityKind::Fifo => Some("fifo".to_string()),
-            FileEntityKind::CharDevice { .. } => Some("char".to_string()),
-            FileEntityKind::BlockDevice { .. } => Some("block".to_string()),
-            FileEntityKind::Socket => Some("socket".to_string()),
-            _ => None,
-        };
-
-        let hint = ctb_formats_utilities::detection::DetectionHint {
-            filename: filename.map(|s| s.to_string()),
-            extension: None,
-            platform: effective_platform,
-            expected_category: None,
-            apple_type_code,
-            stream_candidates,
-            special_kind,
-            ..Default::default()
-        };
-
-        // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.
-        if let FileEntityKind::Directory = self.kind {
-            if let Some(name) = filename {
-                if name.ends_with(".app")
-                    || name.ends_with(".framework")
-                    || name.ends_with(".bundle")
-                {
-                    let candidate = ctb_formats_utilities::detection::DetectionCandidate {
-                        format_id: None,
-                        dc_id: None,
-                        mime: Some("application/x-apple-application".to_string()),
-                        description: "macOS Application Bundle".to_string(),
-                        confidence: ctb_formats_utilities::detection::ConfidenceTier::Strong,
-                        score: 75,
-                        evidence: vec![
-                            ctb_formats_utilities::detection::DetectionEvidence::Extension {
-                                ext: "app".to_string(),
-                                is_primary: true,
-                                score: 75,
-                            },
-                        ],
-                    };
-                    return Ok(ctb_formats_utilities::detection::DetectionReport {
-                        outcome: ctb_formats_utilities::detection::DetectionOutcome::Matched(vec![
-                            candidate.clone(),
-                        ]),
-                        candidates: vec![candidate],
-                        bytes_evaluated: 0,
-                        stream_signals_used: false,
-                    });
-                }
-            }
-        }
-
-        ctb_formats_utilities::detection::guess_format_report(payload, Some(&hint))
+    /// Creates a synthetic regular `FileEntity` from a `DcString` or `DcStr`.
+    #[must_use]
+    pub fn from_dcs(dcs: impl AsRef<ctb_formats_dcstring::DcStr>) -> Self {
+        Self::from_vec(dcs.as_ref().as_bytes().to_vec())
     }
 
     /// Serializes this `FileEntity` along with its file payload data (`Dc 392`),
@@ -889,7 +689,7 @@ impl FileEntity {
             FileEntityKind::Directory
         } else {
             let size = sym_meta.len();
-            let mut file = File::open(path)
+            let mut file = std::fs::File::open(path)
                 .with_context(|| format!("Failed to open file for hashing: {}", path.display()))?;
             let extents = get_file_extents(&file, size)?;
             let is_sparse = extents.iter().any(Extent::is_hole);
@@ -1123,13 +923,13 @@ impl FileEntity {
             #[cfg(target_os = "linux")]
             let (mut file, opened_with_noatime) = {
                 use std::os::unix::fs::OpenOptionsExt;
-                let mut opts = File::options();
+                let mut opts = std::fs::File::options();
                 opts.read(true);
                 opts.custom_flags(nix::libc::O_NOATIME);
                 match opts.open(path) {
                     Ok(f) => (f, true),
                     Err(_) => {
-                        let f = File::open(path).with_context(|| {
+                        let f = std::fs::File::open(path).with_context(|| {
                             format!("Failed to open file for hashing: {}", path.display())
                         })?;
                         (f, false)
@@ -1138,7 +938,7 @@ impl FileEntity {
             };
             #[cfg(not(target_os = "linux"))]
             let (mut file, opened_with_noatime) = {
-                let f = File::open(path).with_context(|| {
+                let f = std::fs::File::open(path).with_context(|| {
                     format!("Failed to open file for hashing: {}", path.display())
                 })?;
                 (f, false)
@@ -1619,63 +1419,27 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_file_entity_guess_format() {
-        let temp = tempfile::tempdir().unwrap();
-        let gz_path = temp.path().join("archive.tar.gz");
-        let gz_header = [0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00];
-        std::fs::write(&gz_path, gz_header).unwrap();
+    fn test_file_synthetic_constructors() {
+        let f_str = FileEntity::from_string("hello world");
+        assert_eq!(f_str.identity.origin, FileOrigin::Synthetic);
+        assert_eq!(f_str.kind.entity_type(), FileEntityType::Regular);
+        if let FileEntityKind::Regular { size, .. } = f_str.kind {
+            assert_eq!(size, 11);
+        } else {
+            panic!("Expected regular file kind");
+        }
 
-        let entity = FileEntity::from_filesystem(&gz_path, None).unwrap();
-        let mut source = crate::payload::DiskPayloadSource::open(&gz_path).unwrap();
-        let candidates = entity.guess_format(&mut source);
+        let f_vec = FileEntity::from_vec(vec![1, 2, 3, 4]);
+        assert_eq!(f_vec.identity.origin, FileOrigin::Synthetic);
+        if let FileEntityKind::Regular { size, .. } = f_vec.kind {
+            assert_eq!(size, 4);
+        } else {
+            panic!("Expected regular file kind");
+        }
 
-        assert!(!candidates.is_empty());
-        let top = &candidates[0];
-        assert_eq!(
-            top.format_id,
-            Some(ctb_formats_utilities::format_id::FormatId::Gzip)
-        );
-        assert_eq!(
-            top.confidence,
-            ctb_formats_utilities::detection::ConfidenceTier::HighestConfidence
-        );
-    }
-
-    #[crate::ctb_test]
-    fn test_file_entity_detect_format_report_with_resource_fork() {
-        let temp = tempfile::tempdir().unwrap();
-        let empty_path = temp.path().join("mac_sound");
-        std::fs::write(&empty_path, []).unwrap();
-
-        let mut entity = FileEntity::from_filesystem(&empty_path, None).unwrap();
-
-        // Construct mock resource fork with 'alis' OSType (MacAlias)
-        let mut fork = vec![0u8; 100];
-        fork[0..4].copy_from_slice(&256u32.to_be_bytes());
-        fork[4..8].copy_from_slice(&16u32.to_be_bytes());
-        fork[8..12].copy_from_slice(&0u32.to_be_bytes());
-        fork[12..16].copy_from_slice(&60u32.to_be_bytes());
-        fork[40..42].copy_from_slice(&28u16.to_be_bytes());
-        fork[44..46].copy_from_slice(&0u16.to_be_bytes()); // 1 type
-        fork[46..50].copy_from_slice(b"alis");
-
-        let stream_entity = entity.clone();
-        entity.streams.push(crate::streams::AttachedStream {
-            name: None,
-            kind: crate::streams::StreamKind::MacOsResourceFork,
-            entity: Box::new(stream_entity),
-            data: Some(fork),
-        });
-
-        let mut source = crate::payload::DiskPayloadSource::open(&empty_path).unwrap();
-        let report = entity.detect_format_report(&mut source).unwrap();
-
-        assert!(report.stream_signals_used);
-        assert!(!report.candidates.is_empty());
-        assert_eq!(
-            report.candidates[0].format_id,
-            Some(ctb_formats_utilities::format_id::FormatId::MacAlias)
-        );
+        let dcs = ctb_formats_dcstring::DcString::from_dcutf(b"test".to_vec()).unwrap();
+        let f_dcs = FileEntity::from_dcs(&dcs);
+        assert_eq!(f_dcs.identity.origin, FileOrigin::Synthetic);
     }
 }
 
