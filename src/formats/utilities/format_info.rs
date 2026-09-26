@@ -28,6 +28,7 @@ use crate::utilities::*;
 
 use anyhow::Result;
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
 /// Detailed metadata record for a format from format category CSV files.
@@ -279,9 +280,129 @@ static FORMATS_BY_ID: LazyLock<HashMap<usize, FormatInfo>> =
         map
     });
 
+impl FormatInfo {
+    /// Returns the nicknames as a sorted list of strings: shortest first, then
+    /// alphabetically for ties.
+    #[must_use]
+    pub fn sorted_nicknames(&self) -> Vec<String> {
+        if self.nicknames.is_empty() {
+            return Vec::new();
+        }
+        let mut nicks: Vec<String> = self
+            .nicknames
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+        nicks.sort_by(|a, b| a.len().cmp(&b.len()).then_with(|| a.cmp(b)));
+        nicks
+    }
+
+    /// Returns the primary file extension (without leading dot or case prefix).
+    #[must_use]
+    pub fn primary_extension(&self) -> Option<String> {
+        if self.extensions.is_empty() {
+            return None;
+        }
+        self.extensions
+            .split(',')
+            .next()
+            .map(|ext| {
+                let trimmed = ext.trim();
+                let clean = trimmed.strip_prefix("case:").unwrap_or(trimmed);
+                clean.trim_start_matches('.').to_string()
+            })
+            .filter(|s| !s.is_empty())
+    }
+}
+
+static FORMATS_BY_FORMAT_ID: LazyLock<HashMap<ctb_utilities::FormatId, FormatInfo>> =
+    LazyLock::new(|| {
+        let mut map = HashMap::new();
+        for info in FORMATS_BY_ID.values() {
+            if let Some(fid) = ctb_utilities::FormatId::from_ident(&info.ident) {
+                map.insert(fid, info.clone());
+            } else if let Some(fid) = ctb_utilities::FormatId::from_shorthand(&format!("f{}", info.id)) {
+                map.insert(fid, info.clone());
+            }
+        }
+        map
+    });
+
 /// Look up a `FormatInfo` record by short Format ID.
 pub fn get_format_info(fmt_id: usize) -> Option<FormatInfo> {
     FORMATS_BY_ID.get(&fmt_id).cloned()
+}
+
+/// Look up a `FormatInfo` record by `FormatId`.
+pub fn get_format_info_by_id(
+    format_id: ctb_utilities::FormatId,
+) -> Option<FormatInfo> {
+    FORMATS_BY_FORMAT_ID.get(&format_id).cloned()
+}
+
+/// Generates a help table of supported formats and their shorthand aliases for
+/// CLI after_help text.
+pub fn format_help_table(
+    header: &str,
+    formats: &[ctb_utilities::FormatId],
+) -> String {
+    let mut lines = Vec::new();
+    lines.push(header.to_string());
+    for &fid in formats {
+        if let Some(info) = get_format_info_by_id(fid) {
+            let aliases = info.sorted_nicknames();
+            let alias_str = if aliases.is_empty() {
+                info.ident.clone()
+            } else {
+                aliases.join(", ")
+            };
+            lines.push(format!("  {}: {}", alias_str, info.label));
+        }
+    }
+    lines.join("\n")
+}
+
+/// Strips an extension belonging to the given `FormatId` from the input path.
+pub fn strip_format_extension(
+    input_path: &Path,
+    format_id: ctb_utilities::FormatId,
+) -> Option<PathBuf> {
+    let path_str = input_path.to_string_lossy();
+    let mut rules =
+        crate::extension_data::extension_rules_for_format(format_id);
+    rules.sort_by(|a, b| b.extension.len().cmp(&a.extension.len()));
+    for rule in rules {
+        if let Some(prefix) = rule.strip_from_filename(&path_str) {
+            return Some(PathBuf::from(prefix));
+        }
+    }
+    None
+}
+
+/// Infers the output file path when decompressing without an explicit output
+/// path. Checks registered extension rules for compression formats (longest
+/// extensions first) and strips the matched extension, or appends
+/// `.decompressed` if none is recognized.
+pub fn infer_decompressed_path(input_path: &Path) -> PathBuf {
+    let path_str = input_path.to_string_lossy();
+    let mut compression_rules: Vec<crate::detection::extension::ExtensionRule> =
+        crate::extension_data::EXTENSION_REGISTRY
+            .iter()
+            .filter(|e| {
+                e.format_id.category()
+                    == ctb_utilities::format_id::FormatCategory::Compression
+            })
+            .map(|e| e.rule)
+            .collect();
+    // Sort longer extensions first so e.g. .old.z or .Z1.0 matches before .z or .Z
+    compression_rules.sort_by(|a, b| b.extension.len().cmp(&a.extension.len()));
+    for rule in compression_rules {
+        if let Some(prefix) = rule.strip_from_filename(&path_str) {
+            return PathBuf::from(prefix);
+        }
+    }
+    PathBuf::from(format!("{}.decompressed", input_path.display()))
 }
 
 fn format_support_level(level: &str) -> String {
@@ -445,5 +566,51 @@ mod tests {
         let ubuntu_desc = describe_format(572).expect("Describe 572");
         assert!(ubuntu_desc.contains("Based on: f571"));
         assert!(ubuntu_desc.contains("Implies: f398"));
+    }
+
+    #[crate::ctb_test]
+    fn test_format_help_table_and_nicknames() {
+        let table = format_help_table(
+            "Supported compression formats:",
+            &[FormatId::Brotli, FormatId::Gzip, FormatId::Xz],
+        );
+        assert!(table.contains("Supported compression formats:"));
+        assert!(table.contains("br, brotli: Brotli compressed stream"));
+        assert!(table.contains("gz, gzip: GNU gzip format"));
+        assert!(table.contains("xz: XZ compression"));
+        assert!(!table.contains("xzip"));
+    }
+
+    #[crate::ctb_test]
+    fn test_infer_decompressed_path_shared() {
+        assert_eq!(
+            infer_decompressed_path(Path::new("file.txt.gz")),
+            PathBuf::from("file.txt")
+        );
+        assert_eq!(
+            infer_decompressed_path(Path::new("archive.tar.Z")),
+            PathBuf::from("archive.tar")
+        );
+        assert_eq!(
+            infer_decompressed_path(Path::new("document.z")),
+            PathBuf::from("document")
+        );
+        assert_eq!(
+            infer_decompressed_path(Path::new("document.C")),
+            PathBuf::from("document")
+        );
+        assert_eq!(
+            infer_decompressed_path(Path::new("data.tar.xz")),
+            PathBuf::from("data.tar")
+        );
+        // .xzip is NOT .xz, should not strip as xz
+        assert_eq!(
+            infer_decompressed_path(Path::new("data.tar.xzip")),
+            PathBuf::from("data.tar.xzip.decompressed")
+        );
+        assert_eq!(
+            infer_decompressed_path(Path::new("unknown.bin")),
+            PathBuf::from("unknown.bin.decompressed")
+        );
     }
 }

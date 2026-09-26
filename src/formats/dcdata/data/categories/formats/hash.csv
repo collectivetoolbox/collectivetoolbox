@@ -14,14 +14,14 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228462,238,XxHash32,xxHash32,hash,,,,,,,,,,,,
-2228463,239,XxHash64,xxHash64,hash,,,,,,,,,,,,
-2228464,240,XxHash3_64,xxHash3-64,hash,,,,,,,,,,,,
-2228465,241,XxHash3_128,xxHash3-128,hash,,,,,,,,,,,,
+2228462,238,XxHash32,xxHash32,hash,,,,,,"xxh32, xxhash32",,,,,,
+2228463,239,XxHash64,xxHash64,hash,,,,,,"xxh64, xxhash64",,,,,,
+2228464,240,XxHash3_64,xxHash3-64,hash,,,,,,"xxh3, xxhash3-64, xxhash3_64",,,,,,
+2228465,241,XxHash3_128,xxHash3-128,hash,,,,,,"xxh128, xxhash128, xxhash3-128, xxhash3_128",,,,,,
 2228466,242,Md5,MD5,hash,,,,,,,,,,,,
 2228467,243,Md6,MD6,hash,,,,,,,,,,,,
 2228468,244,Sha1,SHA-1,hash,,,,,,,,,,,,
-2228469,245,Sha256,SHA-256,hash,,,,,,,,,,,,
+2228469,245,Sha256,SHA-256,hash,,,,,,"sha256, sha-256, sha2-256, sha2_256",,,,,,
 2228470,246,Sha512,SHA-512,hash,,,,,,,,,,,,
 2228471,247,Sha3,SHA-3,hash,,,,,,,,,,,,
 2228472,248,Tiger,Tiger checksum,hash,,,,,,,,,,,,

@@ -929,7 +929,9 @@ U+F9FA : CJK COMPATIBILITY IDEOGRAPH-F9FA = U+72C0 + VS1 {def: form; appearance;
             generated.push('\n');
         }
 
-        assert_eq!(ctb_formats_checksum::sha256_hex(&generated), expected);
+        use sha2::Digest;
+        let hash = sha2::Sha256::digest(generated.as_bytes());
+        assert_eq!(ctb_utilities::string::to_hex(&hash), expected);
     }
 }
 

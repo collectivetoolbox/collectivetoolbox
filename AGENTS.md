@@ -69,6 +69,7 @@
 
 - Dc consts must only be defined in dcdata/dc.rs, not in any other files. They must be DcChars, never ints. However, they may be used inline in Dc serialization attributes on structs/enums (shorthand syntaxes apply - 123 = short Dc 123; l123 = long Dc 123; u1a3 = U+01A3; f123 = format Dc 123). Do not add Dc consts for annotations, as those sholud be self-explanatory; only add them if they will be used in actual code.
 - Keep consts DRY, as with other code. Avoid adding aliases to them or copying them into other modules.
+- There is no such thing as a "short format ID". Format IDs must never be exposed or processed as bare integers, because bare integers are confusing and look identical to short Dc IDs. Format IDs must always use the strongly typed `FormatId` enum or the `f<N>` shorthand string (e.g. `FormatId::shorthand()`, `FormatId::from_shorthand("f34")`). Never add integer conversion APIs like `short_id()` or `from_short_id()` to `FormatId`.
 
 ## Architecture Overview
 - Multi-process app: main workspace process spawns subprocesses (renderer, io/webui) via IPC using utilities prelude.

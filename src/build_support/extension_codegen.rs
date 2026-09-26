@@ -178,6 +178,23 @@ pub fn generate_extension_data_code(formats_dir: &Path) -> Result<String> {
     out.push_str("        }\n");
     out.push_str("    }\n");
     out.push_str("    matches\n");
+    out.push_str("}\n\n");
+
+    out.push_str("/// Returns all extension rules associated with the given `FormatId`.\n");
+    out.push_str("pub fn extension_rules_for_format(format_id: FormatId) -> Vec<ExtensionRule> {\n");
+    out.push_str("    EXTENSION_REGISTRY\n");
+    out.push_str("        .iter()\n");
+    out.push_str("        .filter(|entry| entry.format_id == format_id)\n");
+    out.push_str("        .map(|entry| entry.rule)\n");
+    out.push_str("        .collect()\n");
+    out.push_str("}\n\n");
+
+    out.push_str("/// Returns the primary (first registered) extension for the given `FormatId`.\n");
+    out.push_str("pub fn primary_extension_for_format(format_id: FormatId) -> Option<&'static str> {\n");
+    out.push_str("    EXTENSION_REGISTRY\n");
+    out.push_str("        .iter()\n");
+    out.push_str("        .find(|entry| entry.format_id == format_id)\n");
+    out.push_str("        .map(|entry| entry.rule.extension)\n");
     out.push_str("}\n");
 
     Ok(out)

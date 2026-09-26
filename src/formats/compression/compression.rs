@@ -120,14 +120,14 @@ pub fn sorted_aliases(aliases: &[&'static str]) -> Vec<&'static str> {
 
 /// Generates a detailed help table of supported compression formats and their shorthand aliases.
 pub fn format_help_table() -> String {
-    let mut lines = Vec::new();
-    lines.push("Supported compression formats:".to_string());
-    for info in CompressionFormat::ALL_FORMATS {
-        let sorted = info.sorted_aliases();
-        let alias_str = sorted.join(", ");
-        lines.push(format!("  {}: {}", alias_str, info.display_name));
-    }
-    lines.join("\n")
+    let format_ids: Vec<FormatId> = CompressionFormat::SUPPORTED
+        .iter()
+        .map(CompressionFormat::to_format_id)
+        .collect();
+    ctb_formats_utilities::format_help_table(
+        "Supported compression formats:",
+        &format_ids,
+    )
 }
 
 /// Global static lazy string containing the formatted compression help table.
@@ -164,8 +164,8 @@ impl CompressionFormat {
         },
         CompressionFormatInfo {
             format: Self::Bzip,
-            display_name: "Original bzip 0.21 format",
-            aliases: &["bzip", "bz", "bzip0", "bzip-0.21"],
+            display_name: "Original bzip compression",
+            aliases: &["bzip", "bz"],
         },
         CompressionFormatInfo {
             format: Self::CompressLzw,
@@ -181,7 +181,7 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::ScoCompress,
             display_name: "`compress`: SCO `compress -H` format",
-            aliases: &["sco-compress", "compress-sco", "compress-h", "sco"],
+            aliases: &["sco-compress", "compress-sco", "compress-h"],
         },
         CompressionFormatInfo {
             format: Self::CompressLzw2,
@@ -214,29 +214,27 @@ impl CompressionFormat {
             aliases: &[
                 "old-pack",
                 "oldpack",
-                "opack",
-                "pts-opack",
                 "early-pack",
             ],
         },
         CompressionFormatInfo {
             format: Self::Compact,
             display_name: "`compact` (McMaster Adaptive Huffman)",
-            aliases: &["compact", "uncompact"],
+            aliases: &["compact"],
         },
         CompressionFormatInfo {
             format: Self::Lz4,
-            display_name: "LZ4 compression",
+            display_name: "LZ4",
             aliases: &["lz4"],
         },
         CompressionFormatInfo {
             format: Self::Lzma,
-            display_name: "LZMA compression",
+            display_name: "LZMA (Lempel–Ziv–Markov chain algorithm)",
             aliases: &["lzma"],
         },
         CompressionFormatInfo {
             format: Self::Lzma2,
-            display_name: "LZMA2 compression",
+            display_name: "LZMA container format",
             aliases: &["lzma2"],
         },
         CompressionFormatInfo {
@@ -247,7 +245,7 @@ impl CompressionFormat {
         CompressionFormatInfo {
             format: Self::Xz,
             display_name: "XZ compression",
-            aliases: &["xz", "xzip"],
+            aliases: &["xz"],
         },
         CompressionFormatInfo {
             format: Self::Zstd,
@@ -256,7 +254,7 @@ impl CompressionFormat {
         },
         CompressionFormatInfo {
             format: Self::Lzo,
-            display_name: "LZO compression",
+            display_name: "LZO (Lempel-Ziv-Oberhumer)",
             aliases: &["lzo"],
         },
     ];
@@ -316,30 +314,43 @@ impl CompressionFormat {
         }
     }
 
+    /// Ordered list of all compression formats supported by this crate.
+    pub const SUPPORTED: &'static [CompressionFormat] = &[
+        Self::Brotli,
+        Self::Gzip,
+        Self::Deflate,
+        Self::Zlib,
+        Self::Bzip2,
+        Self::Bzip,
+        Self::CompressLzw,
+        Self::ScoCompress,
+        Self::CompressLzw2,
+        Self::CompressLzw16,
+        Self::CompressLzw1,
+        Self::Pack,
+        Self::OldPack,
+        Self::Compact,
+        Self::Lz4,
+        Self::Lzma,
+        Self::Lzma2,
+        Self::Lzip,
+        Self::Xz,
+        Self::Zstd,
+        Self::Lzo,
+    ];
+
+    /// Retrieves format metadata from the shared registry.
+    #[must_use]
+    pub fn format_info(&self) -> Option<ctb_formats_utilities::FormatInfo> {
+        ctb_formats_utilities::get_format_info_by_id(self.to_format_id())
+    }
+
     /// Returns the standard default file extension associated with the format.
     pub fn extension(&self) -> &'static str {
-        match self {
-            Self::Brotli => "br",
-            Self::Gzip => "gz",
-            Self::Deflate => "deflate",
-            Self::Zlib => "zz",
-            Self::Bzip2 => "bz2",
-            Self::Bzip => "bz",
-            Self::ScoCompress
-            | Self::CompressLzw
-            | Self::CompressLzw2
-            | Self::CompressLzw1
-            | Self::CompressLzw16 => "Z",
-            Self::Pack | Self::OldPack => "z",
-            Self::Compact => "C",
-            Self::Lz4 => "lz4",
-            Self::Lzma => "lzma",
-            Self::Lzma2 => "lzma2",
-            Self::Lzip => "lz",
-            Self::Xz => "xz",
-            Self::Zstd => "zst",
-            Self::Lzo => "lzo",
-        }
+        ctb_formats_utilities::extension_data::primary_extension_for_format(
+            self.to_format_id(),
+        )
+        .unwrap_or("bin")
     }
 
     /// Infers compression format from file extension if recognized.
@@ -402,13 +413,14 @@ impl TryFrom<&str> for CompressionFormat {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let clean = s.trim_start_matches('.').to_lowercase();
-        for info in CompressionFormat::ALL_FORMATS {
-            for &alias in info.aliases {
-                if alias.eq_ignore_ascii_case(&clean) {
-                    return Ok(info.format);
-                }
+        let clean = s.trim().trim_start_matches('.');
+        if let Some(format_id) = FormatId::from_ident(clean) {
+            if let Some(fmt) = Self::from_format_id(format_id) {
+                return Ok(fmt);
             }
+        }
+        if let Some(fmt) = Self::from_extension(clean) {
+            return Ok(fmt);
         }
         bail!("Unknown compression format: '{s}'")
     }
@@ -419,6 +431,32 @@ impl TryFrom<String> for CompressionFormat {
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
         Self::try_from(s.as_str())
+    }
+}
+
+impl std::str::FromStr for CompressionFormat {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
+impl From<CompressionFormat> for FormatId {
+    fn from(fmt: CompressionFormat) -> Self {
+        fmt.to_format_id()
+    }
+}
+
+impl TryFrom<FormatId> for CompressionFormat {
+    type Error = anyhow::Error;
+
+    fn try_from(id: FormatId) -> Result<Self, Self::Error> {
+        Self::from_format_id(id).ok_or_else(|| {
+            anyhow::anyhow!(
+                "FormatId {id:?} is not a supported CompressionFormat"
+            )
+        })
     }
 }
 
@@ -785,11 +823,11 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_alias_sorting() {
-        let input = vec!["sco-compress", "compress-sco", "compress-h", "sco"];
+        let input = vec!["sco-compress", "compress-sco", "compress-h"];
         let sorted = sorted_aliases(&input);
         assert_eq!(
             sorted,
-            vec!["sco", "compress-h", "compress-sco", "sco-compress"]
+            vec!["compress-h", "compress-sco", "sco-compress"]
         );
 
         let input_zlib = vec!["zlib", "zz", "zl", "zlib-deflate"];
@@ -803,7 +841,7 @@ mod tests {
         assert!(table.contains("Supported compression formats:"));
         assert!(table.contains("  br, brotli: Brotli compressed stream"));
         assert!(table.contains("  gz, gzip: GNU gzip format"));
-        assert!(table.contains("  sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
+        assert!(table.contains("  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"));
     }
 
     #[crate::ctb_test]

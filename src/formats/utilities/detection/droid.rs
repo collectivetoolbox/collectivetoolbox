@@ -819,13 +819,15 @@ pub fn evaluate_dual_anchored_signatures<S: DetectionSource + ?Sized>(
 
         if let Some(eof_dist) = eof_matched_offset {
             if let Some(total) = source.total_len() {
-                evidence.push(DetectionEvidence::ByteRange {
-                    start: total.saturating_sub(eof_dist.saturating_add(match u64::try_from(
-                        sig.eof_pattern.map_or(0, |p| p.len()),
-                    ) {
+                let eof_len = match sig.eof_pattern {
+                    Some(p) => match u64::try_from(p.len()) {
                         Ok(l) => l,
                         Err(_) => 0,
-                    })),
+                    },
+                    None => 0,
+                };
+                evidence.push(DetectionEvidence::ByteRange {
+                    start: total.saturating_sub(eof_dist.saturating_add(eof_len)),
                     end: total.saturating_sub(eof_dist),
                     label: format!("{}: EOF Anchor", sig.description),
                     score: sig.priority,
@@ -978,6 +980,63 @@ fn decode_hex_bytes(hex_str: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Decodes a PRONOM byte sequence string that may contain hex pairs, quoted
+/// text literals, or mixed tokens.
+fn decode_pronom_sequence(seq_str: &str) -> Option<Vec<u8>> {
+    let mut bytes = Vec::new();
+    let chars: Vec<char> = seq_str.trim().chars().collect();
+    let mut i = 0usize;
+    while i < chars.len() {
+        let Some(&ch) = chars.get(i) else {
+            break;
+        };
+        if ch.is_whitespace() {
+            i = i.checked_add(1)?;
+            continue;
+        }
+        if ch == '\'' {
+            i = i.checked_add(1)?;
+            let start = i;
+            while i < chars.len() && chars.get(i) != Some(&'\'') {
+                i = i.checked_add(1)?;
+            }
+            let sub_chars = chars.get(start..i)?;
+            for &sc in sub_chars {
+                let mut b = [0u8; 4];
+                let enc = sc.encode_utf8(&mut b);
+                bytes.extend_from_slice(enc.as_bytes());
+            }
+            if i < chars.len() {
+                i = i.checked_add(1)?;
+            }
+        } else if ch == '[' {
+            // Mask or character range like ['6'-'7'] or [&01] - not a static byte sequence
+            return None;
+        } else if ch.is_ascii_hexdigit() {
+            let next_i = i.checked_add(1)?;
+            let Some(&ch2) = chars.get(next_i) else {
+                return None;
+            };
+            if ch2.is_ascii_hexdigit() {
+                let hi = hex_nibble(u8::try_from(ch).ok()?)?;
+                let lo = hex_nibble(u8::try_from(ch2).ok()?)?;
+                bytes.push(hi.checked_shl(4)?.checked_add(lo)?);
+                i = i.checked_add(2)?;
+            } else {
+                return None;
+            }
+        } else {
+            i = i.checked_add(1)?;
+        }
+    }
+
+    if bytes.is_empty() {
+        None
+    } else {
+        Some(bytes)
+    }
+}
+
 /// Parses the DROID PRONOM binary signature XML file into a `PronomDatabase`.
 pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
     let mut db = PronomDatabase::default();
@@ -1038,11 +1097,9 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                 continue;
             };
             let bopen_tag = bblock.get(..btag_end)?;
-            let ref_str = extract_attr(bopen_tag, "Reference").unwrap_or("BOFoffset");
-            let reference = if ref_str == "EOFoffset" {
-                PronomByteSequenceRef::Eof
-            } else {
-                PronomByteSequenceRef::Bof
+            let reference = match extract_attr(bopen_tag, "Reference") {
+                Some("EOFoffset") => PronomByteSequenceRef::Eof,
+                _ => PronomByteSequenceRef::Bof,
             };
 
             let mut subsequences = Vec::new();
@@ -1065,12 +1122,20 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
                     continue;
                 };
                 let sopen_tag = sblock.get(..stag_end)?;
-                let min_off = extract_attr(sopen_tag, "SubSeqMinOffset")
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(0);
-                let max_off = extract_attr(sopen_tag, "SubSeqMaxOffset")
-                    .and_then(|s| s.parse::<u64>().ok())
-                    .unwrap_or(0);
+                let min_off = match extract_attr(sopen_tag, "SubSeqMinOffset") {
+                    Some(s) => match s.parse::<u64>() {
+                        Ok(v) => v,
+                        Err(_) => 0,
+                    },
+                    None => 0,
+                };
+                let max_off = match extract_attr(sopen_tag, "SubSeqMaxOffset") {
+                    Some(s) => match s.parse::<u64>() {
+                        Ok(v) => v,
+                        Err(_) => 0,
+                    },
+                    None => 0,
+                };
 
                 if let Some(seq_start) = sblock.find("<Sequence>") {
                     if let Some(seq_val_start) = seq_start.checked_add("<Sequence>".len()) {
@@ -1146,7 +1211,10 @@ pub fn parse_pronom_signature_xml(xml: &str) -> Option<PronomDatabase> {
         let Some(puid) = extract_attr(open_tag, "PUID").map(ToString::to_string) else {
             continue;
         };
-        let name = extract_attr(open_tag, "Name").unwrap_or("").to_string();
+        let name = match extract_attr(open_tag, "Name") {
+            Some(n) => n.to_string(),
+            None => String::new(),
+        };
         let mime_type = extract_attr(open_tag, "MIMEType").map(ToString::to_string);
         let version = extract_attr(open_tag, "Version").map(ToString::to_string);
 
@@ -1258,22 +1326,19 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
         let Ok(id) = id_str.parse::<u32>() else {
             continue;
         };
-        let type_str = extract_attr(open_tag, "ContainerType").unwrap_or("ZIP");
-        let container_kind = if type_str == "OLE2" {
-            ContainerKind::Ole2
-        } else {
-            ContainerKind::Zip
+        let container_kind = match extract_attr(open_tag, "ContainerType") {
+            Some("OLE2") => ContainerKind::Ole2,
+            _ => ContainerKind::Zip,
         };
 
         let description = if let Some(desc_start) = block.find("<Description>") {
             if let Some(desc_val_start) = desc_start.checked_add("<Description>".len()) {
                 if let Some(desc_rel_end) = block.get(desc_val_start..)?.find("</Description>") {
                     let desc_end = desc_val_start.checked_add(desc_rel_end)?;
-                    block
-                        .get(desc_val_start..desc_end)
-                        .unwrap_or("")
-                        .trim()
-                        .to_string()
+                    match block.get(desc_val_start..desc_end) {
+                        Some(d) => d.trim().to_string(),
+                        None => String::new(),
+                    }
                 } else {
                     String::new()
                 }
@@ -1304,11 +1369,10 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
                 if let Some(pval_start) = pstart.checked_add("<Path>".len()) {
                     if let Some(pend_rel) = fblock.get(pval_start..)?.find("</Path>") {
                         let pend = pval_start.checked_add(pend_rel)?;
-                        fblock
-                            .get(pval_start..pend)
-                            .unwrap_or("")
-                            .trim()
-                            .to_string()
+                        match fblock.get(pval_start..pend) {
+                            Some(p) => p.trim().to_string(),
+                            None => String::new(),
+                        }
                     } else {
                         String::new()
                     }
@@ -1329,18 +1393,14 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
                 if let Some(sval_start) = sstart.checked_add("<Sequence>".len()) {
                     if let Some(send_rel) = fblock.get(sval_start..)?.find("</Sequence>") {
                         let send = sval_start.checked_add(send_rel)?;
+                        // Reason for fallback: empty string used when sequence tag is empty
                         let seq_raw = fblock.get(sval_start..send).unwrap_or("").trim();
-                        if let Some(qstart) = seq_raw.find('\'') {
-                            if let Some(qstart_pos) = qstart.checked_add(1) {
-                                if let Some(qrest) = seq_raw.get(qstart_pos..) {
-                                    if let Some(qend) = qrest.find('\'') {
-                                        if let Some(sig_str) = qrest.get(..qend) {
-                                            text_signature = Some(sig_str.to_string());
-                                        }
-                                    }
+                        if let Some(bytes) = decode_pronom_sequence(seq_raw) {
+                            if let Ok(text) = std::str::from_utf8(&bytes) {
+                                if !text.contains('\0') {
+                                    text_signature = Some(text.to_string());
                                 }
                             }
-                        } else if let Some(bytes) = decode_hex_bytes(seq_raw) {
                             binary_signature = Some(bytes);
                         }
                     }
@@ -1415,6 +1475,7 @@ pub fn parse_droid_container_signatures_xml(xml: &str) -> Option<ContainerSignat
 
 /// Authoritative DROID PRONOM binary signature database loaded from embedded XML.
 pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
+    // Reason for fallback: default empty database used if embedded asset fails to parse
     ctb_formats_dcdata::get_droid_signature_xml()
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
         .and_then(parse_pronom_signature_xml)
@@ -1423,6 +1484,7 @@ pub static DROID_PRONOM_DB: LazyLock<PronomDatabase> = LazyLock::new(|| {
 
 /// Authoritative DROID container signature database loaded from embedded XML.
 pub static DROID_CONTAINER_DB: LazyLock<ContainerSignatureDatabase> = LazyLock::new(|| {
+    // Reason for fallback: default empty database used if embedded asset fails to parse
     ctb_formats_dcdata::get_droid_container_signature_xml()
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
         .and_then(parse_droid_container_signatures_xml)
@@ -1676,6 +1738,7 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
     }
 
     // Read up to 65557 bytes from EOF (maximum ZIP comment size is 65535 + 22 byte EOCD)
+    // Reason for fallback: cap maximum EOF read to 65557 bytes if integer conversion overflows
     let max_read = usize::try_from(total.min(65557)).unwrap_or(65557);
     let eof_buf = source.read_eof(max_read)?;
     if eof_buf.len() < 22 {
@@ -1708,22 +1771,18 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
         return Ok(None);
     }
 
-    let total_entries = u16::from_le_bytes([
-        eocd_slice.get(10).copied().unwrap_or(0),
-        eocd_slice.get(11).copied().unwrap_or(0),
-    ]);
-    let cd_size = u32::from_le_bytes([
-        eocd_slice.get(12).copied().unwrap_or(0),
-        eocd_slice.get(13).copied().unwrap_or(0),
-        eocd_slice.get(14).copied().unwrap_or(0),
-        eocd_slice.get(15).copied().unwrap_or(0),
-    ]);
-    let cd_offset = u32::from_le_bytes([
-        eocd_slice.get(16).copied().unwrap_or(0),
-        eocd_slice.get(17).copied().unwrap_or(0),
-        eocd_slice.get(18).copied().unwrap_or(0),
-        eocd_slice.get(19).copied().unwrap_or(0),
-    ]);
+    let total_entries = match eocd_slice.get(10..12) {
+        Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+        _ => return Ok(None),
+    };
+    let cd_size = match eocd_slice.get(12..16) {
+        Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+        _ => return Ok(None),
+    };
+    let cd_offset = match eocd_slice.get(16..20) {
+        Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+        _ => return Ok(None),
+    };
 
     // Safety checks against overflow or corrupt offsets
     let u_cd_offset = u64::from(cd_offset);
@@ -1734,6 +1793,7 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
 
     // Cap maximum directory entries to prevent DoS attacks
     let max_entries = usize::from(total_entries.min(5000));
+    // Reason for fallback: bounded central directory buffer allocation if integer conversion overflows
     let cd_bytes_len = usize::try_from(u_cd_size.min(524288)).unwrap_or(524288);
     let mut cd_buf = vec![0u8; cd_bytes_len];
     let n = source.read_at(u_cd_offset, &mut cd_buf)?;
@@ -1749,40 +1809,39 @@ pub fn parse_zip_central_directory<S: DetectionSource + ?Sized>(
             break;
         }
 
-        let method = u16::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(10)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(11)).copied().unwrap_or(0),
-        ]);
-        let comp_sz = u32::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(20)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(21)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(22)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(23)).copied().unwrap_or(0),
-        ]);
-        let uncomp_sz = u32::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(24)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(25)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(26)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(27)).copied().unwrap_or(0),
-        ]);
-        let flen = u16::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(28)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(29)).copied().unwrap_or(0),
-        ]);
-        let elen = u16::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(30)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(31)).copied().unwrap_or(0),
-        ]);
-        let clen = u16::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(32)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(33)).copied().unwrap_or(0),
-        ]);
-        let local_off = u32::from_le_bytes([
-            cd_sample.get(cd_pos.saturating_add(42)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(43)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(44)).copied().unwrap_or(0),
-            cd_sample.get(cd_pos.saturating_add(45)).copied().unwrap_or(0),
-        ]);
+        let header = match cd_sample.get(cd_pos..cd_pos.saturating_add(46)) {
+            Some(h) => h,
+            None => break,
+        };
+
+        let method = match header.get(10..12) {
+            Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+            _ => break,
+        };
+        let comp_sz = match header.get(20..24) {
+            Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+            _ => break,
+        };
+        let uncomp_sz = match header.get(24..28) {
+            Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+            _ => break,
+        };
+        let flen = match header.get(28..30) {
+            Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+            _ => break,
+        };
+        let elen = match header.get(30..32) {
+            Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+            _ => break,
+        };
+        let clen = match header.get(32..34) {
+            Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+            _ => break,
+        };
+        let local_off = match header.get(42..46) {
+            Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+            _ => break,
+        };
 
         let name_start = cd_pos.saturating_add(46);
         let name_end = name_start.saturating_add(usize::from(flen));
@@ -1823,36 +1882,37 @@ pub fn scan_zip_local_headers<S: DetectionSource + ?Sized>(
     let mut entries = Vec::new();
     let mut pos: usize = 0;
     while pos.saturating_add(30) <= sample.len() && entries.len() < 500 {
-        if sample.get(pos..pos.saturating_add(4)) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
-            let method = u16::from_le_bytes([
-                sample.get(pos.saturating_add(8)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(9)).copied().unwrap_or(0),
-            ]);
-            let comp_sz = u32::from_le_bytes([
-                sample.get(pos.saturating_add(18)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(19)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(20)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(21)).copied().unwrap_or(0),
-            ]);
-            let uncomp_sz = u32::from_le_bytes([
-                sample.get(pos.saturating_add(22)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(23)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(24)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(25)).copied().unwrap_or(0),
-            ]);
-            let flen = u16::from_le_bytes([
-                sample.get(pos.saturating_add(26)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(27)).copied().unwrap_or(0),
-            ]);
-            let elen = u16::from_le_bytes([
-                sample.get(pos.saturating_add(28)).copied().unwrap_or(0),
-                sample.get(pos.saturating_add(29)).copied().unwrap_or(0),
-            ]);
+        let header = match sample.get(pos..pos.saturating_add(30)) {
+            Some(h) => h,
+            None => break,
+        };
+        if header.get(..4) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
+            let method = match header.get(8..10) {
+                Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+                _ => break,
+            };
+            let comp_sz = match header.get(18..22) {
+                Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+                _ => break,
+            };
+            let uncomp_sz = match header.get(22..26) {
+                Some(&[b0, b1, b2, b3]) => u32::from_le_bytes([b0, b1, b2, b3]),
+                _ => break,
+            };
+            let flen = match header.get(26..28) {
+                Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+                _ => break,
+            };
+            let elen = match header.get(28..30) {
+                Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+                _ => break,
+            };
 
             let name_start = pos.saturating_add(30);
             let name_end = name_start.saturating_add(usize::from(flen));
             if let Some(name_bytes) = sample.get(name_start..name_end) {
                 let name = String::from_utf8_lossy(name_bytes).to_string();
+                // Reason for fallback: default to zero offset if local position conversion overflows
                 let local_off = u32::try_from(pos).unwrap_or(0);
                 entries.push(ZipEntrySummary {
                     name,
@@ -1883,20 +1943,21 @@ pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
     if n < 30 || header.get(..4) != Some(&ZIP_LOCAL_HEADER_MAGIC) {
         return Ok(None);
     }
-    let flen = u16::from_le_bytes([
-        header.get(26).copied().unwrap_or(0),
-        header.get(27).copied().unwrap_or(0),
-    ]);
-    let elen = u16::from_le_bytes([
-        header.get(28).copied().unwrap_or(0),
-        header.get(29).copied().unwrap_or(0),
-    ]);
+    let flen = match header.get(26..28) {
+        Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+        _ => return Ok(None),
+    };
+    let elen = match header.get(28..30) {
+        Some(&[b0, b1]) => u16::from_le_bytes([b0, b1]),
+        _ => return Ok(None),
+    };
     let data_offset = local_off
         .saturating_add(30)
         .saturating_add(u64::from(flen))
         .saturating_add(u64::from(elen));
 
     if entry.compression_method == 0 {
+        // Reason for fallback: cap read size to max_bytes buffer limit if conversion overflows
         let to_read = usize::try_from(u64::from(entry.uncompressed_size))
             .unwrap_or(max_bytes)
             .min(max_bytes);
@@ -1907,6 +1968,7 @@ pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
     }
 
     if entry.compression_method == 8 {
+        // Reason for fallback: bounded buffer size for streaming compressed deflate payload
         let comp_size = usize::try_from(u64::from(entry.compressed_size))
             .unwrap_or(65536)
             .min(65536);
@@ -1919,7 +1981,9 @@ pub fn read_zip_entry_payload<S: DetectionSource + ?Sized>(
         let mut decomp_buf = vec![0u8; max_bytes];
         let mut total_read = 0usize;
         while total_read < max_bytes {
-            let chunk_slice = decomp_buf.get_mut(total_read..).unwrap_or(&mut []);
+            let Some(chunk_slice) = decomp_buf.get_mut(total_read..) else {
+                break;
+            };
             if chunk_slice.is_empty() {
                 break;
             }
@@ -2076,6 +2140,7 @@ pub fn evaluate_droid_ole2_container<S: DetectionSource + ?Sized>(
 
     let mut sample_buf = vec![0u8; 262144];
     let n = source.read_at(0, &mut sample_buf)?;
+    // Reason for fallback: empty slice used if read buffer length is zero
     let sample = sample_buf.get(..n).unwrap_or(&[]);
 
     let mut candidate_matches = Vec::new();
@@ -2755,26 +2820,17 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_debug_issue359xlsx() {
-        let path = std::path::Path::new("src/formats/dcdata/data/magic/upstream/magic/tests/issue359xlsx.testfile");
-        if !path.exists() {
-            return;
-        }
+    fn test_zip_container_xlsx() {
+        let test_dir = crate::detection::upstream_suite::locate_upstream_tests_dir().unwrap();
+        let path = test_dir.join("issue359xlsx.testfile");
         let data = std::fs::read(path).unwrap();
         let mut source: &[u8] = &data;
-        let eocd = parse_zip_central_directory(&mut source).unwrap();
-        println!("EOCD entries len: {:?}", eocd.as_ref().map(|e| e.len()));
-        if let Some(ref entries) = eocd {
-            for e in entries {
-                println!("Entry: {}, method: {}, offset: {}", e.name, e.compression_method, e.local_header_offset);
-            }
-        }
-        let mut source2: &[u8] = &data;
-        let cand = inspect_zip_container_comprehensive(&mut source2).unwrap();
-        println!("Comprehensive cand: {:?}", cand);
-        let mut source3: &[u8] = &data;
-        let report = crate::detection::guess_format_report(&mut source3, None).unwrap();
-        println!("Candidates in report: {:?}", report.candidates);
+        let cand = inspect_zip_container_comprehensive(&mut source).unwrap().unwrap();
+        assert!(cand.description.contains("Microsoft Excel"));
+        assert_eq!(
+            cand.mime.as_deref(),
+            Some("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        );
     }
 
     #[crate::ctb_test]

@@ -244,6 +244,7 @@ mod tests {
         let mut total_files: usize = 0;
         let mut errors_detected: usize = 0;
         let mut unexpected_successes = Vec::new();
+        let mut unexpected_failures = Vec::new();
 
         for entry in walkdir::WalkDir::new(&err_dir) {
             let entry = entry?;
@@ -253,9 +254,10 @@ mod tests {
                 let bytes = std::fs::read(path)?;
                 let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
 
-                if stem == "params_def_top_imported" || stem == "params_def_subtype_imported" {
-                    continue;
-                }
+                // Per upstream ErrorMessagesSpec.scala, files with leading '#' comments specify
+                // expected errors; files without (auxiliary imported fixtures) expect 0 problems.
+                let expects_error = bytes.starts_with(b"#");
+
                 let failed = match parse_ksy_slice(&bytes) {
                     Err(_) => true,
                     Ok(ksy) => {
@@ -270,20 +272,31 @@ mod tests {
                     }
                 };
 
-                if failed {
-                    errors_detected = errors_detected.saturating_add(1);
-                } else {
-                    unexpected_successes.push(stem.to_string());
+                if expects_error {
+                    if failed {
+                        errors_detected = errors_detected.saturating_add(1);
+                    } else {
+                        unexpected_successes.push(stem.to_string());
+                    }
+                } else if failed {
+                    unexpected_failures.push(stem.to_string());
                 }
             }
         }
 
         unexpected_successes.sort();
+        unexpected_failures.sort();
         ensure!(
             unexpected_successes.is_empty(),
             "Expected all invalid formats to fail validation, but {} succeeded:\n{}",
             unexpected_successes.len(),
             unexpected_successes.join("\n")
+        );
+        ensure!(
+            unexpected_failures.is_empty(),
+            "Expected all auxiliary imported formats to pass validation, but {} failed:\n{}",
+            unexpected_failures.len(),
+            unexpected_failures.join("\n")
         );
         ensure!(
             total_files == 156,

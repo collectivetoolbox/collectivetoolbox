@@ -282,22 +282,22 @@ Supported compression formats:
   deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
   bz2, bzip2: Bzip2 compressed stream
-  bz, bzip, bzip0, bzip-0.21: Original bzip 0.21 format
+  bz, bzip: Original bzip compression
   compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
-  sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
   compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
   compress1, compress-1.0: `compress` 1.0 (LZW headerless format)
   pack: `pack` format, common version (Huffman)
-  opack, oldpack, old-pack, pts-opack, early-pack: `pack` format, early PDP-11 Unix binary tree
-  compact, uncompact: `compact` (McMaster Adaptive Huffman)
-  lz4: LZ4 compression
-  lzma: LZMA compression
-  lzma2: LZMA2 compression
+  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
+  compact: `compact` (McMaster Adaptive Huffman)
+  lz4: LZ4
+  lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
+  lzma2: LZMA container format
   lz, lzip: Lzip compression
-  xz, xzip: XZ compression
+  xz: XZ compression
   zst, zstd: Zstandard compression
-  lzo: LZO compression
+  lzo: LZO (Lempel-Ziv-Oberhumer)
 ```
 
 ### `ctoolbox cp`
@@ -527,12 +527,19 @@ Calculate checksum for a file or stdin
 Usage: ctoolbox csum [OPTIONS] <ALGO> [FILE]
 
 Arguments:
-  <ALGO>  Hash algorithm type (`xxhash32`, `xxhash64`, `xxhash3_64`, `xxhash3_128`)
+  <ALGO>  Hash algorithm type (`sha256`, `xxh32`, `xxh64`, `xxh3`, `xxh128`)
   [FILE]  Input file path (or - for stdin) [default: -]
 
 Options:
       --prefix-0x  Prefix the output hex string with 0x
   -h, --help       Print help
+
+Supported hash algorithms:
+  xxh32, xxhash32: xxHash32
+  xxh64, xxhash64: xxHash64
+  xxh3, xxhash3-64, xxhash3_64: xxHash3-64
+  xxh128, xxhash128, xxhash3-128, xxhash3_128: xxHash3-128
+  sha256, sha-256, sha2-256, sha2_256: SHA-256
 ```
 
 ### `ctoolbox ctb-asset-bundle-extract`
@@ -725,22 +732,22 @@ Supported compression formats:
   deflate, raw-deflate: Raw DEFLATE compressed stream (RFC 1951)
   zl, zz, zlib, zlib-deflate: Zlib-wrapped DEFLATE stream (RFC 1950)
   bz2, bzip2: Bzip2 compressed stream
-  bz, bzip, bzip0, bzip-0.21: Original bzip 0.21 format
+  bz, bzip: Original bzip compression
   compress, compress3, compress4, compress-3.0, compress-4.0: `compress` format, modern LZW block format
-  sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
   compress2, compress-2.0: `compress` 2.0 (LZW non-block format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
   compress1, compress-1.0: `compress` 1.0 (LZW headerless format)
   pack: `pack` format, common version (Huffman)
-  opack, oldpack, old-pack, pts-opack, early-pack: `pack` format, early PDP-11 Unix binary tree
-  compact, uncompact: `compact` (McMaster Adaptive Huffman)
-  lz4: LZ4 compression
-  lzma: LZMA compression
-  lzma2: LZMA2 compression
+  oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
+  compact: `compact` (McMaster Adaptive Huffman)
+  lz4: LZ4
+  lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
+  lzma2: LZMA container format
   lz, lzip: Lzip compression
-  xz, xzip: XZ compression
+  xz: XZ compression
   zst, zstd: Zstandard compression
-  lzo: LZO compression
+  lzo: LZO (Lempel-Ziv-Oberhumer)
 ```
 
 ### `ctoolbox file2metadatajson`

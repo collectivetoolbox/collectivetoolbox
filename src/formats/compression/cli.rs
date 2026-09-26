@@ -33,7 +33,7 @@ pub use crate as ctb_formats_compression;
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 pub struct CliCompressArgs {
     /// Compression format (e.g. `br`, `gz`, `deflate`, `zlib`). See table below for allowed values.
-    pub format: String,
+    pub format: crate::CompressionFormat,
     /// Input file path (or - for stdin)
     #[arg(default_value = "-")]
     pub file: PathBuf,
@@ -92,35 +92,7 @@ pub enum CliCompressionOutput {
 
 /// Infer output filename when decompressing without an explicit output path.
 pub fn infer_decompressed_filename(input_path: &Path) -> PathBuf {
-    let filename_str = input_path.to_string_lossy();
-    let known_exts = [
-        ".old.z", ".Z1.0", ".Z2.0", ".deflate", ".sco", ".br", ".bz2",
-        ".bzip2", ".bz", ".gz", ".gzip", ".zz", ".zl", ".lz4", ".lzma2",
-        ".lzma", ".lzip", ".lz", ".xzip", ".xz", ".zstd", ".zst", ".lzo", ".Z",
-        ".z", ".C",
-    ];
-    for &ext in &known_exts {
-        let is_case_sensitive = ext == ".Z"
-            || ext == ".z"
-            || ext == ".C"
-            || ext == ".old.z"
-            || ext == ".Z1.0"
-            || ext == ".Z2.0";
-
-        let matches = if is_case_sensitive {
-            filename_str.ends_with(ext)
-        } else {
-            filename_str.to_ascii_lowercase().ends_with(ext)
-        };
-
-        if matches {
-            let cut_len = filename_str.len().saturating_sub(ext.len());
-            if let Some(prefix) = filename_str.get(..cut_len) {
-                return PathBuf::from(prefix);
-            }
-        }
-    }
-    PathBuf::from(format!("{}.decompressed", input_path.display()))
+    ctb_formats_utilities::infer_decompressed_path(input_path)
 }
 
 /// Executes compression logic for CLI invocations.
@@ -133,8 +105,7 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-    let compression_format =
-        crate::CompressionFormat::try_from(args.format.as_str())?;
+    let compression_format = args.format;
     let data = read_data(args.file.as_path())?;
     let verify = args.verify_enabled(compression_format);
     let compressed =
@@ -375,6 +346,10 @@ mod tests {
             infer_decompressed_filename(Path::new("unknown.bin")),
             PathBuf::from("unknown.bin.decompressed")
         );
+        assert_eq!(
+            infer_decompressed_filename(Path::new("data.tar.xzip")),
+            PathBuf::from("data.tar.xzip.decompressed")
+        );
     }
 
     #[ctb_test]
@@ -383,7 +358,7 @@ mod tests {
         let crate_fmt = crate::CompressionFormat::Gzip;
 
         let default_args = CliCompressArgs {
-            format: "compress".to_string(),
+            format: crate::CompressionFormat::CompressLzw,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -394,7 +369,7 @@ mod tests {
         assert!(!default_args.verify_enabled(crate_fmt));
 
         let verify_args = CliCompressArgs {
-            format: "gzip".to_string(),
+            format: crate::CompressionFormat::Gzip,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -405,7 +380,7 @@ mod tests {
         assert!(verify_args.verify_enabled(crate_fmt));
 
         let no_verify_args = CliCompressArgs {
-            format: "compress".to_string(),
+            format: crate::CompressionFormat::CompressLzw,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -425,7 +400,7 @@ mod tests {
 
         // Compress with --no-verify
         let args = CliCompressArgs {
-            format: "compress".to_string(),
+            format: crate::CompressionFormat::CompressLzw,
             file: PathBuf::from("-"),
             output: Some(PathBuf::from("-")),
             force: false,
@@ -448,7 +423,7 @@ mod tests {
 
         // Compress with --verify
         let args = CliCompressArgs {
-            format: "gzip".to_string(),
+            format: crate::CompressionFormat::Gzip,
             file: PathBuf::from("-"),
             output: Some(PathBuf::from("-")),
             force: false,
@@ -477,7 +452,7 @@ mod tests {
         assert!(help_str.contains("br, brotli: Brotli compressed stream"));
         assert!(help_str.contains("gz, gzip: GNU gzip format"));
         assert!(help_str.contains(
-            "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
+            "compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
         ));
     }
 
@@ -509,7 +484,7 @@ mod tests {
         assert!(help_str.contains("br, brotli: Brotli compressed stream"));
         assert!(help_str.contains("gz, gzip: GNU gzip format"));
         assert!(help_str.contains(
-            "sco, compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
+            "compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format"
         ));
     }
 }

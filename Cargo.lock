@@ -2819,6 +2819,7 @@ name = "ctb-formats-checksum"
 version = "0.0.0"
 dependencies = [
  "ctb-build-support",
+ "ctb-formats-utilities",
  "ctb-utilities",
  "sha2 0.10.9",
  "tempfile",
@@ -3280,10 +3281,10 @@ version = "0.0.0"
 dependencies = [
  "clap",
  "csv",
- "ctb-formats-checksum",
  "ctb-storage-asset-bundle",
  "ctb-utilities",
  "icu_properties",
+ "sha2 0.10.9",
  "tempfile",
  "ucd-parse",
 ]

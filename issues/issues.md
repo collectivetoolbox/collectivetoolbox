@@ -51,8 +51,6 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated
 Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated/test_switch_manual_int_size.generated.rs: cannot parse string into token stream
 - Use NSURLIsPackageKey if available, or NSWorkspace::isFilePackageAtPath for older Mac or older GNUstep API, rathre than hard-coding a list of bundle names.
 
-- kaitai.rs uses checks of "expected at least n tests to pass" kind of thing instead of failing tests failing
-
 - [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
 
 - Regenerate Guix packaging in CI
