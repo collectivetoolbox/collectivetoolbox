@@ -4,7 +4,7 @@
 - **Core Format Specification DSL & Parser:** Completed (`src/formats/dcdata/format_spec/`)
 - **Prefix Dc Stream Encoder / Decoder:** Completed (`dc_stream.rs`)
 - **Data Migration to `@chain(...)`, `@implies(...)` & `@based_on(...)`:** Completed in CSVs and column spec parser (`src/formats/dcdata/column_spec.rs`)
-- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, confidence tiers, modular refactoring, text encoding subsystem, and upstream `file` test suite harness with differential testing completed; hierarchical magic parity and specialized deep parsers underway)
+- **Declarative File Type Detection Engine & Universal Source Trait:** In Progress (Prototype, source abstraction, format catalog, confidence tiers, modular refactoring, text encoding subsystem, specialized deep parsers, filesystem/inode special detection, and upstream `file` test suite harness completed; hierarchical magic parity underway)
 - **Graph Triples & Relation Predicates:** Pending
 - **Lossless Archive Format Model:** Pending
 - **Parametric Formats (EITE Base Numerals & Line Conventions):** Pending
@@ -111,17 +111,17 @@
     - [ ] Compile all 359 Magdir files (`src/formats/dcdata/data/magic/upstream/magic/Magdir/`, >15,000 rules) into an offline precompiled binary cache or code-generated lookup tables.
     - [ ] Map upstream MIME types and descriptions systematically to authoritative Dc format IDs.
 
-- [ ] **Sub-Phase 5D: Specialized Deep Parsers & Container Inspection (`detection/container.rs`):**
-  - [ ] TAR archive verification: validate octal checksums across the 512-byte header block (V7, ustar, GNU, pax) without full extraction (`is_tar.c`).
-  - [ ] Fast JSON heuristic parser: state-machine scanner validating balanced objects/arrays/literals without eager allocation (`is_json.c`).
-  - [ ] Tabular CSV/TSV validator: column consistency scoring across sample lines (`is_csv.c`).
-  - [ ] OLE2 Compound Document File (CDF) inspector: traverse internal directory streams to classify Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and MSI installers (`readcdf.c`).
-  - [ ] ELF binary inspector: parse ELF header, 32/64-bit, endianness, machine architecture, dynamic linker interpreter (`/lib64/ld-linux-x86-64.so.2`), OS ABI, and notes (`readelf.c`).
-  - [ ] Transparent payload decompression: probe inside gzip, bzip2, xz, and zstd byte streams to inspect inner payload magic (`compress.c`).
+- [x] **Sub-Phase 5D: Specialized Deep Parsers & Container Inspection (`detection/container.rs`):**
+  - [x] TAR archive verification: validate octal checksums across the 512-byte header block (V7, ustar, GNU, pax) without full extraction (`is_tar.c`).
+  - [x] Fast JSON heuristic parser: state-machine scanner validating balanced objects/arrays/literals without eager allocation (`is_json.c`).
+  - [x] Tabular CSV/TSV validator: column consistency scoring across sample lines (`is_csv.c`).
+  - [x] OLE2 Compound Document File (CDF) inspector: traverse internal directory streams to classify Word (`.doc`), Excel (`.xls`), PowerPoint (`.ppt`), and MSI installers (`readcdf.c`).
+  - [x] ELF binary inspector: parse ELF header, 32/64-bit, endianness, machine architecture, dynamic linker interpreter (`/lib64/ld-linux-x86-64.so.2`), OS ABI, and notes (`readelf.c`).
+  - [x] Transparent payload decompression: probe inside gzip, bzip2, xz, and zstd byte streams to inspect inner payload magic (`compress.c`).
 
-- [ ] **Sub-Phase 5E: Filesystem & Inode Special File Detection (`detection/special.rs` from `fsmagic.c`):**
-  - [ ] Explicit detection and candidate generation for 0-byte `Empty` files and 1-3 byte `VeryShort` files.
-  - [ ] Reporting special filesystem entities: directory packages/bundles, symlinks, FIFOs, sockets, block and character devices.
+- [x] **Sub-Phase 5E: Filesystem & Inode Special File Detection (`detection/special.rs` from `fsmagic.c`):**
+  - [x] Explicit detection and candidate generation for 0-byte `Empty` files and 1-3 byte `VeryShort` files.
+  - [x] Reporting special filesystem entities: directory packages/bundles, symlinks, FIFOs, sockets, block and character devices.
 
 - [ ] **Sub-Phase 5F: DROID / PRONOM Signatures & PolyFile Attribution:**
   - [ ] Container signatures for ZIP-based formats (DOCX, XLSX, PPTX, EPUB, JAR, APK, ODF) via central directory inspection without extraction.

@@ -443,8 +443,16 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Combined multi-signal format detection, hierarchical pattern matching,
-//! and multipart extension chain parsing.
+//! Specialized deep parsers and container inspection subsystem.
+//!
+//! Implements procedural format validators ported from `file`:
+//! - TAR archive checksum verification (`is_tar.c`)
+//! - Fast JSON state-machine scanner (`is_json.c`)
+//! - Tabular CSV/TSV consistency validator (`is_csv.c`)
+//! - ELF binary header inspector (`readelf.c`)
+//! - OLE2 Compound Document File (CDF) inspector (`readcdf.c`)
+//! - ZIP container signature inspector (DOCX, XLSX, PPTX, EPUB, APK, JAR, HWPX)
+//! - Transparent payload decompression probe (`compress.c`)
 
 #[allow(
     unused_imports,
@@ -453,515 +461,1125 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub mod chain;
-pub mod conflict;
-pub mod extension;
-pub mod magic;
-pub mod magic_data;
-pub mod magic_parser;
-pub mod mime_derivation;
-pub mod platform;
-pub mod resource_fork;
-pub mod container;
-pub mod source;
-pub mod special;
-pub mod text;
-pub mod types;
-pub mod upstream_suite;
+use std::io::Read;
 
-pub use chain::*;
-pub use conflict::*;
-pub use container::*;
-pub use platform::*;
-pub use source::*;
-pub use special::*;
-pub use text::*;
-pub use types::*;
-pub use upstream_suite::*;
-
-use self::container::detect_container_candidates;
-use self::extension::resolve_extension_candidates;
-use self::magic::evaluate_rule;
-use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
-use self::mime_derivation::FORMAT_CATALOG;
-use self::special::detect_special_entity;
+use crate::detection::source::DetectionSource;
+use crate::detection::types::{
+    ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
+};
 use crate::format_id::FormatId;
 
-/// Primary format detection function returning a comprehensive report.
-pub fn guess_format_report(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Result<DetectionReport> {
-    let mut candidates = Vec::new();
-    let mut bytes_evaluated = 0u64;
-    let mut read_error: Option<String> = None;
+/// Maximum bytes inspected for JSON state-machine parsing.
+const JSON_MAX_INSPECT_BYTES: usize = 65536;
 
-    // 0. Evaluate special filesystem entity hints (special.rs)
-    if let Some(special_cand) = detect_special_entity(hint) {
-        candidates.push(special_cand);
-    }
+/// Maximum bytes inspected for CSV/TSV tabular consistency.
+const CSV_MAX_INSPECT_BYTES: usize = 8192;
 
-    if let Some(h) = hint {
-        if let Some(code) = h.apple_type_code {
-            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code) {
-                candidates.push(DetectionCandidate {
-                    format_id: mapping.format_id,
-                    dc_id: Some(mapping.dc_id),
-                    mime: mapping.mime_types.first().cloned(),
-                    description: mapping.label.clone(),
-                    confidence: ConfidenceTier::Strong,
-                    score: 90,
-                    evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
-                });
+/// Maximum recursion depth allowed during JSON parsing to prevent stack
+/// overflow.
+const JSON_MAX_RECURSION_DEPTH: usize = 500;
+
+// ---------------------------------------------------------------------------
+// 1. TAR Archive Checksum Verification (`is_tar.c`)
+// ---------------------------------------------------------------------------
+
+/// Decodes an octal string field from a TAR header.
+fn decode_tar_octal(bytes: &[u8]) -> Option<u32> {
+    let mut val: u32 = 0;
+    let mut found = false;
+
+    for &b in bytes {
+        if b == b' ' || b == 0 {
+            if found {
+                break;
             }
+            continue;
         }
-        for sc in &h.stream_candidates {
-            candidates.push(sc.clone());
+        if (b'0'..=b'7').contains(&b) {
+            found = true;
+            let digit = u32::from(b.checked_sub(b'0')?);
+            val = val.checked_mul(8)?.checked_add(digit)?;
+        } else {
+            return None;
         }
     }
 
-    let hint_ext = hint.and_then(|h| {
-        h.extension.as_deref().or_else(|| {
-            h.filename.as_deref().and_then(|f| {
-                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
-            })
-        })
-    });
+    if found {
+        Some(val)
+    } else {
+        None
+    }
+}
 
-    let platform = hint.and_then(|h| h.platform);
-    let expected_cat = hint.and_then(|h| h.expected_category);
+/// Inspects source for a valid 512-byte TAR header with matching checksum.
+pub fn inspect_tar<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut header = [0u8; 512];
+    let n = source.read_at(0, &mut header)?;
+    if n < 512 {
+        return Ok(None);
+    }
 
-    // 1. Evaluate static fast magic patterns (MAGIC_REGISTRY)
-    for entry in MAGIC_REGISTRY {
-        let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
-        let mut buf = vec![0u8; req_len];
-        match source.read_at(0, &mut buf) {
-            Ok(n) => {
-                let n_u64 = u64::try_from(n)?;
-                bytes_evaluated = bytes_evaluated.max(n_u64);
-                let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
-                if is_match {
-                    let fmt = entry.format_id;
-                    let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-                    let dc_id = mapping.map(|m| m.dc_id);
-                    // Reason for fallback: unmapped format in static registry uses its Rust identifier as label
-                    let label = mapping
-                        .map(|m| m.label.clone())
-                        .unwrap_or_else(|| fmt.ident().to_string());
-                    let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-                    let mut score = entry.pattern.priority;
-                    let mut evidence = vec![DetectionEvidence::Magic {
-                        description: label.clone(),
-                        score: entry.pattern.priority,
-                    }];
+    // Octal checksum is at bytes 148..156 (8 bytes)
+    let chksum_bytes = match header.get(148..156) {
+        Some(b) => b,
+        None => return Ok(None),
+    };
 
-                    if let Some(ext) = hint_ext {
-                        let ext_norm = ext.to_ascii_lowercase();
-                        // Reason for fallback: format without extension metadata defaults to false for concordance
-                        let match_ext = mapping
-                            .map(|m| {
-                                m.extensions
-                                    .iter()
-                                    .any(|e| e.eq_ignore_ascii_case(&ext_norm))
-                            })
-                            .unwrap_or(false);
-                        if match_ext {
-                            score = score.saturating_add(25);
-                            evidence.push(DetectionEvidence::Extension {
-                                ext: ext.to_string(),
-                                is_primary: true,
-                                score: 25,
-                            });
+    let expected_sum = match decode_tar_octal(chksum_bytes) {
+        Some(sum) => sum,
+        None => return Ok(None),
+    };
+
+    // Calculate sum across all 512 bytes with chksum treated as ASCII spaces
+    let mut calc_sum: u32 = 0;
+    for (i, &b) in header.iter().enumerate() {
+        if (148..156).contains(&i) {
+            calc_sum = calc_sum.saturating_add(u32::from(b' '));
+        } else {
+            calc_sum = calc_sum.saturating_add(u32::from(b));
+        }
+    }
+
+    if calc_sum != expected_sum {
+        return Ok(None);
+    }
+
+    // Inspect magic at offset 257..265
+    let magic_slice = header.get(257..265).unwrap_or(&[]);
+    let (desc, mime) = if magic_slice.starts_with(b"ustar  \0")
+        || magic_slice.starts_with(b"ustar ")
+    {
+        ("POSIX tar archive (GNU)", "application/x-tar")
+    } else if magic_slice.starts_with(b"ustar\0") {
+        ("POSIX tar archive", "application/x-tar")
+    } else {
+        ("tar archive", "application/x-tar")
+    };
+
+    Ok(Some(DetectionCandidate {
+        format_id: Some(FormatId::Tar),
+        dc_id: None,
+        mime: Some(mime.to_string()),
+        description: desc.to_string(),
+        confidence: ConfidenceTier::HighestConfidence,
+        score: 95,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: "Validated 512-byte TAR block checksum".to_string(),
+            score: 95,
+        }],
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// 2. Fast JSON State-Machine Scanner (`is_json.c`)
+// ---------------------------------------------------------------------------
+
+#[derive(Default)]
+struct JsonParseStats {
+    objects: usize,
+    arrays: usize,
+    strings: usize,
+    numbers: usize,
+    constants: usize,
+}
+
+fn json_skip_whitespace(bytes: &[u8], pos: &mut usize) {
+    while let Some(&b) = bytes.get(*pos) {
+        if b == b' ' || b == b'\t' || b == b'\n' || b == b'\r' {
+            *pos = pos.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+}
+
+fn json_parse_string(bytes: &[u8], pos: &mut usize) -> bool {
+    // Consume opening quote
+    *pos = pos.saturating_add(1);
+
+    while *pos < bytes.len() {
+        let b = match bytes.get(*pos) {
+            Some(&val) => val,
+            None => return false,
+        };
+        *pos = pos.saturating_add(1);
+
+        match b {
+            0 => return false,
+            b'"' => return true,
+            b'\\' => {
+                let esc = match bytes.get(*pos) {
+                    Some(&val) => val,
+                    None => return false,
+                };
+                *pos = pos.saturating_add(1);
+                match esc {
+                    b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {}
+                    b'u' => {
+                        // 4 hexadecimal digits
+                        for _ in 0..4 {
+                            let hex = match bytes.get(*pos) {
+                                Some(&val) => val,
+                                None => return false,
+                            };
+                            if hex.is_ascii_hexdigit() {
+                                *pos = pos.saturating_add(1);
+                            } else {
+                                return false;
+                            }
                         }
                     }
-
-                    if let Some(exp_cat) = expected_cat {
-                        if fmt.category() == exp_cat {
-                            score = score.saturating_add(20);
-                            evidence.push(DetectionEvidence::CategoryMatch {
-                                category: exp_cat,
-                                score: 20,
-                            });
-                        }
-                    }
-
-                    let confidence = if score >= 85 {
-                        ConfidenceTier::HighestConfidence
-                    } else if score >= 65 {
-                        ConfidenceTier::Strong
-                    } else if score >= 40 {
-                        ConfidenceTier::Moderate
-                    } else {
-                        ConfidenceTier::Weak
-                    };
-
-                    candidates.push(DetectionCandidate {
-                        format_id: Some(fmt),
-                        dc_id,
-                        mime,
-                        description: label,
-                        confidence,
-                        score,
-                        evidence,
-                    });
+                    _ => return false,
                 }
             }
-            Err(e) => {
-                read_error = Some(e.to_string());
-            }
+            _ => {}
         }
     }
 
-    // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
-    for rule in COMPILED_MAGIC_RULES.iter() {
-        if let Some(match_res) = evaluate_rule(rule, source) {
-            if match_res.description.trim().is_empty() && match_res.mime.is_none() {
-                continue;
-            }
-            let mut score = match_res.score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Magic {
-                description: match_res.description.clone(),
-                score: match_res.score,
-            });
+    false
+}
 
-            // Map MIME or description or extension to format catalog
-            let mapping = match_res
-                .mime
-                .as_deref()
-                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
-                .or_else(|| {
-                    FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
-                })
-                .or_else(|| {
-                    match_res.ext.as_deref().and_then(|ext| {
-                        ext.split(['/', ','])
-                            .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
-                    })
-                });
+fn json_parse_number(bytes: &[u8], pos: &mut usize) -> bool {
+    let mut got_digit = false;
 
-            let format_id = mapping.and_then(|m| m.format_id);
-            let dc_id = mapping.map(|m| m.dc_id);
-            let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
-            // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
-            let description = if match_res.description.is_empty() {
-                mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
+    if let Some(&b'-') = bytes.get(*pos) {
+        *pos = pos.saturating_add(1);
+    }
+
+    while let Some(&b) = bytes.get(*pos) {
+        if b.is_ascii_digit() {
+            got_digit = true;
+            *pos = pos.saturating_add(1);
+        } else {
+            break;
+        }
+    }
+
+    if !got_digit {
+        return false;
+    }
+
+    if let Some(&b'.') = bytes.get(*pos) {
+        *pos = pos.saturating_add(1);
+        let mut got_frac = false;
+        while let Some(&b) = bytes.get(*pos) {
+            if b.is_ascii_digit() {
+                got_frac = true;
+                *pos = pos.saturating_add(1);
             } else {
-                match_res.description
-            };
-
-            // Concordance with extension hint
-            if let Some(ext) = hint_ext {
-                let ext_normalized = ext.to_ascii_lowercase();
-                // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                let rule_ext_match = match_res.ext.as_deref().map(|e| {
-                    e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
-
-                // Reason for fallback: unmapped format evaluates to false for extension concordance
-                let mapping_ext_match = mapping.map(|m| {
-                    m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
-
-                if rule_ext_match || mapping_ext_match {
-                    score = score.saturating_add(25);
-                    evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
-                    });
-                }
+                break;
             }
+        }
+        if !got_frac {
+            return false;
+        }
+    }
 
-            // Platform prior boost from format dataset OS associations
-            if let Some(target_os) = platform {
-                let is_matched = format_id.is_some_and(|fid| {
-                    format_matches_platform(fid, target_os)
-                });
-
-                if is_matched {
-                    score = score.saturating_add(PLATFORM_PRIOR_BONUS);
-                    evidence.push(DetectionEvidence::PlatformPrior {
-                        platform: target_os,
-                        score: PLATFORM_PRIOR_BONUS,
-                    });
-                }
-            }
-
-            // Expected category boost
-            if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
-                if fid.category() == exp_cat {
-                    score = score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
-            }
-
-            let confidence = if score >= 85 {
-                ConfidenceTier::HighestConfidence
-            } else if score >= 65 {
-                ConfidenceTier::Strong
-            } else if score >= 40 {
-                ConfidenceTier::Moderate
+    if let Some(&b'e' | &b'E') = bytes.get(*pos) {
+        *pos = pos.saturating_add(1);
+        if let Some(&b'+' | &b'-') = bytes.get(*pos) {
+            *pos = pos.saturating_add(1);
+        }
+        let mut got_exp = false;
+        while let Some(&b) = bytes.get(*pos) {
+            if b.is_ascii_digit() {
+                got_exp = true;
+                *pos = pos.saturating_add(1);
             } else {
-                ConfidenceTier::Weak
-            };
-
-            // Deduplicate and merge with any existing candidate for the same format or description
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = format_id.is_some() && existing.format_id == format_id;
-                let matches_desc = !description.is_empty() && existing.description.eq_ignore_ascii_case(&description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && format_id.is_some() {
-                        existing.format_id = format_id;
-                    }
-                    if existing.dc_id.is_none() && dc_id.is_some() {
-                        existing.dc_id = dc_id;
-                    }
-                    if existing.mime.is_none() && mime.is_some() {
-                        existing.mime = mime.clone();
-                    }
-                    if score > existing.score {
-                        existing.score = score;
-                        existing.confidence = confidence;
-                    }
-                    if description.len() > existing.description.len() {
-                        existing.description = description.clone();
-                    }
-                    existing.evidence.extend(evidence.clone());
-                    merged = true;
-                    break;
-                }
+                break;
             }
-
-            if !merged {
-                candidates.push(DetectionCandidate {
-                    format_id,
-                    dc_id,
-                    mime,
-                    description,
-                    confidence,
-                    score,
-                    evidence,
-                });
-            }
+        }
+        if !got_exp {
+            return false;
         }
     }
 
-    // 2.3. Evaluate specialized deep parsers and container inspection (container.rs)
-    if let Ok(container_cands) = detect_container_candidates(source, hint) {
-        for cand in container_cands {
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
-                let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
-                        existing.format_id = cand.format_id;
-                    }
-                    if cand.score > existing.score {
-                        existing.score = cand.score;
-                        existing.confidence = cand.confidence;
-                        existing.description = cand.description.clone();
-                    }
-                    if existing.mime.is_none() && cand.mime.is_some() {
-                        existing.mime = cand.mime.clone();
-                    }
-                    existing.evidence.extend(cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(cand);
-            }
+    true
+}
+
+fn json_parse_constant(bytes: &[u8], pos: &mut usize, expected: &[u8]) -> bool {
+    for &exp in expected {
+        let b = match bytes.get(*pos) {
+            Some(&val) => val,
+            None => return false,
+        };
+        if b != exp {
+            return false;
         }
+        *pos = pos.saturating_add(1);
+    }
+    true
+}
+
+fn json_parse_array(
+    bytes: &[u8],
+    pos: &mut usize,
+    stats: &mut JsonParseStats,
+    depth: usize,
+) -> bool {
+    // Consume opening '['
+    *pos = pos.saturating_add(1);
+    json_skip_whitespace(bytes, pos);
+
+    if let Some(&b']') = bytes.get(*pos) {
+        *pos = pos.saturating_add(1);
+        stats.arrays = stats.arrays.saturating_add(1);
+        return true;
     }
 
-    // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
-    let has_strong_magic = candidates.iter().any(|c| c.confidence >= ConfidenceTier::Strong);
-    if !has_strong_magic {
-        if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
-            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
-            bytes_evaluated = bytes_evaluated.max(inspect_size);
+    loop {
+        if !json_parse_value(bytes, pos, stats, depth.saturating_add(1)) {
+            return false;
+        }
+        json_skip_whitespace(bytes, pos);
 
-            let mut merged = false;
-            for existing in &mut candidates {
-                if text_cand.format_id.is_some() && existing.format_id == text_cand.format_id {
-                    if text_cand.score > existing.score {
-                        existing.score = text_cand.score;
-                        existing.confidence = text_cand.confidence;
-                        existing.description = text_cand.description.clone();
-                    }
-                    existing.evidence.extend(text_cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
+        match bytes.get(*pos) {
+            Some(&b',') => {
+                *pos = pos.saturating_add(1);
+                json_skip_whitespace(bytes, pos);
             }
-            if !merged {
-                candidates.push(text_cand);
+            Some(&b']') => {
+                *pos = pos.saturating_add(1);
+                stats.arrays = stats.arrays.saturating_add(1);
+                return true;
             }
+            _ => return false,
         }
     }
+}
 
-    // 3. If extension hint is present, evaluate extension candidates
-    if let Some(ext) = hint_ext {
-        let ext_candidates = resolve_extension_candidates(ext, platform);
-        for (fmt, ext_score) in ext_candidates {
-            // Check if already found via magic
-            if let Some(existing) = candidates.iter_mut().find(|c| c.format_id == Some(fmt)) {
-                let has_ext = existing.evidence.iter().any(|e| matches!(e, DetectionEvidence::Extension { .. }));
-                if !has_ext {
-                    existing.score = existing.score.saturating_add(25);
-                    existing.evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
-                    });
-                    if existing.score >= 85 {
-                        existing.confidence = ConfidenceTier::HighestConfidence;
-                    } else if existing.score >= 65 {
-                        existing.confidence = ConfidenceTier::Strong;
-                    }
-                }
-                continue;
-            }
+fn json_parse_object(
+    bytes: &[u8],
+    pos: &mut usize,
+    stats: &mut JsonParseStats,
+    depth: usize,
+) -> bool {
+    // Consume opening '{'
+    *pos = pos.saturating_add(1);
+    json_skip_whitespace(bytes, pos);
 
-            let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-            let dc_id = mapping.map(|m| m.dc_id);
-            // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
-            let description = mapping
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| fmt.ident().to_string());
-            let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-
-            let mut final_score = ext_score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Extension {
-                ext: ext.to_string(),
-                is_primary: true,
-                score: ext_score,
-            });
-
-            if let Some(exp_cat) = expected_cat {
-                if fmt.category() == exp_cat {
-                    final_score = final_score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
-            }
-
-            let confidence = if final_score >= 65 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-
-            candidates.push(DetectionCandidate {
-                format_id: Some(fmt),
-                dc_id,
-                mime,
-                description,
-                confidence,
-                score: final_score,
-                evidence,
-            });
-        }
+    if let Some(&b'}') = bytes.get(*pos) {
+        *pos = pos.saturating_add(1);
+        stats.objects = stats.objects.saturating_add(1);
+        return true;
     }
 
-    // 4. Resolve candidate conflicts and subsumption hierarchies
-    let resolved = resolve_candidate_conflicts(candidates);
-
-    let stream_signals_used = hint.is_some_and(|h| {
-        !h.stream_candidates.is_empty() || h.apple_type_code.is_some()
-    });
-
-    let outcome = if let Some(err) = read_error {
-        DetectionOutcome::ReadError {
-            offset: 0,
-            message: err,
-        }
-    } else if !resolved.is_empty() {
-        DetectionOutcome::Matched(resolved.clone())
-    } else if let Some(total) = source.total_len() {
-        if total < 4 && hint.is_none() {
-            DetectionOutcome::InsufficientData {
-                available_bytes: total,
-                required_bytes: 4,
+    loop {
+        if let Some(&b'"') = bytes.get(*pos) {
+            if !json_parse_string(bytes, pos) {
+                return false;
             }
         } else {
-            DetectionOutcome::TrueNegative {
-                bytes_inspected: bytes_evaluated,
+            return false;
+        }
+
+        json_skip_whitespace(bytes, pos);
+        if let Some(&b':') = bytes.get(*pos) {
+            *pos = pos.saturating_add(1);
+        } else {
+            return false;
+        }
+
+        if !json_parse_value(bytes, pos, stats, depth.saturating_add(1)) {
+            return false;
+        }
+
+        json_skip_whitespace(bytes, pos);
+        match bytes.get(*pos) {
+            Some(&b',') => {
+                *pos = pos.saturating_add(1);
+                json_skip_whitespace(bytes, pos);
+            }
+            Some(&b'}') => {
+                *pos = pos.saturating_add(1);
+                stats.objects = stats.objects.saturating_add(1);
+                return true;
+            }
+            _ => return false,
+        }
+    }
+}
+
+fn json_parse_value(
+    bytes: &[u8],
+    pos: &mut usize,
+    stats: &mut JsonParseStats,
+    depth: usize,
+) -> bool {
+    if depth > JSON_MAX_RECURSION_DEPTH {
+        return false;
+    }
+
+    json_skip_whitespace(bytes, pos);
+    let b = match bytes.get(*pos) {
+        Some(&val) => val,
+        None => return false,
+    };
+
+    match b {
+        b'"' => {
+            if json_parse_string(bytes, pos) {
+                stats.strings = stats.strings.saturating_add(1);
+                true
+            } else {
+                false
             }
         }
-    } else {
-        DetectionOutcome::TrueNegative {
-            bytes_inspected: bytes_evaluated,
+        b'{' => json_parse_object(bytes, pos, stats, depth),
+        b'[' => json_parse_array(bytes, pos, stats, depth),
+        b't' => {
+            if json_parse_constant(bytes, pos, b"true") {
+                stats.constants = stats.constants.saturating_add(1);
+                true
+            } else {
+                false
+            }
         }
-    };
-
-    Ok(DetectionReport {
-        outcome,
-        candidates: resolved,
-        bytes_evaluated,
-        stream_signals_used,
-    })
+        b'f' => {
+            if json_parse_constant(bytes, pos, b"false") {
+                stats.constants = stats.constants.saturating_add(1);
+                true
+            } else {
+                false
+            }
+        }
+        b'n' => {
+            if json_parse_constant(bytes, pos, b"null") {
+                stats.constants = stats.constants.saturating_add(1);
+                true
+            } else {
+                false
+            }
+        }
+        _ => {
+            if json_parse_number(bytes, pos) {
+                stats.numbers = stats.numbers.saturating_add(1);
+                true
+            } else {
+                false
+            }
+        }
+    }
 }
 
-/// Evaluates magic byte rules, extensions, and environment priors to produce
-/// ranked format candidates.
-pub fn guess_format_candidates(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Vec<DetectionCandidate> {
-    // Reason for fallback: best-effort format candidate discovery defaults to an empty candidate list if report generation fails
-    guess_format_report(source, hint)
-        .map(|rep| rep.candidates)
-        .unwrap_or_default()
-}
+/// Evaluates buffer with JSON state machine scanner.
+/// Returns 1 for single JSON document, 2 for NDJSON / JSONLines, 0 for not JSON.
+pub fn scan_json(bytes: &[u8]) -> u8 {
+    let mut pos = 0;
+    let mut stats = JsonParseStats::default();
 
-/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
-pub fn guess_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    detect_format_id(data, filename_or_ext, expected_category)
-}
+    json_skip_whitespace(bytes, &mut pos);
+    if pos >= bytes.len() {
+        return 0;
+    }
 
-/// Backward-compatible detection function picking the top candidate's `FormatId`.
-pub fn detect_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| DetectionHint {
-        filename: Some(name.to_string()),
-        extension: None,
-        platform: None,
-        expected_category,
-        ..Default::default()
-    });
+    // Top-level document must start with '{' or '[' to be recognized as JSON
+    match bytes.get(pos) {
+        Some(&b'{' | &b'[') => {}
+        _ => return 0,
+    }
 
-    let candidates = if let Some(bytes) = data {
-        let mut slice = bytes;
-        guess_format_candidates(&mut slice, hint.as_ref())
-    } else {
-        let mut empty = EmptySource;
-        guess_format_candidates(&mut empty, hint.as_ref())
-    };
+    let ok = json_parse_value(bytes, &mut pos, &mut stats, 0);
+    if !ok {
+        return 0;
+    }
 
-    if let Some(cat) = expected_category {
-        if let Some(fmt) = candidates
-            .iter()
-            .filter_map(|c| c.format_id)
-            .find(|fmt| fmt.category() == cat)
-        {
-            return Some(fmt);
+    json_skip_whitespace(bytes, &mut pos);
+    if pos >= bytes.len() {
+        if stats.objects > 0 || stats.arrays > 0 {
+            return 1;
+        }
+        return 0;
+    }
+
+    // Check if multiple JSON records appear on subsequent lines (NDJSON)
+    let mut count: usize = 1;
+    while pos < bytes.len() {
+        json_skip_whitespace(bytes, &mut pos);
+        if pos >= bytes.len() {
+            break;
+        }
+        match bytes.get(pos) {
+            Some(&b'{' | &b'[') => {
+                if json_parse_value(bytes, &mut pos, &mut stats, 0) {
+                    count = count.saturating_add(1);
+                } else {
+                    return 0;
+                }
+            }
+            _ => return 0,
         }
     }
 
-    candidates.into_iter().find_map(|c| c.format_id)
+    if count > 1 {
+        2
+    } else {
+        0
+    }
+}
+
+/// Inspects source for JSON text data or NDJSON.
+pub fn inspect_json<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut buf = vec![0u8; JSON_MAX_INSPECT_BYTES];
+    let n = source.read_at(0, &mut buf)?;
+    if n == 0 {
+        return Ok(None);
+    }
+
+    let sample = match buf.get(..n) {
+        Some(s) => s,
+        None => return Ok(None),
+    };
+
+    match scan_json(sample) {
+        1 => Ok(Some(DetectionCandidate {
+            format_id: Some(FormatId::Json),
+            dc_id: None,
+            mime: Some("application/json".to_string()),
+            description: "JSON text data".to_string(),
+            confidence: ConfidenceTier::Strong,
+            score: 90,
+            evidence: vec![DetectionEvidence::ContainerStructure {
+                detail: "Validated JSON structure".to_string(),
+                score: 90,
+            }],
+        })),
+        2 => Ok(Some(DetectionCandidate {
+            format_id: Some(FormatId::Json),
+            dc_id: None,
+            mime: Some("application/x-ndjson".to_string()),
+            description: "New Line Delimited JSON text data".to_string(),
+            confidence: ConfidenceTier::Strong,
+            score: 85,
+            evidence: vec![DetectionEvidence::ContainerStructure {
+                detail: "Validated New Line Delimited JSON lines".to_string(),
+                score: 85,
+            }],
+        })),
+        _ => Ok(None),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Tabular CSV/TSV Consistency Validator (`is_csv.c`)
+// ---------------------------------------------------------------------------
+
+/// Inspects source for tabular consistency (CSV or TSV).
+pub fn inspect_csv_tsv<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut buf = vec![0u8; CSV_MAX_INSPECT_BYTES];
+    let n = source.read_at(0, &mut buf)?;
+    if n < 4 {
+        return Ok(None);
+    }
+
+    let sample = match buf.get(..n) {
+        Some(s) => s,
+        None => return Ok(None),
+    };
+
+    // Ensure sample is valid text (ASCII or UTF-8)
+    if std::str::from_utf8(sample).is_err() {
+        return Ok(None);
+    }
+
+    // Try CSV with ','
+    if let Some(cand) = check_delimited_table(sample, b',', FormatId::Csv, "text/csv", "CSV text") {
+        return Ok(Some(cand));
+    }
+
+    // Try TSV with '\t'
+    if let Some(cand) = check_delimited_table(
+        sample,
+        b'\t',
+        FormatId::Tsv,
+        "text/tab-separated-values",
+        "TSV text",
+    ) {
+        return Ok(Some(cand));
+    }
+
+    Ok(None)
+}
+
+fn check_delimited_table(
+    bytes: &[u8],
+    delim: u8,
+    format_id: FormatId,
+    mime: &str,
+    desc: &str,
+) -> Option<DetectionCandidate> {
+    let mut line_count: usize = 0;
+    let mut target_fields: Option<usize> = None;
+    let mut pos: usize = 0;
+
+    while pos < bytes.len() && line_count < 15 {
+        let mut field_count: usize = 1;
+        let mut in_quotes = false;
+        let mut line_has_content = false;
+
+        while let Some(&b) = bytes.get(pos) {
+            pos = pos.saturating_add(1);
+
+            if b == b'"' {
+                in_quotes = !in_quotes;
+                line_has_content = true;
+            } else if b == delim && !in_quotes {
+                field_count = field_count.saturating_add(1);
+                line_has_content = true;
+            } else if b == b'\n' && !in_quotes {
+                break;
+            } else if b != b'\r' && !b.is_ascii_whitespace() {
+                line_has_content = true;
+            }
+        }
+
+        if line_has_content {
+            if let Some(target) = target_fields {
+                if field_count != target {
+                    return None;
+                }
+            } else {
+                if field_count <= 1 {
+                    return None;
+                }
+                target_fields = Some(field_count);
+            }
+            line_count = line_count.saturating_add(1);
+        }
+    }
+
+    if line_count >= 2 && target_fields.is_some_and(|f| f > 1) {
+        Some(DetectionCandidate {
+            format_id: Some(format_id),
+            dc_id: None,
+            mime: Some(mime.to_string()),
+            description: desc.to_string(),
+            confidence: ConfidenceTier::Moderate,
+            score: 70,
+            evidence: vec![DetectionEvidence::ContainerStructure {
+                detail: format!("Consistent {line_count} rows with {target_fields:?} columns"),
+                score: 70,
+            }],
+        })
+    } else {
+        None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 4. ELF Binary Header Inspector (`readelf.c`)
+// ---------------------------------------------------------------------------
+
+/// Inspects source for ELF binary executable or library header.
+pub fn inspect_elf<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut hdr = [0u8; 64];
+    let n = source.read_at(0, &mut hdr)?;
+    if n < 52 {
+        return Ok(None);
+    }
+
+    if !hdr.starts_with(b"\x7fELF") {
+        return Ok(None);
+    }
+
+    let class_byte = hdr.get(4).copied().unwrap_or(0);
+    let (is_64bit, class_str) = match class_byte {
+        1 => (false, "32-bit"),
+        2 => (true, "64-bit"),
+        _ => return Ok(None),
+    };
+
+    let data_byte = hdr.get(5).copied().unwrap_or(0);
+    let (is_le, endian_str) = match data_byte {
+        1 => (true, "LSB"),
+        2 => (false, "MSB"),
+        _ => return Ok(None),
+    };
+
+    let osabi_byte = hdr.get(7).copied().unwrap_or(0);
+    let osabi_str = match osabi_byte {
+        0 => "SYSV",
+        1 => "HP-UX",
+        2 => "NetBSD",
+        3 => "Linux",
+        6 => "Solaris",
+        9 => "FreeBSD",
+        12 => "OpenBSD",
+        _ => "SYSV",
+    };
+
+    // Read e_type at bytes 16..18
+    let e_type = if is_le {
+        u16::from_le_bytes([hdr.get(16).copied().unwrap_or(0), hdr.get(17).copied().unwrap_or(0)])
+    } else {
+        u16::from_be_bytes([hdr.get(16).copied().unwrap_or(0), hdr.get(17).copied().unwrap_or(0)])
+    };
+
+    let (type_str, mime) = match e_type {
+        1 => ("relocatable", "application/x-object"),
+        2 => ("executable", "application/x-executable"),
+        3 => ("pie executable", "application/x-pie-executable"),
+        4 => ("core file", "application/x-coredump"),
+        _ => ("executable", "application/x-executable"),
+    };
+
+    // Read e_machine at bytes 18..20
+    let e_machine = if is_le {
+        u16::from_le_bytes([hdr.get(18).copied().unwrap_or(0), hdr.get(19).copied().unwrap_or(0)])
+    } else {
+        u16::from_be_bytes([hdr.get(18).copied().unwrap_or(0), hdr.get(19).copied().unwrap_or(0)])
+    };
+
+    let arch_str = match e_machine {
+        0x03 => "Intel 80386",
+        0x28 => "ARM",
+        0x3E => "x86-64",
+        0xB7 => "ARM aarch64",
+        0xF3 => "RISC-V",
+        0x08 => "MIPS",
+        0x14 => "PowerPC",
+        0x15 => "PowerPC 64-bit",
+        0x02 => "SPARC",
+        0x2B => "SPARC V9",
+        0x16 => "IBM S/390",
+        _ => "unknown architecture",
+    };
+
+    let desc = format!("ELF {class_str} {endian_str} {type_str}, {arch_str}, version 1 ({osabi_str})");
+
+    Ok(Some(DetectionCandidate {
+        format_id: Some(FormatId::Elf),
+        dc_id: None,
+        mime: Some(mime.to_string()),
+        description: desc,
+        confidence: ConfidenceTier::HighestConfidence,
+        score: 98,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: format!("Parsed ELF {class_str} {arch_str} header"),
+            score: 98,
+        }],
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// 5. OLE2 Compound Document File (CDF) Inspector (`readcdf.c`)
+// ---------------------------------------------------------------------------
+
+const OLE2_MAGIC: [u8; 8] = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+
+/// Inspects source for OLE2 CDF containers (Word, Excel, PowerPoint, MSI, HWP).
+pub fn inspect_ole2_cdf<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut header = [0u8; 512];
+    let n = source.read_at(0, &mut header)?;
+    if n < 512 || !header.starts_with(&OLE2_MAGIC) {
+        return Ok(None);
+    }
+
+    let sector_shift = u16::from_le_bytes([
+        header.get(30).copied().unwrap_or(9),
+        header.get(31).copied().unwrap_or(0),
+    ]);
+    let sector_size: u64 = 1u64.checked_shl(u32::from(sector_shift)).unwrap_or(512);
+
+    let first_dir_sector = u32::from_le_bytes([
+        header.get(48).copied().unwrap_or(0),
+        header.get(49).copied().unwrap_or(0),
+        header.get(50).copied().unwrap_or(0),
+        header.get(51).copied().unwrap_or(0),
+    ]);
+
+    // Directory sector offset is (first_dir_sector + 1) * sector_size
+    let dir_offset = u64::from(first_dir_sector.saturating_add(1)).saturating_mul(sector_size);
+
+    let mut dir_buf = vec![0u8; usize::try_from(sector_size.min(4096)).unwrap_or(512)];
+    let dir_read = source.read_at(dir_offset, &mut dir_buf)?;
+
+    // Scan directory entries (128 bytes each)
+    let mut stream_names = Vec::new();
+    let entry_count = dir_read.checked_div(128).unwrap_or(0);
+    for idx in 0..entry_count {
+        let entry_start = idx.saturating_mul(128);
+        if let Some(entry) = dir_buf.get(entry_start..entry_start.saturating_add(128)) {
+            let name_len = u16::from_le_bytes([
+                entry.get(64).copied().unwrap_or(0),
+                entry.get(65).copied().unwrap_or(0),
+            ]);
+            let name_bytes_len = usize::try_from(name_len).unwrap_or(0).min(64);
+            if name_bytes_len >= 2 {
+                let name_words: Vec<u16> = entry
+                    .get(..name_bytes_len.saturating_sub(2))
+                    .unwrap_or(&[])
+                    .chunks_exact(2)
+                    .map(|c| u16::from_le_bytes([c.first().copied().unwrap_or(0), c.get(1).copied().unwrap_or(0)]))
+                    .collect();
+                if let Ok(name) = String::from_utf16(&name_words) {
+                    stream_names.push(name);
+                }
+            }
+        }
+    }
+
+    for name in &stream_names {
+        if name == "WordDocument" {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/msword".to_string()),
+                description: "Microsoft Word 97-2004 Document".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Found OLE2 WordDocument stream".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name == "Book" || name == "Workbook" {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/vnd.ms-excel".to_string()),
+                description: "Microsoft Excel 97-2004 Worksheet".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Found OLE2 Workbook stream".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name == "PowerPoint Document" || name == "Current User" {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/vnd.ms-powerpoint".to_string()),
+                description: "Microsoft PowerPoint 97-2004 Presentation".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Found OLE2 PowerPoint stream".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name == "DigitalSignature" {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/vnd.ms-msi".to_string()),
+                description: "Microsoft Installer".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Found OLE2 DigitalSignature stream".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name == "FileHeader" || name == "HwpSummaryInformation" {
+            // Check for Hancom HWP 5.0
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/x-hwp".to_string()),
+                description: "Hancom HWP (Hangul Word Processor) file, version 5.0".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Found OLE2 Hancom HWP streams".to_string(),
+                    score: 95,
+                }],
+            }));
+        }
+    }
+
+    Ok(Some(DetectionCandidate {
+        format_id: None,
+        dc_id: None,
+        mime: Some("application/x-ole-storage".to_string()),
+        description: "Composite Document File V2 Document".to_string(),
+        confidence: ConfidenceTier::Strong,
+        score: 80,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: "Identified OLE2 Compound Document File structure".to_string(),
+            score: 80,
+        }],
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// 6. ZIP Container Inspection (DOCX, XLSX, PPTX, EPUB, APK, JAR, HWPX)
+// ---------------------------------------------------------------------------
+
+const ZIP_LOCAL_HEADER_MAGIC: [u8; 4] = [0x50, 0x4B, 0x03, 0x04];
+
+/// Inspects source for ZIP archive containers and specialized package formats.
+pub fn inspect_zip_container<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut buf = vec![0u8; 8192];
+    let n = source.read_at(0, &mut buf)?;
+    if n < 30 || !buf.starts_with(&ZIP_LOCAL_HEADER_MAGIC) {
+        return Ok(None);
+    }
+
+    let sample = match buf.get(..n) {
+        Some(s) => s,
+        None => return Ok(None),
+    };
+
+    // Scan initial local file headers
+    let mut file_names = Vec::new();
+    let mut pos: usize = 0;
+    while pos.saturating_add(30) <= sample.len() {
+        if sample.get(pos..pos.saturating_add(4)) == Some(&ZIP_LOCAL_HEADER_MAGIC) {
+            let flen = u16::from_le_bytes([
+                sample.get(pos.saturating_add(26)).copied().unwrap_or(0),
+                sample.get(pos.saturating_add(27)).copied().unwrap_or(0),
+            ]);
+            let elen = u16::from_le_bytes([
+                sample.get(pos.saturating_add(28)).copied().unwrap_or(0),
+                sample.get(pos.saturating_add(29)).copied().unwrap_or(0),
+            ]);
+            let name_start = pos.saturating_add(30);
+            let name_end = name_start.saturating_add(usize::from(flen));
+            if let Some(name_bytes) = sample.get(name_start..name_end) {
+                if let Ok(name) = std::str::from_utf8(name_bytes) {
+                    file_names.push(name.to_string());
+                }
+            }
+            pos = name_end.saturating_add(usize::from(elen)).max(pos.saturating_add(1));
+        } else {
+            pos = pos.saturating_add(1);
+        }
+    }
+
+    // Check for Office Open XML and specialized ZIP packages
+    for name in &file_names {
+        if name.starts_with("word/") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        .to_string(),
+                ),
+                description: "Microsoft Word 2007+".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified DOCX structure with word/ entry".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name.starts_with("xl/") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string(),
+                ),
+                description: "Microsoft Excel 2007+".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified XLSX structure with xl/ entry".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name.starts_with("ppt/") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some(
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                        .to_string(),
+                ),
+                description: "Microsoft PowerPoint 2007+".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified PPTX structure with ppt/ entry".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name.starts_with("Contents/content.hwpml") || name.starts_with("version.xml") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/x-hwpx".to_string()),
+                description: "Hancom HWP (Hangul Word Processor) file, HWPX".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified HWPX structure with Contents/ entry".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name == "AndroidManifest.xml" {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/vnd.android.package-archive".to_string()),
+                description: "Android package (APK)".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified APK with AndroidManifest.xml".to_string(),
+                    score: 95,
+                }],
+            }));
+        } else if name.starts_with("META-INF/MANIFEST.MF") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/java-archive".to_string()),
+                description: "Java archive data (JAR)".to_string(),
+                confidence: ConfidenceTier::Strong,
+                score: 90,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified JAR with META-INF/MANIFEST.MF".to_string(),
+                    score: 90,
+                }],
+            }));
+        } else if name == "mimetype" && sample.windows(20).any(|w| w == b"application/epub+zip") {
+            return Ok(Some(DetectionCandidate {
+                format_id: None,
+                dc_id: None,
+                mime: Some("application/epub+zip".to_string()),
+                description: "EPUB document".to_string(),
+                confidence: ConfidenceTier::HighestConfidence,
+                score: 95,
+                evidence: vec![DetectionEvidence::ContainerStructure {
+                    detail: "Identified EPUB mimetype".to_string(),
+                    score: 95,
+                }],
+            }));
+        }
+    }
+
+    Ok(Some(DetectionCandidate {
+        format_id: Some(FormatId::Zip),
+        dc_id: None,
+        mime: Some("application/zip".to_string()),
+        description: "Zip archive data".to_string(),
+        confidence: ConfidenceTier::Strong,
+        score: 85,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: "Identified ZIP header entries".to_string(),
+            score: 85,
+        }],
+    }))
+}
+
+// ---------------------------------------------------------------------------
+// 7. Transparent Payload Decompression Probe (`compress.c`)
+// ---------------------------------------------------------------------------
+
+/// Probes inside compressed streams to inspect inner payload format.
+pub fn probe_decompression<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let mut magic = [0u8; 4];
+    let n = source.read_at(0, &mut magic)?;
+    if n < 2 {
+        return Ok(None);
+    }
+
+    // Gzip probe: [0x1f, 0x8b]
+    if magic.starts_with(&[0x1F, 0x8B]) {
+        let mut compressed_buf = vec![0u8; 16384];
+        let c_len = source.read_at(0, &mut compressed_buf)?;
+        if let Some(data) = compressed_buf.get(..c_len) {
+            let mut decoder = flate2::read::GzDecoder::new(data);
+            let mut decompressed = vec![0u8; 2048];
+            if let Ok(d_len) = decoder.read(&mut decompressed) {
+                if d_len >= 512 {
+                    let mut slice = &decompressed[..d_len];
+                    if let Ok(Some(inner_tar)) = inspect_tar(&mut slice) {
+                        return Ok(Some(DetectionCandidate {
+                            format_id: Some(FormatId::TarGz),
+                            dc_id: None,
+                            mime: Some("application/x-tar".to_string()),
+                            description: "POSIX tar archive (gzip compressed)".to_string(),
+                            confidence: ConfidenceTier::HighestConfidence,
+                            score: 95,
+                            evidence: vec![
+                                DetectionEvidence::ContainerStructure {
+                                    detail: "Decompressed inner TAR header validated".to_string(),
+                                    score: 95,
+                                },
+                            ],
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+// ---------------------------------------------------------------------------
+// Public Subsystem Coordinator
+// ---------------------------------------------------------------------------
+
+/// Evaluates all container, structured format, and decompression inspectors on
+/// source.
+pub fn detect_container_candidates<S: DetectionSource + ?Sized>(
+    source: &mut S,
+    _hint: Option<&DetectionHint>,
+) -> Result<Vec<DetectionCandidate>> {
+    let mut candidates = Vec::new();
+
+    // 1. Transparent decompression probe
+    if let Ok(Some(decomp_cand)) = probe_decompression(source) {
+        candidates.push(decomp_cand);
+        return Ok(candidates);
+    }
+
+    // 2. ELF binary inspection
+    if let Ok(Some(elf_cand)) = inspect_elf(source) {
+        candidates.push(elf_cand);
+        return Ok(candidates);
+    }
+
+    // 3. OLE2 CDF inspection
+    if let Ok(Some(ole_cand)) = inspect_ole2_cdf(source) {
+        candidates.push(ole_cand);
+        return Ok(candidates);
+    }
+
+    // 4. ZIP container inspection
+    if let Ok(Some(zip_cand)) = inspect_zip_container(source) {
+        candidates.push(zip_cand);
+        return Ok(candidates);
+    }
+
+    // 5. TAR archive verification
+    if let Ok(Some(tar_cand)) = inspect_tar(source) {
+        candidates.push(tar_cand);
+        return Ok(candidates);
+    }
+
+    // 6. JSON state-machine scanner
+    if let Ok(Some(json_cand)) = inspect_json(source) {
+        candidates.push(json_cand);
+        return Ok(candidates);
+    }
+
+    // 7. CSV/TSV tabular consistency
+    if let Ok(Some(csv_cand)) = inspect_csv_tsv(source) {
+        candidates.push(csv_cand);
+    }
+
+    Ok(candidates)
 }
 
 #[cfg(test)]
@@ -979,149 +1597,75 @@ mod tests {
     use super::*;
 
     #[ctb_test]
-    fn test_detect_format_id() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = detect_format_id(
-            Some(&gzip_data),
-            Some("doc.gz"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Gzip));
+    fn test_inspect_json_valid_object() {
+        let json_data = br#"{"key": "value", "count": 42, "enabled": true}"#;
+        let mut source: &[u8] = json_data;
+        let cand = inspect_json(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "JSON text data");
+        assert_eq!(cand.mime.as_deref(), Some("application/json"));
+        assert_eq!(cand.format_id, Some(FormatId::Json));
     }
 
     #[ctb_test]
-    fn test_guess_format_candidates() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut slice: &[u8] = &gzip_data;
-        let hint = DetectionHint {
-            filename: Some("archive.gz".to_string()),
-            ..Default::default()
-        };
-        let candidates = guess_format_candidates(&mut slice, Some(&hint));
-        assert!(!candidates.is_empty());
-        let top = &candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Gzip));
-        assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
+    fn test_inspect_json_ndjson() {
+        let ndjson_data = b"{\"a\": 1}\n{\"b\": 2}\n";
+        let mut source: &[u8] = ndjson_data;
+        let cand = inspect_json(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "New Line Delimited JSON text data");
+        assert_eq!(cand.mime.as_deref(), Some("application/x-ndjson"));
     }
 
     #[ctb_test]
-    fn test_detect_brotli() {
-        let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
-        let mut slice: &[u8] = &brotli_data;
-        let hint = DetectionHint {
-            filename: Some("/tmp/system_in.br".to_string()),
-            expected_category: Some(FormatCategory::Compression),
-            ..Default::default()
-        };
-        let fmt = detect_format_id(
-            Some(&brotli_data),
-            Some("/tmp/system_in.br"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Brotli));
+    fn test_inspect_csv_valid() {
+        let csv_data = b"name,age,city\nAlice,30,New York\nBob,25,Chicago\n";
+        let mut source: &[u8] = csv_data;
+        let cand = inspect_csv_tsv(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "CSV text");
+        assert_eq!(cand.mime.as_deref(), Some("text/csv"));
+        assert_eq!(cand.format_id, Some(FormatId::Csv));
     }
 
     #[ctb_test]
-    fn test_detection_report_outcomes() {
-        // Insufficient data
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let report_insufficient = guess_format_report(&mut empty_slice, None).unwrap();
-        assert!(matches!(
-            report_insufficient.outcome,
-            DetectionOutcome::InsufficientData { available_bytes: 0, required_bytes: 4 }
-        ));
+    fn test_inspect_elf_header() {
+        let mut elf_bytes = vec![0u8; 64];
+        elf_bytes[..4].copy_from_slice(b"\x7fELF");
+        elf_bytes[4] = 2; // 64-bit
+        elf_bytes[5] = 1; // LSB
+        elf_bytes[6] = 1; // version
+        elf_bytes[7] = 0; // SYSV
+        elf_bytes[16] = 2; // executable
+        elf_bytes[18] = 0x3E; // x86-64
 
-        // True negative (random non-matching bytes with no hint)
-        let random_data = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
-        let mut rand_slice: &[u8] = &random_data;
-        let report_neg = guess_format_report(&mut rand_slice, None).unwrap();
-        assert!(
-            matches!(report_neg.outcome, DetectionOutcome::TrueNegative { .. }),
-            "Expected TrueNegative, got: {:?}",
-            report_neg.outcome
-        );
-
-        // Matched
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut gz_slice: &[u8] = &gzip_data;
-        let report_matched = guess_format_report(&mut gz_slice, None).unwrap();
-        assert!(matches!(report_matched.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report_matched.candidates[0].format_id, Some(FormatId::Gzip));
+        let mut source: &[u8] = &elf_bytes;
+        let cand = inspect_elf(&mut source).unwrap().unwrap();
+        assert!(cand.description.contains("ELF 64-bit LSB executable, x86-64"));
+        assert_eq!(cand.mime.as_deref(), Some("application/x-executable"));
+        assert_eq!(cand.format_id, Some(FormatId::Elf));
     }
 
     #[ctb_test]
-    fn test_detection_with_stream_and_apple_type_hint() {
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let hint = DetectionHint {
-            apple_type_code: Some(*b"TEXT"),
-            stream_candidates: vec![DetectionCandidate {
-                format_id: Some(FormatId::Ascii),
-                dc_id: None,
-                mime: Some("text/plain".to_string()),
-                description: "Mac resource fork plain text".to_string(),
-                confidence: ConfidenceTier::Strong,
-                score: 75,
-                evidence: vec![DetectionEvidence::AttachedStream {
-                    stream_kind_name: "MacResourceFork".to_string(),
-                    detail: "Resource type TEXT".to_string(),
-                    score: 75,
-                }],
-            }],
-            ..Default::default()
-        };
+    fn test_inspect_tar_header() {
+        let mut tar_bytes = vec![0u8; 512];
+        tar_bytes[..5].copy_from_slice(b"hello");
+        tar_bytes[257..263].copy_from_slice(b"ustar\0");
 
-        let report = guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
-        assert!(report.stream_signals_used);
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
-    }
+        // Calculate checksum
+        let mut sum: u32 = 0;
+        for (i, &b) in tar_bytes.iter().enumerate() {
+            if (148..156).contains(&i) {
+                sum = sum.saturating_add(u32::from(b' '));
+            } else {
+                sum = sum.saturating_add(u32::from(b));
+            }
+        }
+        let chksum_str = format!("{sum:06o}\0 ");
+        tar_bytes[148..156].copy_from_slice(chksum_str.as_bytes());
 
-    #[ctb_test]
-    fn test_detect_plain_text_report() {
-        let text_data = b"Hello, world! This is a plain ASCII text file.\nWith standard LF lines.\n";
-        let mut slice: &[u8] = text_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert!(!report.candidates.is_empty());
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Ascii));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::Encoding { .. })));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::TextProperties { .. })));
-    }
-
-    #[ctb_test]
-    fn test_detect_c_source() {
-        let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
-        let mut slice: &[u8] = c_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::C));
-        assert_eq!(top.mime.as_deref(), Some("text/x-c"));
-    }
-
-    #[ctb_test]
-    fn test_detect_python_shebang() {
-        let py_data = b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
-        let mut slice: &[u8] = py_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.mime.as_deref(), Some("text/x-python"));
-        assert!(top.description.contains("Python script"));
-    }
-
-    #[ctb_test]
-    fn test_detect_html_document() {
-        let html_data = b"<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
-        let mut slice: &[u8] = html_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Html));
-        assert_eq!(top.mime.as_deref(), Some("text/html"));
+        let mut source: &[u8] = &tar_bytes;
+        let cand = inspect_tar(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "POSIX tar archive");
+        assert_eq!(cand.mime.as_deref(), Some("application/x-tar"));
+        assert_eq!(cand.format_id, Some(FormatId::Tar));
     }
 }
 /*

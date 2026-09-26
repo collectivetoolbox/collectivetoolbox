@@ -528,6 +528,16 @@ pub enum DetectionEvidence {
         has_escapes: bool,
         score: u32,
     },
+    /// Special file or filesystem entity.
+    SpecialFile {
+        kind: String,
+        score: u32,
+    },
+    /// Container or specialized structural inspection evidence.
+    ContainerStructure {
+        detail: String,
+        score: u32,
+    },
 }
 
 /// Output candidate produced by format detection.
@@ -558,6 +568,7 @@ pub struct DetectionHint {
     pub expected_category: Option<FormatCategory>,
     pub apple_type_code: Option<[u8; 4]>,
     pub stream_candidates: Vec<DetectionCandidate>,
+    pub special_kind: Option<String>,
 }
 
 /// Detailed outcome of format detection.

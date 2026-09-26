@@ -443,8 +443,12 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Combined multi-signal format detection, hierarchical pattern matching,
-//! and multipart extension chain parsing.
+//! Filesystem and inode special file detection subsystem ported from
+//! `fsmagic.c` in `file`.
+//!
+//! Provides explicit detection for empty (0-byte) streams, very short (1–3 byte)
+//! streams without magic, and special filesystem entities (directories,
+//! symlinks, FIFOs, sockets, block and character devices).
 
 #[allow(
     unused_imports,
@@ -453,515 +457,95 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 use crate::utilities::*;
 
-pub mod chain;
-pub mod conflict;
-pub mod extension;
-pub mod magic;
-pub mod magic_data;
-pub mod magic_parser;
-pub mod mime_derivation;
-pub mod platform;
-pub mod resource_fork;
-pub mod container;
-pub mod source;
-pub mod special;
-pub mod text;
-pub mod types;
-pub mod upstream_suite;
+use crate::detection::source::DetectionSource;
+use crate::detection::types::{
+    ConfidenceTier, DetectionCandidate, DetectionEvidence, DetectionHint,
+};
 
-pub use chain::*;
-pub use conflict::*;
-pub use container::*;
-pub use platform::*;
-pub use source::*;
-pub use special::*;
-pub use text::*;
-pub use types::*;
-pub use upstream_suite::*;
+/// Evaluates special filesystem entity hints (directory, symlink, fifo, socket,
+/// devices).
+pub fn detect_special_entity(hint: Option<&DetectionHint>) -> Option<DetectionCandidate> {
+    let hint = hint?;
+    let kind = hint.special_kind.as_deref()?;
 
-use self::container::detect_container_candidates;
-use self::extension::resolve_extension_candidates;
-use self::magic::evaluate_rule;
-use self::magic_data::{COMPILED_MAGIC_RULES, MAGIC_REGISTRY};
-use self::mime_derivation::FORMAT_CATALOG;
-use self::special::detect_special_entity;
-use crate::format_id::FormatId;
-
-/// Primary format detection function returning a comprehensive report.
-pub fn guess_format_report(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Result<DetectionReport> {
-    let mut candidates = Vec::new();
-    let mut bytes_evaluated = 0u64;
-    let mut read_error: Option<String> = None;
-
-    // 0. Evaluate special filesystem entity hints (special.rs)
-    if let Some(special_cand) = detect_special_entity(hint) {
-        candidates.push(special_cand);
-    }
-
-    if let Some(h) = hint {
-        if let Some(code) = h.apple_type_code {
-            if let Some(mapping) = FORMAT_CATALOG.lookup_apple_type_code(&code) {
-                candidates.push(DetectionCandidate {
-                    format_id: mapping.format_id,
-                    dc_id: Some(mapping.dc_id),
-                    mime: mapping.mime_types.first().cloned(),
-                    description: mapping.label.clone(),
-                    confidence: ConfidenceTier::Strong,
-                    score: 90,
-                    evidence: vec![DetectionEvidence::AppleTypeCode { code, score: 90 }],
-                });
-            }
-        }
-        for sc in &h.stream_candidates {
-            candidates.push(sc.clone());
-        }
-    }
-
-    let hint_ext = hint.and_then(|h| {
-        h.extension.as_deref().or_else(|| {
-            h.filename.as_deref().and_then(|f| {
-                f.rsplit(['/', '\\']).next()?.rsplit_once('.').map(|(_, ext)| ext)
-            })
-        })
-    });
-
-    let platform = hint.and_then(|h| h.platform);
-    let expected_cat = hint.and_then(|h| h.expected_category);
-
-    // 1. Evaluate static fast magic patterns (MAGIC_REGISTRY)
-    for entry in MAGIC_REGISTRY {
-        let req_len = entry.pattern.offset.saturating_add(entry.pattern.bytes.len());
-        let mut buf = vec![0u8; req_len];
-        match source.read_at(0, &mut buf) {
-            Ok(n) => {
-                let n_u64 = u64::try_from(n)?;
-                bytes_evaluated = bytes_evaluated.max(n_u64);
-                let is_match = n >= req_len && buf.get(..n).is_some_and(|slice| entry.pattern.matches(slice));
-                if is_match {
-                    let fmt = entry.format_id;
-                    let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-                    let dc_id = mapping.map(|m| m.dc_id);
-                    // Reason for fallback: unmapped format in static registry uses its Rust identifier as label
-                    let label = mapping
-                        .map(|m| m.label.clone())
-                        .unwrap_or_else(|| fmt.ident().to_string());
-                    let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-                    let mut score = entry.pattern.priority;
-                    let mut evidence = vec![DetectionEvidence::Magic {
-                        description: label.clone(),
-                        score: entry.pattern.priority,
-                    }];
-
-                    if let Some(ext) = hint_ext {
-                        let ext_norm = ext.to_ascii_lowercase();
-                        // Reason for fallback: format without extension metadata defaults to false for concordance
-                        let match_ext = mapping
-                            .map(|m| {
-                                m.extensions
-                                    .iter()
-                                    .any(|e| e.eq_ignore_ascii_case(&ext_norm))
-                            })
-                            .unwrap_or(false);
-                        if match_ext {
-                            score = score.saturating_add(25);
-                            evidence.push(DetectionEvidence::Extension {
-                                ext: ext.to_string(),
-                                is_primary: true,
-                                score: 25,
-                            });
-                        }
-                    }
-
-                    if let Some(exp_cat) = expected_cat {
-                        if fmt.category() == exp_cat {
-                            score = score.saturating_add(20);
-                            evidence.push(DetectionEvidence::CategoryMatch {
-                                category: exp_cat,
-                                score: 20,
-                            });
-                        }
-                    }
-
-                    let confidence = if score >= 85 {
-                        ConfidenceTier::HighestConfidence
-                    } else if score >= 65 {
-                        ConfidenceTier::Strong
-                    } else if score >= 40 {
-                        ConfidenceTier::Moderate
-                    } else {
-                        ConfidenceTier::Weak
-                    };
-
-                    candidates.push(DetectionCandidate {
-                        format_id: Some(fmt),
-                        dc_id,
-                        mime,
-                        description: label,
-                        confidence,
-                        score,
-                        evidence,
-                    });
-                }
-            }
-            Err(e) => {
-                read_error = Some(e.to_string());
-            }
-        }
-    }
-
-    // 2. Evaluate compiled hierarchical magic rules (Magdir / ctoolbox.magic)
-    for rule in COMPILED_MAGIC_RULES.iter() {
-        if let Some(match_res) = evaluate_rule(rule, source) {
-            if match_res.description.trim().is_empty() && match_res.mime.is_none() {
-                continue;
-            }
-            let mut score = match_res.score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Magic {
-                description: match_res.description.clone(),
-                score: match_res.score,
-            });
-
-            // Map MIME or description or extension to format catalog
-            let mapping = match_res
-                .mime
-                .as_deref()
-                .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
-                .or_else(|| {
-                    FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
-                })
-                .or_else(|| {
-                    match_res.ext.as_deref().and_then(|ext| {
-                        ext.split(['/', ','])
-                            .find_map(|e| FORMAT_CATALOG.lookup_extension(e.trim()).first())
-                    })
-                });
-
-            let format_id = mapping.and_then(|m| m.format_id);
-            let dc_id = mapping.map(|m| m.dc_id);
-            let mime = match_res.mime.or_else(|| mapping.and_then(|m| m.mime_types.first().cloned()));
-            // Reason for fallback: rule match without custom description falls back to format label or "Unknown Format"
-            let description = if match_res.description.is_empty() {
-                mapping.map(|m| m.label.clone()).unwrap_or_else(|| "Unknown Format".to_string())
-            } else {
-                match_res.description
-            };
-
-            // Concordance with extension hint
-            if let Some(ext) = hint_ext {
-                let ext_normalized = ext.to_ascii_lowercase();
-                // Reason for fallback: rule without extension declaration evaluates to false for concordance
-                let rule_ext_match = match_res.ext.as_deref().map(|e| {
-                    e.split(['/', ',']).any(|p| p.trim().eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
-
-                // Reason for fallback: unmapped format evaluates to false for extension concordance
-                let mapping_ext_match = mapping.map(|m| {
-                    m.extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext_normalized))
-                }).unwrap_or(false);
-
-                if rule_ext_match || mapping_ext_match {
-                    score = score.saturating_add(25);
-                    evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
-                    });
-                }
-            }
-
-            // Platform prior boost from format dataset OS associations
-            if let Some(target_os) = platform {
-                let is_matched = format_id.is_some_and(|fid| {
-                    format_matches_platform(fid, target_os)
-                });
-
-                if is_matched {
-                    score = score.saturating_add(PLATFORM_PRIOR_BONUS);
-                    evidence.push(DetectionEvidence::PlatformPrior {
-                        platform: target_os,
-                        score: PLATFORM_PRIOR_BONUS,
-                    });
-                }
-            }
-
-            // Expected category boost
-            if let (Some(exp_cat), Some(fid)) = (expected_cat, format_id) {
-                if fid.category() == exp_cat {
-                    score = score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
-            }
-
-            let confidence = if score >= 85 {
-                ConfidenceTier::HighestConfidence
-            } else if score >= 65 {
-                ConfidenceTier::Strong
-            } else if score >= 40 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-
-            // Deduplicate and merge with any existing candidate for the same format or description
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = format_id.is_some() && existing.format_id == format_id;
-                let matches_desc = !description.is_empty() && existing.description.eq_ignore_ascii_case(&description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && format_id.is_some() {
-                        existing.format_id = format_id;
-                    }
-                    if existing.dc_id.is_none() && dc_id.is_some() {
-                        existing.dc_id = dc_id;
-                    }
-                    if existing.mime.is_none() && mime.is_some() {
-                        existing.mime = mime.clone();
-                    }
-                    if score > existing.score {
-                        existing.score = score;
-                        existing.confidence = confidence;
-                    }
-                    if description.len() > existing.description.len() {
-                        existing.description = description.clone();
-                    }
-                    existing.evidence.extend(evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-
-            if !merged {
-                candidates.push(DetectionCandidate {
-                    format_id,
-                    dc_id,
-                    mime,
-                    description,
-                    confidence,
-                    score,
-                    evidence,
-                });
-            }
-        }
-    }
-
-    // 2.3. Evaluate specialized deep parsers and container inspection (container.rs)
-    if let Ok(container_cands) = detect_container_candidates(source, hint) {
-        for cand in container_cands {
-            let mut merged = false;
-            for existing in &mut candidates {
-                let matches_fmt = cand.format_id.is_some() && existing.format_id == cand.format_id;
-                let matches_desc = !cand.description.is_empty()
-                    && existing.description.eq_ignore_ascii_case(&cand.description);
-                if matches_fmt || matches_desc {
-                    if existing.format_id.is_none() && cand.format_id.is_some() {
-                        existing.format_id = cand.format_id;
-                    }
-                    if cand.score > existing.score {
-                        existing.score = cand.score;
-                        existing.confidence = cand.confidence;
-                        existing.description = cand.description.clone();
-                    }
-                    if existing.mime.is_none() && cand.mime.is_some() {
-                        existing.mime = cand.mime.clone();
-                    }
-                    existing.evidence.extend(cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(cand);
-            }
-        }
-    }
-
-    // 2.5. Evaluate text & character encoding detection if no high-confidence binary magic matched
-    let has_strong_magic = candidates.iter().any(|c| c.confidence >= ConfidenceTier::Strong);
-    if !has_strong_magic {
-        if let Ok(Some(text_cand)) = detect_text_candidate(source, hint) {
-            let inspect_size = u64::try_from(TEXT_ENCODING_MAX_BYTES.min(4096)).unwrap_or(4096);
-            bytes_evaluated = bytes_evaluated.max(inspect_size);
-
-            let mut merged = false;
-            for existing in &mut candidates {
-                if text_cand.format_id.is_some() && existing.format_id == text_cand.format_id {
-                    if text_cand.score > existing.score {
-                        existing.score = text_cand.score;
-                        existing.confidence = text_cand.confidence;
-                        existing.description = text_cand.description.clone();
-                    }
-                    existing.evidence.extend(text_cand.evidence.clone());
-                    merged = true;
-                    break;
-                }
-            }
-            if !merged {
-                candidates.push(text_cand);
-            }
-        }
-    }
-
-    // 3. If extension hint is present, evaluate extension candidates
-    if let Some(ext) = hint_ext {
-        let ext_candidates = resolve_extension_candidates(ext, platform);
-        for (fmt, ext_score) in ext_candidates {
-            // Check if already found via magic
-            if let Some(existing) = candidates.iter_mut().find(|c| c.format_id == Some(fmt)) {
-                let has_ext = existing.evidence.iter().any(|e| matches!(e, DetectionEvidence::Extension { .. }));
-                if !has_ext {
-                    existing.score = existing.score.saturating_add(25);
-                    existing.evidence.push(DetectionEvidence::Extension {
-                        ext: ext.to_string(),
-                        is_primary: true,
-                        score: 25,
-                    });
-                    if existing.score >= 85 {
-                        existing.confidence = ConfidenceTier::HighestConfidence;
-                    } else if existing.score >= 65 {
-                        existing.confidence = ConfidenceTier::Strong;
-                    }
-                }
-                continue;
-            }
-
-            let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
-            let dc_id = mapping.map(|m| m.dc_id);
-            // Reason for fallback: unmapped format identifier uses raw identifier name for candidate description
-            let description = mapping
-                .map(|m| m.label.clone())
-                .unwrap_or_else(|| fmt.ident().to_string());
-            let mime = mapping.and_then(|m| m.mime_types.first().cloned());
-
-            let mut final_score = ext_score;
-            let mut evidence = Vec::new();
-            evidence.push(DetectionEvidence::Extension {
-                ext: ext.to_string(),
-                is_primary: true,
-                score: ext_score,
-            });
-
-            if let Some(exp_cat) = expected_cat {
-                if fmt.category() == exp_cat {
-                    final_score = final_score.saturating_add(20);
-                    evidence.push(DetectionEvidence::CategoryMatch { category: exp_cat, score: 20 });
-                }
-            }
-
-            let confidence = if final_score >= 65 {
-                ConfidenceTier::Moderate
-            } else {
-                ConfidenceTier::Weak
-            };
-
-            candidates.push(DetectionCandidate {
-                format_id: Some(fmt),
-                dc_id,
-                mime,
-                description,
-                confidence,
-                score: final_score,
-                evidence,
-            });
-        }
-    }
-
-    // 4. Resolve candidate conflicts and subsumption hierarchies
-    let resolved = resolve_candidate_conflicts(candidates);
-
-    let stream_signals_used = hint.is_some_and(|h| {
-        !h.stream_candidates.is_empty() || h.apple_type_code.is_some()
-    });
-
-    let outcome = if let Some(err) = read_error {
-        DetectionOutcome::ReadError {
-            offset: 0,
-            message: err,
-        }
-    } else if !resolved.is_empty() {
-        DetectionOutcome::Matched(resolved.clone())
-    } else if let Some(total) = source.total_len() {
-        if total < 4 && hint.is_none() {
-            DetectionOutcome::InsufficientData {
-                available_bytes: total,
-                required_bytes: 4,
-            }
-        } else {
-            DetectionOutcome::TrueNegative {
-                bytes_inspected: bytes_evaluated,
-            }
-        }
-    } else {
-        DetectionOutcome::TrueNegative {
-            bytes_inspected: bytes_evaluated,
-        }
+    let (desc, mime) = match kind {
+        "directory" | "dir" => ("directory", "inode/directory"),
+        "symlink" | "link" => ("symbolic link", "inode/symlink"),
+        "fifo" | "pipe" => ("fifo (named pipe)", "inode/fifo"),
+        "socket" | "sock" => ("socket", "inode/socket"),
+        "block" | "block_device" => ("block special", "inode/blockdevice"),
+        "char" | "character" | "char_device" => ("character special", "inode/chardevice"),
+        _ => return None,
     };
 
-    Ok(DetectionReport {
-        outcome,
-        candidates: resolved,
-        bytes_evaluated,
-        stream_signals_used,
+    Some(DetectionCandidate {
+        format_id: None,
+        dc_id: None,
+        mime: Some(mime.to_string()),
+        description: desc.to_string(),
+        confidence: ConfidenceTier::HighestConfidence,
+        score: 100,
+        evidence: vec![DetectionEvidence::SpecialFile {
+            kind: kind.to_string(),
+            score: 100,
+        }],
     })
 }
 
-/// Evaluates magic byte rules, extensions, and environment priors to produce
-/// ranked format candidates.
-pub fn guess_format_candidates(
-    source: &mut dyn DetectionSource,
-    hint: Option<&DetectionHint>,
-) -> Vec<DetectionCandidate> {
-    // Reason for fallback: best-effort format candidate discovery defaults to an empty candidate list if report generation fails
-    guess_format_report(source, hint)
-        .map(|rep| rep.candidates)
-        .unwrap_or_default()
-}
-
-/// Detects `FormatId` using magic byte signatures, extension matching, and category filtering.
-pub fn guess_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    detect_format_id(data, filename_or_ext, expected_category)
-}
-
-/// Backward-compatible detection function picking the top candidate's `FormatId`.
-pub fn detect_format_id(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-    expected_category: Option<FormatCategory>,
-) -> Option<FormatId> {
-    let hint = filename_or_ext.map(|name| DetectionHint {
-        filename: Some(name.to_string()),
-        extension: None,
-        platform: None,
-        expected_category,
-        ..Default::default()
-    });
-
-    let candidates = if let Some(bytes) = data {
-        let mut slice = bytes;
-        guess_format_candidates(&mut slice, hint.as_ref())
-    } else {
-        let mut empty = EmptySource;
-        guess_format_candidates(&mut empty, hint.as_ref())
+/// Detects whether a source is an empty 0-byte file/stream.
+pub fn detect_empty_file<S: DetectionSource + ?Sized>(source: &mut S) -> Option<DetectionCandidate> {
+    let is_empty = match source.total_len() {
+        Some(0) => true,
+        Some(_) => false,
+        None => {
+            let mut buf = [0u8; 1];
+            match source.read_at(0, &mut buf) {
+                Ok(0) => true,
+                _ => false,
+            }
+        }
     };
 
-    if let Some(cat) = expected_category {
-        if let Some(fmt) = candidates
-            .iter()
-            .filter_map(|c| c.format_id)
-            .find(|fmt| fmt.category() == cat)
-        {
-            return Some(fmt);
-        }
+    if is_empty {
+        Some(DetectionCandidate {
+            format_id: None,
+            dc_id: None,
+            mime: Some("application/x-empty".to_string()),
+            description: "empty".to_string(),
+            confidence: ConfidenceTier::HighestConfidence,
+            score: 100,
+            evidence: vec![DetectionEvidence::SpecialFile {
+                kind: "empty".to_string(),
+                score: 100,
+            }],
+        })
+    } else {
+        None
     }
+}
 
-    candidates.into_iter().find_map(|c| c.format_id)
+/// Detects whether a source is very short (1–3 bytes) without recognizable
+/// magic signatures.
+pub fn detect_very_short_file<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Option<DetectionCandidate> {
+    let total = source.total_len()?;
+    if (1..=3).contains(&total) {
+        Some(DetectionCandidate {
+            format_id: None,
+            dc_id: None,
+            mime: None,
+            description: "very short file (no magic)".to_string(),
+            confidence: ConfidenceTier::Weak,
+            score: 30,
+            evidence: vec![DetectionEvidence::SpecialFile {
+                kind: "very_short".to_string(),
+                score: 30,
+            }],
+        })
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -979,149 +563,42 @@ mod tests {
     use super::*;
 
     #[ctb_test]
-    fn test_detect_format_id() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let fmt = detect_format_id(
-            Some(&gzip_data),
-            Some("doc.gz"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Gzip));
+    fn test_detect_empty_file() {
+        let empty_bytes: [u8; 0] = [];
+        let mut source: &[u8] = &empty_bytes;
+        let cand = detect_empty_file(&mut source).unwrap();
+        assert_eq!(cand.description, "empty");
+        assert_eq!(cand.mime.as_deref(), Some("application/x-empty"));
+        assert_eq!(cand.confidence, ConfidenceTier::HighestConfidence);
+        assert_eq!(cand.score, 100);
     }
 
     #[ctb_test]
-    fn test_guess_format_candidates() {
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut slice: &[u8] = &gzip_data;
-        let hint = DetectionHint {
-            filename: Some("archive.gz".to_string()),
+    fn test_detect_very_short_file() {
+        let short_bytes = [b'a', b'b'];
+        let mut source: &[u8] = &short_bytes;
+        let cand = detect_very_short_file(&mut source).unwrap();
+        assert_eq!(cand.description, "very short file (no magic)");
+        assert_eq!(cand.confidence, ConfidenceTier::Weak);
+    }
+
+    #[ctb_test]
+    fn test_detect_special_entity_hint() {
+        let hint_dir = DetectionHint {
+            special_kind: Some("directory".to_string()),
             ..Default::default()
         };
-        let candidates = guess_format_candidates(&mut slice, Some(&hint));
-        assert!(!candidates.is_empty());
-        let top = &candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Gzip));
-        assert_eq!(top.confidence, ConfidenceTier::HighestConfidence);
-    }
+        let cand = detect_special_entity(Some(&hint_dir)).unwrap();
+        assert_eq!(cand.description, "directory");
+        assert_eq!(cand.mime.as_deref(), Some("inode/directory"));
 
-    #[ctb_test]
-    fn test_detect_brotli() {
-        let brotli_data = [143, 5, 128, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100, 10, 3];
-        let mut slice: &[u8] = &brotli_data;
-        let hint = DetectionHint {
-            filename: Some("/tmp/system_in.br".to_string()),
-            expected_category: Some(FormatCategory::Compression),
+        let hint_fifo = DetectionHint {
+            special_kind: Some("fifo".to_string()),
             ..Default::default()
         };
-        let fmt = detect_format_id(
-            Some(&brotli_data),
-            Some("/tmp/system_in.br"),
-            Some(FormatCategory::Compression),
-        );
-        assert_eq!(fmt, Some(FormatId::Brotli));
-    }
-
-    #[ctb_test]
-    fn test_detection_report_outcomes() {
-        // Insufficient data
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let report_insufficient = guess_format_report(&mut empty_slice, None).unwrap();
-        assert!(matches!(
-            report_insufficient.outcome,
-            DetectionOutcome::InsufficientData { available_bytes: 0, required_bytes: 4 }
-        ));
-
-        // True negative (random non-matching bytes with no hint)
-        let random_data = [0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF];
-        let mut rand_slice: &[u8] = &random_data;
-        let report_neg = guess_format_report(&mut rand_slice, None).unwrap();
-        assert!(
-            matches!(report_neg.outcome, DetectionOutcome::TrueNegative { .. }),
-            "Expected TrueNegative, got: {:?}",
-            report_neg.outcome
-        );
-
-        // Matched
-        let gzip_data = [0x1F, 0x8B, 0x08, 0x00];
-        let mut gz_slice: &[u8] = &gzip_data;
-        let report_matched = guess_format_report(&mut gz_slice, None).unwrap();
-        assert!(matches!(report_matched.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report_matched.candidates[0].format_id, Some(FormatId::Gzip));
-    }
-
-    #[ctb_test]
-    fn test_detection_with_stream_and_apple_type_hint() {
-        let empty_data: [u8; 0] = [];
-        let mut empty_slice: &[u8] = &empty_data;
-        let hint = DetectionHint {
-            apple_type_code: Some(*b"TEXT"),
-            stream_candidates: vec![DetectionCandidate {
-                format_id: Some(FormatId::Ascii),
-                dc_id: None,
-                mime: Some("text/plain".to_string()),
-                description: "Mac resource fork plain text".to_string(),
-                confidence: ConfidenceTier::Strong,
-                score: 75,
-                evidence: vec![DetectionEvidence::AttachedStream {
-                    stream_kind_name: "MacResourceFork".to_string(),
-                    detail: "Resource type TEXT".to_string(),
-                    score: 75,
-                }],
-            }],
-            ..Default::default()
-        };
-
-        let report = guess_format_report(&mut empty_slice, Some(&hint)).unwrap();
-        assert!(report.stream_signals_used);
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert_eq!(report.candidates[0].format_id, Some(FormatId::Ascii));
-    }
-
-    #[ctb_test]
-    fn test_detect_plain_text_report() {
-        let text_data = b"Hello, world! This is a plain ASCII text file.\nWith standard LF lines.\n";
-        let mut slice: &[u8] = text_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        assert!(!report.candidates.is_empty());
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Ascii));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::Encoding { .. })));
-        assert!(top.evidence.iter().any(|e| matches!(e, DetectionEvidence::TextProperties { .. })));
-    }
-
-    #[ctb_test]
-    fn test_detect_c_source() {
-        let c_data = b"#include <stdio.h>\n\nint main(void) {\n    printf(\"hello\\n\");\n    return 0;\n}\n";
-        let mut slice: &[u8] = c_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::C));
-        assert_eq!(top.mime.as_deref(), Some("text/x-c"));
-    }
-
-    #[ctb_test]
-    fn test_detect_python_shebang() {
-        let py_data = b"#!/usr/bin/env python3\nimport os\nprint(os.getpid())\n";
-        let mut slice: &[u8] = py_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.mime.as_deref(), Some("text/x-python"));
-        assert!(top.description.contains("Python script"));
-    }
-
-    #[ctb_test]
-    fn test_detect_html_document() {
-        let html_data = b"<!DOCTYPE html>\n<html><head><title>Test</title></head><body><h1>Hello</h1></body></html>";
-        let mut slice: &[u8] = html_data;
-        let report = guess_format_report(&mut slice, None).unwrap();
-        assert!(matches!(report.outcome, DetectionOutcome::Matched(_)));
-        let top = &report.candidates[0];
-        assert_eq!(top.format_id, Some(FormatId::Html));
-        assert_eq!(top.mime.as_deref(), Some("text/html"));
+        let cand_fifo = detect_special_entity(Some(&hint_fifo)).unwrap();
+        assert_eq!(cand_fifo.description, "fifo (named pipe)");
+        assert_eq!(cand_fifo.mime.as_deref(), Some("inode/fifo"));
     }
 }
 /*

@@ -472,6 +472,16 @@ impl FileEntity {
 
         let effective_platform = stream_platform.or(base_platform);
 
+        let special_kind = match &self.kind {
+            FileEntityKind::Directory => Some("directory".to_string()),
+            FileEntityKind::Symlink { .. } => Some("symlink".to_string()),
+            FileEntityKind::Fifo => Some("fifo".to_string()),
+            FileEntityKind::CharDevice { .. } => Some("char".to_string()),
+            FileEntityKind::BlockDevice { .. } => Some("block".to_string()),
+            FileEntityKind::Socket => Some("socket".to_string()),
+            _ => None,
+        };
+
         let hint = ctb_formats_utilities::detection::DetectionHint {
             filename: filename.map(|s| s.to_string()),
             extension: None,
@@ -479,6 +489,7 @@ impl FileEntity {
             expected_category: None,
             apple_type_code,
             stream_candidates,
+            special_kind,
         };
 
         // For directory bundles (e.g. .app, .framework), bundle inspection hooks can probe interior payloads.

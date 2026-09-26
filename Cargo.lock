@@ -3327,6 +3327,7 @@ version = "0.0.0"
 dependencies = [
  "ctb-formats-dcdata",
  "ctb-utilities",
+ "flate2",
  "serde",
 ]
 

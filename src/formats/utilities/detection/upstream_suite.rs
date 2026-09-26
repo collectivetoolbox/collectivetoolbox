@@ -1019,6 +1019,24 @@ mod tests {
             let res = evaluate_upstream_case(case, false).unwrap();
             assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
         }
+
+        // 4. JSON and New Line Delimited JSON cases (Sub-Phase 5D)
+        let json_cases = [
+            "json1", "json2", "json3", "json4", "json5", "json6", "json7", "json8", "jsonlines1",
+        ];
+        for name in json_cases {
+            let case = cases.iter().find(|c| c.name == name).unwrap();
+            let res = evaluate_upstream_case(case, false).unwrap();
+            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+        }
+
+        // 5. Specialized container cases: OLE2 CDF and ZIP OpenXML / HWPX (Sub-Phase 5D)
+        let container_cases = ["HWP2016.hwp", "HWP2016.hwpx.zip", "issue311docx", "issue359xlsx"];
+        for name in container_cases {
+            let case = cases.iter().find(|c| c.name == name).unwrap();
+            let res = evaluate_upstream_case(case, false).unwrap();
+            assert_eq!(res.status, ParityCategory::Passing, "Case {} should pass", name);
+        }
     }
 
     #[ctb_test]
