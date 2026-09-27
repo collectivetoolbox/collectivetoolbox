@@ -1,0 +1,21 @@
+[package]
+name = "ctb-formats-compression-libraries"
+edition = "2024"
+
+[lib]
+path="libraries.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../../utilities" }
+
+brotli = "8.0.3"
+flate2 = "1.1.9"
+bzip2 = "0.6.1"
+lz4_flex = "0.14.0"
+lzma-rust2 = "0.18.1"
+lzokay-native = "0.1.0"
+zstd = "0.13.3"
+
+[lints]
+workspace = true

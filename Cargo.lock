@@ -2843,24 +2843,18 @@ dependencies = [
 name = "ctb-formats-compression"
 version = "0.0.0"
 dependencies = [
- "brotli",
- "bzip2",
  "clap",
  "ctb-formats-compression-bzip",
  "ctb-formats-compression-compact",
  "ctb-formats-compression-compress",
+ "ctb-formats-compression-libraries",
  "ctb-formats-compression-pack",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-detection",
  "ctb-formats-utilities",
  "ctb-io-file",
  "ctb-utilities",
- "flate2",
  "include_dir",
- "lz4_flex 0.14.0",
- "lzma-rust2",
- "lzokay-native",
- "zstd",
 ]
 
 [[package]]
@@ -2882,6 +2876,20 @@ name = "ctb-formats-compression-compress"
 version = "0.0.0"
 dependencies = [
  "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-libraries"
+version = "0.0.0"
+dependencies = [
+ "brotli",
+ "bzip2",
+ "ctb-utilities",
+ "flate2",
+ "lz4_flex 0.14.0",
+ "lzma-rust2",
+ "lzokay-native",
+ "zstd",
 ]
 
 [[package]]
@@ -4023,6 +4031,7 @@ dependencies = [
  "ctb-formats-compression-bzip",
  "ctb-formats-compression-compact",
  "ctb-formats-compression-compress",
+ "ctb-formats-compression-libraries",
  "ctb-formats-compression-pack",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-ctb-asset-bundle",

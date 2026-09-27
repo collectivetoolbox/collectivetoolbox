@@ -167,7 +167,7 @@ pub enum FormatId {
     Lzip,
     /// XZ compression (Short 42, Category: compression)
     Xz,
-    /// `compress`: SCO `compress -H` format (Short 43, Category: compression)
+    /// `compress`: SCO `compress -H` format (LZH) (Short 43, Category: compression)
     ScoCompress,
     /// `compress` format, modern LZW block format (Short 44, Category: compression)
     CompressLzw,
@@ -6006,7 +6006,7 @@ pub const DC_ZSTD: DcChar = DcChar::from_format(40);
 pub const DC_LZIP: DcChar = DcChar::from_format(41);
 /// DcChar constant for Format `Xz` (Short f42, Category: compression): XZ compression
 pub const DC_XZ: DcChar = DcChar::from_format(42);
-/// DcChar constant for Format `ScoCompress` (Short f43, Category: compression): `compress`: SCO `compress -H` format
+/// DcChar constant for Format `ScoCompress` (Short f43, Category: compression): `compress`: SCO `compress -H` format (LZH)
 pub const DC_SCO_COMPRESS: DcChar = DcChar::from_format(43);
 /// DcChar constant for Format `CompressLzw` (Short f44, Category: compression): `compress` format, modern LZW block format
 pub const DC_COMPRESS_LZW: DcChar = DcChar::from_format(44);
