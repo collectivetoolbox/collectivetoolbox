@@ -22,12 +22,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Specification reference: `data/docs/compact.md`
 
-#[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
 use std::io::{Read, Write};
 
 /// Magic header bytes for `compact` (`.C` format) (`0xFF`, `0x1F`).

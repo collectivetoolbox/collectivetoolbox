@@ -18,12 +18,6 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Header comment from original unlzh.c:
-/* unlzh.c -- decompress files in SCO compress -H (LZH) format.
- * The code in this file is directly derived from the public domain 'ar002'
- * written by Haruhiko Okumura.
- */
-
 // Header comment from original unpack.c:
 /* unpack.c -- decompress files in pack format.
 
@@ -48,603 +42,912 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 /* gzip was written by Jean-loup Gailly <jloup@gzip.org>,
 and Mark Adler for the decompression code. */
 
-//! Unix `compress` LZW formats:
-//! - `CompressLzw` (compress 3.0+ / 4.0 / ncompress, magic `0x1F 0x9D`, block mode)
-//! - `CompressLzw2` (compress 2.0, magic `0x1F 0x9D`, non-block mode)
-//! - `CompressLzw1` (compress 1.0, headerless stream)
+//! System III/V `pack` (`0x1F 0x1E`) and Early Unix `old_pack` (`0x1F 0x1F`)
+//! compression and decompression formats.
 //!
-//! Specification reference: `data/docs/compress-ncompress.md`
-//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzw.c`
+//! Specification reference: `data/docs/pack.md`
+//! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unpack.c`
+//!
+//! This supports packing small inputs that would be rejected by original pack
+//! implementations.
 
-#[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
-use std::collections::HashMap;
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::io::{Read, Write};
 
-/// Magic header bytes for `.Z` LZW compress format (`0x1F`, `0x9D`).
-pub const LZW_MAGIC: [u8; 2] = [0x1F, 0x9D];
+/// Magic header bytes for standard System III/V `pack` (`0x1F`, `0x1E`).
+pub const PACK_MAGIC: [u8; 2] = [0x1F, 0x1E];
 
-/// Block mode mask bit in header byte 2 (`0x80`).
-pub const BLOCK_MODE: u8 = 0x80;
+/// Magic header bytes for early Unix `old_pack` (`0x1F`, `0x1F`).
+pub const OLD_PACK_MAGIC: [u8; 2] = [0x1F, 0x1F];
 
-/// Maxbits mask in header byte 2 (`0x1F`).
-pub const BIT_MASK: u8 = 0x1F;
-
-/// Reserved bits in header byte 2 (`0x60`).
-pub const LZW_RESERVED: u8 = 0x60;
-
-/// Initial bit width for LZW codes (9 bits).
-pub const INIT_BITS: u32 = 9;
-
-/// Default maximum bit width for LZW codes (16 bits).
-pub const MAX_BITS: u32 = 16;
-
-/// Special CLEAR code emitted in block mode to flush dictionary (256).
-pub const CLEAR_CODE: u32 = 256;
-
-/// First free dictionary entry in block mode (257).
-pub const FIRST_FREE_BLOCK: u32 = 257;
-
-/// First free dictionary entry in non-block mode (256).
-pub const FIRST_FREE_NONBLOCK: u32 = 256;
+const MAX_BITLEN: usize = 24;
+const LITERALS: usize = 256;
+const END_SYMBOL: usize = 256;
 
 // -----------------------------------------------------------------------------
-// LSB-first Bit Writer matching Spencer Thomas / gzip unlzw.c posbits layout
+// Helper struct for MSB-to-LSB Bit Reader (8-bit bytes)
 // -----------------------------------------------------------------------------
 
-struct LzwBitWriter<W: Write> {
-    writer: W,
-    buffer: Vec<u8>,
-    posbits: usize,
-    block_posbits: usize,
+struct BitReader<R: Read> {
+    reader: R,
+    bitbuf: u32,
+    valid: u32,
 }
 
-impl<W: Write> LzwBitWriter<W> {
+impl<R: Read> BitReader<R> {
+    fn new(reader: R) -> Self {
+        Self {
+            reader,
+            bitbuf: 0,
+            valid: 0,
+        }
+    }
+
+    fn read_byte(&mut self) -> Result<u8> {
+        let mut buf = [0u8; 1];
+        let n = self
+            .reader
+            .read(&mut buf)
+            .context("Failed to read byte from stream")?;
+        if n == 0 {
+            bail!("Unexpected end of compressed stream");
+        }
+        let byte = match buf.first() {
+            Some(&b) => b,
+            None => bail!("Unexpected empty read buffer"),
+        };
+        Ok(byte)
+    }
+
+    fn get_bit(&mut self) -> Result<u32> {
+        if self.valid == 0 {
+            let byte = self.read_byte()?;
+            self.bitbuf = u32::from(byte);
+            self.valid = 8;
+        }
+        let shift = self.valid.saturating_sub(1);
+        let bit = (self.bitbuf >> shift) & 1;
+        self.valid = shift;
+        Ok(bit)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Helper struct for MSB-to-LSB Bit Writer (8-bit bytes)
+// -----------------------------------------------------------------------------
+
+struct BitWriter<W: Write> {
+    writer: W,
+    bitbuf: u32,
+    valid: u32,
+}
+
+impl<W: Write> BitWriter<W> {
     fn new(writer: W) -> Self {
         Self {
             writer,
-            buffer: Vec::with_capacity(4096),
-            posbits: 0,
-            block_posbits: 0,
+            bitbuf: 0,
+            valid: 0,
         }
     }
 
-    fn write_code(&mut self, code: u32, n_bits: u32) -> Result<()> {
-        let byte_pos = self.posbits / 8;
-        let shift = self.posbits % 8;
-        let needed_len = byte_pos.saturating_add(4);
+    fn write_bits(&mut self, code: u32, bits: u32) -> Result<()> {
+        let mut rem_bits = bits;
+        while rem_bits > 0 {
+            let space = 8u32.saturating_sub(self.valid);
+            let take = rem_bits.min(space);
+            let shift = rem_bits.saturating_sub(take);
+            let mask =
+                (1u32.checked_shl(take).context("bit shift out of range")?)
+                    .saturating_sub(1);
+            let val = (code >> shift) & mask;
 
-        if self.buffer.len() < needed_len {
-            self.buffer.resize(needed_len, 0);
-        }
+            self.bitbuf = (self.bitbuf << take) | val;
+            self.valid = self.valid.saturating_add(take);
+            rem_bits = shift;
 
-        let code_u64 = u64::from(code);
-        // Reason for fallback: shift is bounded by 0..8 (% 8), so checked_shl never overflows 64 bits.
-        let val = code_u64.checked_shl(u32::try_from(shift)?).unwrap_or(0);
-
-        for i in 0..4 {
-            let idx = byte_pos.saturating_add(i);
-            let byte_val = u8::try_from((val >> (i.saturating_mul(8))) & 0xFF)?;
-            if let Some(b) = self.buffer.get_mut(idx) {
-                *b |= byte_val;
+            if self.valid == 8 {
+                let byte = u8::try_from(self.bitbuf & 0xFF)?;
+                self.writer
+                    .write_all(&[byte])
+                    .context("Failed to write bitstream byte")?;
+                self.bitbuf = 0;
+                self.valid = 0;
             }
         }
-
-        let n_bits_usize = usize::try_from(n_bits)?;
-        self.posbits = self.posbits.saturating_add(n_bits_usize);
-        self.block_posbits = self.block_posbits.saturating_add(n_bits_usize);
         Ok(())
     }
 
-    fn align_block(&mut self, n_bits: u32) -> Result<()> {
-        if self.block_posbits > 0 {
-            let n_bits_usize = usize::try_from(n_bits)?;
-            let step = n_bits_usize.saturating_mul(8);
-            let p1 = self.block_posbits.saturating_sub(1);
-            // Reason for fallback: step is non-zero (n_bits * 8 >= 72), so checked_rem never divides by zero.
-            let rem = p1.checked_rem(step).unwrap_or(0);
-            let target = p1.saturating_add(step.saturating_sub(rem));
-            let pad = target.saturating_sub(self.block_posbits);
-            self.posbits = self.posbits.saturating_add(pad);
-            self.block_posbits = 0;
+    fn flush_bits(&mut self) -> Result<()> {
+        if self.valid > 0 {
+            let shift = 8u32.saturating_sub(self.valid);
+            let byte = u8::try_from((self.bitbuf << shift) & 0xFF)?;
+            self.writer
+                .write_all(&[byte])
+                .context("Failed to flush bitstream byte")?;
+            self.bitbuf = 0;
+            self.valid = 0;
         }
-        Ok(())
-    }
-
-    fn finish(&mut self) -> Result<()> {
-        #[expect(
-            clippy::expect_used,
-            reason = "Division by constant 8 is non-zero and cannot fail"
-        )]
-        let final_bytes = (self.posbits.saturating_add(7))
-            .checked_div(8)
-            .expect("8 is non-zero");
-        self.buffer.truncate(final_bytes);
-        self.writer
-            .write_all(&self.buffer)
-            .context("Failed to write compress payload")?;
-        self.writer
-            .flush()
-            .context("Failed to flush inner writer")?;
         Ok(())
     }
 }
 
 // -----------------------------------------------------------------------------
-// LSB-first Bit Reader matching Spencer Thomas / gzip unlzw.c posbits layout
+// System III / System V Pack Decompression
 // -----------------------------------------------------------------------------
 
-struct LzwBitReader<'a> {
-    data: &'a [u8],
-    posbits: usize,
-    block_posbits: usize,
-}
+/// Decompresses a standard System III/V `pack` stream (`0x1F 0x1E`).
+pub fn decompress_pack_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
+    let mut br = BitReader::new(reader);
 
-impl<'a> LzwBitReader<'a> {
-    fn new(data: &'a [u8]) -> Self {
-        Self {
-            data,
-            posbits: 0,
-            block_posbits: 0,
+    // Read and verify magic header bytes (0x1F 0x1E)
+    let magic0 = br.read_byte()?;
+    let magic1 = br.read_byte()?;
+    if magic0 != PACK_MAGIC[0] || magic1 != PACK_MAGIC[1] {
+        bail!(
+            "Invalid Pack magic header: expected 0x1F 0x1E, got 0x{magic0:02X} 0x{magic1:02X}"
+        );
+    }
+
+    // Read 32-bit Big-Endian original uncompressed size
+    let b2 = u32::from(br.read_byte()?);
+    let b3 = u32::from(br.read_byte()?);
+    let b4 = u32::from(br.read_byte()?);
+    let b5 = u32::from(br.read_byte()?);
+    let orig_size = (b2 << 24) | (b3 << 16) | (b4 << 8) | b5;
+
+    // Read maximum tree depth (maxlev)
+    let max_len_byte = br.read_byte()?;
+    let max_len = usize::from(max_len_byte);
+    if max_len == 0 || max_len > MAX_BITLEN {
+        bail!(
+            "Invalid Pack tree depth: maxlev {max_len} is out of range 1..={MAX_BITLEN}"
+        );
+    }
+
+    // Read leaf counts for each level 1..=max_len
+    let mut leaves = vec![0i32; max_len.saturating_add(1)];
+    let mut total_leaves = 0usize;
+    for len in 1..=max_len {
+        let count = usize::from(br.read_byte()?);
+        let count_i32 = i32::try_from(count)?;
+        let leaf_slot = leaves.get_mut(len).context("Invalid leaves index")?;
+        *leaf_slot = count_i32;
+        total_leaves = total_leaves.saturating_add(count);
+    }
+
+    // Adjust stored levcount[max_len]: stored as actual - 2 + 1 (implicit EOB offset)
+    let max_len_count =
+        leaves.get_mut(max_len).context("Invalid max_len index")?;
+    *max_len_count = max_len_count.saturating_add(1);
+
+    let explicit_leaf_count = total_leaves.saturating_add(1);
+    let mut literal = vec![0u8; explicit_leaf_count];
+    let mut base = 0usize;
+    let mut lit_base = vec![0i32; max_len.saturating_add(1)];
+
+    for len in 1..=max_len {
+        let l_base = lit_base.get_mut(len).context("Invalid lit_base index")?;
+        *l_base = i32::try_from(base)?;
+        let count =
+            usize::try_from(*leaves.get(len).context("Invalid leaves index")?)?;
+        for _ in 0..count {
+            let sym = br.read_byte()?;
+            if base < literal.len() {
+                let slot =
+                    literal.get_mut(base).context("Invalid literal slot")?;
+                *slot = sym;
+                base = base.saturating_add(1);
+            }
         }
     }
+
+    // Include implicit EOB leaf at maximum level
+    let max_len_count_final =
+        leaves.get_mut(max_len).context("Invalid max_len index")?;
+    *max_len_count_final = max_len_count_final.saturating_add(1);
+
+    // Build internal nodes count table and adjust lit_base
+    let mut parents = vec![0i32; max_len.saturating_add(1)];
+    let mut nodes = 0i32;
+    for len in (1..=max_len).rev() {
+        nodes >>= 1;
+        let p_slot = parents.get_mut(len).context("Invalid parents slot")?;
+        *p_slot = nodes;
+        let l_slot = lit_base.get_mut(len).context("Invalid lit_base slot")?;
+        *l_slot = l_slot.saturating_sub(nodes);
+        let l_count = *leaves.get(len).context("Invalid leaves count")?;
+        nodes = nodes.saturating_add(l_count);
+    }
+
+    let eob_code = (*leaves.get(max_len).context("Invalid max_len leaves")?)
+        .saturating_sub(1);
+
+    let mut bytes_emitted = 0u64;
+    let orig_size_u64 = u64::from(orig_size);
+
+    if orig_size_u64 == 0 {
+        return Ok(0);
+    }
+
+    let mut code = 0i32;
+    let mut len = 1usize;
+
+    loop {
+        let bit = i32::try_from(br.get_bit()?)?;
+        code = (code << 1) | bit;
+
+        let p_val = *parents.get(len).context("Invalid parents len")?;
+        if code >= p_val {
+            if len == max_len && code == eob_code {
+                break;
+            }
+            let l_base = *lit_base.get(len).context("Invalid lit_base len")?;
+            let idx = usize::try_from(code.saturating_add(l_base))?;
+            let sym =
+                *literal.get(idx).context("Literal index out of bounds")?;
+
+            writer
+                .write_all(&[sym])
+                .context("Failed to write decompressed byte")?;
+            bytes_emitted = bytes_emitted.saturating_add(1);
+
+            if bytes_emitted == orig_size_u64 {
+                break;
+            }
+
+            code = 0;
+            len = 1;
+        } else {
+            len = len.saturating_add(1);
+            if len > max_len {
+                bail!("Huffman code length exceeded maximum level {max_len}");
+            }
+        }
+    }
+
+    if bytes_emitted != orig_size_u64 {
+        bail!(
+            "Decompressed byte count mismatch: expected {orig_size}, got {bytes_emitted}"
+        );
+    }
+
+    Ok(bytes_emitted)
+}
+
+// -----------------------------------------------------------------------------
+// System III / System V Pack Compression
+// -----------------------------------------------------------------------------
+
+#[derive(Eq, PartialEq)]
+struct HuffmanNode {
+    freq: u64,
+    symbol: Option<usize>,
+    left: Option<Box<HuffmanNode>>,
+    right: Option<Box<HuffmanNode>>,
+}
+
+impl Ord for HuffmanNode {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.freq.cmp(&self.freq)
+    }
+}
+
+impl PartialOrd for HuffmanNode {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+fn collect_depths(node: &HuffmanNode, depth: usize, depths: &mut [usize; 257]) {
+    if let Some(sym) = node.symbol {
+        if let Some(slot) = depths.get_mut(sym) {
+            *slot = depth;
+        }
+    } else {
+        if let Some(ref l) = node.left {
+            collect_depths(l, depth.saturating_add(1), depths);
+        }
+        if let Some(ref r) = node.right {
+            collect_depths(r, depth.saturating_add(1), depths);
+        }
+    }
+}
+
+/// Compresses a stream into standard System III/V `pack` format (`0x1F 0x1E`). Not an actual streaming compressor; requires sufficient memory.
+pub fn compress_pack_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
+    let mut input_bytes = Vec::new();
+    reader
+        .read_to_end(&mut input_bytes)
+        .context("Failed to read input data for Pack compression")?;
+
+    let orig_size = input_bytes.len();
+    let orig_size_u32 = u32::try_from(orig_size).context(
+        "Input data size exceeds 32-bit uint capacity for Pack header",
+    )?;
+
+    // Frequency counting
+    let mut freqs = [0u64; 257];
+    for &b in &input_bytes {
+        let idx = usize::from(b);
+        let count = freqs.get_mut(idx).context("Invalid frequency index")?;
+        *count = count.saturating_add(1);
+    }
+    // EOB symbol (256) always present with frequency 1
+    let eob_slot = freqs.get_mut(END_SYMBOL).context("Invalid EOB slot")?;
+    *eob_slot = 1;
+
+    // Build min-heap for Huffman tree
+    let mut heap = BinaryHeap::new();
+    for (sym, &freq) in freqs.iter().enumerate() {
+        if freq > 0 {
+            heap.push(HuffmanNode {
+                freq,
+                symbol: Some(sym),
+                left: None,
+                right: None,
+            });
+        }
+    }
+
+    // Ensure at least 2 leaves in tree
+    if heap.len() < 2 {
+        for (dummy_sym, &freq) in freqs.iter().enumerate() {
+            if freq == 0 {
+                heap.push(HuffmanNode {
+                    freq: 1,
+                    symbol: Some(dummy_sym),
+                    left: None,
+                    right: None,
+                });
+                if heap.len() >= 2 {
+                    break;
+                }
+            }
+        }
+    }
+
+    while heap.len() > 1 {
+        let left = heap.pop().context("Heap underflow")?;
+        let right = heap.pop().context("Heap underflow")?;
+        let parent_freq = left.freq.saturating_add(right.freq);
+        heap.push(HuffmanNode {
+            freq: parent_freq,
+            symbol: None,
+            left: Some(Box::new(left)),
+            right: Some(Box::new(right)),
+        });
+    }
+
+    let root = heap.pop().context("Huffman tree root missing")?;
+    let mut depths = [0usize; 257];
+    collect_depths(&root, 0, &mut depths);
 
     #[expect(
         clippy::expect_used,
-        reason = "Infallible constant divisor, range bounds, and shift range invariants in read_code"
+        reason = "depths is a non-empty 257-element array"
     )]
-    fn read_code(&mut self, n_bits: u32) -> Result<Option<u32>> {
-        let byte_pos = self.posbits.checked_div(8).expect("8 is non-zero");
-        if byte_pos >= self.data.len() {
-            return Ok(None);
-        }
-
-        let b0 = u64::from(
-            *self
-                .data
-                .get(byte_pos)
-                .expect("byte_pos < self.data.len() checked above"),
+    let max_len = depths
+        .iter()
+        .copied()
+        .max()
+        .expect("depths is a non-empty 257-element array")
+        .max(1);
+    if max_len > MAX_BITLEN {
+        bail!(
+            "Generated Huffman code length {max_len} exceeds maximum allowed depth {MAX_BITLEN}"
         );
-        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
-        let b1 =
-            u64::from(*self.data.get(byte_pos.saturating_add(1)).unwrap_or(&0));
-        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
-        let b2 =
-            u64::from(*self.data.get(byte_pos.saturating_add(2)).unwrap_or(&0));
-        // Reason for fallback: bitstream read near end-of-buffer defaults out-of-bounds trailing bytes to 0 padding. Matches Gzip implementation
-        let b3 =
-            u64::from(*self.data.get(byte_pos.saturating_add(3)).unwrap_or(&0));
-
-        let val = b0 | (b1 << 8) | (b2 << 16) | (b3 << 24);
-        let shift = u32::try_from(
-            self.posbits.checked_rem(8).expect("divisor 8 is non-zero"),
-        )?;
-        let mask = (1u64
-            .checked_shl(n_bits)
-            .expect("n_bits <= 16 is in u64 shift range"))
-        .saturating_sub(1);
-
-        let code = u32::try_from((val >> shift) & mask)?;
-        let n_bits_usize = usize::try_from(n_bits)?;
-        self.posbits = self.posbits.saturating_add(n_bits_usize);
-        self.block_posbits = self.block_posbits.saturating_add(n_bits_usize);
-        Ok(Some(code))
     }
 
-    fn align_block(&mut self, n_bits: u32) -> Result<()> {
-        if self.block_posbits > 0 {
-            let n_bits_usize = usize::try_from(n_bits)?;
-            let step = n_bits_usize.saturating_mul(8);
-            let p1 = self.block_posbits.saturating_sub(1);
-            // Reason for fallback: step is non-zero (n_bits * 8 >= 72), so checked_rem never divides by zero.
-            let rem = p1.checked_rem(step).unwrap_or(0);
-            let target = p1.saturating_add(step.saturating_sub(rem));
-            let pad = target.saturating_sub(self.block_posbits);
-            self.posbits = self.posbits.saturating_add(pad);
-            self.block_posbits = 0;
-        }
-        Ok(())
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Stream Compression & Decompression Entrypoints
-// -----------------------------------------------------------------------------
-
-/// Compresses a stream using the specified LZW format variant (`CompressLzw`, `CompressLzw2`, `CompressLzw1`, `CompressLzw16`).
-/// Compresses a stream using the specified LZW format variant (`CompressLzw`, `CompressLzw2`, `CompressLzw1`, `CompressLzw16`).
-pub fn compress_lzw_stream(
-    reader: &mut impl Read,
-    writer: &mut impl Write,
-    format: crate::CompressionFormat,
-) -> Result<u64> {
-    let maxbits = MAX_BITS;
-    let block_mode = match format {
-        crate::CompressionFormat::CompressLzw => true,
-        crate::CompressionFormat::CompressLzw2
-        | crate::CompressionFormat::CompressLzw1
-        | crate::CompressionFormat::CompressLzw16 => false,
-        _ => bail!("Unsupported format for LZW compress: {format:?}"),
-    };
-
-    // 1. Header writing
-    if format != crate::CompressionFormat::CompressLzw1
-        && format != crate::CompressionFormat::CompressLzw16
-    {
-        let mode_byte = if block_mode {
-            BLOCK_MODE | u8::try_from(maxbits)?
-        } else {
-            u8::try_from(maxbits)?
-        };
-        writer
-            .write_all(&[LZW_MAGIC[0], LZW_MAGIC[1], mode_byte])
-            .context("Failed to write compress header")?;
-    }
-
-    let mut bit_writer = LzwBitWriter::new(writer);
-    let mut dict: HashMap<(u32, u8), u32> = HashMap::with_capacity(4096);
-
-    let mut free_ent = if block_mode {
-        FIRST_FREE_BLOCK
-    } else {
-        FIRST_FREE_NONBLOCK
-    };
-    let mut n_bits = INIT_BITS;
-    let maxmaxcode = 1u32
-        .checked_shl(maxbits)
-        .ok_or_else(|| anyhow::anyhow!("maxbits {maxbits} exceeds 31 bits"))?;
-    let mut maxcode = (1u32
-        .checked_shl(n_bits)
-        .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-    .saturating_sub(1);
-
-    let mut total_in = 0u64;
-    let mut ent: Option<u32> = None;
-    let mut buf = [0u8; 8192];
-
-    loop {
-        let bytes_read = reader
-            .read(&mut buf)
-            .context("Failed to read block for LZW compression")?;
-        if bytes_read == 0 {
-            break;
-        }
-        total_in = total_in.saturating_add(u64::try_from(bytes_read)?);
-
-        #[expect(
-            clippy::expect_used,
-            reason = "bytes_read <= buf.len() guaranteed by std::io::Read"
-        )]
-        let slice = buf
-            .get(..bytes_read)
-            .expect("bytes_read <= buf.len() guaranteed by std::io::Read");
-
-        for &byte in slice {
-            match ent {
-                None => {
-                    ent = Some(u32::from(byte));
-                }
-                Some(curr_ent) => {
-                    let key = (curr_ent, byte);
-                    if let Some(&code) = dict.get(&key) {
-                        ent = Some(code);
-                    } else {
-                        bit_writer.write_code(curr_ent, n_bits)?;
-
-                        if free_ent < maxmaxcode {
-                            dict.insert(key, free_ent);
-                            free_ent = free_ent.saturating_add(1);
-
-                            if free_ent > maxcode.saturating_add(1)
-                                && n_bits < maxbits
-                            {
-                                bit_writer.align_block(n_bits)?;
-                                n_bits = n_bits.saturating_add(1);
-                                maxcode = (1u32
-                                    .checked_shl(n_bits)
-                                    .ok_or_else(|| {
-                                        anyhow::anyhow!(
-                                            "n_bits {n_bits} exceeds 31 bits"
-                                        )
-                                    })?)
-                                .saturating_sub(1);
-                            }
-                        } else if block_mode {
-                            bit_writer.write_code(CLEAR_CODE, n_bits)?;
-                            bit_writer.align_block(n_bits)?;
-                            dict.clear();
-                            free_ent = FIRST_FREE_BLOCK;
-                            n_bits = INIT_BITS;
-                            maxcode = (1u32.checked_shl(n_bits).ok_or_else(
-                                || {
-                                    anyhow::anyhow!(
-                                        "n_bits {n_bits} exceeds 31 bits"
-                                    )
-                                },
-                            )?)
-                            .saturating_sub(1);
-                        }
-
-                        ent = Some(u32::from(byte));
+    // Ensure END_SYMBOL (256) is at maximum depth (max_len)
+    if let Some(end_depth) = depths.get_mut(END_SYMBOL) {
+        if *end_depth < max_len {
+            for s in 0..256 {
+                if let Some(&d) = depths.get(s) {
+                    if d == max_len {
+                        depths.swap(s, END_SYMBOL);
+                        break;
                     }
                 }
             }
         }
     }
 
-    if let Some(final_ent) = ent {
-        bit_writer.write_code(final_ent, n_bits)?;
+    // Count leaves per level
+    let mut leaf_counts = vec![0usize; max_len.saturating_add(1)];
+    for &d in &depths {
+        if d > 0 {
+            let slot = leaf_counts
+                .get_mut(d)
+                .context("Invalid leaf_counts index")?;
+            *slot = slot.saturating_add(1);
+        }
     }
 
-    bit_writer.finish()?;
+    // Group symbols by depth
+    // Workaround for gzip bug #28861: symbol 256 (END) must be ordered last within its depth level
+    let mut level_symbols =
+        vec![Vec::<usize>::new(); max_len.saturating_add(1)];
+    for (sym, &d) in depths.iter().enumerate() {
+        if d > 0 {
+            let vec = level_symbols
+                .get_mut(d)
+                .context("Invalid level_symbols level")?;
+            vec.push(sym);
+        }
+    }
 
-    Ok(total_in)
+    for (d, syms) in level_symbols.iter_mut().enumerate() {
+        if d > 0 {
+            syms.sort_by(|&a, &b| {
+                if a == END_SYMBOL {
+                    Ordering::Greater
+                } else if b == END_SYMBOL {
+                    Ordering::Less
+                } else {
+                    a.cmp(&b)
+                }
+            });
+        }
+    }
+
+    // Assign codes to symbols bottom-up (max_len down to 1) using Szymanski's bit mask stepping
+    let mut code_map = [(0u32, 0u32); 257];
+    let mut cursor = 0u32;
+    for len in (1..=max_len).rev() {
+        let step_shift = u32::try_from(max_len.saturating_sub(len))?;
+        let step = 1u32
+            .checked_shl(step_shift)
+            .context("Bit shift overflow for level step")?;
+        if len < max_len {
+            // Snap/align cursor up to the next parent grid boundary
+            let mask = step.saturating_sub(1);
+            cursor = (cursor.saturating_add(mask)) & (!mask);
+        }
+        let syms = level_symbols
+            .get(len)
+            .context("Invalid level_symbols len")?;
+        let len_u32 = u32::try_from(len)?;
+        for &sym in syms {
+            let sym_code = cursor >> step_shift;
+            let map_slot =
+                code_map.get_mut(sym).context("Invalid code_map slot")?;
+            *map_slot = (sym_code, len_u32);
+            cursor = cursor.saturating_add(step);
+        }
+    }
+
+    // Write header
+    writer
+        .write_all(&PACK_MAGIC)
+        .context("Failed to write Pack magic")?;
+    let orig_be = orig_size_u32.to_be_bytes();
+    writer
+        .write_all(&orig_be)
+        .context("Failed to write orig_size")?;
+
+    let max_len_u8 = u8::try_from(max_len)?;
+    writer
+        .write_all(&[max_len_u8])
+        .context("Failed to write maxlev")?;
+
+    // Write leaf counts array
+    for len in 1..=max_len {
+        let count = *leaf_counts.get(len).context("Invalid leaf_counts len")?;
+        let store_val = if len == max_len {
+            count.saturating_sub(2)
+        } else {
+            count
+        };
+        let val_u8 = u8::try_from(store_val)?;
+        writer
+            .write_all(&[val_u8])
+            .context("Failed to write level count")?;
+    }
+
+    // Write literal symbol bytes (excluding EOB 256)
+    for len in 1..=max_len {
+        let syms = level_symbols
+            .get(len)
+            .context("Invalid level_symbols len")?;
+        for &sym in syms {
+            if sym != END_SYMBOL {
+                let byte = u8::try_from(sym)?;
+                writer
+                    .write_all(&[byte])
+                    .context("Failed to write symbol byte")?;
+            }
+        }
+    }
+
+    // Write MSB-to-LSB bitstream
+    let mut bw = BitWriter::new(writer);
+    for &b in &input_bytes {
+        let sym = usize::from(b);
+        let &(code, bits) =
+            code_map.get(sym).context("Symbol missing from code map")?;
+        bw.write_bits(code, bits)?;
+    }
+    // Write EOB symbol
+    let &(eob_code, eob_bits) = code_map
+        .get(END_SYMBOL)
+        .context("EOB missing from code map")?;
+    bw.write_bits(eob_code, eob_bits)?;
+    bw.flush_bits()?;
+
+    Ok(u64::try_from(orig_size)?)
 }
 
-/// Decompresses a stream using the specified LZW format variant (`CompressLzw`, `CompressLzw2`, `CompressLzw1`, `CompressLzw16`).
-pub fn decompress_lzw_stream(
+// -----------------------------------------------------------------------------
+// Early PDP-11 OldPack Decompression (`0x1F 0x1F`)
+// -----------------------------------------------------------------------------
+/// Decompresses an early PDP-11 `old_pack` stream (`0x1F 0x1F`).
+pub fn decompress_old_pack_stream(
     reader: &mut impl Read,
     writer: &mut impl Write,
-    format: crate::CompressionFormat,
 ) -> Result<u64> {
-    let mut input_data = Vec::new();
+    let mut magic = [0u8; 2];
     reader
-        .read_to_end(&mut input_data)
-        .context("Failed to read input compress stream")?;
+        .read_exact(&mut magic)
+        .context("Failed to read OldPack magic header")?;
+    if magic[0] != OLD_PACK_MAGIC[0] || magic[1] != OLD_PACK_MAGIC[1] {
+        bail!(
+            "Invalid OldPack magic header: expected 0x1F 0x1F, got 0x{:02X} 0x{:02X}",
+            magic[0],
+            magic[1]
+        );
+    }
 
-    if input_data.is_empty() {
+    // Read 32-bit PDP-11 Middle-Endian uncompressed size
+    let mut size_bytes = [0u8; 4];
+    reader
+        .read_exact(&mut size_bytes)
+        .context("Failed to read OldPack size")?;
+    let hi = u32::from(u16::from_le_bytes([
+        *size_bytes.first().context("Missing size byte 0")?,
+        *size_bytes.get(1).context("Missing size byte 1")?,
+    ]));
+    let lo = u32::from(u16::from_le_bytes([
+        *size_bytes.get(2).context("Missing size byte 2")?,
+        *size_bytes.get(3).context("Missing size byte 3")?,
+    ]));
+    let orig_size = (hi << 16) | lo;
+    if orig_size == 0 {
         return Ok(0);
     }
 
-    let mut data_slice: &[u8] = &input_data;
-    let block_mode;
-    let maxbits;
+    let mut key_buf = [0u8; 2];
+    reader
+        .read_exact(&mut key_buf)
+        .context("Failed to read OldPack keysize")?;
+    let keysize = usize::from(u16::from_le_bytes(key_buf));
 
-    if format == crate::CompressionFormat::CompressLzw1
-        || format == crate::CompressionFormat::CompressLzw16
-    {
-        block_mode = false;
-        maxbits = MAX_BITS;
-    } else {
-        if data_slice.len() < 3 {
-            bail!("Compress stream too short for 3-byte header");
-        }
-        let h0 = match data_slice.first() {
-            Some(&b) => b,
-            None => bail!("Missing magic byte 1"),
-        };
-        let h1 = match data_slice.get(1) {
-            Some(&b) => b,
-            None => bail!("Missing magic byte 2"),
-        };
-
-        if h0 != LZW_MAGIC[0] || h1 != LZW_MAGIC[1] {
-            bail!(
-                "Invalid compress magic header: expected 0x{:02X}{:02X}, got 0x{:02X}{:02X}",
-                LZW_MAGIC[0],
-                LZW_MAGIC[1],
-                h0,
-                h1
-            );
-        }
-
-        let mode_u8 = match data_slice.get(2) {
-            Some(&b) => b,
-            None => bail!("Missing mode byte"),
-        };
-
-        block_mode = (mode_u8 & BLOCK_MODE) != 0;
-        maxbits = u32::from(mode_u8 & BIT_MASK);
-
-        if !(9..=16).contains(&maxbits) {
-            bail!("Invalid compress maxbits param: {maxbits}");
-        }
-
-        data_slice = match data_slice.get(3..) {
-            Some(sl) => sl,
-            None => bail!("Failed to slice compress payload"),
-        };
+    if keysize == 0 || keysize > 4096 {
+        bail!("Invalid OldPack keysize: {keysize}");
     }
 
-    let mut bit_reader = LzwBitReader::new(data_slice);
+    // Read dictionary array of words
+    let mut tree_words = Vec::with_capacity(keysize);
+    let mut words_read = 0usize;
 
-    let mut prefix = vec![0u32; 65536];
-    let mut suffix = vec![0u8; 65536];
-
-    for i in 0..256 {
-        if let Some(s) = suffix.get_mut(i) {
-            *s = u8::try_from(i)?;
+    while words_read < keysize {
+        let mut byte = [0u8; 1];
+        reader
+            .read_exact(&mut byte)
+            .context("Failed to read dictionary byte")?;
+        let b = byte[0];
+        if b < 0xFF {
+            tree_words.push(u16::from(b));
+            words_read = words_read.saturating_add(1);
+        } else {
+            let mut word_bytes = [0u8; 2];
+            reader
+                .read_exact(&mut word_bytes)
+                .context("Failed to read dictionary escape word")?;
+            let w = u16::from_le_bytes(word_bytes);
+            tree_words.push(w);
+            words_read = words_read.saturating_add(1);
         }
     }
 
-    let mut free_ent = if block_mode {
-        FIRST_FREE_BLOCK
-    } else {
-        FIRST_FREE_NONBLOCK
-    };
-    let mut n_bits = INIT_BITS;
-    let maxmaxcode = 1u32
-        .checked_shl(maxbits)
-        .ok_or_else(|| anyhow::anyhow!("maxbits {maxbits} exceeds 31 bits"))?;
-    let mut maxcode = (1u32
-        .checked_shl(n_bits)
-        .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
-    .saturating_sub(1);
+    // Decompress bitstream reading 16-bit LE words (MSB to LSB bit order)
+    let mut bytes_emitted = 0u64;
+    let mut tp = 0usize;
 
-    let mut oldcode: i32 = -1;
-    let mut finchar: u8 = 0;
-    let mut stack = vec![0u8; 65536];
-    let mut total_written: u64 = 0;
+    let mut word_buf = 0u16;
+    let mut bits_left = 0u32;
 
-    let total_data_bits = data_slice.len().saturating_mul(8);
+    while bytes_emitted < u64::from(orig_size) {
+        let left_off =
+            *tree_words.get(tp).context("Tree index tp out of bounds")?;
+        let right_val = *tree_words
+            .get(tp.saturating_add(1))
+            .context("Tree index tp+1 out of bounds")?;
 
-    while bit_reader.posbits.saturating_add(usize::try_from(n_bits)?)
-        <= total_data_bits
-    {
-        let mut code = match bit_reader.read_code(n_bits)? {
-            Some(c) => c,
-            None => break,
-        };
-
-        if oldcode == -1 {
-            if code >= 256 {
-                bail!("Corrupt compress stream: first code {code} >= 256");
-            }
-            finchar = u8::try_from(code)?;
-            oldcode = i32::try_from(code)?;
+        if left_off == 0 {
+            // Leaf node! right_val is literal character
+            let sym = u8::try_from(right_val & 0xFF)?;
             writer
-                .write_all(&[finchar])
-                .context("Failed to write byte to output stream")?;
-            total_written = total_written.saturating_add(1);
-            continue;
-        }
-
-        if code == CLEAR_CODE && block_mode {
-            prefix.fill(0);
-            free_ent = FIRST_FREE_BLOCK;
-            bit_reader.align_block(n_bits)?;
-            n_bits = INIT_BITS;
-            maxcode = (1u32.checked_shl(n_bits).ok_or_else(|| {
-                anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits")
-            })?)
-            .saturating_sub(1);
-            oldcode = -1;
-            continue;
-        }
-
-        let incode = code;
-        let mut stack_idx: usize = stack.len();
-
-        if code >= free_ent {
-            if code > free_ent {
-                bail!(
-                    "Corrupt compress stream: code {code} exceeds free entry {free_ent}"
-                );
+                .write_all(&[sym])
+                .context("Failed to write decompressed byte")?;
+            bytes_emitted = bytes_emitted.saturating_add(1);
+            tp = 0;
+        } else {
+            // Internal node! Fetch next bit
+            if bits_left == 0 {
+                let mut w_buf = [0u8; 2];
+                let n = reader
+                    .read(&mut w_buf)
+                    .context("Failed to read word from bitstream")?;
+                if n < 2 {
+                    break;
+                }
+                word_buf = u16::from_le_bytes(w_buf);
+                bits_left = 16;
             }
-            stack_idx = stack_idx.saturating_sub(1);
-            if let Some(s) = stack.get_mut(stack_idx) {
-                *s = finchar;
-            }
-            code = u32::try_from(oldcode)?;
+
+            let shift = bits_left.saturating_sub(1);
+            let bit = (word_buf >> shift) & 1;
+            bits_left = shift;
+
+            let offset = if bit == 0 { left_off } else { right_val };
+            tp = tp.saturating_add(usize::from(offset));
         }
-
-        while code >= 256 {
-            let code_idx = usize::try_from(code)?;
-            let suf = match suffix.get(code_idx) {
-                Some(&s) => s,
-                None => bail!(
-                    "Corrupt compress stream: invalid suffix index {code}"
-                ),
-            };
-            stack_idx = stack_idx.saturating_sub(1);
-            if let Some(s) = stack.get_mut(stack_idx) {
-                *s = suf;
-            }
-            code = match prefix.get(code_idx) {
-                Some(&p) => p,
-                None => bail!(
-                    "Corrupt compress stream: invalid prefix index {code}"
-                ),
-            };
-        }
-
-        finchar = u8::try_from(code)?;
-        stack_idx = stack_idx.saturating_sub(1);
-        if let Some(s) = stack.get_mut(stack_idx) {
-            *s = finchar;
-        }
-
-        let out_slice = match stack.get(stack_idx..) {
-            Some(sl) => sl,
-            None => bail!("Stack index out of bounds"),
-        };
-
-        writer
-            .write_all(out_slice)
-            .context("Failed to write decompressed block")?;
-        total_written =
-            total_written.saturating_add(u64::try_from(out_slice.len())?);
-
-        if free_ent < maxmaxcode {
-            let oldcode_u32 = u32::try_from(oldcode)?;
-            let free_idx = usize::try_from(free_ent)?;
-            if let Some(p) = prefix.get_mut(free_idx) {
-                *p = oldcode_u32;
-            }
-            if let Some(s) = suffix.get_mut(free_idx) {
-                *s = finchar;
-            }
-            free_ent = free_ent.saturating_add(1);
-
-            if free_ent > maxcode && n_bits < maxbits {
-                bit_reader.align_block(n_bits)?;
-                n_bits = n_bits.saturating_add(1);
-                maxcode = (1u32.checked_shl(n_bits).ok_or_else(|| {
-                    anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits")
-                })?)
-                .saturating_sub(1);
-            }
-        }
-
-        oldcode = i32::try_from(incode)?;
     }
 
-    writer.flush().context("Failed to flush output stream")?;
-    Ok(total_written)
+    if bytes_emitted != u64::from(orig_size) {
+        bail!(
+            "Decompressed byte count mismatch for OldPack: expected {orig_size}, got {bytes_emitted}"
+        );
+    }
+
+    Ok(bytes_emitted)
 }
 
-#[cfg(test)]
-#[allow(
-    clippy::panic,
-    clippy::expect_used,
-    clippy::unwrap_used,
-    clippy::unwrap_in_result,
-    clippy::panic_in_result_fn,
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    reason = "Standard repository test boilerplate"
-)]
-mod tests {
-    use super::*;
+// -----------------------------------------------------------------------------
+// Early PDP-11 OldPack Compression (`0x1F 0x1F`)
+// -----------------------------------------------------------------------------
 
-    #[crate::ctb_test]
-    fn test_compress_lzw_roundtrip() {
-        let sample1 = b"The quick brown fox jumps over the lazy dog! 1234567890 repeating text repeating text repeating text";
-        let sample2 = vec![b'A'; 200000];
+/// Compresses a stream into early PDP-11 `old_pack` format (`0x1F 0x1F`).
+pub fn compress_old_pack_stream(
+    reader: &mut impl Read,
+    writer: &mut impl Write,
+) -> Result<u64> {
+    let mut input_bytes = Vec::new();
+    reader
+        .read_to_end(&mut input_bytes)
+        .context("Failed to read input data for OldPack compression")?;
 
-        for sample in [sample1.as_slice(), sample2.as_slice()] {
-            for format in [
-                crate::CompressionFormat::CompressLzw,
-                crate::CompressionFormat::CompressLzw2,
-                crate::CompressionFormat::CompressLzw1,
-                crate::CompressionFormat::CompressLzw16,
-            ] {
-                let mut compressed = Vec::new();
-                compress_lzw_stream(&mut &sample[..], &mut compressed, format)
-                    .unwrap();
+    let orig_size = input_bytes.len();
+    if input_bytes.is_empty() {
+        writer
+            .write_all(&OLD_PACK_MAGIC)
+            .context("Failed to write OldPack magic")?;
+        writer
+            .write_all(&[0, 0, 0, 0])
+            .context("Failed to write OldPack origsize")?;
+        return Ok(0);
+    }
 
-                let mut decompressed = Vec::new();
-                decompress_lzw_stream(
-                    &mut &compressed[..],
-                    &mut decompressed,
-                    format,
-                )
-                .unwrap();
+    let orig_size_u32 = u32::try_from(orig_size).context(
+        "Input data size exceeds 32-bit uint capacity for OldPack header",
+    )?;
 
-                assert!(
-                    decompressed == sample,
-                    "Roundtrip failed for LZW format {:?}, sample len {}, decompressed len {}",
-                    format,
-                    sample.len(),
-                    decompressed.len()
+    // Frequency counting
+    let mut freqs = [0u64; 256];
+    for &b in &input_bytes {
+        let idx = usize::from(b);
+        let count = freqs.get_mut(idx).context("Invalid frequency index")?;
+        *count = count.saturating_add(1);
+    }
+
+    // Build min-heap for explicit binary tree
+    let mut heap = BinaryHeap::new();
+    for (sym, &freq) in freqs.iter().enumerate() {
+        if freq > 0 {
+            heap.push(HuffmanNode {
+                freq,
+                symbol: Some(sym),
+                left: None,
+                right: None,
+            });
+        }
+    }
+
+    // Ensure at least 2 leaves in tree
+    if heap.len() < 2 {
+        for (dummy_sym, &freq) in freqs.iter().enumerate() {
+            if freq == 0 {
+                heap.push(HuffmanNode {
+                    freq: 1,
+                    symbol: Some(dummy_sym),
+                    left: None,
+                    right: None,
+                });
+                if heap.len() >= 2 {
+                    break;
+                }
+            }
+        }
+    }
+
+    while heap.len() > 1 {
+        let left = heap.pop().context("Heap underflow")?;
+        let right = heap.pop().context("Heap underflow")?;
+        let parent_freq = left.freq.saturating_add(right.freq);
+        heap.push(HuffmanNode {
+            freq: parent_freq,
+            symbol: None,
+            left: Some(Box::new(left)),
+            right: Some(Box::new(right)),
+        });
+    }
+
+    let root = heap.pop().context("Huffman tree root missing")?;
+
+    let mut tree_words = Vec::<u16>::new();
+
+    fn serialize_node(
+        node: &HuffmanNode,
+        tree_words: &mut Vec<u16>,
+    ) -> Result<usize> {
+        let tp = tree_words.len();
+        tree_words.push(0);
+        tree_words.push(0);
+
+        if let Some(sym) = node.symbol {
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
+                *slot_right = u16::try_from(sym)
+                    .context("Huffman symbol out of range for u16")?;
+            }
+        } else {
+            let (Some(left_node), Some(right_node)) =
+                (node.left.as_ref(), node.right.as_ref())
+            else {
+                return Ok(tp);
+            };
+
+            let left_tp = serialize_node(left_node, tree_words)?;
+            let right_tp = serialize_node(right_node, tree_words)?;
+
+            let left_offset = u16::try_from(left_tp.saturating_sub(tp))
+                .context("Left node offset out of range for u16")?;
+            let right_offset = u16::try_from(right_tp.saturating_sub(tp))
+                .context("Right node offset out of range for u16")?;
+
+            if let Some(slot_left) = tree_words.get_mut(tp) {
+                *slot_left = left_offset;
+            }
+            if let Some(slot_right) = tree_words.get_mut(tp.saturating_add(1)) {
+                *slot_right = right_offset;
+            }
+        }
+        Ok(tp)
+    }
+
+    serialize_node(&root, &mut tree_words)?;
+
+    let keysize = u16::try_from(tree_words.len())
+        .context("OldPack tree size exceeds 16-bit capacity")?;
+
+    let mut symbol_bits = vec![(0u32, 0u32); 256];
+    fn build_paths(
+        node: &HuffmanNode,
+        code: u32,
+        len: u32,
+        symbol_bits: &mut [(u32, u32)],
+    ) {
+        if let Some(sym) = node.symbol {
+            if sym < 256 {
+                if let Some(slot) = symbol_bits.get_mut(sym) {
+                    *slot = (code, len);
+                }
+            }
+        } else {
+            if let Some(ref l) = node.left {
+                build_paths(l, code << 1, len.saturating_add(1), symbol_bits);
+            }
+            if let Some(ref r) = node.right {
+                build_paths(
+                    r,
+                    (code << 1) | 1,
+                    len.saturating_add(1),
+                    symbol_bits,
                 );
             }
         }
     }
+    build_paths(&root, 0, 0, &mut symbol_bits);
+
+    // Write header
+    writer
+        .write_all(&OLD_PACK_MAGIC)
+        .context("Failed to write OldPack magic")?;
+
+    let hi = u16::try_from((orig_size_u32 >> 16) & 0xFFFF)?;
+    let lo = u16::try_from(orig_size_u32 & 0xFFFF)?;
+    writer
+        .write_all(&hi.to_le_bytes())
+        .context("Failed to write origsize hi")?;
+    writer
+        .write_all(&lo.to_le_bytes())
+        .context("Failed to write origsize lo")?;
+
+    writer
+        .write_all(&keysize.to_le_bytes())
+        .context("Failed to write keysize")?;
+
+    // Write compressed tree dictionary array
+    for &w in &tree_words {
+        if w < 0xFF {
+            let byte = u8::try_from(w)?;
+            writer
+                .write_all(&[byte])
+                .context("Failed to write dictionary byte")?;
+        } else {
+            writer
+                .write_all(&[0xFF])
+                .context("Failed to write 0xFF escape")?;
+            writer
+                .write_all(&w.to_le_bytes())
+                .context("Failed to write dictionary word")?;
+        }
+    }
+
+    // Write bitstream in 16-bit LE words (MSB to LSB bit order)
+    let mut word_buf = 0u16;
+    let mut valid_bits = 0u32;
+
+    for &b in &input_bytes {
+        let sym = usize::from(b);
+        let &(code, bits) = symbol_bits
+            .get(sym)
+            .context("Symbol missing in path table")?;
+
+        let mut rem_bits = bits;
+        while rem_bits > 0 {
+            let space = 16u32.saturating_sub(valid_bits);
+            let take = rem_bits.min(space);
+            let shift = rem_bits.saturating_sub(take);
+            let mask =
+                (1u32.checked_shl(take).context("bit shift out of range")?)
+                    .saturating_sub(1);
+            let val = u16::try_from((code >> shift) & mask)?;
+
+            // Reason for fallback: shifting by >= 16 bits on u16 shifts out all bits, defaulting to 0.
+            word_buf = word_buf.checked_shl(take).unwrap_or(0) | val;
+            valid_bits = valid_bits.saturating_add(take);
+            rem_bits = shift;
+
+            if valid_bits == 16 {
+                writer
+                    .write_all(&word_buf.to_le_bytes())
+                    .context("Failed to write bitstream word")?;
+                word_buf = 0;
+                valid_bits = 0;
+            }
+        }
+    }
+
+    if valid_bits > 0 {
+        let shift = 16u32.saturating_sub(valid_bits);
+        // Reason for fallback: shifting by >= 16 bits on u16 shifts out all bits, defaulting to 0.
+        word_buf = word_buf.checked_shl(shift).unwrap_or(0);
+        writer
+            .write_all(&word_buf.to_le_bytes())
+            .context("Failed to flush bitstream word")?;
+    }
+
+    Ok(u64::try_from(orig_size)?)
 }
 
 /*

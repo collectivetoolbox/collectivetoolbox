@@ -1,0 +1,15 @@
+[package]
+name = "ctb-formats-compression-pack"
+edition = "2024"
+
+[lib]
+path="pack.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../../utilities" }
+
+[lints]
+workspace = true
+
+

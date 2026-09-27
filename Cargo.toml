@@ -90,6 +90,11 @@ ctb-formats-base16b = { path = "src/formats/base16b" }
 ctb-formats-base64 = { path = "src/formats/base64" }
 ctb-formats-checksum = { path = "src/formats/checksum" }
 ctb-formats-compression = { path = "src/formats/compression" }
+ctb-formats-compression-bzip = { path = "src/formats/compression/bzip" }
+ctb-formats-compression-compact = { path = "src/formats/compression/compact" }
+ctb-formats-compression-compress = { path = "src/formats/compression/compress" }
+ctb-formats-compression-pack = { path = "src/formats/compression/pack" }
+ctb-formats-compression-sco-compress = { path = "src/formats/compression/sco_compress" }
 ctb-formats-ctb-asset-bundle = { path = "src/formats/ctb_asset_bundle" }
 ctb-formats-dcdata = { path = "src/formats/dcdata" }
 ctb-formats-dceutils = { path = "src/formats/dceutils" }

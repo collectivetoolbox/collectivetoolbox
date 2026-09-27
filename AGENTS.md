@@ -11,6 +11,7 @@
 - Your operator will sometimes be involved in the coding as you work. If you see edits come in as you're working on files, don't revert them: instead, re-read them and collaboratively take into account the direction of the edits.
 - Don't run temporary builds using Cargo in Antigravity chat folders, because all new files there are loaded in as "Artifacts", and the large file count of Cargo builds locks up the IDE.
 - If your operator prompts you to add something that seems small in scope and you would need to make large changes (like significant refactoring) to accomplish it, ask to confirm before editing, or use /plan mode.
+- If prompted to move a module into a subcrate, the intended action is very simple: move files (using a tool/script, not by generating them), copy and trim the Cargo.toml, update the package name, replace the import from a module to a use, and add them to the root Cargo.toml. If anything else is needed, ask before acting on it.
 
 ## Standards and Style Guide
 - Use the `anyhow` crate for error handling in new code, and avoid panics.

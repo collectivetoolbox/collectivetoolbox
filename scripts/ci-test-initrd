@@ -20,6 +20,16 @@ set -euo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
+if [[ -z "${RUSTUP_HOME:-}" && -d "/root/.rustup" ]]; then
+    export RUSTUP_HOME="/root/.rustup"
+fi
+if [[ -z "${CARGO_HOME:-}" && -d "/root/.cargo" ]]; then
+    export CARGO_HOME="/root/.cargo"
+fi
+if [[ -d "/root/.cargo/bin" && ":$PATH:" != *":/root/.cargo/bin:"* ]]; then
+    export PATH="/root/.cargo/bin:$PATH"
+fi
+
 echo "=================================================="
 echo "Starting Guix POSIX Initrd Build Verification"
 echo "=================================================="

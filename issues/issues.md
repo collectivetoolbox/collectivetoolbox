@@ -132,6 +132,22 @@ from_code_point: unknown code point [63489]
 
 - Potentially merge MIME types databases in mime crate, and also load the MIME data from Magdir.
 
+Csc copy fifo
+
+Short_dc should take a shorthand also maybe and short_fmt removed
+“Rsync-compatible resolution” is missing word “path”
+
+Split compression into subcrates
+Add freeze to compression
+Lint that all crates are included in workspace cargo.toml
+today
+
+Don’t save environment in archive by default
+Or maybe just show warning. Otherwise galse sense of security. Though any low metadata mode would still overlook in file metadata
+
+All interfaces; MAC address
+Add api in io/system for that?
+
 Hi! I'd like you to work on some issues in the installer:
 
 - Keyboard input is still somewhat laggy, and frequently keys "stick" when pressed. (Mouse input, by contrast, is relatively smooth, and un-"stick"s the stuck keyboard event - keyboard events work smoothly if I'm continuously moving the mouse.)

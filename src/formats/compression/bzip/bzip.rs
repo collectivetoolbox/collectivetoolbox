@@ -22,12 +22,8 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //!
 //! Specification reference: `data/docs/bzip.md`
 
-#[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
 use anyhow::anyhow;
 use std::io::{Read, Write};
 

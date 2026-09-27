@@ -2846,6 +2846,11 @@ dependencies = [
  "brotli",
  "bzip2",
  "clap",
+ "ctb-formats-compression-bzip",
+ "ctb-formats-compression-compact",
+ "ctb-formats-compression-compress",
+ "ctb-formats-compression-pack",
+ "ctb-formats-compression-sco-compress",
  "ctb-formats-detection",
  "ctb-formats-utilities",
  "ctb-io-file",
@@ -2856,6 +2861,41 @@ dependencies = [
  "lzma-rust2",
  "lzokay-native",
  "zstd",
+]
+
+[[package]]
+name = "ctb-formats-compression-bzip"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-compact"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-compress"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-pack"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-sco-compress"
+version = "0.0.0"
+dependencies = [
+ "ctb-utilities",
 ]
 
 [[package]]
@@ -3980,6 +4020,11 @@ dependencies = [
  "ctb-formats-base64",
  "ctb-formats-checksum",
  "ctb-formats-compression",
+ "ctb-formats-compression-bzip",
+ "ctb-formats-compression-compact",
+ "ctb-formats-compression-compress",
+ "ctb-formats-compression-pack",
+ "ctb-formats-compression-sco-compress",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",

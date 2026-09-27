@@ -21,6 +21,16 @@ set -euxo pipefail
 
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." || exit 1
 
+if [[ -z "${RUSTUP_HOME:-}" && -d "/root/.rustup" ]]; then
+    export RUSTUP_HOME="/root/.rustup"
+fi
+if [[ -z "${CARGO_HOME:-}" && -d "/root/.cargo" ]]; then
+    export CARGO_HOME="/root/.cargo"
+fi
+if [[ -d "/root/.cargo/bin" && ":$PATH:" != *":/root/.cargo/bin:"* ]]; then
+    export PATH="/root/.cargo/bin:$PATH"
+fi
+
 
 # Build Guix v86 system image and cross-compiled browser packages.
 #
@@ -344,11 +354,20 @@ start_guix_daemon() {
             fi
             if [ ! -f "$nopersonality_so" ] || [ "$nopersonality_rs" -nt "$nopersonality_so" ]; then
                 echo "Building nopersonality cdylib shim..."
+                built_shim=0
                 if command -v rustc >/dev/null 2>&1; then
-                    rustc --edition 2024 --crate-type cdylib -C panic=abort -O "$nopersonality_rs" -o "$nopersonality_so"
-                elif command -v cargo >/dev/null 2>&1; then
-                    cargo build --package ctb-nopersonality --release
-                    cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
+                    if rustc --edition 2024 --crate-type cdylib -C panic=abort -O "$nopersonality_rs" -o "$nopersonality_so" 2>&1; then
+                        built_shim=1
+                    fi
+                fi
+                if [ "$built_shim" -eq 0 ] && command -v cargo >/dev/null 2>&1; then
+                    if cargo build --package ctb-nopersonality --release 2>&1 && [ -f "$workspace_root/target/release/libctb_nopersonality.so" ]; then
+                        cp "$workspace_root/target/release/libctb_nopersonality.so" "$nopersonality_so"
+                        built_shim=1
+                    fi
+                fi
+                if [ "$built_shim" -eq 0 ]; then
+                    echo "Warning: Failed to compile nopersonality cdylib shim, continuing without it..."
                 fi
             fi
             if [ -f "$nopersonality_so" ]; then

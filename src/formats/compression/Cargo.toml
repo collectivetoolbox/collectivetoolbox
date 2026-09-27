@@ -8,6 +8,11 @@ crate-type = ["lib"]
 
 [dependencies]
 ctb-utilities = { path = "../../utilities" }
+ctb-formats-compression-bzip = { path = "./bzip" }
+ctb-formats-compression-compact = { path = "./compact" }
+ctb-formats-compression-compress = { path = "./compress" }
+ctb-formats-compression-pack = { path = "./pack" }
+ctb-formats-compression-sco-compress = { path = "./sco_compress" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-detection = { path = "../detection" }
 ctb-io-file = { path = "../../io/file" }

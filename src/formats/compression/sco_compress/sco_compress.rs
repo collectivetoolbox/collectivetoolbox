@@ -33,12 +33,8 @@ and Mark Adler for the decompression code. */
 //! Specification reference: `data/docs/compress-sco.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzh.c`
 
-#[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+pub(crate) use ctb_utilities::*;
 use std::io::{Read, Write};
 
 /// Magic header bytes for SCO `compress -H` (`0x1F`, `0xA0`).

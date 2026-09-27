@@ -25,6 +25,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
     reason = "Standard workspace module prelude"
 )]
 use crate::utilities::*;
+use crate::CompressionFormatExt;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
 pub use crate as ctb_formats_compression;
@@ -33,7 +34,8 @@ pub use crate as ctb_formats_compression;
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
 pub struct CliCompressArgs {
     /// Compression format (e.g. `br`, `gz`, `deflate`, `zlib`). See table below for allowed values.
-    pub format: crate::CompressionFormat,
+    #[arg(value_parser = crate::parse_compression_format)]
+    pub format: FormatId,
     /// Input file path (or - for stdin)
     #[arg(default_value = "-")]
     pub file: PathBuf,
@@ -53,7 +55,7 @@ pub struct CliCompressArgs {
 
 impl CliCompressArgs {
     /// Returns whether verification should be enabled for this invocation.
-    pub fn verify_enabled(&self, format: crate::CompressionFormat) -> bool {
+    pub fn verify_enabled(&self, format: FormatId) -> bool {
         if self.verify {
             true
         } else if self.no_verify {
@@ -152,7 +154,7 @@ where
     let (resolved_input_path, explicit_format) = match args.format {
         Some(ref fmt_str) => {
             if let Ok(parsed_fmt) =
-                crate::CompressionFormat::try_from(fmt_str.as_str())
+                crate::parse_compression_format(fmt_str.as_str())
             {
                 (args.input_path.clone(), Some(parsed_fmt))
             } else if args.input_path.as_path() == Path::new("-") {
@@ -169,11 +171,11 @@ where
 
     let compression_format = match explicit_format {
         Some(fmt) => fmt,
-        None => crate::CompressionFormat::detect_path(&resolved_input_path)
+        None => crate::detect_path(&resolved_input_path)
             .ok()
             .flatten()
             .or_else(|| {
-                crate::CompressionFormat::detect(
+                crate::detect(
                     Some(&data),
                     resolved_input_path.to_str(),
                 )
@@ -361,11 +363,11 @@ mod tests {
 
     #[ctb_test]
     fn test_cli_compress_verify_flags() {
-        let in_repo_fmt = crate::CompressionFormat::CompressLzw;
-        let crate_fmt = crate::CompressionFormat::Gzip;
+        let in_repo_fmt = FormatId::CompressLzw;
+        let crate_fmt = FormatId::Gzip;
 
         let default_args = CliCompressArgs {
-            format: crate::CompressionFormat::CompressLzw,
+            format: FormatId::CompressLzw,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -376,7 +378,7 @@ mod tests {
         assert!(!default_args.verify_enabled(crate_fmt));
 
         let verify_args = CliCompressArgs {
-            format: crate::CompressionFormat::Gzip,
+            format: FormatId::Gzip,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -387,7 +389,7 @@ mod tests {
         assert!(verify_args.verify_enabled(crate_fmt));
 
         let no_verify_args = CliCompressArgs {
-            format: crate::CompressionFormat::CompressLzw,
+            format: FormatId::CompressLzw,
             file: PathBuf::from("-"),
             output: None,
             force: false,
@@ -407,7 +409,7 @@ mod tests {
 
         // Compress with --no-verify
         let args = CliCompressArgs {
-            format: crate::CompressionFormat::CompressLzw,
+            format: FormatId::CompressLzw,
             file: PathBuf::from("-"),
             output: Some(PathBuf::from("-")),
             force: false,
@@ -420,7 +422,7 @@ mod tests {
             CliCompressionOutput::Stdout(compressed) => {
                 let decompressed = crate::decompress(
                     &compressed,
-                    crate::CompressionFormat::CompressLzw,
+                    FormatId::CompressLzw,
                 )
                 .unwrap();
                 assert_eq!(decompressed, sample_data);
@@ -430,7 +432,7 @@ mod tests {
 
         // Compress with --verify
         let args = CliCompressArgs {
-            format: crate::CompressionFormat::Gzip,
+            format: FormatId::Gzip,
             file: PathBuf::from("-"),
             output: Some(PathBuf::from("-")),
             force: false,
@@ -443,7 +445,7 @@ mod tests {
             CliCompressionOutput::Stdout(compressed) => {
                 let decompressed = crate::decompress(
                     &compressed,
-                    crate::CompressionFormat::Gzip,
+                    FormatId::Gzip,
                 )
                 .unwrap();
                 assert_eq!(decompressed, sample_data);
@@ -457,7 +459,7 @@ mod tests {
         let sample_data =
             b"Hello, world! Decompression CLI test data.".to_vec();
         let compressed_gzip =
-            crate::compress(&sample_data, crate::CompressionFormat::Gzip)
+            crate::compress(&sample_data, FormatId::Gzip)
                 .unwrap();
 
         let compressed_for_read = compressed_gzip.clone();
