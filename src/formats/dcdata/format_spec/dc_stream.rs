@@ -485,6 +485,8 @@ fn decode_apply_params(
                             false,
                         )?;
                         ParamValue::Expr(Box::new(sub))
+                    } else if let DcShorthand::Short(id) = sh {
+                        ParamValue::Integer(i64::from(*id))
                     } else {
                         ParamValue::Dc(*sh)
                     }

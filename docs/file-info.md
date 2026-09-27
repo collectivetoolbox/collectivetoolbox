@@ -155,10 +155,10 @@
     - [ ] Dictionary-based detection for constructed languages and less-common natural languages?
 
 ### Phase 6: Parameterized Formats & Comprehensive Format Catalog
-- [ ] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `base-numeral(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
+- [x] **Parametric Application Syntax:** Design and implement typed application expressions (e.g., `f350(radix=16, alphabet=f359)`) using BaseNNumeral (`f350`) and Base (`f354`).
 - [ ] **EITE Number Base Catalog:** Inventory and register all supported EITE number bases, alphabets, digit orderings, case rules, and padding conventions in the format dataset.
 - [ ] **Line-Ending Formats Inventory:** Comprehensively specify terminated vs. separated conventions across line-ending formats (CRLF, LF, CR, NEL).
-- [ ] **Parameterized Equivalence Migration:** Replace temporary `[number:'...']` syntax placeholders in `f371`–`f375` `<equiv>` entries with parameter bindings.
+- [x] **Parameterized Equivalence Migration:** Replace temporary `[number:'...']` syntax placeholders in `f371`–`f375` `<equiv>` entries with parameter bindings.
 
 ### Phase 7: Semantic Graph Triples & Relation Predicates
 - [ ] **Relation Instance Model:** Represent semantic graph relations with dedicated node IDs carrying `(subject, predicate, object)` fields plus qualified statement attachments.

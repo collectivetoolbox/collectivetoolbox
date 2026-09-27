@@ -229,4 +229,105 @@ mod tests {
         assert_eq!(decoded, expr);
         assert_eq!(format_expr(&decoded), input);
     }
+
+    #[crate::ctb_test]
+    fn test_parametric_application_parsing_and_formatting() {
+        // Single parameter application
+        let expr1 = parse_format_expr("f350(radix=16)").unwrap();
+        assert_eq!(
+            expr1,
+            FormatExpr::Apply {
+                target: Box::new(FormatExpr::Dc(DcShorthand::Format(350))),
+                params: vec![ParamBinding {
+                    name: "radix".to_string(),
+                    value: ParamValue::Integer(16),
+                }],
+            }
+        );
+        assert_eq!(format_expr(&expr1), "f350(radix=16)");
+
+        // Multiple parameter application
+        let expr2 = parse_format_expr("f350(radix=16, alphabet=f359)").unwrap();
+        assert_eq!(
+            expr2,
+            FormatExpr::Apply {
+                target: Box::new(FormatExpr::Dc(DcShorthand::Format(350))),
+                params: vec![
+                    ParamBinding {
+                        name: "radix".to_string(),
+                        value: ParamValue::Integer(16),
+                    },
+                    ParamBinding {
+                        name: "alphabet".to_string(),
+                        value: ParamValue::Dc(DcShorthand::Format(359)),
+                    },
+                ],
+            }
+        );
+        assert_eq!(format_expr(&expr2), "f350(radix=16, alphabet=f359)");
+
+        // Nested in chain expression
+        let expr3 = parse_format_expr("@chain(f350(radix=16) > f0)").unwrap();
+        assert_eq!(
+            format_chain_directive(&expr3),
+            "@chain(f350(radix=16) > f0)"
+        );
+
+        // Bare identifier target must be rejected (only format Dc shorthands allowed)
+        let err = parse_format_expr("BaseNNumeral(radix=16)");
+        assert!(err.is_err());
+        let err_msg = err.unwrap_err().to_string();
+        assert!(err_msg.contains("Identifiers are not permitted as application targets"));
+    }
+
+    #[crate::ctb_test]
+    fn test_parametric_application_dc_stream() {
+        let expr = parse_format_expr("f350(radix=16)").unwrap();
+        let dc_stream = encode_dc_stream_string(&expr);
+        assert_eq!(dc_stream, "535 f350 258 radix 16 259 299");
+
+        let decoded = decode_dc_stream_string(&dc_stream).unwrap();
+        assert_eq!(decoded, expr);
+
+        // Embedded in binary conversion expression
+        let compound = parse_format_expr("f350(radix=16) > f0").unwrap();
+        let comp_stream = encode_dc_stream_string(&compound);
+        assert_eq!(comp_stream, "302 535 f350 258 radix 16 259 299 f0");
+        let comp_decoded = decode_dc_stream_string(&comp_stream).unwrap();
+        assert_eq!(comp_decoded, compound);
+    }
+
+    #[crate::ctb_test]
+    fn test_parametric_application_validation() {
+        // Valid application
+        let valid = parse_format_expr("f350(radix=16)").unwrap();
+        assert!(validate_format_expr(&valid).is_ok());
+
+        let valid_base_ref = parse_format_expr("f350(radix=f354)").unwrap();
+        assert!(validate_format_expr(&valid_base_ref).is_ok());
+
+        // Radix <= 0 rejected
+        let invalid_radix = parse_format_expr("f350(radix=0)").unwrap();
+        let err = validate_format_expr(&invalid_radix);
+        assert!(err.is_err());
+        assert!(err.unwrap_err().to_string().contains("Radix parameter must be greater than 0"));
+
+        // Duplicate parameter rejected
+        let dup = FormatExpr::Apply {
+            target: Box::new(FormatExpr::Dc(DcShorthand::Format(350))),
+            params: vec![
+                ParamBinding {
+                    name: "radix".to_string(),
+                    value: ParamValue::Integer(16),
+                },
+                ParamBinding {
+                    name: "radix".to_string(),
+                    value: ParamValue::Integer(2),
+                },
+            ],
+        };
+        let err_dup = validate_format_expr(&dup);
+        assert!(err_dup.is_err());
+        assert!(err_dup.unwrap_err().to_string().contains("Duplicate parameter 'radix'"));
+    }
 }

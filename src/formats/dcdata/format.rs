@@ -964,6 +964,54 @@ mod tests {
         let err = report.format_report();
         assert!(err.contains("Legacy chain syntax '=' is deprecated"));
     }
+
+    #[crate::ctb_test]
+    fn test_format_variant_rules_validation() {
+        let mut report = ValidationReport::new();
+
+        // 1. Valid scenario: format_variant file with @vary_as and a number format using @varies
+        let fv_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228224,0,Base,Base radix,format_variant,\"@vary_as(\"\"radix\"\")\",,,,,,,,,,, \n";
+        let num_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228225,1,BaseNNumeral,Base N Numeral,number,\"@varies(f0)\",,,,,,,,,,, \n";
+
+        let files = vec![
+            ("format_variant.csv", &fv_csv[..]),
+            ("number.csv", &num_csv[..]),
+        ];
+        let _ = validate_format_files_data(files, "test/formats/", None, &mut report);
+        assert!(!report.has_errors(), "Unexpected errors: {}", report.format_report());
+
+        // 2. Invalid @varies target (referencing non-variant format f1)
+        let mut err_report = ValidationReport::new();
+        let num_bad_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228225,1,BaseNNumeral,Base N Numeral,number,\"@varies(f1)\",,,,,,,,,,, \n";
+        let files_bad_varies = vec![
+            ("format_variant.csv", &fv_csv[..]),
+            ("number.csv", &num_bad_csv[..]),
+        ];
+        let _ = validate_format_files_data(files_bad_varies, "test/formats/", None, &mut err_report);
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("references non-variant format or character"));
+
+        // 3. Invalid @vary_as placement outside .Formats:format_variant
+        let mut err_vary_as = ValidationReport::new();
+        let num_bad_vary_as = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228225,1,BaseNNumeral,Base N Numeral,number,\"@vary_as(\"\"radix\"\")\",,,,,,,,,,, \n";
+        let files_bad_vary_as = vec![
+            ("number.csv", &num_bad_vary_as[..]),
+        ];
+        let _ = validate_format_files_data(files_bad_vary_as, "test/formats/", None, &mut err_vary_as);
+        assert!(err_vary_as.has_errors());
+        assert!(err_vary_as.format_report().contains("only permitted on formats in '.Formats:format_variant'"));
+
+        // 4. Variant script .Formats:v:case without matching @vary_as("case") in format_variant
+        let mut err_unregistered_v = ValidationReport::new();
+        let v_case_csv = b"Dc,Short,Ident (Rust-friendly),Label,Category,\"Base/Related Format/Category, Chain (@), or Syntax (:)\",Ext,MIME,UTI,Apple,Nick,Imp,Exp,Tests,Var,Comments,Ref\n2228225,1,CaseInsensitive,Case Insensitive,v:case,,,,,,,,,,,, \n";
+        let files_unregistered_v = vec![
+            ("format_variant.csv", &fv_csv[..]),
+            ("v.case.csv", &v_case_csv[..]),
+        ];
+        let _ = validate_format_files_data(files_unregistered_v, "test/formats/", None, &mut err_unregistered_v);
+        assert!(err_unregistered_v.has_errors());
+        assert!(err_unregistered_v.format_report().contains("is not defined by any declared '@vary_as(\"case\")' in .Formats:format_variant"));
+    }
 }
 
 
