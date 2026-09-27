@@ -461,25 +461,42 @@ pub enum Offset {
     Eof(u64),
     /// Relative offset relative to the end of the previous match level (`&<offset>`).
     Relative(i64),
-    /// Indirect offset pointer dereference: `(<offset>.<type>+<adjustment>)`.
+    /// Indirect offset pointer dereference: `(<offset>[.,]<type>[~][op][in_offset]+<adjustment>)`.
     Indirect {
         base: Box<Offset>,
         ind_type: IndirectType,
+        is_signed: bool,
+        is_inverse: bool,
+        op: Option<IndirectOp>,
         adjustment: i64,
-        multiplier: i64,
     },
-    /// Relative indirect offset pointer dereference: `&(<offset>.<type>+<adjustment>)`.
+    /// Relative indirect offset pointer dereference: `&(<offset>[.,]<type>[~][op][in_offset]+<adjustment>)`.
     RelativeIndirect {
         base: Box<Offset>,
         ind_type: IndirectType,
+        is_signed: bool,
+        is_inverse: bool,
+        op: Option<IndirectOp>,
         adjustment: i64,
-        multiplier: i64,
     },
     /// Search within window starting at given offset.
     Search {
         start: u64,
         max_bytes: usize,
     },
+}
+
+/// Binary operation applied to indirect offset dereferenced pointer before applying adjustment.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IndirectOp {
+    Mul(i64),
+    Div(i64),
+    Mod(i64),
+    And(i64),
+    Or(i64),
+    Xor(i64),
+    Add(i64),
+    Sub(i64),
 }
 
 /// Data type dereferenced by an indirect offset.
@@ -500,9 +517,12 @@ pub enum IndirectType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StringFlags {
     pub case_insensitive: bool,
-    pub blank_insensitive: bool,
     pub trim: bool,
     pub compact_whitespace: bool,
+    pub optional_whitespace: bool,
+    pub full_word: bool,
+    pub text_only: bool,
+    pub binary_only: bool,
 }
 
 /// Pascal string length prefix specification.
@@ -560,7 +580,7 @@ pub enum MagicTest {
         pattern: String,
         case_insensitive: bool,
         max_bytes: usize,
-        line_mode: bool,
+        line_limit: Option<usize>,
         offset_start: bool,
     },
     U8 {
@@ -709,11 +729,22 @@ pub enum MagicTest {
     Der(crate::der::DerPattern),
 }
 
+/// Rule branching condition type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MagicCond {
+    #[default]
+    None,
+    If,
+    Elif,
+    Else,
+}
+
 /// A parsed hierarchical libmagic rule with optional child rules.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HierarchicalMagicRule {
     pub cont_level: usize,
     pub offset: Offset,
+    pub cond: MagicCond,
     pub test: MagicTest,
     pub description: Option<String>,
     pub mime: Option<String>,
@@ -729,6 +760,7 @@ impl HierarchicalMagicRule {
         Self {
             cont_level: 0,
             offset,
+            cond: MagicCond::None,
             test,
             description,
             mime: None,
@@ -885,50 +917,116 @@ fn parse_signed_magic_int(val: &str) -> Option<i64> {
     }
 }
 
-/// Parses an indirect offset specification: `(<offset>.<type>+<adjustment>)`.
-fn parse_indirect_offset(raw: &str) -> Option<Offset> {
-    let inner = raw.strip_prefix('(')?.strip_suffix(')')?.trim();
-    let (before_adj, adjustment) = if let Some(idx) = inner.rfind('+') {
+fn split_trailing_adj(s: &str) -> (&str, i64) {
+    if let Some(idx) = s.rfind('+') {
         if idx > 0 {
-            let adj = parse_signed_magic_int(inner.get(idx..)?)?;
-            (inner.get(..idx)?, adj)
-        } else {
-            (inner, 0)
+            if let Some(adj) = s.get(idx..).and_then(parse_signed_magic_int) {
+                if let Some(before) = s.get(..idx) {
+                    return (before, adj);
+                }
+            }
         }
-    } else if let Some(idx) = inner.rfind('-') {
-        if idx > 0 && !inner.ends_with('-') {
-            let adj = parse_signed_magic_int(inner.get(idx..)?)?;
-            (inner.get(..idx)?, adj)
-        } else {
-            (inner, 0)
+    } else if let Some(idx) = s.rfind('-') {
+        if idx > 0 && !s.ends_with('-') {
+            if let Some(adj) = s.get(idx..).and_then(parse_signed_magic_int) {
+                if let Some(before) = s.get(..idx) {
+                    return (before, adj);
+                }
+            }
         }
-    } else {
-        (inner, 0)
-    };
+    }
+    (s, 0)
+}
 
-    let (base_part, ind_type, multiplier) = if let Some((base_str, type_str)) = before_adj.split_once('.') {
-        let type_clean = type_str.trim();
-        let (t_str, mult) = if let Some((ts, ms)) = type_clean.split_once('*') {
-            // Reason for fallback: invalid multiplier expression in indirect magic type defaults to unit multiplier 1
-            (ts.trim(), parse_signed_magic_int(ms).unwrap_or(1))
+fn parse_indirect_op_and_adj(s: &str) -> (Option<IndirectOp>, i64) {
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return (None, 0);
+    }
+    let first_char = match trimmed.chars().next() {
+        Some(c) => c,
+        None => return (None, 0),
+    };
+    match first_char {
+        '*' | '/' | '%' | '&' | '|' | '^' => {
+            // Reason for fallback: slice boundary defaults to empty string if trimmed is empty
+            let after_op = trimmed.get(first_char.len_utf8()..).unwrap_or("").trim();
+            let (operand_str, adj) = split_trailing_adj(after_op);
+            // Reason for fallback: invalid or missing operand defaults to identity multiplier/divisor 1
+            let operand = parse_signed_magic_int(operand_str).unwrap_or(1);
+            let op = match first_char {
+                '*' => Some(IndirectOp::Mul(operand)),
+                '/' => Some(IndirectOp::Div(operand)),
+                '%' => Some(IndirectOp::Mod(operand)),
+                '&' => Some(IndirectOp::And(operand)),
+                '|' => Some(IndirectOp::Or(operand)),
+                '^' => Some(IndirectOp::Xor(operand)),
+                _ => None,
+            };
+            (op, adj)
+        }
+        '+' | '-' => {
+            // Reason for fallback: missing or invalid signed adjustment defaults to 0
+            let adj = parse_signed_magic_int(trimmed).unwrap_or(0);
+            (None, adj)
+        }
+        _ => (None, 0),
+    }
+}
+
+/// Parses an indirect offset specification: `(<offset>[.,]<type>[~][op][in_offset]+<adjustment>)`.
+fn parse_indirect_offset(raw: &str) -> Option<Offset> {
+    let mut inner = raw.strip_prefix('(')?.strip_suffix(')')?.trim();
+    let starts_with_tilde = if let Some(stripped) = inner.strip_prefix('~') {
+        inner = stripped.trim();
+        true
+    } else {
+        false
+    };
+    let (base_part, ind_type, is_signed, is_inverse, op, adjustment) = if let Some(sep_idx) = inner.find(|c| c == '.' || c == ',') {
+        let base_str = inner.get(..sep_idx)?;
+        let sep = inner.as_bytes().get(sep_idx)?;
+        let is_signed = *sep == b',';
+        let after_sep = inner.get(sep_idx.saturating_add(1)..)?.trim();
+
+        let (after_tilde, mut is_inverse) = if let Some(stripped) = after_sep.strip_prefix('~') {
+            (stripped, true)
         } else {
-            (type_clean, 1)
+            (after_sep, false)
         };
-        let t = match t_str {
-            "b" | "B" | "c" | "C" => IndirectType::Byte,
-            "s" | "h" => IndirectType::ShortLe,
-            "S" | "H" => IndirectType::ShortBe,
-            "l" => IndirectType::LongLe,
-            "L" => IndirectType::LongBe,
-            "i" => IndirectType::Id3Le,
-            "I" => IndirectType::Id3Be,
-            "q" | "m" => IndirectType::QuadLe,
-            "Q" => IndirectType::QuadBe,
+        if starts_with_tilde {
+            is_inverse = true;
+        }
+
+        let type_char = after_tilde.chars().next()?;
+        let type_char_len = type_char.len_utf8();
+        let rest_after_type = after_tilde.get(type_char_len..)?.trim();
+
+        let rest_clean = if let Some(stripped) = rest_after_type.strip_prefix('~') {
+            is_inverse = true;
+            stripped.trim()
+        } else {
+            rest_after_type
+        };
+
+        let t = match type_char {
+            'b' | 'B' | 'c' | 'C' => IndirectType::Byte,
+            's' | 'h' => IndirectType::ShortLe,
+            'S' | 'H' => IndirectType::ShortBe,
+            'l' => IndirectType::LongLe,
+            'L' => IndirectType::LongBe,
+            'i' => IndirectType::Id3Le,
+            'I' => IndirectType::Id3Be,
+            'q' | 'm' | 'e' | 'f' | 'g' => IndirectType::QuadLe,
+            'Q' | 'E' | 'F' | 'G' => IndirectType::QuadBe,
             _ => IndirectType::LongLe,
         };
-        (base_str.trim(), t, mult)
+
+        let (op, adjustment) = parse_indirect_op_and_adj(rest_clean);
+        (base_str.trim(), t, is_signed, is_inverse, op, adjustment)
     } else {
-        (before_adj.trim(), IndirectType::LongLe, 1)
+        let (before_adj, adjustment) = split_trailing_adj(inner);
+        (before_adj.trim(), IndirectType::LongLe, false, starts_with_tilde, None, adjustment)
     };
 
     let base = if let Some(stripped) = base_part.strip_prefix('&') {
@@ -945,8 +1043,10 @@ fn parse_indirect_offset(raw: &str) -> Option<Offset> {
     Some(Offset::Indirect {
         base: Box::new(base),
         ind_type,
+        is_signed,
+        is_inverse,
+        op,
         adjustment,
-        multiplier,
     })
 }
 
@@ -956,8 +1056,8 @@ pub fn parse_offset(offset_str: &str) -> Option<Offset> {
     if trimmed.starts_with("&(") && trimmed.ends_with(')') {
         let inner = trimmed.strip_prefix('&')?;
         let ind = parse_indirect_offset(inner)?;
-        if let Offset::Indirect { base, ind_type, adjustment, multiplier } = ind {
-            Some(Offset::RelativeIndirect { base, ind_type, adjustment, multiplier })
+        if let Offset::Indirect { base, ind_type, is_signed, is_inverse, op, adjustment } = ind {
+            Some(Offset::RelativeIndirect { base, ind_type, is_signed, is_inverse, op, adjustment })
         } else {
             None
         }
@@ -1023,9 +1123,12 @@ fn parse_string_flags(flags_str: Option<&str>) -> StringFlags {
     let mut flags = StringFlags::default();
     if let Some(s) = flags_str {
         flags.case_insensitive = s.contains('c') || s.contains('C');
-        flags.blank_insensitive = s.contains('b') || s.contains('B');
-        flags.trim = s.contains('t') || s.contains('T');
-        flags.compact_whitespace = s.contains('w') || s.contains('W');
+        flags.trim = s.contains('T');
+        flags.compact_whitespace = s.contains('W');
+        flags.optional_whitespace = s.contains('w');
+        flags.full_word = s.contains('f') || s.contains('F');
+        flags.text_only = s.contains('t');
+        flags.binary_only = s.contains('b') || s.contains('B');
     }
     flags
 }
@@ -1050,27 +1153,29 @@ fn parse_pstring_flags(flags_str: Option<&str>) -> (PascalLengthSize, bool) {
     (size, inc)
 }
 
-fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize, bool, bool) {
+fn parse_regex_flags(flags_str: Option<&str>) -> (bool, usize, Option<usize>, bool) {
     let mut case_insensitive = false;
-    let mut line_mode = false;
+    let mut line_limit = None;
     let mut offset_start = false;
     let mut max_bytes = 4096;
     if let Some(s) = flags_str {
         case_insensitive = s.contains('c') || s.contains('C');
-        line_mode = s.contains('l') || s.contains('L');
+        let has_line = s.contains('l') || s.contains('L');
         offset_start = s.contains('s') || s.contains('S');
         let digits: String = s.chars().filter(|c| c.is_ascii_digit()).collect();
-        if let Ok(num) = digits.parse::<usize>() {
+        let parsed_num = digits.parse::<usize>().ok();
+        if has_line {
+            // Reason for fallback: regex /l flag without explicit count defaults to 1 line
+            let count = parsed_num.unwrap_or(1).max(1);
+            line_limit = Some(count);
+            max_bytes = count.saturating_mul(8192);
+        } else if let Some(num) = parsed_num {
             if num > 0 {
-                if line_mode {
-                    max_bytes = num.saturating_mul(8192);
-                } else {
-                    max_bytes = num;
-                }
+                max_bytes = num;
             }
         }
     }
-    (case_insensitive, max_bytes, line_mode, offset_start)
+    (case_insensitive, max_bytes, line_limit, offset_start)
 }
 
 fn parse_search_flags(flags_str: Option<&str>) -> (StringFlags, usize) {
@@ -1132,7 +1237,7 @@ fn convert_regex_octal_escapes(pattern: &str) -> String {
 
 
 /// Parses a single libmagic rule line into components.
-pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<String>)> {
+pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTest, Option<String>)> {
     let trimmed = line.trim();
     if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("!:") {
         return None;
@@ -1146,7 +1251,54 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         rest = stripped;
     }
 
-    let tokens = split_magic_tokens(rest);
+    let mut tokens = split_magic_tokens(rest);
+    if tokens.is_empty() {
+        return None;
+    }
+
+    let mut cond = MagicCond::None;
+    if tokens.first().map(|s| s.as_str()) == Some("if") {
+        cond = MagicCond::If;
+        tokens.remove(0);
+        tokens.insert(0, "0".to_string());
+    } else if tokens.first().map(|s| s.as_str()) == Some("elif") {
+        cond = MagicCond::Elif;
+        tokens.remove(0);
+        tokens.insert(0, "0".to_string());
+    } else if tokens.first().map(|s| s.as_str()) == Some("else") {
+        cond = MagicCond::Else;
+        tokens.remove(0);
+        tokens.insert(0, "0".to_string());
+    } else if tokens.len() > 1 {
+        if tokens.get(1).map(|s| s.as_str()) == Some("if") {
+            cond = MagicCond::If;
+            tokens.remove(1);
+        } else if tokens.get(1).map(|s| s.as_str()) == Some("elif") {
+            cond = MagicCond::Elif;
+            tokens.remove(1);
+        } else if tokens.get(1).map(|s| s.as_str()) == Some("else") {
+            cond = MagicCond::Else;
+            tokens.remove(1);
+        }
+    }
+
+    // Handle `else` shorthand when type/test are omitted (in libmagic, `else` has no condition)
+    if cond == MagicCond::Else {
+        if tokens.get(1).map(|s| s.as_str()) != Some("default") {
+            let desc = if tokens.len() > 1 {
+                let rest_tokens = tokens.split_off(1);
+                Some(rest_tokens.join(" "))
+            } else {
+                None
+            };
+            tokens.push("default".to_string());
+            tokens.push("x".to_string());
+            if let Some(d) = desc {
+                tokens.push(d);
+            }
+        }
+    }
+
     if tokens.len() < 3 {
         return None;
     }
@@ -1180,13 +1332,13 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
 
     // Handle named templates and use invocations
     if type_str == "name" {
-        return Some((cont_level, offset, MagicTest::Name(val_str.to_string()), description));
+        return Some((cont_level, offset, cond, MagicTest::Name(val_str.to_string()), description));
     }
     if type_str == "use" {
-        return Some((cont_level, offset, MagicTest::Use(val_str.to_string()), description));
+        return Some((cont_level, offset, cond, MagicTest::Use(val_str.to_string()), description));
     }
     if type_str == "indirect" {
-        return Some((cont_level, offset, MagicTest::Indirect, description));
+        return Some((cont_level, offset, cond, MagicTest::Indirect, description));
     }
 
     // Parse type and optional mask (&...)
@@ -1277,7 +1429,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
             }
         }
         "regex" => {
-            let (case_insensitive, max_bytes, line_mode, offset_start) = parse_regex_flags(flags_str);
+            let (case_insensitive, max_bytes, line_limit, offset_start) = parse_regex_flags(flags_str);
             let (_, pattern_raw) = parse_op_and_val(val_str);
             let unescaped_pattern = if let Some(stripped) = pattern_raw.strip_prefix(r"\^") {
                 format!("^{}", stripped)
@@ -1293,7 +1445,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
                 pattern: converted_pattern,
                 case_insensitive,
                 max_bytes,
-                line_mode,
+                line_limit,
                 offset_start,
             }
         }
@@ -1574,7 +1726,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         _ => return None,
     };
 
-    Some((cont_level, offset, test, description))
+    Some((cont_level, offset, cond, test, description))
 }
 
 fn parse_op_and_val(raw: &str) -> (RelOp, &str) {
@@ -1726,7 +1878,7 @@ pub fn parse_magic_content_with_templates(
             continue;
         }
 
-        let Some((level, offset, test, description)) = parse_magic_line(trimmed) else {
+        let Some((level, offset, cond, test, description)) = parse_magic_line(trimmed) else {
             continue;
         };
 
@@ -1734,6 +1886,7 @@ pub fn parse_magic_content_with_templates(
         let new_rule = HierarchicalMagicRule {
             cont_level: level,
             offset,
+            cond,
             test,
             description,
             mime: None,
@@ -1854,8 +2007,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Bof(0x3c)),
                 ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: None,
                 adjustment: 0,
-                multiplier: 1,
             }
         );
         let rel_child = &pe_child.children[0];
@@ -1866,8 +2021,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Relative(4)),
                 ind_type: IndirectType::ShortLe,
+                is_signed: false,
+                is_inverse: false,
+                op: None,
                 adjustment: 2,
-                multiplier: 1,
             }
         );
     }
@@ -1892,8 +2049,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Eof(6)),
                 ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: None,
                 adjustment: 0,
-                multiplier: 1,
             }
         );
         assert_eq!(
@@ -1901,8 +2060,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Bof(4)),
                 ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Mul(4)),
                 adjustment: 16,
-                multiplier: 4,
             }
         );
         assert_eq!(
@@ -1910,8 +2071,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Bof(6)),
                 ind_type: IndirectType::Id3Be,
+                is_signed: false,
+                is_inverse: false,
+                op: None,
                 adjustment: 10,
-                multiplier: 1,
             }
         );
         assert_eq!(
@@ -1919,8 +2082,10 @@ mod tests {
             Offset::Indirect {
                 base: Box::new(Offset::Bof(6)),
                 ind_type: IndirectType::Id3Le,
+                is_signed: false,
+                is_inverse: false,
+                op: None,
                 adjustment: 10,
-                multiplier: 1,
             }
         );
         assert!(matches!(
@@ -2048,6 +2213,141 @@ mod tests {
         assert!(matches!(root.children[15].test, MagicTest::GuidLeAny));
         assert!(matches!(root.children[16].test, MagicTest::GuidBe(_)));
         assert!(matches!(root.children[17].test, MagicTest::GuidBeAny));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_indirect_operators_and_modifiers() {
+        let content = r#"
+0	string		TEST		Header
+>(4.s*2)	leshort		1		mul test
+>(4.l&0xFF)	lelong		2		and test
+>(4.l|0x01)	lelong		3		or test
+>(4.l^0x0F)	lelong		4		xor test
+>(4.l/4)	lelong		5		div test
+>(4.l%8)	lelong		6		mod test
+>(~4.l)		lelong		7		inverse test
+>(4,l+10)	lelong		8		signed test
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let root = &rules[0];
+        assert_eq!(root.children.len(), 8);
+
+        assert_eq!(
+            root.children[0].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::ShortLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Mul(2)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[1].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::And(0xFF)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[2].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Or(0x01)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[3].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Xor(0x0F)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[4].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Div(4)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[5].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: false,
+                op: Some(IndirectOp::Mod(8)),
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[6].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: false,
+                is_inverse: true,
+                op: None,
+                adjustment: 0,
+            }
+        );
+        assert_eq!(
+            root.children[7].offset,
+            Offset::Indirect {
+                base: Box::new(Offset::Bof(4)),
+                ind_type: IndirectType::LongLe,
+                is_signed: true,
+                is_inverse: false,
+                op: None,
+                adjustment: 10,
+            }
+        );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_conditionals_and_string_flags() {
+        let content = r#"
+0	string/w	TEST		Header
+>0	if		byte	1	if branch
+>>4	string/f	hello		word boundary
+>0	elif		byte	2	elif branch
+>>4	string/t	world		text only
+>0	else		else branch
+>>4	string/b	raw		binary only
+>0	clear		x
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let root = &rules[0];
+        assert_eq!(root.cond, MagicCond::None);
+        assert!(matches!(root.test, MagicTest::String { flags, .. } if flags.optional_whitespace));
+        assert_eq!(root.children.len(), 4);
+        assert_eq!(root.children[0].cond, MagicCond::If);
+        assert!(matches!(root.children[0].children[0].test, MagicTest::String { flags, .. } if flags.full_word));
+        assert_eq!(root.children[1].cond, MagicCond::Elif);
+        assert!(matches!(root.children[1].children[0].test, MagicTest::String { flags, .. } if flags.text_only));
+        assert_eq!(root.children[2].cond, MagicCond::Else);
+        assert!(matches!(root.children[2].children[0].test, MagicTest::String { flags, .. } if flags.binary_only));
+        assert_eq!(root.children[3].test, MagicTest::Clear);
     }
 }
 /*

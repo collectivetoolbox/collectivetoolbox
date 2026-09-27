@@ -63,15 +63,15 @@ Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file
 ## 3. Magic Engine Evaluation & Syntax Limitations
 
 ### A. Missing Bitwise and Arithmetic Indirect Pointer Operations
-* **Upstream:** In `softmagic.c` and `file.h` (`FILE_OPS`), indirect offsets `(<offset>.<type>[op][val])` support arbitrary operators on the dereferenced pointer before applying relative adjustments:
+* **Upstream:** In `softmagic.c` and `file.h` (`FILE_OPS`), indirect offsets `(<offset>[.,]<type>[~][op][val]+<adj>)` support arbitrary operators on the dereferenced pointer before applying relative adjustments:
   * Bitwise AND (`&`), OR (`|`), XOR (`^`) (e.g. `(0x10.l&0x00FFFFFF)` to mask pointer addresses)
-  * Modulo (`%`) and Division (`/`)
-  * Inverse operations and signed shifts (`FILE_OPINVERSE`, `FILE_OPSIGNED`)
-* **Ctoolbox:** [`Offset::Indirect`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs#L465) only stores `adjustment: i64` (`+`/`-`) and `multiplier: i64` (`*`). Masking `&`, OR `|`, XOR `^`, division `/`, and modulo `%` cannot be parsed or evaluated.
+  * Multiplication (`*`), Division (`/`), and Modulo (`%`)
+  * Inverse operations (`~` / `FILE_OPINVERSE`) and signed dereference (`FILE_OPSIGNED`, `,` vs `.`)
+* **Ctoolbox Status:** **Implemented**. [`IndirectOp`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) supports `Mul`, `Div`, `Mod`, `And`, `Or`, `Xor`, `Add`, and `Sub`. [`Offset::Indirect`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) and [`Offset::RelativeIndirect`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) store `is_signed`, `is_inverse`, `op`, and `adjustment`. Evaluated in [`resolve_offset`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) and [`read_indirect_val`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) with safe arithmetic and sign-extension.
 
 ### B. Conditionals in Magic Rules (`ENABLE_CONDITIONALS`)
 * **Upstream:** Upstream supports rule branching via `>if`, `>elif`, `>else`, and `>clear` (`COND_IF`, `COND_ELIF`, `COND_ELSE`).
-* **Ctoolbox:** `magic_parser.rs` has no support for `if`/`elif`/`else` control flow; rules with conditional branching fail to parse or are skipped.
+* **Ctoolbox Status:** **Implemented**. [`MagicCond`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) enum (`None`, `If`, `Elif`, `Else`) and `MagicTest::Clear` are parsed by [`parse_magic_line`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) and evaluated across child hierarchies in [`evaluate_children`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs), correctly tracking branch outcomes and skipping alternative arms when an `if` or `elif` arm succeeds.
 
 ### C. String Matching Modifiers
 * **Upstream:** Upstream supports modifier flags on string tests:
@@ -79,11 +79,11 @@ Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file
   * `/f`: Full-word boundary matching.
   * `/t`: Text-only test (only evaluated if the buffer is deemed text).
   * `/b`: Binary-only test (only evaluated if the buffer is deemed binary).
-* **Ctoolbox:** [`StringFlags`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs#L500) only implements `case_insensitive`, `blank_insensitive`, `trim`, and `compact_whitespace`. `/w`, `/f`, `/t`, and `/b` are ignored or unparsed.
+* **Ctoolbox Status:** **Implemented**. [`StringFlags`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) parses `/w` (`optional_whitespace`), `/W` (`compact_whitespace`), `/f` (`full_word`), `/t` (`text_only`), and `/b` (`binary_only`). Evaluated in [`MagicTest::String`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) and [`MagicTest::Search`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) with word boundary verification and binary/text buffer classification.
 
 ### D. Regex Search Limits
 * **Upstream:** Upstream regex flags accept `/l<count>` to constrain regex evaluation to the first `<count>` lines of the input.
-* **Ctoolbox:** [`MagicTest::Regex`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs#L1168-L1173) has a boolean `line_mode`, but in evaluation it hardcodes `text.lines().next()`, inspecting only the first line regardless of the requested line count.
+* **Ctoolbox Status:** **Implemented**. [`parse_regex_flags`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) parses optional line limits (`line_limit: Option<usize>`), and [`MagicTest::Regex`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) evaluates candidates line-by-line according to POSIX `REG_NEWLINE` semantics, respecting line count constraints and multiline pattern fallbacks.
 
 ---
 

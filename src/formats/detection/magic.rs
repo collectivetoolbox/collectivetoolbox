@@ -456,7 +456,8 @@ use crate::utilities::*;
 
 use super::DetectionSource;
 use super::magic_parser::{
-    HierarchicalMagicRule, IndirectType, MagicTest, NumOp, Offset, PascalLengthSize, RelOp,
+    HierarchicalMagicRule, IndirectOp, IndirectType, MagicCond, MagicTest, NumOp, Offset,
+    PascalLengthSize, RelOp,
 };
 
 /// Result of evaluating a hierarchical magic rule against a payload source.
@@ -835,54 +836,101 @@ pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
     result
 }
 
+/// Returns true if the source is determined to be text (ASCII/UTF-8 with no null bytes).
+fn is_text_source<S: DetectionSource + ?Sized>(source: &mut S) -> bool {
+    let mut buf = [0u8; 512];
+    // Reason for fallback: read error defaults to 0 bytes read for text inspection
+    let n = source.read_at(0, &mut buf).unwrap_or(0);
+    if n == 0 {
+        return true;
+    }
+    let slice = match buf.get(..n) {
+        Some(s) => s,
+        None => return false,
+    };
+    if slice.contains(&0) {
+        return false;
+    }
+    crate::text::detect_text_encoding(slice).is_some()
+}
+
 /// Reads raw integer value at dereference offset according to indirect type.
 fn read_indirect_val<S: DetectionSource + ?Sized>(
     source: &mut S,
     deref_pos: u64,
     ind_type: IndirectType,
+    is_signed: bool,
 ) -> Option<i64> {
     match ind_type {
         IndirectType::Byte => {
             let mut b = [0u8; 1];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 1 { return None; }
-            Some(i64::from(b[0]))
+            if is_signed {
+                Some(i64::from(i8::from_le_bytes(b)))
+            } else {
+                Some(i64::from(b[0]))
+            }
         }
         IndirectType::ShortLe => {
             let mut b = [0u8; 2];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 2 { return None; }
-            Some(i64::from(u16::from_le_bytes(b)))
+            if is_signed {
+                Some(i64::from(i16::from_le_bytes(b)))
+            } else {
+                Some(i64::from(u16::from_le_bytes(b)))
+            }
         }
         IndirectType::ShortBe => {
             let mut b = [0u8; 2];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 2 { return None; }
-            Some(i64::from(u16::from_be_bytes(b)))
+            if is_signed {
+                Some(i64::from(i16::from_be_bytes(b)))
+            } else {
+                Some(i64::from(u16::from_be_bytes(b)))
+            }
         }
         IndirectType::LongLe => {
             let mut b = [0u8; 4];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 4 { return None; }
-            Some(i64::from(u32::from_le_bytes(b)))
+            if is_signed {
+                Some(i64::from(i32::from_le_bytes(b)))
+            } else {
+                Some(i64::from(u32::from_le_bytes(b)))
+            }
         }
         IndirectType::LongBe => {
             let mut b = [0u8; 4];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 4 { return None; }
-            Some(i64::from(u32::from_be_bytes(b)))
+            if is_signed {
+                Some(i64::from(i32::from_be_bytes(b)))
+            } else {
+                Some(i64::from(u32::from_be_bytes(b)))
+            }
         }
         IndirectType::QuadLe => {
             let mut b = [0u8; 8];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 8 { return None; }
-            i64::try_from(u64::from_le_bytes(b)).ok()
+            if is_signed {
+                Some(i64::from_le_bytes(b))
+            } else {
+                i64::try_from(u64::from_le_bytes(b)).ok()
+            }
         }
         IndirectType::QuadBe => {
             let mut b = [0u8; 8];
             let n = source.read_at(deref_pos, &mut b).ok()?;
             if n < 8 { return None; }
-            i64::try_from(u64::from_be_bytes(b)).ok()
+            if is_signed {
+                Some(i64::from_be_bytes(b))
+            } else {
+                i64::try_from(u64::from_be_bytes(b)).ok()
+            }
         }
         IndirectType::Id3Be => {
             let mut b = [0u8; 4];
@@ -892,7 +940,11 @@ fn read_indirect_val<S: DetectionSource + ?Sized>(
                 | ((u32::from(b[1]) & 0x7f) << 14)
                 | ((u32::from(b[2]) & 0x7f) << 7)
                 | (u32::from(b[3]) & 0x7f);
-            Some(i64::from(val))
+            if is_signed {
+                Some(i64::from(i32::from_le_bytes(val.to_le_bytes())))
+            } else {
+                Some(i64::from(val))
+            }
         }
         IndirectType::Id3Le => {
             let mut b = [0u8; 4];
@@ -902,7 +954,11 @@ fn read_indirect_val<S: DetectionSource + ?Sized>(
                 | ((u32::from(b[1]) & 0x7f) << 7)
                 | ((u32::from(b[2]) & 0x7f) << 14)
                 | ((u32::from(b[3]) & 0x7f) << 21);
-            Some(i64::from(val))
+            if is_signed {
+                Some(i64::from(i32::from_le_bytes(val.to_le_bytes())))
+            } else {
+                Some(i64::from(val))
+            }
         }
     }
 }
@@ -933,17 +989,59 @@ fn resolve_offset<S: DetectionSource + ?Sized>(
                 prev_match_end.checked_sub(sub)
             }
         }
-        Offset::Indirect { base, ind_type, adjustment, multiplier } => {
+        Offset::Indirect { base, ind_type, is_signed, is_inverse, op, adjustment } => {
             let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
-            let target_i64 = raw_val.checked_add(*adjustment)?;
+            let mut val = read_indirect_val(source, deref_pos, *ind_type, *is_signed)?;
+            if let Some(operation) = op {
+                val = match operation {
+                    IndirectOp::Mul(factor) => val.checked_mul(*factor)?,
+                    IndirectOp::Div(denom) => {
+                        if *denom == 0 { return None; }
+                        val.checked_div(*denom)?
+                    }
+                    IndirectOp::Mod(denom) => {
+                        if *denom == 0 { return None; }
+                        val.checked_rem(*denom)?
+                    }
+                    IndirectOp::And(mask) => val & *mask,
+                    IndirectOp::Or(mask) => val | *mask,
+                    IndirectOp::Xor(mask) => val ^ *mask,
+                    IndirectOp::Add(add) => val.checked_add(*add)?,
+                    IndirectOp::Sub(sub) => val.checked_sub(*sub)?,
+                };
+            }
+            if *is_inverse {
+                val = !val;
+            }
+            let target_i64 = val.checked_add(*adjustment)?;
             let target_u64 = u64::try_from(target_i64).ok()?;
             base_offset.checked_add(target_u64)
         }
-        Offset::RelativeIndirect { base, ind_type, adjustment, multiplier } => {
+        Offset::RelativeIndirect { base, ind_type, is_signed, is_inverse, op, adjustment } => {
             let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
-            let rel_val = raw_val.checked_add(*adjustment)?;
+            let mut val = read_indirect_val(source, deref_pos, *ind_type, *is_signed)?;
+            if let Some(operation) = op {
+                val = match operation {
+                    IndirectOp::Mul(factor) => val.checked_mul(*factor)?,
+                    IndirectOp::Div(denom) => {
+                        if *denom == 0 { return None; }
+                        val.checked_div(*denom)?
+                    }
+                    IndirectOp::Mod(denom) => {
+                        if *denom == 0 { return None; }
+                        val.checked_rem(*denom)?
+                    }
+                    IndirectOp::And(mask) => val & *mask,
+                    IndirectOp::Or(mask) => val | *mask,
+                    IndirectOp::Xor(mask) => val ^ *mask,
+                    IndirectOp::Add(add) => val.checked_add(*add)?,
+                    IndirectOp::Sub(sub) => val.checked_sub(*sub)?,
+                };
+            }
+            if *is_inverse {
+                val = !val;
+            }
+            let rel_val = val.checked_add(*adjustment)?;
             if rel_val >= 0 {
                 let add = u64::try_from(rel_val).ok()?;
                 prev_match_end.checked_add(add)
@@ -1020,7 +1118,9 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             }
         }
         MagicTest::String { pattern, flags } => {
-            if flags.compact_whitespace {
+            if (flags.text_only && !is_text_source(source)) || (flags.binary_only && is_text_source(source)) {
+                false
+            } else if flags.compact_whitespace || flags.optional_whitespace {
                 let max_read = pattern.len().saturating_add(512);
                 let mut buf = vec![0u8; max_read];
                 let n = source.read_at(pos, &mut buf).ok()?;
@@ -1035,7 +1135,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     };
                     if pa.is_ascii_whitespace() {
                         a_idx = a_idx.saturating_add(1);
-                        if flags.blank_insensitive {
+                        if flags.optional_whitespace {
                             while let Some(&b) = slice.get(b_idx) {
                                 if !b.is_ascii_whitespace() {
                                     break;
@@ -1087,6 +1187,13 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                         }
                     }
                 }
+                if matched && flags.full_word {
+                    if let Some(&pb) = slice.get(b_idx) {
+                        if !pb.is_ascii_whitespace() && (pb.is_ascii_alphanumeric() || pb == b'_') {
+                            matched = false;
+                        }
+                    }
+                }
                 if matched {
                     match_len = b_idx;
                     // Reason for fallback: slice calculation beyond buffer bounds defaults to empty slice
@@ -1097,81 +1204,101 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     false
                 }
             } else {
-                let mut buf = vec![0u8; pattern.len()];
+                let check_len = pattern.len().saturating_add(if flags.full_word { 1 } else { 0 });
+                let mut buf = vec![0u8; check_len];
                 let n = source.read_at(pos, &mut buf).ok()?;
                 if n < pattern.len() {
                     false
                 } else {
-                    let ok = if flags.case_insensitive {
-                        buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
-                    } else {
-                        buf == *pattern
+                    let pat_buf = match buf.get(..pattern.len()) {
+                        Some(p) => p,
+                        None => return None,
                     };
+                    let mut ok = if flags.case_insensitive {
+                        pat_buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
+                    } else {
+                        pat_buf == pattern.as_slice()
+                    };
+                    if ok && flags.full_word && n > pattern.len() {
+                        if let Some(&next_byte) = buf.get(pattern.len()) {
+                            if !next_byte.is_ascii_whitespace() && (next_byte.is_ascii_alphanumeric() || next_byte == b'_') {
+                                ok = false;
+                            }
+                        }
+                    }
                     if ok {
                         match_len = pattern.len();
-                        format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
+                        format_val = FormatValue::Str(String::from_utf8_lossy(pat_buf).to_string());
                     }
                     ok
                 }
             }
         }
         MagicTest::StringAny(flags) => {
-            let mut buf = [0u8; 256];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n == 0 {
+            if (flags.text_only && !is_text_source(source)) || (flags.binary_only && is_text_source(source)) {
                 false
             } else {
-                let Some(slice) = buf.get(..n) else { return None; };
-                // Reason for fallback: if no null or newline delimiter is found, string spans to end of read slice
-                let len = slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(n);
-                // Reason for fallback: subslice to delimiter defaults to empty slice
-                let mut s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
-                if flags.trim {
-                    s = s.trim().to_string();
-                }
-                match_len = len;
-                format_val = FormatValue::Str(s);
-                true
-            }
-        }
-        MagicTest::StringRelOp { pattern, op, flags } => {
-            let mut buf = vec![0u8; pattern.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < pattern.len() {
-                false
-            } else {
-                let cmp = if flags.case_insensitive {
-                    buf.to_ascii_lowercase().cmp(&pattern.to_ascii_lowercase())
+                let mut buf = [0u8; 256];
+                let n = source.read_at(pos, &mut buf).ok()?;
+                if n == 0 {
+                    false
                 } else {
-                    buf.cmp(pattern)
-                };
-                let ok = match op {
-                    RelOp::Eq => cmp == std::cmp::Ordering::Equal,
-                    RelOp::Ne => cmp != std::cmp::Ordering::Equal,
-                    RelOp::Gt => cmp == std::cmp::Ordering::Greater,
-                    RelOp::Lt => cmp == std::cmp::Ordering::Less,
-                    RelOp::BitAnd | RelOp::BitClear | RelOp::Any => true,
-                };
-                if ok {
-                    let mut full_buf = [0u8; 256];
-                    // Reason for fallback: read error when fetching string format value defaults to 0 bytes read
-                    let fn_bytes = source.read_at(pos, &mut full_buf).unwrap_or(0);
-                    // Reason for fallback: slice defaults to empty slice if read length exceeds buffer
-                    let full_slice = full_buf.get(..fn_bytes).unwrap_or(&[]);
-                    // Reason for fallback: if no null or newline delimiter is found, string spans full buffer
-                    let str_len = full_slice
-                        .iter()
-                        .position(|&b| b == 0 || b == b'\r' || b == b'\n')
-                        .unwrap_or(fn_bytes);
-                    // Reason for fallback: subslice to delimiter defaults to original pattern buffer
-                    let mut s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
+                    let Some(slice) = buf.get(..n) else { return None; };
+                    // Reason for fallback: if no null or newline delimiter is found, string spans to end of read slice
+                    let len = slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(n);
+                    // Reason for fallback: subslice to delimiter defaults to empty slice
+                    let mut s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
                     if flags.trim {
                         s = s.trim().to_string();
                     }
-                    match_len = pattern.len().max(str_len);
+                    match_len = len;
                     format_val = FormatValue::Str(s);
+                    true
                 }
-                ok
+            }
+        }
+        MagicTest::StringRelOp { pattern, op, flags } => {
+            if (flags.text_only && !is_text_source(source)) || (flags.binary_only && is_text_source(source)) {
+                false
+            } else {
+                let mut buf = vec![0u8; pattern.len()];
+                let n = source.read_at(pos, &mut buf).ok()?;
+                if n < pattern.len() {
+                    false
+                } else {
+                    let cmp = if flags.case_insensitive {
+                        buf.to_ascii_lowercase().cmp(&pattern.to_ascii_lowercase())
+                    } else {
+                        buf.cmp(pattern)
+                    };
+                    let ok = match op {
+                        RelOp::Eq => cmp == std::cmp::Ordering::Equal,
+                        RelOp::Ne => cmp != std::cmp::Ordering::Equal,
+                        RelOp::Gt => cmp == std::cmp::Ordering::Greater,
+                        RelOp::Lt => cmp == std::cmp::Ordering::Less,
+                        RelOp::BitAnd | RelOp::BitClear | RelOp::Any => true,
+                    };
+                    if ok {
+                        let mut full_buf = [0u8; 256];
+                        // Reason for fallback: read error when fetching string format value defaults to 0 bytes read
+                        let fn_bytes = source.read_at(pos, &mut full_buf).unwrap_or(0);
+                        // Reason for fallback: slice defaults to empty slice if read length exceeds buffer
+                        let full_slice = full_buf.get(..fn_bytes).unwrap_or(&[]);
+                        // Reason for fallback: if no null or newline delimiter is found, string spans full buffer
+                        let str_len = full_slice
+                            .iter()
+                            .position(|&b| b == 0 || b == b'\r' || b == b'\n')
+                            .unwrap_or(fn_bytes);
+                        // Reason for fallback: subslice to delimiter defaults to original pattern buffer
+                        let mut s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
+                        if flags.trim {
+                            s = s.trim().to_string();
+                        }
+                        match_len = pattern.len().max(str_len);
+                        format_val = FormatValue::Str(s);
+                    }
+                    ok
+                }
             }
         }
         MagicTest::PascalString { pattern, length_size, length_includes_itself } => {
@@ -1281,7 +1408,7 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 true
             }
         }
-        MagicTest::Regex { pattern, case_insensitive, max_bytes, line_mode, offset_start } => {
+        MagicTest::Regex { pattern, case_insensitive, max_bytes, line_limit, offset_start } => {
             let mut buf = vec![0u8; *max_bytes];
             let n = source.read_at(pos, &mut buf).ok()?;
             if n == 0 {
@@ -1289,27 +1416,54 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             } else {
                 let slice = buf.get(..n)?;
                 let text = String::from_utf8_lossy(slice);
-                let search_text = if *line_mode {
-                    // Reason for fallback: text may be empty or contain only a single line
-                    text.lines().next().unwrap_or("")
-                } else {
-                    text.as_ref()
-                };
                 let re = regex::RegexBuilder::new(pattern)
                     .case_insensitive(*case_insensitive)
                     .build()
                     .ok()?;
-                if let Some(m) = re.find(search_text) {
-                    match_len = if *offset_start {
-                        m.start()
-                    } else {
-                        m.end()
-                    };
-                    format_val = FormatValue::Str(m.as_str().to_string());
-                    true
-                } else {
-                    false
+                // Reason for fallback: default regex search limit in libmagic is 80 lines when unconstrained
+                let limit = line_limit.unwrap_or(80);
+                let mut line_start_byte: usize = 0;
+                let mut matched = false;
+                let mut line_count: usize = 0;
+
+                for line in text.split_inclusive('\n') {
+                    line_count = line_count.saturating_add(1);
+                    if line_count > limit {
+                        break;
+                    }
+                    // Reason for fallback: line without trailing newline remains unchanged
+                    let trimmed_line = line.strip_suffix('\n').unwrap_or(line);
+                    // Reason for fallback: line without trailing carriage return remains unchanged
+                    let trimmed_line = trimmed_line.strip_suffix('\r').unwrap_or(trimmed_line);
+
+                    if let Some(m) = re.find(trimmed_line) {
+                        let m_start = line_start_byte.saturating_add(m.start());
+                        let m_end = line_start_byte.saturating_add(m.end());
+                        match_len = if *offset_start {
+                            m_start
+                        } else {
+                            m_end
+                        };
+                        format_val = FormatValue::Str(m.as_str().to_string());
+                        matched = true;
+                        break;
+                    }
+                    line_start_byte = line_start_byte.saturating_add(line.len());
                 }
+
+                if !matched && (pattern.contains(r"\n") || pattern.contains('\n')) {
+                    if let Some(m) = re.find(text.as_ref()) {
+                        match_len = if *offset_start {
+                            m.start()
+                        } else {
+                            m.end()
+                        };
+                        format_val = FormatValue::Str(m.as_str().to_string());
+                        matched = true;
+                    }
+                }
+
+                matched
             }
         }
         MagicTest::U8 { value, op, mask, num_op } => {
@@ -1908,15 +2062,70 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             true
         }
         MagicTest::Search { pattern, max_bytes, flags, negated } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if let Some(slice) = buf.get(..n) {
+            if (flags.text_only && !is_text_source(source)) || (flags.binary_only && is_text_source(source)) {
+                false
+            } else {
+                let mut buf = vec![0u8; *max_bytes];
+                let n = source.read_at(pos, &mut buf).ok()?;
+                if let Some(slice) = buf.get(..n) {
                 if pattern.is_empty() {
                     !negated
-                } else if flags.case_insensitive {
-                    let pat_lower = pattern.to_ascii_lowercase();
-                    let slice_lower = slice.to_ascii_lowercase();
-                    if let Some(found_idx) = slice_lower.windows(pat_lower.len()).position(|w| w == pat_lower.as_slice()) {
+                } else {
+                    let match_pos = if flags.full_word {
+                        if flags.case_insensitive {
+                            let pat_lower = pattern.to_ascii_lowercase();
+                            let slice_lower = slice.to_ascii_lowercase();
+                            slice_lower.windows(pat_lower.len()).enumerate().find_map(|(idx, w)| {
+                                if w == pat_lower.as_slice() {
+                                    let before_ok = if idx > 0 {
+                                        // Reason for fallback: invalid index defaults to valid boundary
+                                        slice.get(idx.saturating_sub(1)).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                    } else {
+                                        true
+                                    };
+                                    let after_idx = idx.saturating_add(pattern.len());
+                                    // Reason for fallback: invalid index defaults to valid boundary
+                                    let after_ok = slice.get(after_idx).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_');
+                                    if before_ok && after_ok {
+                                        Some(idx)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        } else {
+                            slice.windows(pattern.len()).enumerate().find_map(|(idx, w)| {
+                                if w == pattern.as_slice() {
+                                    let before_ok = if idx > 0 {
+                                        // Reason for fallback: invalid index defaults to valid boundary
+                                        slice.get(idx.saturating_sub(1)).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_')
+                                    } else {
+                                        true
+                                    };
+                                    let after_idx = idx.saturating_add(pattern.len());
+                                    // Reason for fallback: invalid index defaults to valid boundary
+                                    let after_ok = slice.get(after_idx).map_or(true, |&b| !b.is_ascii_alphanumeric() && b != b'_');
+                                    if before_ok && after_ok {
+                                        Some(idx)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                }
+                            })
+                        }
+                    } else if flags.case_insensitive {
+                        let pat_lower = pattern.to_ascii_lowercase();
+                        let slice_lower = slice.to_ascii_lowercase();
+                        slice_lower.windows(pat_lower.len()).position(|w| w == pat_lower.as_slice())
+                    } else {
+                        slice.windows(pattern.len()).position(|w| w == pattern.as_slice())
+                    };
+
+                    if let Some(found_idx) = match_pos {
                         if *negated {
                             false
                         } else {
@@ -1929,21 +2138,10 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                     } else {
                         *negated
                     }
-                } else if let Some(found_idx) = slice.windows(pattern.len()).position(|w| w == pattern.as_slice()) {
-                    if *negated {
-                        false
-                    } else {
-                        match_len = found_idx.saturating_add(pattern.len());
-                        if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
-                            format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
-                        }
-                        true
-                    }
-                } else {
-                    *negated
                 }
             } else {
                 false
+            }
             }
         }
         MagicTest::Der(pattern) => {
@@ -1972,12 +2170,22 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                 let mut sub_nospace = sub_desc.starts_with('\u{8}');
 
                 let mut matched_any_in_sub = false;
+                let mut last_cond_matched = false;
                 for child in &tpl.children {
                     if child.test == MagicTest::Clear {
                         matched_any_in_sub = false;
+                        last_cond_matched = false;
                     }
                     if child.test == MagicTest::Default && matched_any_in_sub {
                         continue;
+                    }
+                    match child.cond {
+                        MagicCond::Elif | MagicCond::Else => {
+                            if last_cond_matched {
+                                continue;
+                            }
+                        }
+                        MagicCond::If | MagicCond::None => {}
                     }
                     if let Some(cm) = evaluate_rule_internal(
                         child,
@@ -1988,6 +2196,9 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                         depth.saturating_add(1),
                     ) {
                         matched_any_in_sub = true;
+                        if child.cond != MagicCond::None {
+                            last_cond_matched = true;
+                        }
                         sub_end = sub_end.max(cm.match_end);
                         if matches!(child.test, MagicTest::Der(_)) {
                             sub_sibling = cm.next_sibling_offset;
@@ -2018,6 +2229,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
                         if cm.ext.is_some() { sub_ext = cm.ext; }
                         if cm.apple.is_some() { sub_apple = cm.apple; }
                         sub_score = sub_score.saturating_add(15).max(cm.score);
+                    } else if child.cond == MagicCond::If || child.cond == MagicCond::Elif {
+                        last_cond_matched = false;
                     }
                 }
                 let has_output = !sub_desc.is_empty()
@@ -2118,15 +2331,25 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
         (desc, rule.mime.clone(), rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end, sib_end)
     };
     let mut matched_any_in_level = false;
+    let mut last_cond_matched = false;
 
     // Recursively evaluate children to specialize description and boost score
     let mut current_child_offset = this_match_end;
     for child in &rule.children {
         if child.test == MagicTest::Clear {
             matched_any_in_level = false;
+            last_cond_matched = false;
         }
         if child.test == MagicTest::Default && matched_any_in_level {
             continue;
+        }
+        match child.cond {
+            MagicCond::Elif | MagicCond::Else => {
+                if last_cond_matched {
+                    continue;
+                }
+            }
+            MagicCond::If | MagicCond::None => {}
         }
         if let Some(child_match) = evaluate_rule_internal(
             child,
@@ -2137,6 +2360,9 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             depth.saturating_add(1),
         ) {
             matched_any_in_level = true;
+            if child.cond != MagicCond::None {
+                last_cond_matched = true;
+            }
             overall_match_end = overall_match_end.max(child_match.match_end);
             if matches!(child.test, MagicTest::Der(_)) {
                 current_child_offset = child_match.next_sibling_offset;
@@ -2177,6 +2403,8 @@ fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
             } else {
                 score = score.saturating_add(15).max(child_match.score);
             }
+        } else if child.cond == MagicCond::If || child.cond == MagicCond::Elif {
+            last_cond_matched = false;
         }
     }
 
@@ -2589,7 +2817,7 @@ mod tests {
         let content = r#"
 0	lefloat		>10.0		lefloat: %f
 >4	befloat		!0.0		\b, befloat: %g
->8	ledouble	3.14159		\b, ledouble: %.2f
+>8	ledouble	2.75		\b, ledouble: %.2f
 >16	bedouble	x		\b, bedouble: %g
 "#;
         let rules = parse_magic_content(content);
@@ -2600,8 +2828,8 @@ mod tests {
         buf.extend_from_slice(&12.5f32.to_le_bytes());
         // befloat -2.5f32
         buf.extend_from_slice(&(-2.5f32).to_be_bytes());
-        // ledouble 3.14159f64
-        buf.extend_from_slice(&3.14159f64.to_le_bytes());
+        // ledouble 2.75f64
+        buf.extend_from_slice(&2.75f64.to_le_bytes());
         // bedouble 123.456f64
         buf.extend_from_slice(&123.456f64.to_be_bytes());
 
@@ -2609,7 +2837,7 @@ mod tests {
         let res = evaluate_rule(&rules[0], &mut slice).unwrap();
         assert!(res.description.contains("lefloat: 12.5"));
         assert!(res.description.contains("befloat: -2.5"));
-        assert!(res.description.contains("ledouble: 3.14"));
+        assert!(res.description.contains("ledouble: 2.75"));
         assert!(res.description.contains("bedouble: 123.456"));
     }
 
@@ -2727,6 +2955,136 @@ mod tests {
         assert!(res.description.contains("OneNote document"));
         assert!(res.description.contains("GUID: 7B5C52E4-D88C-4DA7-AEB1-5378D02996D3"));
         assert!(res.description.contains("UUID 00112233-4455-6677-8899-AABBCCDDEEFF"));
+    }
+
+    #[ctb_test]
+    fn test_indirect_offset_arithmetic_and_bitwise() {
+        let content = r#"
+0	string		TEST		Header
+>(4.s*2)	leshort		0x1234		\b, mul target
+>(8.s&0xFF)	leshort		0x5678		\b, and target
+>(12,s)		leshort		0x9abc		\b, signed target
+"#;
+        let rules = parse_magic_content(content);
+        let mut data = vec![0u8; 64];
+        data[0..4].copy_from_slice(b"TEST");
+        // offset 4: short pointer = 8 -> multiplied by 2 = 16.
+        data[4..6].copy_from_slice(&8u16.to_le_bytes());
+        data[16..18].copy_from_slice(&0x1234u16.to_le_bytes());
+
+        // offset 8: short pointer = 0x0114 -> & 0xFF = 0x14 (20).
+        data[8..10].copy_from_slice(&0x0114u16.to_le_bytes());
+        data[20..22].copy_from_slice(&0x5678u16.to_le_bytes());
+
+        // offset 12: signed short pointer = 24.
+        data[12..14].copy_from_slice(&24i16.to_le_bytes());
+        data[24..26].copy_from_slice(&0x9abcu16.to_le_bytes());
+
+        let mut slice: &[u8] = &data;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        assert!(res.description.contains("mul target"));
+        assert!(res.description.contains("and target"));
+        assert!(res.description.contains("signed target"));
+    }
+
+    #[ctb_test]
+    fn test_conditional_branching_evaluation() {
+        let content = r#"
+0	string		TEST		Header
+>4	if		byte	1	\b, branch 1
+>4	elif		byte	2	\b, branch 2
+>4	else		byte	x	\b, fallback
+>0	clear		x
+>5	byte		9		\b, post-clear
+"#;
+        let rules = parse_magic_content(content);
+
+        // Case 1: byte at 4 is 1 -> branch 1 matches, elif and else skipped.
+        let mut data1 = vec![0u8; 16];
+        data1[0..4].copy_from_slice(b"TEST");
+        data1[4] = 1;
+        data1[5] = 9;
+        let mut slice1: &[u8] = &data1;
+        let res1 = evaluate_rule(&rules[0], &mut slice1).unwrap();
+        assert!(res1.description.contains("branch 1"));
+        assert!(!res1.description.contains("branch 2"));
+        assert!(!res1.description.contains("fallback"));
+        assert!(res1.description.contains("post-clear"));
+
+        // Case 2: byte at 4 is 2 -> elif matches.
+        let mut data2 = vec![0u8; 16];
+        data2[0..4].copy_from_slice(b"TEST");
+        data2[4] = 2;
+        data2[5] = 9;
+        let mut slice2: &[u8] = &data2;
+        let res2 = evaluate_rule(&rules[0], &mut slice2).unwrap();
+        assert!(!res2.description.contains("branch 1"));
+        assert!(res2.description.contains("branch 2"));
+        assert!(!res2.description.contains("fallback"));
+        assert!(res2.description.contains("post-clear"));
+
+        // Case 3: byte at 4 is 3 -> else matches.
+        let mut data3 = vec![0u8; 16];
+        data3[0..4].copy_from_slice(b"TEST");
+        data3[4] = 3;
+        data3[5] = 9;
+        let mut slice3: &[u8] = &data3;
+        let res3 = evaluate_rule(&rules[0], &mut slice3).unwrap();
+        assert!(!res3.description.contains("branch 1"));
+        assert!(!res3.description.contains("branch 2"));
+        assert!(res3.description.contains("fallback"));
+        assert!(res3.description.contains("post-clear"));
+    }
+
+    #[ctb_test]
+    fn test_string_modifiers_evaluation() {
+        let content = r#"
+0	string/w	hello\ world	Spaced Header
+>20	string/f	test		\b, word bounded
+>30	string/t	textfile	\b, text only
+>40	string/b	binfile		\b, binary only
+"#;
+        let rules = parse_magic_content(content);
+
+        // Text data matching /w ("hello   world") and /f ("test" surrounded by spaces)
+        let mut text_data = vec![b' '; 64];
+        text_data[0..13].copy_from_slice(b"hello   world");
+        text_data[20..24].copy_from_slice(b"test");
+        text_data[30..38].copy_from_slice(b"textfile");
+        text_data[40..47].copy_from_slice(b"binfile");
+
+        let mut slice: &[u8] = &text_data;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        assert!(res.description.contains("Spaced Header"));
+        assert!(res.description.contains("word bounded"));
+        assert!(res.description.contains("text only"));
+        // string/b should NOT match text source
+        assert!(!res.description.contains("binary only"));
+
+        // Negative test for /f: if "test" is followed by alphanumeric e.g. "testing"
+        let mut non_boundary = text_data.clone();
+        non_boundary[24] = b's'; // "tests"
+        let mut slice_nb: &[u8] = &non_boundary;
+        let res_nb = evaluate_rule(&rules[0], &mut slice_nb).unwrap();
+        assert!(!res_nb.description.contains("word bounded"));
+    }
+
+    #[ctb_test]
+    fn test_regex_line_limit_evaluation() {
+        let content = r#"
+0	string		HEAD		Regex Header
+>4	regex/1l	TARGET		\b, line 1 found
+>4	regex/2l	SECOND		\b, line 2 found
+"#;
+        let rules = parse_magic_content(content);
+
+        let data = b"HEAD LINE1\nSECOND\nTARGET\n";
+        let mut slice: &[u8] = data;
+        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
+        // TARGET is on line 3 from offset 4, so regex/1l should not find TARGET
+        assert!(!res.description.contains("line 1 found"));
+        // SECOND is on line 2 from offset 4, so regex/2l matches SECOND
+        assert!(res.description.contains("line 2 found"));
     }
 }
 /*
