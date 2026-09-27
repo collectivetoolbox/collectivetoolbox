@@ -37,6 +37,7 @@ Script
 .Formats:encoding
 .Formats:executable
 .Formats:filesystem
+.Formats:format_variant
 .Formats:hash
 .Formats:identifier
 .Formats:kernel
@@ -54,7 +55,9 @@ Script
 .Formats:userspace
 .Formats:userspace_libraries
 .Formats:userspace_utilities
+.Formats:v:case
 .Formats:v:lineEndings
+.Formats:v:padding
 .Formats:v:unicodePua
 .Formats:videoterminal
 .Formats:virtualfilesystem

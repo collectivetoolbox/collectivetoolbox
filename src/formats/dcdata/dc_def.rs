@@ -62,6 +62,10 @@ pub struct FormatDetails {
     pub variant_types: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vary_as: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub varies: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
 }
 
 /// Unified Document Character definition for characters and formats.
