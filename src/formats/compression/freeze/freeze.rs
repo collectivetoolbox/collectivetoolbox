@@ -31,6 +31,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
 pub(crate) use ctb_utilities::*;
+use anyhow::anyhow;
 use std::io::{Read, Write};
 
 const MAGIC1: u8 = 0x1F;
@@ -216,7 +217,7 @@ struct AdaptiveHuffman {
 }
 
 impl AdaptiveHuffman {
-    fn new(n_char: usize) -> Self {
+    fn new(n_char: usize) -> Result<Self> {
         let t = n_char.saturating_mul(2).saturating_sub(1);
         let r = t.saturating_sub(1);
         let mut freq = vec![1u32; t.saturating_add(1)];
@@ -236,8 +237,8 @@ impl AdaptiveHuffman {
         let mut i = 0usize;
         let mut j = n_char;
         while j <= r {
-            let freq_i = freq.get(i).copied().unwrap_or(0);
-            let freq_i1 = freq.get(i.saturating_add(1)).copied().unwrap_or(0);
+            let freq_i = *freq.get(i).ok_or_else(|| anyhow!("Freq index {i} out of bounds"))?;
+            let freq_i1 = *freq.get(i.saturating_add(1)).ok_or_else(|| anyhow!("Freq index out of bounds"))?;
             let sum = freq_i.saturating_add(freq_i1);
             if let Some(f) = freq.get_mut(j) {
                 *f = sum;
@@ -262,22 +263,22 @@ impl AdaptiveHuffman {
             *p = 0;
         }
 
-        Self {
+        Ok(Self {
             chars: n_char,
             t,
             r,
             freq,
             son,
             prnt,
-        }
+        })
     }
 
     fn reconst(&mut self) -> Result<()> {
         let mut j = 0usize;
         for i in 0..self.t {
-            let son_i = self.son.get(i).copied().unwrap_or(0);
+            let son_i = *self.son.get(i).ok_or_else(|| anyhow!("Son index {i} out of bounds"))?;
             if son_i >= self.t {
-                let freq_i = self.freq.get(i).copied().unwrap_or(0);
+                let freq_i = *self.freq.get(i).ok_or_else(|| anyhow!("Freq index {i} out of bounds"))?;
                 let halved = freq_i.saturating_add(1) / 2;
                 if let Some(f) = self.freq.get_mut(j) {
                     *f = halved;
@@ -293,31 +294,31 @@ impl AdaptiveHuffman {
         j = self.chars;
         while j < self.t {
             let k = i.saturating_add(1);
-            let freq_i = self.freq.get(i).copied().unwrap_or(0);
-            let freq_k = self.freq.get(k).copied().unwrap_or(0);
+            let freq_i = *self.freq.get(i).ok_or_else(|| anyhow!("Freq index {i} out of bounds"))?;
+            let freq_k = *self.freq.get(k).ok_or_else(|| anyhow!("Freq index {k} out of bounds"))?;
             let f = freq_i.saturating_add(freq_k);
             if let Some(fj) = self.freq.get_mut(j) {
                 *fj = f;
             }
 
             let mut insert_k = j.saturating_sub(1);
-            while f < self.freq.get(insert_k).copied().unwrap_or(0) {
+            while f < *self.freq.get(insert_k).ok_or_else(|| anyhow!("Freq index {insert_k} out of bounds"))? {
                 if insert_k == 0 {
                     break;
                 }
                 insert_k = insert_k.saturating_sub(1);
             }
-            if f >= self.freq.get(insert_k).copied().unwrap_or(0) {
+            if f >= *self.freq.get(insert_k).ok_or_else(|| anyhow!("Freq index {insert_k} out of bounds"))? {
                 insert_k = insert_k.saturating_add(1);
             }
 
             let mut idx = j;
             while idx > insert_k {
-                let prev_freq = self.freq.get(idx.saturating_sub(1)).copied().unwrap_or(0);
+                let prev_freq = *self.freq.get(idx.saturating_sub(1)).ok_or_else(|| anyhow!("Freq index out of bounds"))?;
                 if let Some(curr) = self.freq.get_mut(idx) {
                     *curr = prev_freq;
                 }
-                let prev_son = self.son.get(idx.saturating_sub(1)).copied().unwrap_or(0);
+                let prev_son = *self.son.get(idx.saturating_sub(1)).ok_or_else(|| anyhow!("Son index out of bounds"))?;
                 if let Some(curr_son) = self.son.get_mut(idx) {
                     *curr_son = prev_son;
                 }
@@ -335,7 +336,7 @@ impl AdaptiveHuffman {
         }
 
         for i in 0..self.t {
-            let k = self.son.get(i).copied().unwrap_or(0);
+            let k = *self.son.get(i).ok_or_else(|| anyhow!("Son index {i} out of bounds"))?;
             if k >= self.t {
                 if let Some(p) = self.prnt.get_mut(k) {
                     *p = i;
@@ -353,10 +354,10 @@ impl AdaptiveHuffman {
     }
 
     fn update(&mut self, mut c: usize) -> Result<()> {
-        if self.freq.get(self.r).copied().unwrap_or(0) >= MAX_FREQ {
+        if *self.freq.get(self.r).ok_or_else(|| anyhow!("Freq index out of bounds"))? >= MAX_FREQ {
             self.reconst()?;
         }
-        c = self.prnt.get(c.saturating_add(self.t)).copied().unwrap_or(0);
+        c = *self.prnt.get(c.saturating_add(self.t)).ok_or_else(|| anyhow!("Prnt index out of bounds"))?;
         loop {
             let freq_node = match self.freq.get_mut(node_idx(c)?) {
                 Some(f) => {
@@ -367,15 +368,15 @@ impl AdaptiveHuffman {
             };
 
             let mut l = c.saturating_add(1);
-            let next_freq = self.freq.get(l).copied().unwrap_or(0);
+            let next_freq = *self.freq.get(l).ok_or_else(|| anyhow!("Freq index {l} out of bounds"))?;
             if freq_node > next_freq {
                 let mut scan = l.saturating_add(1);
-                while freq_node > self.freq.get(scan).copied().unwrap_or(0) {
+                while freq_node > *self.freq.get(scan).ok_or_else(|| anyhow!("Freq index {scan} out of bounds"))? {
                     scan = scan.saturating_add(1);
                 }
                 l = scan.saturating_sub(1);
 
-                let freq_l = self.freq.get(l).copied().unwrap_or(0);
+                let freq_l = *self.freq.get(l).ok_or_else(|| anyhow!("Freq index {l} out of bounds"))?;
                 if let Some(fn_node) = self.freq.get_mut(c) {
                     *fn_node = freq_l;
                 }
@@ -383,8 +384,8 @@ impl AdaptiveHuffman {
                     *fn_l = freq_node;
                 }
 
-                let i = self.son.get(c).copied().unwrap_or(0);
-                let j = self.son.get(l).copied().unwrap_or(0);
+                let i = *self.son.get(c).ok_or_else(|| anyhow!("Son index {c} out of bounds"))?;
+                let j = *self.son.get(l).ok_or_else(|| anyhow!("Son index {l} out of bounds"))?;
 
                 if let Some(p) = self.prnt.get_mut(i) {
                     *p = l;
@@ -414,7 +415,7 @@ impl AdaptiveHuffman {
                 c = l;
             }
 
-            c = self.prnt.get(c).copied().unwrap_or(0);
+            c = *self.prnt.get(c).ok_or_else(|| anyhow!("Prnt index {c} out of bounds"))?;
             if c == 0 {
                 break;
             }
@@ -423,12 +424,12 @@ impl AdaptiveHuffman {
     }
 
     fn encode_char<W: Write>(&mut self, writer: &mut BitWriter<W>, sym: usize) -> Result<()> {
-        let mut k = self.prnt.get(sym.saturating_add(self.t)).copied().unwrap_or(0);
+        let mut k = *self.prnt.get(sym.saturating_add(self.t)).ok_or_else(|| anyhow!("Prnt index out of bounds"))?;
         let mut bits = Vec::with_capacity(32);
         while k != self.r {
             let bit = u32::try_from(k & 1).context("Bit conversion")?;
             bits.push(bit);
-            k = self.prnt.get(k).copied().unwrap_or(0);
+            k = *self.prnt.get(k).ok_or_else(|| anyhow!("Prnt index out of bounds"))?;
             if bits.len() > 1024 {
                 bail!("Cycle detected in Huffman parent chain");
             }
@@ -487,7 +488,7 @@ impl PositionEncoder {
         let mut num = 0u32;
         let mut j = 0usize;
         for i in 1..=8 {
-            let count = table.get(i).copied().unwrap_or(0);
+            let count = *table.get(i).ok_or_else(|| anyhow!("Table index {i} out of bounds"))?;
             let shift = 8u32.saturating_sub(u32::try_from(i)?);
             num = num.saturating_add(u32::from(count) << shift);
             for _ in 0..count {
@@ -511,8 +512,8 @@ impl PositionEncoder {
             if idx.saturating_add(1) == num_entries {
                 break;
             }
-            let cur_len = p_len.get(idx).copied().unwrap_or(0);
-            let next_len = p_len.get(idx.saturating_add(1)).copied().unwrap_or(0);
+            let cur_len = *p_len.get(idx).ok_or_else(|| anyhow!("Position length index {idx} out of bounds"))?;
+            let next_len = *p_len.get(idx.saturating_add(1)).ok_or_else(|| anyhow!("Position length index out of bounds"))?;
             let shift = next_len.saturating_sub(cur_len);
             code_val <<= shift;
         }
@@ -532,7 +533,7 @@ impl PositionDecoder {
         let mut num = 0u32;
         let mut j = 0usize;
         for i in 1..=8 {
-            let count = table.get(i).copied().unwrap_or(0);
+            let count = *table.get(i).ok_or_else(|| anyhow!("Table index {i} out of bounds"))?;
             let shift = 8u32.saturating_sub(u32::try_from(i)?);
             num = num.saturating_add(u32::from(count) << shift);
             for _ in 0..count {
@@ -552,7 +553,7 @@ impl PositionDecoder {
 
         let mut k = 0usize;
         for idx in 0..num_entries {
-            let len = p_len.get(idx).copied().unwrap_or(0);
+            let len = *p_len.get(idx).ok_or_else(|| anyhow!("Position length index {idx} out of bounds"))?;
             let repeats = 1usize << (8u32.saturating_sub(u32::from(len)));
             for _ in 0..repeats {
                 if let Some(c) = code.get_mut(k) {
@@ -564,7 +565,7 @@ impl PositionDecoder {
 
         k = 0;
         for idx in 0..num_entries {
-            let len = p_len.get(idx).copied().unwrap_or(0);
+            let len = *p_len.get(idx).ok_or_else(|| anyhow!("Position length index {idx} out of bounds"))?;
             let repeats = 1usize << (8u32.saturating_sub(u32::from(len)));
             let base_d = if is_freeze1 {
                 len.saturating_sub(2)
@@ -584,8 +585,8 @@ impl PositionDecoder {
 
     fn decode_position2<R: Read>(&self, reader: &mut BitReader<R>) -> Result<usize> {
         let i = usize::try_from(reader.read_bits(8)?)?;
-        let prefix_code = usize::from(self.code.get(i).copied().unwrap_or(0));
-        let d = u32::from(self.d_len.get(i).copied().unwrap_or(0));
+        let prefix_code = usize::from(*self.code.get(i).ok_or_else(|| anyhow!("Code table index out of bounds"))?);
+        let d = u32::from(*self.d_len.get(i).ok_or_else(|| anyhow!("Bit length table index out of bounds"))?);
         let mid = (u32::try_from(i).context("Byte to u32")? << d) & 0x7F;
         let rest = reader.read_bits(d)?;
         let lower = mid | rest;
@@ -595,8 +596,8 @@ impl PositionDecoder {
 
     fn decode_position1<R: Read>(&self, reader: &mut BitReader<R>) -> Result<usize> {
         let i = usize::try_from(reader.read_bits(8)?)?;
-        let prefix_code = usize::from(self.code.get(i).copied().unwrap_or(0));
-        let d = u32::from(self.d_len.get(i).copied().unwrap_or(0));
+        let prefix_code = usize::from(*self.code.get(i).ok_or_else(|| anyhow!("Code table index out of bounds"))?);
+        let d = u32::from(*self.d_len.get(i).ok_or_else(|| anyhow!("Bit length table index out of bounds"))?);
         let mid = (u32::try_from(i).context("Byte to u32")? << d) & 0x3F;
         let rest = reader.read_bits(d)?;
         let lower = mid | rest;
@@ -606,19 +607,19 @@ impl PositionDecoder {
 }
 
 fn write_freeze2_header<W: Write>(writer: &mut BitWriter<W>, table: &[u8; 9]) -> Result<()> {
-    let mut i = u32::from(table.get(5).copied().unwrap_or(0) & 0x1F);
+    let mut i = u32::from(*table.get(5).ok_or_else(|| anyhow!("Table index 5 out of bounds"))? & 0x1F);
     i <<= 4;
-    i |= u32::from(table.get(4).copied().unwrap_or(0) & 0x0F);
+    i |= u32::from(*table.get(4).ok_or_else(|| anyhow!("Table index 4 out of bounds"))? & 0x0F);
     i <<= 3;
-    i |= u32::from(table.get(3).copied().unwrap_or(0) & 0x07);
+    i |= u32::from(*table.get(3).ok_or_else(|| anyhow!("Table index 3 out of bounds"))? & 0x07);
     i <<= 2;
-    i |= u32::from(table.get(2).copied().unwrap_or(0) & 0x03);
+    i |= u32::from(*table.get(2).ok_or_else(|| anyhow!("Table index 2 out of bounds"))? & 0x03);
     i <<= 1;
-    i |= u32::from(table.get(1).copied().unwrap_or(0) & 0x01);
+    i |= u32::from(*table.get(1).ok_or_else(|| anyhow!("Table index 1 out of bounds"))? & 0x01);
 
     let b0 = u8::try_from(i & 0xFF).context("Header byte 0")?;
     let b1 = u8::try_from((i >> 8) & 0xFF).context("Header byte 1")?;
-    let b2 = table.get(6).copied().unwrap_or(0) & 0x3F;
+    let b2 = *table.get(6).ok_or_else(|| anyhow!("Table index 6 out of bounds"))? & 0x3F;
 
     writer.writer.write_all(&[b0, b1, b2])?;
     writer.bytes_written = writer.bytes_written.saturating_add(3);
@@ -702,16 +703,16 @@ fn find_longest_match(
     win_size: usize,
     win_mask: usize,
     max_dist: usize,
-) -> (usize, usize) {
+) -> Result<(usize, usize)> {
     if lookahead_len <= THRESHOLD {
-        return (0, 0);
+        return Ok((0, 0));
     }
-    let b0 = text.get(r).copied().unwrap_or(0);
-    let b1 = text.get(r.saturating_add(1)).copied().unwrap_or(0);
-    let b2 = text.get(r.saturating_add(2)).copied().unwrap_or(0);
+    let b0 = *text.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+    let b1 = *text.get(r.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+    let b2 = *text.get(r.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
     let h = hash_triplet(b0, b1, b2);
 
-    let mut candidate = hashtab.get(h).copied().unwrap_or(0);
+    let mut candidate = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
     let mut best_len = 0usize;
     let mut best_pos = 0usize;
     let mut chain_count = MAX_CHAIN;
@@ -742,13 +743,13 @@ fn find_longest_match(
             }
         }
 
-        candidate = next.get(candidate & win_mask).copied().unwrap_or(0);
+        candidate = *next.get(candidate & win_mask).ok_or_else(|| anyhow!("Next table index out of bounds"))?;
     }
 
     if best_len <= THRESHOLD {
-        (0, 0)
+        Ok((0, 0))
     } else {
-        (best_len, best_pos)
+        Ok((best_len, best_pos))
     }
 }
 
@@ -771,7 +772,7 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
     write_freeze2_header(&mut bit_writer, &HUFVALUES2)?;
 
     // 3. Initialize Huffman & Position Tables
-    let mut huff = AdaptiveHuffman::new(N_CHAR2);
+    let mut huff = AdaptiveHuffman::new(N_CHAR2)?;
     let pos_enc = PositionEncoder::new(&HUFVALUES2)?;
 
     // 4. LZSS Buffer & Hash Tables
@@ -784,12 +785,12 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
     // Seed hash table with initial buffer content
     for idx in 0..MAXDIST2 {
         if idx.saturating_add(2) < text_buf.len() {
-            let b0 = text_buf.get(idx).copied().unwrap_or(0);
-            let b1 = text_buf.get(idx.saturating_add(1)).copied().unwrap_or(0);
-            let b2 = text_buf.get(idx.saturating_add(2)).copied().unwrap_or(0);
+            let b0 = *text_buf.get(idx).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+            let b1 = *text_buf.get(idx.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+            let b2 = *text_buf.get(idx.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
             let h = hash_triplet(b0, b1, b2);
             if let Some(entry) = next.get_mut(idx & WINMASK2) {
-                *entry = hashtab.get(h).copied().unwrap_or(0);
+                *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
             }
             if let Some(head) = hashtab.get_mut(h) {
                 *head = idx;
@@ -811,21 +812,21 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
             WINSIZE2,
             WINMASK2,
             MAXDIST2,
-        );
+        )?;
 
         if match_len <= THRESHOLD {
             // Literal byte
-            let byte = text_buf.get(r).copied().unwrap_or(0);
+            let byte = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
             huff.encode_char(&mut bit_writer, usize::from(byte))?;
 
             // Insert node into hash chain
             if r.saturating_add(2) < total_len {
-                let b0 = text_buf.get(r).copied().unwrap_or(0);
-                let b1 = text_buf.get(r.saturating_add(1)).copied().unwrap_or(0);
-                let b2 = text_buf.get(r.saturating_add(2)).copied().unwrap_or(0);
+                let b0 = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                let b1 = *text_buf.get(r.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                let b2 = *text_buf.get(r.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                 let h = hash_triplet(b0, b1, b2);
                 if let Some(entry) = next.get_mut(r & WINMASK2) {
-                    *entry = hashtab.get(h).copied().unwrap_or(0);
+                    *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                 }
                 if let Some(head) = hashtab.get_mut(h) {
                     *head = r;
@@ -845,23 +846,23 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
                     WINSIZE2,
                     WINMASK2,
                     MAXDIST2,
-                )
+                )?
             } else {
                 (0, 0)
             };
 
             if next_match_len > match_len {
                 // Delayed choice: emit literal at r, then next match at r+1
-                let byte = text_buf.get(r).copied().unwrap_or(0);
+                let byte = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                 huff.encode_char(&mut bit_writer, usize::from(byte))?;
 
                 if r.saturating_add(2) < total_len {
-                    let b0 = text_buf.get(r).copied().unwrap_or(0);
-                    let b1 = text_buf.get(r.saturating_add(1)).copied().unwrap_or(0);
-                    let b2 = text_buf.get(r.saturating_add(2)).copied().unwrap_or(0);
+                    let b0 = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                    let b1 = *text_buf.get(r.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                    let b2 = *text_buf.get(r.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                     let h = hash_triplet(b0, b1, b2);
                     if let Some(entry) = next.get_mut(r & WINMASK2) {
-                        *entry = hashtab.get(h).copied().unwrap_or(0);
+                        *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                     }
                     if let Some(head) = hashtab.get_mut(h) {
                         *head = r;
@@ -876,20 +877,20 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
 
                 let upper = (dist >> 7) & 0x3F;
                 let lower = u32::try_from(dist & 0x7F).context("Lower position bits")?;
-                let plen = u32::from(pos_enc.p_len.get(upper).copied().unwrap_or(0));
-                let pcode = u32::from(pos_enc.code.get(upper).copied().unwrap_or(0));
+                let plen = u32::from(*pos_enc.p_len.get(upper).ok_or_else(|| anyhow!("Position length index out of bounds"))?);
+                let pcode = u32::from(*pos_enc.code.get(upper).ok_or_else(|| anyhow!("Position code index out of bounds"))?);
                 bit_writer.write_bits(pcode, plen)?;
                 bit_writer.write_bits(lower, 7)?;
 
                 for step in 0..next_match_len {
                     let cur = r.saturating_add(step);
                     if cur.saturating_add(2) < total_len {
-                        let b0 = text_buf.get(cur).copied().unwrap_or(0);
-                        let b1 = text_buf.get(cur.saturating_add(1)).copied().unwrap_or(0);
-                        let b2 = text_buf.get(cur.saturating_add(2)).copied().unwrap_or(0);
+                        let b0 = *text_buf.get(cur).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                        let b1 = *text_buf.get(cur.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                        let b2 = *text_buf.get(cur.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                         let h = hash_triplet(b0, b1, b2);
                         if let Some(entry) = next.get_mut(cur & WINMASK2) {
-                            *entry = hashtab.get(h).copied().unwrap_or(0);
+                            *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                         }
                         if let Some(head) = hashtab.get_mut(h) {
                             *head = cur;
@@ -905,20 +906,20 @@ pub fn compress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
 
                 let upper = (dist >> 7) & 0x3F;
                 let lower = u32::try_from(dist & 0x7F).context("Lower position bits")?;
-                let plen = u32::from(pos_enc.p_len.get(upper).copied().unwrap_or(0));
-                let pcode = u32::from(pos_enc.code.get(upper).copied().unwrap_or(0));
+                let plen = u32::from(*pos_enc.p_len.get(upper).ok_or_else(|| anyhow!("Position length index out of bounds"))?);
+                let pcode = u32::from(*pos_enc.code.get(upper).ok_or_else(|| anyhow!("Position code index out of bounds"))?);
                 bit_writer.write_bits(pcode, plen)?;
                 bit_writer.write_bits(lower, 7)?;
 
                 for step in 0..match_len {
                     let cur = r.saturating_add(step);
                     if cur.saturating_add(2) < total_len {
-                        let b0 = text_buf.get(cur).copied().unwrap_or(0);
-                        let b1 = text_buf.get(cur.saturating_add(1)).copied().unwrap_or(0);
-                        let b2 = text_buf.get(cur.saturating_add(2)).copied().unwrap_or(0);
+                        let b0 = *text_buf.get(cur).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                        let b1 = *text_buf.get(cur.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                        let b2 = *text_buf.get(cur.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                         let h = hash_triplet(b0, b1, b2);
                         if let Some(entry) = next.get_mut(cur & WINMASK2) {
-                            *entry = hashtab.get(h).copied().unwrap_or(0);
+                            *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                         }
                         if let Some(head) = hashtab.get_mut(h) {
                             *head = cur;
@@ -952,7 +953,7 @@ pub fn decompress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut
     let table = read_freeze2_header(&mut bit_reader)?;
 
     // 3. Initialize Huffman & Position Tables
-    let mut huff = AdaptiveHuffman::new(N_CHAR2);
+    let mut huff = AdaptiveHuffman::new(N_CHAR2)?;
     let pos_dec = PositionDecoder::new(&table, false)?;
 
     // 4. Ring Buffer initialized with space characters
@@ -981,7 +982,7 @@ pub fn decompress_freeze2_stream<R: Read, W: Write>(reader: &mut R, writer: &mut
 
             for step in 0..match_len {
                 let src_pos = (start.saturating_add(step)) & WINMASK2;
-                let byte = text_buf.get(src_pos).copied().unwrap_or(0);
+                let byte = *text_buf.get(src_pos).ok_or_else(|| anyhow!("Ring buffer index out of bounds"))?;
                 if let Some(slot) = text_buf.get_mut(r) {
                     *slot = byte;
                 }
@@ -1012,7 +1013,7 @@ pub fn compress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
     bit_writer.bytes_written = bit_writer.bytes_written.saturating_add(2);
 
     // 2. Initialize Huffman & Position Tables (Fixed Table 1)
-    let mut huff = AdaptiveHuffman::new(N_CHAR1);
+    let mut huff = AdaptiveHuffman::new(N_CHAR1)?;
     let pos_enc = PositionEncoder::new(&TABLE1)?;
 
     // 3. LZSS Buffer & Hash Tables
@@ -1024,12 +1025,12 @@ pub fn compress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
 
     for idx in 0..MAXDIST1 {
         if idx.saturating_add(2) < text_buf.len() {
-            let b0 = text_buf.get(idx).copied().unwrap_or(0);
-            let b1 = text_buf.get(idx.saturating_add(1)).copied().unwrap_or(0);
-            let b2 = text_buf.get(idx.saturating_add(2)).copied().unwrap_or(0);
+            let b0 = *text_buf.get(idx).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+            let b1 = *text_buf.get(idx.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+            let b2 = *text_buf.get(idx.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
             let h = hash_triplet(b0, b1, b2);
             if let Some(entry) = next.get_mut(idx & WINMASK1) {
-                *entry = hashtab.get(h).copied().unwrap_or(0);
+                *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
             }
             if let Some(head) = hashtab.get_mut(h) {
                 *head = idx;
@@ -1051,19 +1052,19 @@ pub fn compress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
             WINSIZE1,
             WINMASK1,
             MAXDIST1,
-        );
+        )?;
 
         if match_len <= THRESHOLD {
-            let byte = text_buf.get(r).copied().unwrap_or(0);
+            let byte = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
             huff.encode_char(&mut bit_writer, usize::from(byte))?;
 
             if r.saturating_add(2) < total_len {
-                let b0 = text_buf.get(r).copied().unwrap_or(0);
-                let b1 = text_buf.get(r.saturating_add(1)).copied().unwrap_or(0);
-                let b2 = text_buf.get(r.saturating_add(2)).copied().unwrap_or(0);
+                let b0 = *text_buf.get(r).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                let b1 = *text_buf.get(r.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                let b2 = *text_buf.get(r.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                 let h = hash_triplet(b0, b1, b2);
                 if let Some(entry) = next.get_mut(r & WINMASK1) {
-                    *entry = hashtab.get(h).copied().unwrap_or(0);
+                    *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                 }
                 if let Some(head) = hashtab.get_mut(h) {
                     *head = r;
@@ -1077,20 +1078,20 @@ pub fn compress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W
 
             let upper = (dist >> 6) & 0x3F;
             let lower = u32::try_from(dist & 0x3F).context("Lower position bits")?;
-            let plen = u32::from(pos_enc.p_len.get(upper).copied().unwrap_or(0));
-            let pcode = u32::from(pos_enc.code.get(upper).copied().unwrap_or(0));
+            let plen = u32::from(*pos_enc.p_len.get(upper).ok_or_else(|| anyhow!("Position length index out of bounds"))?);
+            let pcode = u32::from(*pos_enc.code.get(upper).ok_or_else(|| anyhow!("Position code index out of bounds"))?);
             bit_writer.write_bits(pcode, plen)?;
             bit_writer.write_bits(lower, 6)?;
 
             for step in 0..match_len {
                 let cur = r.saturating_add(step);
                 if cur.saturating_add(2) < total_len {
-                    let b0 = text_buf.get(cur).copied().unwrap_or(0);
-                    let b1 = text_buf.get(cur.saturating_add(1)).copied().unwrap_or(0);
-                    let b2 = text_buf.get(cur.saturating_add(2)).copied().unwrap_or(0);
+                    let b0 = *text_buf.get(cur).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                    let b1 = *text_buf.get(cur.saturating_add(1)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
+                    let b2 = *text_buf.get(cur.saturating_add(2)).ok_or_else(|| anyhow!("Text buffer index out of bounds"))?;
                     let h = hash_triplet(b0, b1, b2);
                     if let Some(entry) = next.get_mut(cur & WINMASK1) {
-                        *entry = hashtab.get(h).copied().unwrap_or(0);
+                        *entry = *hashtab.get(h).ok_or_else(|| anyhow!("Hash table index out of bounds"))?;
                     }
                     if let Some(head) = hashtab.get_mut(h) {
                         *head = cur;
@@ -1119,7 +1120,7 @@ pub fn decompress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut
     }
 
     // 2. Initialize Huffman & Position Tables (Fixed Table 1)
-    let mut huff = AdaptiveHuffman::new(N_CHAR1);
+    let mut huff = AdaptiveHuffman::new(N_CHAR1)?;
     let pos_dec = PositionDecoder::new(&TABLE1, true)?;
 
     // 3. Ring Buffer (4096 bytes) initialized with space characters
@@ -1148,7 +1149,7 @@ pub fn decompress_freeze1_stream<R: Read, W: Write>(reader: &mut R, writer: &mut
 
             for step in 0..match_len {
                 let src_pos = (start.saturating_add(step)) & WINMASK1;
-                let byte = text_buf.get(src_pos).copied().unwrap_or(0);
+                let byte = *text_buf.get(src_pos).ok_or_else(|| anyhow!("Ring buffer index out of bounds"))?;
                 if let Some(slot) = text_buf.get_mut(r) {
                     *slot = byte;
                 }
