@@ -40,6 +40,7 @@ use ctb_storage_minimal::shorthand::DcShorthand;
 
 use super::ast::{
     FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
+    ParamBinding, ParamValue,
 };
 use super::dc_stream::{DcToken, decode_dc_stream};
 
@@ -54,6 +55,9 @@ enum TokenKind {
     Pipe,
     LParen,
     RParen,
+    Eq,
+    Comma,
+    Str(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -73,6 +77,9 @@ impl Token {
             TokenKind::Pipe => Ok(DcToken::Dc(DcShorthand::Short(516))),
             TokenKind::LParen => Ok(DcToken::Dc(DcShorthand::Short(298))),
             TokenKind::RParen => Ok(DcToken::Dc(DcShorthand::Short(299))),
+            TokenKind::Eq => bail!("Unexpected '=' in prefix Dc stream"),
+            TokenKind::Comma => bail!("Unexpected ',' in prefix Dc stream"),
+            TokenKind::Str(s) => Ok(DcToken::NamedType(s.clone())),
             TokenKind::Ident(ident) => {
                 if let Ok(shorthand) = DcShorthand::parse(ident) {
                     Ok(DcToken::Dc(shorthand))
@@ -132,6 +139,46 @@ fn tokenize(input: &str) -> Result<Vec<Token>> {
                 start: idx,
                 end: idx.saturating_add(1),
             }),
+            '=' => tokens.push(Token {
+                kind: TokenKind::Eq,
+                start: idx,
+                end: idx.saturating_add(1),
+            }),
+            ',' => tokens.push(Token {
+                kind: TokenKind::Comma,
+                start: idx,
+                end: idx.saturating_add(1),
+            }),
+            '"' => {
+                let start = idx;
+                let mut string_val = String::new();
+                let mut escaped = false;
+                let mut closed = false;
+                let mut end = idx;
+                while let Some((next_idx, next_ch)) = chars.next() {
+                    end = next_idx.saturating_add(next_ch.len_utf8());
+                    if escaped {
+                        string_val.push(next_ch);
+                        escaped = false;
+                    } else if next_ch == '\\' {
+                        escaped = true;
+                    } else if next_ch == '"' {
+                        closed = true;
+                        break;
+                    } else {
+                        string_val.push(next_ch);
+                    }
+                }
+                ensure!(
+                    closed,
+                    "Unterminated string literal starting at offset {start}"
+                );
+                tokens.push(Token {
+                    kind: TokenKind::Str(string_val),
+                    start,
+                    end,
+                });
+            }
             _ if ch.is_ascii_alphanumeric() || ch == '_' || ch == '-' => {
                 let start = idx;
                 let mut end = idx.saturating_add(ch.len_utf8());
@@ -246,7 +293,10 @@ fn is_prefix_token_stream(tokens: &[Token]) -> bool {
             }
         }
         TokenKind::Ident(_) => is_op_ident(&first.kind),
-        TokenKind::RParen => false,
+        TokenKind::RParen
+        | TokenKind::Eq
+        | TokenKind::Comma
+        | TokenKind::Str(_) => false,
     }
 }
 
@@ -254,7 +304,7 @@ fn is_op_ident(kind: &TokenKind) -> bool {
     if let TokenKind::Ident(s) = kind {
         matches!(
             s.as_str(),
-            "298" | "300" | "301" | "302" | "303" | "516"
+            "298" | "300" | "301" | "302" | "303" | "516" | "535"
         )
     } else {
         false
@@ -339,6 +389,32 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                 bail!("Unexpected closing parenthesis ')' at offset {}", token.start);
             }
             TokenKind::Ident(ident) => {
+                if let Some(next_tok) = tokens.get(idx.saturating_add(1)) {
+                    if next_tok.kind == TokenKind::LParen {
+                        let Ok(shorthand) = DcShorthand::parse(ident) else {
+                            bail!(
+                                "Identifiers are not permitted as application targets because they are not stable; specify a format Dc shorthand (e.g. 'f350(...)')"
+                            );
+                        };
+                        ensure!(
+                            matches!(shorthand, DcShorthand::Format(_)),
+                            "Target of parametric application must be a format shorthand (e.g. 'f350'), found '{shorthand}'"
+                        );
+
+                        let (params, next_idx) = parse_param_bindings(
+                            tokens,
+                            idx.saturating_add(2),
+                            current_depth,
+                        )?;
+                        let target_expr = Box::new(FormatExpr::Dc(shorthand));
+                        items.push(FormatExpr::Apply {
+                            target: target_expr,
+                            params,
+                        });
+                        idx = next_idx;
+                        continue;
+                    }
+                }
                 let operand = parse_operand(ident)?;
                 items.push(operand);
                 idx = idx.saturating_add(1);
@@ -354,6 +430,13 @@ fn parse_scope(tokens: &[Token], current_depth: usize) -> Result<FormatExpr> {
                 };
                 operators.push((op, token.start));
                 idx = idx.saturating_add(1);
+            }
+            TokenKind::Eq | TokenKind::Comma | TokenKind::Str(_) => {
+                bail!(
+                    "Unexpected token {:?} in format specification at offset {}",
+                    token.kind,
+                    token.start
+                );
             }
         }
     }
@@ -455,4 +538,129 @@ fn is_valid_named_type_syntax(ident: &str) -> bool {
     ident
         .chars()
         .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// Parses comma-separated parameter bindings inside `(key = value, ...)`.
+fn parse_param_bindings(
+    tokens: &[Token],
+    mut idx: usize,
+    current_depth: usize,
+) -> Result<(Vec<ParamBinding>, usize)> {
+    let mut params = Vec::new();
+
+    if let Some(tok) = tokens.get(idx) {
+        if tok.kind == TokenKind::RParen {
+            return Ok((params, idx.saturating_add(1)));
+        }
+    }
+
+    while idx < tokens.len() {
+        let Some(name_token) = tokens.get(idx) else {
+            bail!("Unexpected end of tokens in parameter list: expected parameter name");
+        };
+        let TokenKind::Ident(name) = &name_token.kind else {
+            bail!(
+                "Expected parameter name at offset {}, found {:?}",
+                name_token.start,
+                name_token.kind
+            );
+        };
+        let param_name = name.clone();
+        idx = idx.saturating_add(1);
+
+        let Some(eq_token) = tokens.get(idx) else {
+            bail!("Expected '=' after parameter name '{param_name}'");
+        };
+        ensure!(
+            eq_token.kind == TokenKind::Eq,
+            "Expected '=' after parameter name '{param_name}', found {:?}",
+            eq_token.kind
+        );
+        idx = idx.saturating_add(1);
+
+        let Some(val_token) = tokens.get(idx) else {
+            bail!("Expected value for parameter '{param_name}'");
+        };
+        let (param_value, next_idx) = match &val_token.kind {
+            TokenKind::Str(s) => {
+                (ParamValue::String(s.clone()), idx.saturating_add(1))
+            }
+            TokenKind::Ident(s) => {
+                if let Ok(num) = s.parse::<i64>() {
+                    (ParamValue::Integer(num), idx.saturating_add(1))
+                } else if let Ok(dc) = DcShorthand::parse(s) {
+                    (ParamValue::Dc(dc), idx.saturating_add(1))
+                } else {
+                    (ParamValue::Ident(s.clone()), idx.saturating_add(1))
+                }
+            }
+            TokenKind::LParen => {
+                let start_idx = idx;
+                let mut paren_depth = 1usize;
+                let mut scan_idx = idx.saturating_add(1);
+                while scan_idx < tokens.len() && paren_depth > 0 {
+                    if let Some(t) = tokens.get(scan_idx) {
+                        match &t.kind {
+                            TokenKind::LParen => {
+                                paren_depth = paren_depth.saturating_add(1);
+                            }
+                            TokenKind::RParen => {
+                                paren_depth = paren_depth.saturating_sub(1);
+                            }
+                            _ => {}
+                        }
+                    }
+                    scan_idx = scan_idx.saturating_add(1);
+                }
+                ensure!(
+                    paren_depth == 0,
+                    "Unclosed '(' in parameter value for '{param_name}'"
+                );
+                let inner_tokens = &tokens[start_idx.saturating_add(1)..scan_idx.saturating_sub(1)];
+                let sub_expr = parse_scope(
+                    inner_tokens,
+                    current_depth.saturating_add(1),
+                )?;
+                (ParamValue::Expr(Box::new(sub_expr)), scan_idx)
+            }
+            other => {
+                bail!(
+                    "Unexpected token {:?} for parameter value '{param_name}'",
+                    other
+                );
+            }
+        };
+
+        params.push(ParamBinding {
+            name: param_name,
+            value: param_value,
+        });
+        idx = next_idx;
+
+        let Some(sep_token) = tokens.get(idx) else {
+            bail!("Unclosed parameter list: expected ',' or ')'");
+        };
+        match &sep_token.kind {
+            TokenKind::Comma => {
+                idx = idx.saturating_add(1);
+                if let Some(next_tok) = tokens.get(idx) {
+                    if next_tok.kind == TokenKind::RParen {
+                        return Ok((params, idx.saturating_add(1)));
+                    }
+                }
+            }
+            TokenKind::RParen => {
+                idx = idx.saturating_add(1);
+                return Ok((params, idx));
+            }
+            other => {
+                bail!(
+                    "Expected ',' or ')' in parameter list, found {:?}",
+                    other
+                );
+            }
+        }
+    }
+
+    bail!("Unclosed parameter list: expected ')'");
 }

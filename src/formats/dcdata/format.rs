@@ -437,6 +437,8 @@ pub fn validate_formats_category_file(
                 Some(variant_types)
             },
             title: parsed.title.clone(),
+            vary_as: parsed.vary_as,
+            varies: parsed.varies,
         };
 
         let aliases: Vec<String> = if nicknames.is_empty() {
@@ -656,6 +658,92 @@ where
                 &row.source_file,
                 row.line_number,
             );
+        }
+    }
+
+    // Validate format variant declarations and dependencies
+    let mut declared_vary_as: HashSet<String> = HashSet::new();
+    let mut variant_format_short_ids: HashSet<usize> = HashSet::new();
+    let mut variant_format_dc_ids: HashSet<u128> = HashSet::new();
+
+    for row in &all_rows {
+        if row.script == ".Formats:format_variant" {
+            if let Some(short_id) = row.short_id {
+                variant_format_short_ids.insert(short_id);
+            }
+            variant_format_dc_ids.insert(row.dc_id);
+            if let Some(details) = &row.format {
+                if let Some(vary_as) = &details.vary_as {
+                    declared_vary_as.insert(vary_as.clone());
+                }
+            }
+        }
+    }
+
+    for row in &all_rows {
+        if let Some(details) = &row.format {
+            if details.vary_as.is_some() && row.script != ".Formats:format_variant" {
+                report.add_error(
+                    &row.source_file,
+                    Some(row.line_number),
+                    Some("Base/Related Format (vary_as)"),
+                    format!(
+                        "Directive '@vary_as' is only permitted on formats in '.Formats:format_variant' (found in '{}')",
+                        row.script
+                    ),
+                    Some("Move the format to 'format_variant.csv' or remove '@vary_as'"),
+                );
+            }
+
+            for target in &details.varies {
+                let is_variant = match target {
+                    ctb_storage_minimal::shorthand::DcShorthand::Format(sid) => {
+                        variant_format_short_ids.contains(sid)
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Short(sid) => {
+                        usize::try_from(*sid).map_or(false, |s| {
+                            variant_format_short_ids.contains(&s)
+                        })
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Long(dc) => {
+                        variant_format_dc_ids.contains(dc)
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Unicode(dc) => {
+                        let dc_u128 = u128::from(*dc);
+                        variant_format_dc_ids.contains(&dc_u128)
+                    }
+                    ctb_storage_minimal::shorthand::DcShorthand::Local(_) => {
+                        false
+                    }
+                };
+
+                if !is_variant {
+                    report.add_error(
+                        &row.source_file,
+                        Some(row.line_number),
+                        Some("Base/Related Format (varies)"),
+                        format!(
+                            "Directive '@varies({target})' references non-variant format or character. Only formats in '.Formats:format_variant' are permitted in '@varies'"
+                        ),
+                        Some("Ensure the target is defined in 'src/formats/dcdata/data/categories/formats/format_variant.csv'"),
+                    );
+                }
+            }
+        }
+
+        if let Some(variant_name) = row.script.strip_prefix(".Formats:v:") {
+            if !declared_vary_as.contains(variant_name) {
+                report.add_error(
+                    &row.source_file,
+                    Some(row.line_number),
+                    Some("Script"),
+                    format!(
+                        "Script '{}' is not defined by any declared '@vary_as(\"{variant_name}\")' in .Formats:format_variant",
+                        row.script
+                    ),
+                    Some("Add a format in 'format_variant.csv' with the corresponding '@vary_as' directive"),
+                );
+            }
         }
     }
 

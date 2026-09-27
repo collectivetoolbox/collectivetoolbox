@@ -147,6 +147,23 @@ fn format_expr_inner(
                 _ => res,
             }
         }
+        FormatExpr::Apply { target, params } => {
+            let target_str = format_expr_inner(target, None, false);
+            let mut param_strs = Vec::new();
+            for param in params {
+                let val_str = match &param.value {
+                    super::ast::ParamValue::Integer(n) => n.to_string(),
+                    super::ast::ParamValue::Dc(dc) => dc.to_string(),
+                    super::ast::ParamValue::Ident(id) => id.clone(),
+                    super::ast::ParamValue::String(s) => {
+                        format!("\"{}\"", s.replace('"', "\\\""))
+                    }
+                    super::ast::ParamValue::Expr(e) => format_expr(e),
+                };
+                param_strs.push(format!("{}={val_str}", param.name));
+            }
+            format!("{target_str}({})", param_strs.join(", "))
+        }
     }
 }
 

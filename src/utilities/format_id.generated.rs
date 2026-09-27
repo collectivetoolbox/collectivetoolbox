@@ -35,6 +35,7 @@ pub enum FormatCategory {
     Armor,
     BaseAlphabet,
     Calendar,
+    Case,
     ColorDepth,
     Compression,
     Container,
@@ -47,6 +48,7 @@ pub enum FormatCategory {
     Encoding,
     Executable,
     Filesystem,
+    FormatVariant,
     Hash,
     Identifier,
     Kernel,
@@ -60,6 +62,7 @@ pub enum FormatCategory {
     Os,
     Other,
     Packagemgr,
+    Padding,
     Programming,
     Semantic,
     Transformation,
@@ -786,7 +789,7 @@ pub enum FormatId {
     DcIdentifier,
     /// Dc identifier (short) (Short 353, Category: identifier)
     DcShortIdentifier,
-    /// A radix in a number system (Short 354, Category: number)
+    /// A radix in a number system (Short 354, Category: format_variant)
     Base,
     /// Any number, but not in a specific representation (Short 355, Category: number_abstract)
     AbstractNumber,
@@ -1296,6 +1299,30 @@ pub enum FormatId {
     IpV4String,
     /// IPv6 address string (Short 608, Category: identifier)
     IpV6String,
+    /// Line endings variation (Short 609, Category: format_variant)
+    LineEndingsVariant,
+    /// Unicode Private Use Area variation (Short 610, Category: format_variant)
+    UnicodePuaVariant,
+    /// Letter casing variation (Short 611, Category: format_variant)
+    CaseVariant,
+    /// Padding convention variation (Short 612, Category: format_variant)
+    PaddingVariant,
+    /// Base alphabet variation (Short 613, Category: format_variant)
+    BaseAlphabetVariant,
+    /// Case-insensitive matching or formatting (Short 614, Category: v:case)
+    CaseInsensitive,
+    /// Case-sensitive matching or formatting (Short 615, Category: v:case)
+    CaseSensitive,
+    /// Uppercase formatting (Short 616, Category: v:case)
+    CaseUppercase,
+    /// Lowercase formatting (Short 617, Category: v:case)
+    CaseLowercase,
+    /// No padding (Short 618, Category: v:padding)
+    PaddingNone,
+    /// Fixed-width zero padding (Short 619, Category: v:padding)
+    PaddingZero,
+    /// Fit-to-limit padding (Short 620, Category: v:padding)
+    PaddingFit,
 }
 
 impl FormatId {
@@ -1365,6 +1392,10 @@ impl FormatId {
             | Self::AlphabetDevanagariNumeral => FormatCategory::BaseAlphabet,
             Self::Gregorian
             | Self::Julian => FormatCategory::Calendar,
+            Self::CaseInsensitive
+            | Self::CaseSensitive
+            | Self::CaseUppercase
+            | Self::CaseLowercase => FormatCategory::Case,
             Self::ColorDepth1bit
             | Self::ColorDepth24bit => FormatCategory::ColorDepth,
             Self::Brotli
@@ -1610,6 +1641,12 @@ impl FormatId {
             | Self::ReiserFs
             | Self::Reiser4
             | Self::Bcachefs => FormatCategory::Filesystem,
+            Self::Base
+            | Self::LineEndingsVariant
+            | Self::UnicodePuaVariant
+            | Self::CaseVariant
+            | Self::PaddingVariant
+            | Self::BaseAlphabetVariant => FormatCategory::FormatVariant,
             Self::XxHash32
             | Self::XxHash64
             | Self::XxHash3_64
@@ -1802,7 +1839,6 @@ impl FormatId {
             | Self::FloatIeee754
             | Self::NumeralSystem
             | Self::BaseNNumeral
-            | Self::Base
             | Self::DcNumber
             | Self::DcNumberB64Int
             | Self::UnaryNumeral
@@ -1863,6 +1899,9 @@ impl FormatId {
             | Self::Homebrew
             | Self::MacPorts
             | Self::Nix => FormatCategory::Packagemgr,
+            Self::PaddingNone
+            | Self::PaddingZero
+            | Self::PaddingFit => FormatCategory::Padding,
             Self::JavaScript
             | Self::AppleScript
             | Self::TypeScript
@@ -2530,6 +2569,18 @@ impl FormatId {
             "uuidoid" | "uuid_oid" => Some(Self::UuidOid),
             "ipv4string" | "ip_v4_string" => Some(Self::IpV4String),
             "ipv6string" | "ip_v6_string" => Some(Self::IpV6String),
+            "lineendingsvariant" | "line_endings_variant" => Some(Self::LineEndingsVariant),
+            "unicodepuavariant" | "unicode_pua_variant" => Some(Self::UnicodePuaVariant),
+            "casevariant" | "case_variant" => Some(Self::CaseVariant),
+            "paddingvariant" | "padding_variant" => Some(Self::PaddingVariant),
+            "basealphabetvariant" | "base_alphabet_variant" => Some(Self::BaseAlphabetVariant),
+            "caseinsensitive" | "case_insensitive" => Some(Self::CaseInsensitive),
+            "casesensitive" | "case_sensitive" => Some(Self::CaseSensitive),
+            "caseuppercase" | "case_uppercase" => Some(Self::CaseUppercase),
+            "caselowercase" | "case_lowercase" => Some(Self::CaseLowercase),
+            "paddingnone" | "padding_none" => Some(Self::PaddingNone),
+            "paddingzero" | "padding_zero" => Some(Self::PaddingZero),
+            "paddingfit" | "padding_fit" => Some(Self::PaddingFit),
             _ => None,
         }
     }
@@ -3147,6 +3198,18 @@ impl FormatId {
             Self::UuidOid => "UuidOid",
             Self::IpV4String => "IpV4String",
             Self::IpV6String => "IpV6String",
+            Self::LineEndingsVariant => "LineEndingsVariant",
+            Self::UnicodePuaVariant => "UnicodePuaVariant",
+            Self::CaseVariant => "CaseVariant",
+            Self::PaddingVariant => "PaddingVariant",
+            Self::BaseAlphabetVariant => "BaseAlphabetVariant",
+            Self::CaseInsensitive => "CaseInsensitive",
+            Self::CaseSensitive => "CaseSensitive",
+            Self::CaseUppercase => "CaseUppercase",
+            Self::CaseLowercase => "CaseLowercase",
+            Self::PaddingNone => "PaddingNone",
+            Self::PaddingZero => "PaddingZero",
+            Self::PaddingFit => "PaddingFit",
         }
     }
 
@@ -3941,6 +4004,18 @@ impl FormatId {
             Self::UuidOid => "f606",
             Self::IpV4String => "f607",
             Self::IpV6String => "f608",
+            Self::LineEndingsVariant => "f609",
+            Self::UnicodePuaVariant => "f610",
+            Self::CaseVariant => "f611",
+            Self::PaddingVariant => "f612",
+            Self::BaseAlphabetVariant => "f613",
+            Self::CaseInsensitive => "f614",
+            Self::CaseSensitive => "f615",
+            Self::CaseUppercase => "f616",
+            Self::CaseLowercase => "f617",
+            Self::PaddingNone => "f618",
+            Self::PaddingZero => "f619",
+            Self::PaddingFit => "f620",
         }
     }
 
@@ -4558,6 +4633,18 @@ impl FormatId {
             "f606" => Some(Self::UuidOid),
             "f607" => Some(Self::IpV4String),
             "f608" => Some(Self::IpV6String),
+            "f609" => Some(Self::LineEndingsVariant),
+            "f610" => Some(Self::UnicodePuaVariant),
+            "f611" => Some(Self::CaseVariant),
+            "f612" => Some(Self::PaddingVariant),
+            "f613" => Some(Self::BaseAlphabetVariant),
+            "f614" => Some(Self::CaseInsensitive),
+            "f615" => Some(Self::CaseSensitive),
+            "f616" => Some(Self::CaseUppercase),
+            "f617" => Some(Self::CaseLowercase),
+            "f618" => Some(Self::PaddingNone),
+            "f619" => Some(Self::PaddingZero),
+            "f620" => Some(Self::PaddingFit),
             _ => None,
         }
     }
@@ -5175,6 +5262,18 @@ impl FormatId {
             Self::UuidOid => Some(2228830_u128),
             Self::IpV4String => Some(2228831_u128),
             Self::IpV6String => Some(2228832_u128),
+            Self::LineEndingsVariant => Some(2228833_u128),
+            Self::UnicodePuaVariant => Some(2228834_u128),
+            Self::CaseVariant => Some(2228835_u128),
+            Self::PaddingVariant => Some(2228836_u128),
+            Self::BaseAlphabetVariant => Some(2228837_u128),
+            Self::CaseInsensitive => Some(2228838_u128),
+            Self::CaseSensitive => Some(2228839_u128),
+            Self::CaseUppercase => Some(2228840_u128),
+            Self::CaseLowercase => Some(2228841_u128),
+            Self::PaddingNone => Some(2228842_u128),
+            Self::PaddingZero => Some(2228843_u128),
+            Self::PaddingFit => Some(2228844_u128),
         }
     }
 
@@ -5804,6 +5903,18 @@ impl FormatId {
             2228830_u128 => Some(Self::UuidOid),
             2228831_u128 => Some(Self::IpV4String),
             2228832_u128 => Some(Self::IpV6String),
+            2228833_u128 => Some(Self::LineEndingsVariant),
+            2228834_u128 => Some(Self::UnicodePuaVariant),
+            2228835_u128 => Some(Self::CaseVariant),
+            2228836_u128 => Some(Self::PaddingVariant),
+            2228837_u128 => Some(Self::BaseAlphabetVariant),
+            2228838_u128 => Some(Self::CaseInsensitive),
+            2228839_u128 => Some(Self::CaseSensitive),
+            2228840_u128 => Some(Self::CaseUppercase),
+            2228841_u128 => Some(Self::CaseLowercase),
+            2228842_u128 => Some(Self::PaddingNone),
+            2228843_u128 => Some(Self::PaddingZero),
+            2228844_u128 => Some(Self::PaddingFit),
             _ => None,
         }
     }
@@ -6517,7 +6628,7 @@ pub const DC_NATURAL1: DcChar = DcChar::from_format(351);
 pub const DC_DC_IDENTIFIER: DcChar = DcChar::from_format(352);
 /// DcChar constant for Format `DcShortIdentifier` (Short f353, Category: identifier): Dc identifier (short)
 pub const DC_DC_SHORT_IDENTIFIER: DcChar = DcChar::from_format(353);
-/// DcChar constant for Format `Base` (Short f354, Category: number): A radix in a number system
+/// DcChar constant for Format `Base` (Short f354, Category: format_variant): A radix in a number system
 pub const DC_BASE: DcChar = DcChar::from_format(354);
 /// DcChar constant for Format `AbstractNumber` (Short f355, Category: number_abstract): Any number, but not in a specific representation
 pub const DC_ABSTRACT_NUMBER: DcChar = DcChar::from_format(355);
@@ -7027,3 +7138,27 @@ pub const DC_UUID_OID: DcChar = DcChar::from_format(606);
 pub const DC_IP_V4_STRING: DcChar = DcChar::from_format(607);
 /// DcChar constant for Format `IpV6String` (Short f608, Category: identifier): IPv6 address string
 pub const DC_IP_V6_STRING: DcChar = DcChar::from_format(608);
+/// DcChar constant for Format `LineEndingsVariant` (Short f609, Category: format_variant): Line endings variation
+pub const DC_LINE_ENDINGS_VARIANT: DcChar = DcChar::from_format(609);
+/// DcChar constant for Format `UnicodePuaVariant` (Short f610, Category: format_variant): Unicode Private Use Area variation
+pub const DC_UNICODE_PUA_VARIANT: DcChar = DcChar::from_format(610);
+/// DcChar constant for Format `CaseVariant` (Short f611, Category: format_variant): Letter casing variation
+pub const DC_CASE_VARIANT: DcChar = DcChar::from_format(611);
+/// DcChar constant for Format `PaddingVariant` (Short f612, Category: format_variant): Padding convention variation
+pub const DC_PADDING_VARIANT: DcChar = DcChar::from_format(612);
+/// DcChar constant for Format `BaseAlphabetVariant` (Short f613, Category: format_variant): Base alphabet variation
+pub const DC_BASE_ALPHABET_VARIANT: DcChar = DcChar::from_format(613);
+/// DcChar constant for Format `CaseInsensitive` (Short f614, Category: v:case): Case-insensitive matching or formatting
+pub const DC_CASE_INSENSITIVE: DcChar = DcChar::from_format(614);
+/// DcChar constant for Format `CaseSensitive` (Short f615, Category: v:case): Case-sensitive matching or formatting
+pub const DC_CASE_SENSITIVE: DcChar = DcChar::from_format(615);
+/// DcChar constant for Format `CaseUppercase` (Short f616, Category: v:case): Uppercase formatting
+pub const DC_CASE_UPPERCASE: DcChar = DcChar::from_format(616);
+/// DcChar constant for Format `CaseLowercase` (Short f617, Category: v:case): Lowercase formatting
+pub const DC_CASE_LOWERCASE: DcChar = DcChar::from_format(617);
+/// DcChar constant for Format `PaddingNone` (Short f618, Category: v:padding): No padding
+pub const DC_PADDING_NONE: DcChar = DcChar::from_format(618);
+/// DcChar constant for Format `PaddingZero` (Short f619, Category: v:padding): Fixed-width zero padding
+pub const DC_PADDING_ZERO: DcChar = DcChar::from_format(619);
+/// DcChar constant for Format `PaddingFit` (Short f620, Category: v:padding): Fit-to-limit padding
+pub const DC_PADDING_FIT: DcChar = DcChar::from_format(620);

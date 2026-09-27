@@ -38,6 +38,7 @@ pub mod validator;
 
 pub use ast::{
     FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
+    ParamBinding, ParamValue,
 };
 pub use dc_stream::{
     DcToken, decode_dc_stream, decode_dc_stream_string, encode_dc_stream,

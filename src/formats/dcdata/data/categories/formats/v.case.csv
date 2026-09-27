@@ -14,7 +14,7 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-,,CaseInsensitive,Case-insensitive matching or formatting,v:case,,,,,,,,,,,Numeral or text matching ignores character case.,
-,,CaseSensitive,Case-sensitive matching or formatting,v:case,,,,,,,,,,,Numeral or text matching requires exact character case.,
-,,CaseUppercase,Uppercase formatting,v:case,,,,,,,,,,,Numeral letters formatted using uppercase characters.,
-,,CaseLowercase,Lowercase formatting,v:case,,,,,,,,,,,Numeral letters formatted using lowercase characters.,
+2228838,614,CaseInsensitive,Case-insensitive matching or formatting,v:case,,,,,,,,,,,Numeral or text matching ignores character case.,
+2228839,615,CaseSensitive,Case-sensitive matching or formatting,v:case,,,,,,,,,,,Numeral or text matching requires exact character case.,
+2228840,616,CaseUppercase,Uppercase formatting,v:case,,,,,,,,,,,Numeral letters formatted using uppercase characters.,
+2228841,617,CaseLowercase,Lowercase formatting,v:case,,,,,,,,,,,Numeral letters formatted using lowercase characters.,

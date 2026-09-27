@@ -64,8 +64,44 @@ pub struct FormatDetails {
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub vary_as: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        serialize_with = "serialize_shorthands",
+        deserialize_with = "deserialize_shorthands"
+    )]
     pub varies: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
+}
+
+fn serialize_shorthands<S>(
+    shorthands: &[ctb_storage_minimal::shorthand::DcShorthand],
+    serializer: S,
+) -> std::result::Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeSeq;
+    let mut seq = serializer.serialize_seq(Some(shorthands.len()))?;
+    for sh in shorthands {
+        seq.serialize_element(&sh.to_string())?;
+    }
+    seq.end()
+}
+
+fn deserialize_shorthands<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<ctb_storage_minimal::shorthand::DcShorthand>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let strings = Vec::<String>::deserialize(deserializer)?;
+    let mut res = Vec::with_capacity(strings.len());
+    for s in strings {
+        let sh = ctb_storage_minimal::shorthand::DcShorthand::parse(&s)
+            .map_err(serde::de::Error::custom)?;
+        res.push(sh);
+    }
+    Ok(res)
 }
 
 /// Unified Document Character definition for characters and formats.

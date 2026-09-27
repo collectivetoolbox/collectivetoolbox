@@ -15,8 +15,8 @@ Import/export/tests support columns meaning:
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
 2228578,354,Base,A radix in a number system,format_variant,"@vary_as(""radix""), :~ [number:f351]",,,,,,,,,,,
-,,LineEndingsVariant,Line endings variation,format_variant,@vary_as("lineEndings"),,,,,,,,,,,
-,,UnicodePuaVariant,Unicode Private Use Area variation,format_variant,@vary_as("unicodePua"),,,,,,,,,,,
-,,CaseVariant,Letter casing variation,format_variant,@vary_as("case"),,,,,,,,,,,
-,,PaddingVariant,Padding convention variation,format_variant,@vary_as("padding"),,,,,,,,,,,
-,,BaseAlphabetVariant,Base alphabet variation,format_variant,@vary_as("alphabet"),,,,,,,,,,,
+2228833,609,LineEndingsVariant,Line endings variation,format_variant,"@vary_as(""lineEndings"")",,,,,,,,,,,
+2228834,610,UnicodePuaVariant,Unicode Private Use Area variation,format_variant,"@vary_as(""unicodePua"")",,,,,,,,,,,
+2228835,611,CaseVariant,Letter casing variation,format_variant,"@vary_as(""case"")",,,,,,,,,,,
+2228836,612,PaddingVariant,Padding convention variation,format_variant,"@vary_as(""padding"")",,,,,,,,,,,
+2228837,613,BaseAlphabetVariant,Base alphabet variation,format_variant,"@vary_as(""alphabet"")",,,,,,,,,,,

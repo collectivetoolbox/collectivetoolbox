@@ -36,6 +36,7 @@ use serde::{Deserialize, Serialize};
 
 use super::ast::{
     FormatExpr, FormatOp, MAX_FORMAT_EXPR_DEPTH, MAX_FORMAT_EXPR_NODES,
+    ParamBinding, ParamValue,
 };
 
 /// Token in a Dc format specification stream.
@@ -127,6 +128,36 @@ fn encode_expr_recursive(expr: &FormatExpr, is_tail: bool, tokens: &mut Vec<DcTo
         }
         FormatExpr::Intersection(children) => {
             encode_variable_arity_op(FormatOp::Intersection, children, is_tail, tokens);
+        }
+        FormatExpr::Apply { target, params } => {
+            tokens.push(DcToken::Dc(DcShorthand::Short(535)));
+            encode_expr_recursive(target, false, tokens);
+            for param in params {
+                tokens.push(DcToken::Dc(DcShorthand::Short(258)));
+                tokens.push(DcToken::NamedType(param.name.clone()));
+                match &param.value {
+                    ParamValue::Integer(n) => {
+                        tokens.push(DcToken::NamedType(n.to_string()));
+                    }
+                    ParamValue::Dc(dc) => {
+                        tokens.push(DcToken::Dc(*dc));
+                    }
+                    ParamValue::Ident(id) => {
+                        tokens.push(DcToken::NamedType(id.clone()));
+                    }
+                    ParamValue::String(s) => {
+                        tokens.push(DcToken::NamedType(format!(
+                            "\"{}\"",
+                            s.replace('"', "\\\"")
+                        )));
+                    }
+                    ParamValue::Expr(e) => {
+                        encode_expr_recursive(e, false, tokens);
+                    }
+                }
+                tokens.push(DcToken::Dc(DcShorthand::Short(259)));
+            }
+            tokens.push(DcToken::Dc(DcShorthand::Short(299)));
         }
     }
 }
@@ -247,6 +278,15 @@ fn decode_recursive(
                 bail!("Unexpected end of stream after group start '298': expected operator");
             };
             *pos = pos.saturating_add(1);
+
+            if let DcToken::Dc(DcShorthand::Short(535)) = op_token {
+                let target = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
+                let params = decode_apply_params(tokens, pos, depth.saturating_add(1))?;
+                return Ok(FormatExpr::Apply {
+                    target: Box::new(target),
+                    params,
+                });
+            }
 
             let op = match op_token {
                 DcToken::Dc(DcShorthand::Short(id)) => {
@@ -385,11 +425,100 @@ fn decode_recursive(
                 }
             }
         }
+        DcToken::Dc(DcShorthand::Short(535)) => {
+            let target = decode_recursive(tokens, pos, depth.saturating_add(1), false)?;
+            let params = decode_apply_params(tokens, pos, depth.saturating_add(1))?;
+            Ok(FormatExpr::Apply {
+                target: Box::new(target),
+                params,
+            })
+        }
         DcToken::Dc(DcShorthand::Short(299)) => {
             bail!("Unexpected closing group '299' without matching opening operator or group");
         }
         DcToken::Dc(shorthand) => Ok(FormatExpr::Dc(*shorthand)),
         DcToken::NamedType(name) => Ok(FormatExpr::NamedType(name.clone())),
     }
+}
+
+/// Decodes parameter frames `258 <name> <value> 259` following a 535 operator.
+fn decode_apply_params(
+    tokens: &[DcToken],
+    pos: &mut usize,
+    depth: usize,
+) -> Result<Vec<ParamBinding>> {
+    let mut params = Vec::new();
+    while *pos < tokens.len() {
+        let Some(tok) = tokens.get(*pos) else {
+            break;
+        };
+        if is_closing_token(tok) {
+            *pos = pos.saturating_add(1);
+            break;
+        }
+        if let DcToken::Dc(DcShorthand::Short(258)) = tok {
+            *pos = pos.saturating_add(1);
+            let Some(name_tok) = tokens.get(*pos) else {
+                bail!("Unexpected end of stream: expected parameter name after '258'");
+            };
+            *pos = pos.saturating_add(1);
+            let name = match name_tok {
+                DcToken::NamedType(s) => s.clone(),
+                DcToken::Dc(sh) => sh.to_string(),
+            };
+
+            let Some(val_tok) = tokens.get(*pos) else {
+                bail!("Unexpected end of stream: expected parameter value for '{name}'");
+            };
+            *pos = pos.saturating_add(1);
+            let value = match val_tok {
+                DcToken::Dc(sh) => {
+                    if matches!(
+                        sh,
+                        DcShorthand::Short(298 | 300 | 301 | 302 | 303 | 516 | 535)
+                    ) {
+                        *pos = pos.saturating_sub(1);
+                        let sub = decode_recursive(
+                            tokens,
+                            pos,
+                            depth.saturating_add(1),
+                            false,
+                        )?;
+                        ParamValue::Expr(Box::new(sub))
+                    } else {
+                        ParamValue::Dc(*sh)
+                    }
+                }
+                DcToken::NamedType(s) => {
+                    if let Ok(num) = s.parse::<i64>() {
+                        ParamValue::Integer(num)
+                    } else if let Some(stripped) = s
+                        .strip_prefix('"')
+                        .and_then(|str_val| str_val.strip_suffix('"'))
+                    {
+                        ParamValue::String(stripped.replace("\\\"", "\""))
+                    } else if let Ok(sh) = DcShorthand::parse(s) {
+                        ParamValue::Dc(sh)
+                    } else {
+                        ParamValue::Ident(s.clone())
+                    }
+                }
+            };
+
+            let Some(end_tok) = tokens.get(*pos) else {
+                bail!("Unexpected end of stream: expected '259' closing parameter '{name}'");
+            };
+            *pos = pos.saturating_add(1);
+            ensure!(
+                matches!(end_tok, DcToken::Dc(DcShorthand::Short(259))),
+                "Expected Dc 259 ('End parameter'), found '{end_tok}'"
+            );
+
+            params.push(ParamBinding { name, value });
+        } else {
+            break;
+        }
+    }
+    Ok(params)
 }
 

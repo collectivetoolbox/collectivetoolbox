@@ -121,6 +121,60 @@ fn validate_node_recursive(expr: &FormatExpr) -> Result<()> {
                 validate_node_recursive(child)?;
             }
         }
+        FormatExpr::Apply { target, params } => {
+            ensure!(
+                matches!(target.as_ref(), FormatExpr::Dc(DcShorthand::Format(_))),
+                "Application target must be a format Dc shorthand (e.g. 'f350'), found '{target}'"
+            );
+            validate_node_recursive(target)?;
+
+            let mut seen_keys = std::collections::HashSet::new();
+            for param in params {
+                ensure!(
+                    !param.name.is_empty(),
+                    "Parameter name cannot be empty in application '{expr}'"
+                );
+                ensure!(
+                    param
+                        .name
+                        .chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_'),
+                    "Parameter name '{}' must be lowercase snake_case in application '{expr}'",
+                    param.name
+                );
+                ensure!(
+                    seen_keys.insert(param.name.clone()),
+                    "Duplicate parameter '{}' in application '{expr}'",
+                    param.name
+                );
+
+                if param.name == "radix" {
+                    match &param.value {
+                        super::ast::ParamValue::Integer(r) => {
+                            ensure!(
+                                *r > 0,
+                                "Radix parameter must be greater than 0, found {r}"
+                            );
+                        }
+                        super::ast::ParamValue::Dc(DcShorthand::Format(fmt_id)) => {
+                            ensure!(
+                                *fmt_id == 354,
+                                "Radix parameter format reference must be f354 (Base), found f{fmt_id}"
+                            );
+                        }
+                        other => {
+                            bail!(
+                                "Invalid radix value '{other:?}': expected positive integer or f354"
+                            );
+                        }
+                    }
+                }
+
+                if let super::ast::ParamValue::Expr(sub) = &param.value {
+                    validate_node_recursive(sub)?;
+                }
+            }
+        }
     }
     Ok(())
 }

@@ -1156,6 +1156,8 @@ pub fn validate_dc_category_file(
                     tests: None,
                     variant_types: None,
                     title: parsed_col.title.clone(),
+                    vary_as: parsed_col.vary_as.clone(),
+                    varies: parsed_col.varies.clone(),
                 }),
             )
         } else {
@@ -1192,6 +1194,48 @@ pub fn validate_dc_category_file(
 }
 
 /// Validates target references strictly (Dc short IDs, lowercase Unicode `uXXXX`, Formats `fXX`).
+fn collect_format_ids_from_expr(
+    expr: &crate::format_spec::FormatExpr,
+    ids: &mut Vec<usize>,
+) {
+    match expr {
+        crate::format_spec::FormatExpr::Dc(
+            ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id),
+        ) => {
+            ids.push(*fmt_id);
+        }
+        crate::format_spec::FormatExpr::Convert(l, r)
+        | crate::format_spec::FormatExpr::Transmute(l, r)
+        | crate::format_spec::FormatExpr::Transform(l, r) => {
+            collect_format_ids_from_expr(l, ids);
+            collect_format_ids_from_expr(r, ids);
+        }
+        crate::format_spec::FormatExpr::Union(children)
+        | crate::format_spec::FormatExpr::Intersection(children) => {
+            for child in children {
+                collect_format_ids_from_expr(child, ids);
+            }
+        }
+        crate::format_spec::FormatExpr::Apply { target, params } => {
+            collect_format_ids_from_expr(target, ids);
+            for p in params {
+                match &p.value {
+                    crate::format_spec::ParamValue::Dc(
+                        ctb_storage_minimal::shorthand::DcShorthand::Format(fmt_id),
+                    ) => {
+                        ids.push(*fmt_id);
+                    }
+                    crate::format_spec::ParamValue::Expr(sub) => {
+                        collect_format_ids_from_expr(sub, ids);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
 fn validate_target_token(
     token: &str,
     source_file: &str,
@@ -1203,6 +1247,44 @@ fn validate_target_token(
     known_format_ids: &HashSet<usize>,
     report: &mut ValidationReport,
 ) {
+    let trimmed = token.trim();
+    if trimmed.contains('(') && trimmed.ends_with(')') {
+        match crate::format_spec::parse_format_expr(trimmed) {
+            Ok(expr) => {
+                if let Err(e) = crate::format_spec::validate_format_expr(&expr) {
+                    report.add_error(
+                        source_file,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Invalid format specification in '{trimmed}': {e}"),
+                        Some("Ensure valid format specification syntax and parameters"),
+                    );
+                }
+                let mut fmt_ids = Vec::new();
+                collect_format_ids_from_expr(&expr, &mut fmt_ids);
+                for fmt_id in fmt_ids {
+                    if !known_format_ids.contains(&fmt_id) {
+                        report.add_error(
+                            source_file,
+                            Some(line_no),
+                            Some(col_name),
+                            format!(
+                                "Referenced Format ID 'f{fmt_id}' does not exist in formats registry"
+                            ),
+                            Some(
+                                "Ensure referenced format ID is defined in formats category files",
+                            ),
+                        );
+                    }
+                }
+                return;
+            }
+            Err(_) => {
+                // If it failed to parse as format spec, fall through to single token validation
+            }
+        }
+    }
+
     let clean = token
         .trim()
         .trim_matches(|c| c == '(' || c == ')' || c == '>' || c == '<');

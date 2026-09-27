@@ -93,6 +93,30 @@ impl FormatOp {
     }
 }
 
+/// Typed value in a format parameter binding.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ParamValue {
+    /// Integer scalar (e.g. 16 in radix=16).
+    Integer(i64),
+    /// Dc shorthand reference (e.g. f354, or variant format Dcs).
+    Dc(DcShorthand),
+    /// Symbolic identifier.
+    Ident(String),
+    /// Quoted string literal.
+    String(String),
+    /// Nested format specification expression.
+    Expr(Box<FormatExpr>),
+}
+
+/// Key-value binding in a parametric format application.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ParamBinding {
+    /// Parameter dimension name (e.g. "radix", "case", "padding").
+    pub name: String,
+    /// Parameter value.
+    pub value: ParamValue,
+}
+
 /// Core expression node in a format specification expression tree.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FormatExpr {
@@ -110,6 +134,13 @@ pub enum FormatExpr {
     Union(Vec<FormatExpr>),
     /// Type intersection / alternative constraints: `A | B` (Dc 516).
     Intersection(Vec<FormatExpr>),
+    /// Parametric format application: `target(key=value, ...)` (Dc 535).
+    Apply {
+        /// Application target expression (must resolve to a format Dc shorthand).
+        target: Box<FormatExpr>,
+        /// Bound parameter values.
+        params: Vec<ParamBinding>,
+    },
 }
 
 impl FormatExpr {
@@ -126,6 +157,15 @@ impl FormatExpr {
                 let mut max_child = 0usize;
                 for child in children {
                     max_child = max_child.max(child.depth());
+                }
+                max_child.saturating_add(1)
+            }
+            Self::Apply { target, params } => {
+                let mut max_child = target.depth();
+                for param in params {
+                    if let ParamValue::Expr(sub) = &param.value {
+                        max_child = max_child.max(sub.depth());
+                    }
                 }
                 max_child.saturating_add(1)
             }
@@ -148,6 +188,16 @@ impl FormatExpr {
                 let mut total = 1usize;
                 for child in children {
                     total = total.saturating_add(child.node_count());
+                }
+                total
+            }
+            Self::Apply { target, params } => {
+                let mut total = target.node_count().saturating_add(1);
+                for param in params {
+                    total = total.saturating_add(1);
+                    if let ParamValue::Expr(sub) = &param.value {
+                        total = total.saturating_add(sub.node_count());
+                    }
                 }
                 total
             }

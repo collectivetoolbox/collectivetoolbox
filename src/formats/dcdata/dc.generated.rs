@@ -82,6 +82,8 @@ pub const DC_EQUIVALENT_REPRESENTATIONS: DcChar = DcChar::from_short(397);
 pub const DC_BOOLEAN_TRUE: DcChar = DcChar::from_short(517);
 /// Boolean false (Dc 518).
 pub const DC_BOOLEAN_FALSE: DcChar = DcChar::from_short(518);
+/// Applies typed parameter bindings to a format in a format specification expression. (Dc 535).
+pub const DC_FORMAT_PARAM_APPLICATION: DcChar = DcChar::from_short(535);
 
 /// Converts a short Document Character (Dc) ID to its long (Global Graph) ID.
 #[must_use]

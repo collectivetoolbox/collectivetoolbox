@@ -80,6 +80,10 @@ pub struct ParsedAliasesOrBaseColumn {
     pub title: Option<String>,
     /// Default line ending extracted from `@default_line_ending(...)`.
     pub default_line_ending: Option<String>,
+    /// Format variant category key extracted from `@vary_as("...")`.
+    pub vary_as: Option<String>,
+    /// Format variant categories that vary for this format, extracted from `@varies(...)`.
+    pub varies: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -674,13 +678,102 @@ fn process_column_item(
                     Some("Ensure '@default_line_ending(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@vary_as(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    if unescaped.trim().is_empty() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Empty '@vary_as()' in '{item_trimmed}'"),
+                            Some("Provide a non-empty variant category name inside '@vary_as(\"... \")'"),
+                        );
+                    } else if parsed.vary_as.is_some() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Duplicate '@vary_as()' directive in '{item_trimmed}'"),
+                            Some("Only one @vary_as directive is permitted per entry"),
+                        );
+                    } else {
+                        parsed.vary_as = Some(unescaped);
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@vary_as(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@vary_as(\"... \")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@vary_as(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@vary_as(...)' closes with a parenthesis"),
+                );
+            }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@varies(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                let val = stripped.trim();
+                if val.is_empty() {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Empty '@varies()' directive in {col_name} column: '{item_trimmed}'"),
+                        Some("Specify one or more format variant category shorthands inside @varies(...) (e.g. '@varies(f354)')"),
+                    );
+                } else {
+                    for token in val.split(',') {
+                        let token_trimmed = token.trim();
+                        if token_trimmed.is_empty() {
+                            report.add_error(
+                                file_path,
+                                Some(line_no),
+                                Some(col_name),
+                                format!("Empty token in '@varies(...)' in '{item_trimmed}'"),
+                                Some("Provide comma-separated format variant category shorthands (e.g. '@varies(f354, f355)')"),
+                            );
+                            continue;
+                        }
+                        match ctb_storage_minimal::shorthand::DcShorthand::parse(token_trimmed) {
+                            Ok(shorthand) => {
+                                parsed.varies.push(shorthand);
+                            }
+                            Err(_) => {
+                                report.add_error(
+                                    file_path,
+                                    Some(line_no),
+                                    Some(col_name),
+                                    format!("Invalid Dc shorthand '{token_trimmed}' in '@varies(...)': '{item_trimmed}'"),
+                                    Some("Specify valid format variant category shorthands (e.g. 'f354')"),
+                                );
+                            }
+                        }
+                    }
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@varies(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@varies(...)' closes with a parenthesis"),
+                );
+            }
         } else {
             report.add_error(
                 file_path,
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', and '@default_line_ending(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@vary_as(...)', and '@varies(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -1068,5 +1161,26 @@ mod tests {
         );
         assert!(dup_report.has_errors());
         assert!(dup_report.format_report().contains("Duplicate '@title()'"));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_vary_as_and_varies_directives() {
+        let mut report = ValidationReport::new();
+        let parsed = parse_aliases_or_base_column(
+            r#"@vary_as("radix"), @varies(f354, f355)"#,
+            "test_format.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert_eq!(parsed.vary_as.as_deref(), Some("radix"));
+        assert_eq!(
+            parsed.varies,
+            vec![
+                ctb_storage_minimal::shorthand::DcShorthand::Format(354),
+                ctb_storage_minimal::shorthand::DcShorthand::Format(355),
+            ]
+        );
     }
 }
