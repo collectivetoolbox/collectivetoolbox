@@ -1390,7 +1390,7 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicCond, MagicTe
 
     // Parse test
     let test = match base_type_no_adj {
-        "string" => {
+        "string" | "ustring" => {
             let flags = parse_string_flags(flags_str);
             if val_str == "x" {
                 MagicTest::StringAny(flags)

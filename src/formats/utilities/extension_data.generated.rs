@@ -728,6 +728,30 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::insensitive("js"),
     },
     ExtensionEntry {
+        format_id: FormatId::C,
+        rule: ExtensionRule::insensitive("c"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::C,
+        rule: ExtensionRule::insensitive("h"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Cpp,
+        rule: ExtensionRule::insensitive("cpp"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Cpp,
+        rule: ExtensionRule::insensitive("cxx"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Cpp,
+        rule: ExtensionRule::insensitive("cc"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Cpp,
+        rule: ExtensionRule::insensitive("hpp"),
+    },
+    ExtensionEntry {
         format_id: FormatId::StageL,
         rule: ExtensionRule::insensitive("stagel"),
     },

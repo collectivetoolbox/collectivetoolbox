@@ -84,6 +84,8 @@ pub struct ParsedAliasesOrBaseColumn {
     pub vary_as: Option<String>,
     /// Format variant categories that vary for this format, extracted from `@varies(...)`.
     pub varies: Vec<ctb_storage_minimal::shorthand::DcShorthand>,
+    /// File magic description strings extracted from `@magic_name(...)`.
+    pub magic_names: Vec<String>,
 }
 
 /// Parses and validates the contents of an Aliases / Base / Chain / Syntax column cell.
@@ -558,6 +560,38 @@ fn process_column_item(
                     Some("Ensure '@nick(...)' closes with a parenthesis"),
                 );
             }
+        } else if let Some(inner) = item_trimmed.strip_prefix("@magic_name(") {
+            if let Some(stripped) = inner.strip_suffix(')') {
+                if let Some(unescaped) = unescape_quoted_directive_payload(stripped) {
+                    if unescaped.trim().is_empty() {
+                        report.add_error(
+                            file_path,
+                            Some(line_no),
+                            Some(col_name),
+                            format!("Empty '@magic_name()' in '{item_trimmed}'"),
+                            Some("Provide a non-empty description string inside '@magic_name(\"...\")'"),
+                        );
+                    } else {
+                        parsed.magic_names.push(unescaped);
+                    }
+                } else {
+                    report.add_error(
+                        file_path,
+                        Some(line_no),
+                        Some(col_name),
+                        format!("Malformed '@magic_name(...)': content must be enclosed in double quotes in '{item_trimmed}'"),
+                        Some("Use '@magic_name(\"...\")' with internal quotes escaped as '\\\"'"),
+                    );
+                }
+            } else {
+                report.add_error(
+                    file_path,
+                    Some(line_no),
+                    Some(col_name),
+                    format!("Malformed '@magic_name(...)': missing closing parenthesis in '{item_trimmed}'"),
+                    Some("Ensure '@magic_name(...)' closes with a parenthesis"),
+                );
+            }
         } else if let Some(inner) = item_trimmed.strip_prefix("@os(") {
             if let Some(stripped) = inner.strip_suffix(')') {
                 let os_val = stripped.trim();
@@ -773,7 +807,7 @@ fn process_column_item(
                 Some(line_no),
                 Some(col_name),
                 format!("Unknown directive '{item_trimmed}' in {col_name} column"),
-                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@vary_as(...)', and '@varies(...)'"),
+                Some("Supported '@' directives are '@implies(...)', '@based_on(...)', '@chain(...)', '@xref(...)', '@formalAlias<Type>(...)', '@annotation(...)', '@ident(...)', '@nick(...)', '@os(...)', '@title(...)', '@default_line_ending(...)', '@magic_name(...)', '@vary_as(...)', and '@varies(...)'"),
             );
         }
     } else if item_trimmed.starts_with('=') {
@@ -1182,5 +1216,33 @@ mod tests {
                 ctb_storage_minimal::shorthand::DcShorthand::Format(355),
             ]
         );
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_magic_name_directive() {
+        let mut report = ValidationReport::new();
+        let parsed = parse_aliases_or_base_column(
+            r#"@magic_name("SCO compress -H (LZH) data"), @magic_name("compacted data")"#,
+            "test_format.csv",
+            1,
+            &mut report,
+            true,
+        );
+        assert!(!report.has_errors(), "Report errors: {}", report.format_report());
+        assert_eq!(
+            parsed.magic_names,
+            vec!["SCO compress -H (LZH) data", "compacted data"]
+        );
+
+        let mut err_report = ValidationReport::new();
+        let _ = parse_aliases_or_base_column(
+            r#"@magic_name("")"#,
+            "test_format.csv",
+            1,
+            &mut err_report,
+            true,
+        );
+        assert!(err_report.has_errors());
+        assert!(err_report.format_report().contains("Empty '@magic_name()'"));
     }
 }

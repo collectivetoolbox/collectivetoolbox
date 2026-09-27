@@ -804,11 +804,21 @@ pub fn guess_format_report(
                     });
                 }
 
-                // Map MIME or description or extension to format catalog
-                let mapping = match_res
-                    .mime
-                    .as_deref()
-                    .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
+                // Map MIME or description to format catalog
+                let is_generic_mime = match_res.mime.as_deref().is_some_and(|m| {
+                    m.eq_ignore_ascii_case("application/octet-stream")
+                        || m.eq_ignore_ascii_case("application/x-empty")
+                });
+
+                let mapping = FORMAT_CATALOG
+                    .lookup_magic_name(&match_res.description)
+                    .or_else(|| {
+                        match_res
+                            .mime
+                            .as_deref()
+                            .filter(|_| !is_generic_mime)
+                            .and_then(|m| FORMAT_CATALOG.lookup_mime(m))
+                    })
                     .or_else(|| {
                         FORMAT_CATALOG.lookup_description_or_ident(&match_res.description)
                     })
@@ -919,8 +929,11 @@ pub fn guess_format_report(
                         if score > existing.score {
                             existing.score = score;
                             existing.confidence = confidence;
-                        }
-                        if description.len() > existing.description.len() {
+                            existing.description = description.clone();
+                            if mime.is_some() {
+                                existing.mime = mime.clone();
+                            }
+                        } else if score == existing.score && description.len() > existing.description.len() {
                             existing.description = description.clone();
                         }
                         existing.evidence.extend(evidence.clone());

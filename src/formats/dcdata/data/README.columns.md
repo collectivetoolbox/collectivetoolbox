@@ -132,6 +132,13 @@ Normative formal aliases from Unicode Standard Annex #44 (`NameAliases.txt`) and
 - **Purpose**: Document Character syntax DSL declarations.
 - **Syntax**: `:<syntax>` (e.g. `:~ [format:base_alphabet]`).
 
+#### `@magic_name("...")`
+- **Purpose**: Associates one or more `file(1)` libmagic description strings with the format.
+- **Syntax**: `@magic_name("<description>")`.
+- **Examples**:
+  - `@magic_name("SCO compress -H (LZH) data")`
+  - `@magic_name("packed data")`
+
 ---
 
 ### Canonical Ordering in Column 9
@@ -144,3 +151,7 @@ When records are generated or serialized, directives and items in Column 9 are a
 6. **Decompositions**: `<tag>...`
 7. **Annotations**: `@annotation(...)`
 8. **Syntax Rules**: `:<syntax>`
+9. **Chain DSL**: `@chain(...)`
+10. **Lineage / Implies**: `@based_on(...)`, `@implies(...)`
+11. **OS Associations**: `@os(...)`
+12. **Magic Names**: `@magic_name(...)`

@@ -575,7 +575,7 @@ mod tests {
             Some(FormatId::ScoCompress)
         );
         assert_eq!(
-            detect(Some(&[0x1F, 0x8B]), None),
+            detect(Some(&[0x1F, 0x8B, 0x08, 0x00]), None),
             Some(FormatId::Gzip)
         );
         assert_eq!(

@@ -487,6 +487,8 @@ pub struct FormatMapping {
     pub parent_formats: Vec<FormatId>,
     /// Parent format names or shorthands inherited from `@based_on(...)` or `@implies(...)`.
     pub parent_idents: Vec<String>,
+    /// Magic description strings extracted from `@magic_name(...)`.
+    pub magic_names: Vec<String>,
 }
 
 impl FormatMapping {
@@ -740,6 +742,8 @@ pub struct FormatCatalog {
     by_apple_type: HashMap<[u8; 4], FormatMapping>,
     by_apple_uti: HashMap<String, FormatMapping>,
     by_format_id: HashMap<FormatId, FormatMapping>,
+    by_magic_name: HashMap<String, FormatMapping>,
+    sorted_magic_names: Vec<(String, FormatMapping)>,
     inheritance: FormatInheritanceGraph,
 }
 
@@ -825,6 +829,7 @@ impl FormatCatalog {
                 let mut os_associations = Vec::new();
                 let mut parent_formats = Vec::new();
                 let mut parent_idents = Vec::new();
+                let mut magic_names = Vec::new();
                 if !aliases_base_field.is_empty() {
                     let mut report =
                         ctb_formats_dcdata::report::ValidationReport::default();
@@ -835,6 +840,7 @@ impl FormatCatalog {
                         &mut report,
                         true,
                     );
+                    magic_names = parsed.magic_names;
                     for os_shorthand in parsed.os_associations {
                         if let Some(fid) = FormatId::from_shorthand(&os_shorthand)
                         {
@@ -920,6 +926,7 @@ impl FormatCatalog {
                     apple_type_codes: apple_type_codes.clone(),
                     parent_formats,
                     parent_idents,
+                    magic_names: magic_names.clone(),
                 };
 
                 if !ident.is_empty() {
@@ -932,6 +939,13 @@ impl FormatCatalog {
                     catalog
                         .by_ident
                         .entry(nick.to_ascii_lowercase())
+                        .or_insert_with(|| mapping.clone());
+                }
+
+                for mn in magic_names {
+                    catalog
+                        .by_magic_name
+                        .entry(mn.trim().to_ascii_lowercase())
                         .or_insert_with(|| mapping.clone());
                 }
 
@@ -1032,6 +1046,14 @@ impl FormatCatalog {
             }
         }
 
+        let mut sorted: Vec<(String, FormatMapping)> = catalog
+            .by_magic_name
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        sorted.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        catalog.sorted_magic_names = sorted;
+
         catalog
     }
 
@@ -1099,23 +1121,41 @@ impl FormatCatalog {
         self.by_ident.get(&normalized)
     }
 
-    /// Looks up a format mapping by format identifier name or description prefix/tokens.
+    /// Looks up a format mapping by libmagic description string (exact match or longest prefix match).
+    #[must_use]
+    pub fn lookup_magic_name(&self, description: &str) -> Option<&FormatMapping> {
+        let trimmed = description.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
+        let normalized = trimmed.to_ascii_lowercase();
+        // 1. Exact match
+        if let Some(m) = self.by_magic_name.get(&normalized) {
+            return Some(m);
+        }
+        // 2. Longest prefix match
+        for (prefix, mapping) in &self.sorted_magic_names {
+            if normalized.starts_with(prefix) {
+                if normalized.len() == prefix.len() {
+                    return Some(mapping);
+                }
+                if let Some(next_char) = normalized.get(prefix.len()..).and_then(|s| s.chars().next()) {
+                    if next_char.is_whitespace() || next_char == ',' || next_char == ':' || next_char == ';' || next_char == '-' || next_char == '(' {
+                        return Some(mapping);
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Looks up a format mapping by format identifier name or exact nickname.
     pub fn lookup_description_or_ident(&self, text: &str) -> Option<&FormatMapping> {
         let trimmed = text.trim();
         if trimmed.is_empty() {
             return None;
         }
-        if let Some(m) = self.lookup_ident(trimmed) {
-            return Some(m);
-        }
-        // Try first word (e.g. "gzip compressed data" -> "gzip")
-        if let Some(first_word) = trimmed.split_whitespace().next() {
-            let clean_word = first_word.trim_matches(|c: char| !c.is_alphanumeric());
-            if let Some(m) = self.lookup_ident(clean_word) {
-                return Some(m);
-            }
-        }
-        None
+        self.lookup_ident(trimmed)
     }
 
     /// Looks up candidate format mappings for an extension.

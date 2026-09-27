@@ -905,6 +905,9 @@ fn format_canonical_aliases_cell(raw: &str) -> String {
     for os in parsed.os_associations {
         parts.push(format!("@os({os})"));
     }
+    for mn in parsed.magic_names {
+        parts.push(format!("@magic_name(\"{}\")", escape_directive_string(&mn)));
+    }
     parts.join(", ")
 }
 
