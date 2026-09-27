@@ -28,19 +28,19 @@ Here is the audited breakdown of features, subsystems, data types, and heuristic
 
 ---
 
-## 1. Upstream Detection Subsystems Completely Missing
+## 1. Upstream Detection Subsystems
 
 ### A. SIM-H Magnetic Tape Parser ([`src/is_simh.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/is_simh.c))
 * **Upstream feature:** `file_is_simh` and `simh_parse` detect SIMH magnetic tape image files. It verifies 32-bit record headers with forward and backward size checks (`getlen`), handles automatic endianness detection (`simh_bo`), skips tapemarks (`0x00000000`), handles End-of-Medium (`0xFFFFFFFF`), and outputs `"SIMH tape data"` with MIME type `"application/SIMH-tape-data"`.
-* **Ctoolbox state:** **Completely absent**. It is not ported in [`container.rs`](file:///workspaces/ctoolbox/src/formats/detection/container.rs) or anywhere in `src/formats/detection/`.
+* **Ctoolbox state:** **Implemented** in [`container.rs`](file:///workspaces/ctoolbox/src/formats/detection/container.rs) (`inspect_simh`). Supports both Little-Endian and Big-Endian SIMH record framing independently of host endianness, checks record padding and trailer lengths, handles tapemarks and EOM, and integrates into `detect_container_candidates`.
 
 ### B. ASN.1 / DER Parser & Comparator ([`src/der.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/der.c), [`src/der.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/der.h))
 * **Upstream feature:** Upstream implements a dedicated ASN.1 DER (Distinguished Encoding Rules) tag scanner and evaluator (`der_offs`, `der_cmp`, `gettag`, `getlength`, `der_tag`, `der_data`). This backs the `der` rule type used in [`Magdir/der`](file:///workspaces/ctoolbox/src/formats/dcdata/data/magic/upstream/magic/Magdir/der) and certificate/key signatures (e.g., `der seq`, `der set`, `der obj_id3=...`, `der utf8_str=...`, `der prt_str=...`, `der int1=...`, `der null`).
-* **Ctoolbox state:** **Completely absent**. [`magic_parser.rs`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) has no definition or parser for `der` in `MagicTest` or `parse_type`, and [`magic.rs`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs) has no evaluation logic for DER tag/length traversal or OID comparison.
+* **Ctoolbox state:** **Implemented** in [`der.rs`](file:///workspaces/ctoolbox/src/formats/detection/der.rs), [`magic_parser.rs`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) (`MagicTest::Der`), and [`magic.rs`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs). Traverses hierarchical constructed containers (SEQUENCE/SET) for child rules and advances sibling offsets across sequential TLV elements.
 
 ### C. OS/2 Apptype Resolution ([`src/apptype.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/apptype.c))
 * **Upstream feature:** `file_os2_apptype` identifies OS/2 and early Windows application header types using `DosQueryAppType`.
-* **Ctoolbox state:** **Absent**. (PE and NE binaries are handled solely via static or Magdir patterns).
+* **Ctoolbox state:** **Intentionally omitted (non-portable)**. In upstream `file`, `file_os2_apptype` is entirely enclosed in `#ifdef __EMX__` and calls the proprietary OS/2 kernel system call `DosQueryAppType`. It is dead code outside OS/2 build environments. PE and NE binaries are handled portably via static and Magdir patterns.
 
 ---
 

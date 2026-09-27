@@ -630,6 +630,7 @@ pub mod extra_rules;
 pub mod types;
 pub mod file_upstream_suite;
 pub mod cli;
+pub mod der;
 
 pub use platform::{current_platform_os, format_matches_platform, is_os_match};
 pub use source::{DetectionSource, EmptySource};

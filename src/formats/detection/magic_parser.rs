@@ -650,6 +650,7 @@ pub enum MagicTest {
     Clear,
     Use(String),
     Name(String),
+    Der(crate::der::DerPattern),
 }
 
 /// A parsed hierarchical libmagic rule with optional child rules.
@@ -1345,6 +1346,10 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         "offset" => MagicTest::OffsetVal,
         "default" => MagicTest::Default,
         "clear" => MagicTest::Clear,
+        "der" => {
+            let pat = crate::der::parse_der_pattern(val_str)?;
+            MagicTest::Der(pat)
+        }
         _ if base_type_no_adj.starts_with("search") => {
             let (flags, max_bytes) = parse_search_flags(flags_str);
             let (negated, target_val) = if let Some(stripped) = val_str.strip_prefix('!') {
@@ -1413,6 +1418,15 @@ pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
         MagicTest::Date64Le { op, .. } | MagicTest::Date64Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(80) },
         MagicTest::Guid(_) => base.saturating_add(160),
         MagicTest::MsDosDate | MagicTest::MsDosTime | MagicTest::OffsetVal => base.saturating_add(20),
+        MagicTest::Der(pat) => {
+            if pat.expected_val.as_deref() == Some("x")
+                || (pat.expected_len.is_none() && pat.expected_val.is_none())
+            {
+                base
+            } else {
+                base.saturating_add(mult)
+            }
+        }
     }
 }
 

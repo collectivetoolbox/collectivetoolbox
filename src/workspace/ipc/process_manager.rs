@@ -203,6 +203,17 @@ where
                 forced: false,
             });
         }
+    } else {
+        let exited = process_manager
+            .wait_for_exit(pid, Duration::from_millis(0))
+            .await?;
+        if exited {
+            return Ok(GracefulShutdownOutcome {
+                acknowledged: false,
+                exited: true,
+                forced: false,
+            });
+        }
     }
 
     process_manager.kill_tree(pid).await?;
@@ -277,15 +288,13 @@ async fn send_shutdown_request(
         .await?;
 
     if !resp.ok {
-        return Ok(ShutdownTreeResponse {
-            acknowledged: false,
-        });
+        return Err(Error::from(resp));
     }
 
     let Some(bytes) = resp.result else {
-        return Ok(ShutdownTreeResponse {
-            acknowledged: false,
-        });
+        return Err(Error::Serialization(
+            "missing result payload in shutdown response".into(),
+        ));
     };
 
     postcard_helpers::decode::<ShutdownTreeResponse>(

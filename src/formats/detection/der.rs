@@ -443,1405 +443,253 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 // See the full license details for parts derived from polyfile <https://github.com/trailofbits/polyfile>, binwalk <https://github.com/ReFirmLabs/binwalk>, fileid <https://github.com/DBHeise/fileid>, and DROID <https://github.com/digital-preservation/droid> at the end of this file.
 
 
-//! Hierarchical magic byte pattern evaluation engine for format identification.
+//! ASN.1 DER (Distinguished Encoding Rules) tag scanner, parser, and
+//! comparator matching upstream `file` (`src/der.c`, `src/der.h`).
 
-#[allow(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use std::collections::HashMap;
-
+#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace module prelude")]
 use crate::utilities::*;
 
-use super::DetectionSource;
-use super::magic_parser::{
-    HierarchicalMagicRule, IndirectType, MagicTest, NumOp, Offset, PascalLengthSize, RelOp,
-};
+/// Tag names matching upstream `der__tag` in `src/der.c`.
+const DER_TAG_NAMES: [&str; 37] = [
+    "eoc", "bool", "int", "bit_str", "octet_str", "null", "obj_id", "obj_desc",
+    "ext", "real", "enum", "embed", "utf8_str", "rel_oid", "time", "res2",
+    "seq", "set", "num_str", "prt_str", "t61_str", "vid_str", "ia5_str",
+    "utc_time", "gen_time", "gr_str", "vis_str", "gen_str", "univ_str",
+    "char_str", "bmp_str", "date", "tod", "datetime", "duration", "oid-iri",
+    "rel-oid-iri",
+];
 
-/// Result of evaluating a hierarchical magic rule against a payload source.
+/// Universal ASN.1 DER Tag constants.
+pub const DER_TAG_EOC: u32 = 0x00;
+pub const DER_TAG_BOOLEAN: u32 = 0x01;
+pub const DER_TAG_INTEGER: u32 = 0x02;
+pub const DER_TAG_BIT_STRING: u32 = 0x03;
+pub const DER_TAG_OCTET_STRING: u32 = 0x04;
+pub const DER_TAG_NULL: u32 = 0x05;
+pub const DER_TAG_OBJECT_IDENTIFIER: u32 = 0x06;
+pub const DER_TAG_UTF8_STRING: u32 = 0x0C;
+pub const DER_TAG_SEQUENCE: u32 = 0x10;
+pub const DER_TAG_SET: u32 = 0x11;
+pub const DER_TAG_PRINTABLE_STRING: u32 = 0x13;
+pub const DER_TAG_IA5_STRING: u32 = 0x16;
+pub const DER_TAG_UTCTIME: u32 = 0x17;
+
+/// A parsed specification of a `der` magic rule test.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuleMatchResult {
-    /// Specialized description formatted from matching root and child rules.
-    pub description: String,
-    /// MIME type associated with the match (child rule takes precedence).
-    pub mime: Option<String>,
-    /// File extension(s) associated with the match.
-    pub ext: Option<String>,
-    /// Apple type code if available.
-    pub apple: Option<String>,
-    /// Accumulated strength/confidence score.
-    pub score: u32,
-    /// End offset in payload of the matched sequence.
-    pub match_end: u64,
-    /// Next sibling starting offset for structured/DER sequential elements.
-    pub next_sibling_offset: u64,
-    /// Suppress space separator before appending to previous text.
-    pub nospace: bool,
+pub struct DerPattern {
+    /// Expected DER tag name (e.g. `seq`, `set`, `int`, `obj_id`, `utf8_str`).
+    pub tag: String,
+    /// Optional expected length in bytes of the DER payload.
+    pub expected_len: Option<usize>,
+    /// Optional expected value (either `"x"` for any or a specific hex/string).
+    pub expected_val: Option<String>,
 }
 
-/// Evaluates a relational comparison operator.
-fn eval_rel_op<T: Copy + Ord + Eq + std::ops::BitAnd<Output = T>>(
-    val: T,
-    op: RelOp,
-    target: T,
-) -> bool {
-    match op {
-        RelOp::Eq => val == target,
-        RelOp::Ne => val != target,
-        RelOp::Gt => val > target,
-        RelOp::Lt => val < target,
-        RelOp::BitAnd => (val & target) == target,
-        RelOp::BitClear => (val & target) != target,
-        RelOp::Any => true,
-    }
+/// Result of successfully evaluating a `der` magic test against a byte buffer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DerMatchResult {
+    /// Length of the tag and length header in bytes.
+    pub header_len: usize,
+    /// Length of the payload in bytes.
+    pub payload_len: usize,
+    /// Formatted representation of the value (hex string, ASCII string, or date).
+    pub formatted_val: String,
 }
 
-/// Applies arithmetic operation to a 64-bit integer before comparison/format.
-fn apply_num_op_u64(val: u64, op: NumOp) -> u64 {
-    match op {
-        NumOp::None => val,
-        // Reason for fallback: division by zero returns unmodified value
-        NumOp::Div(d) => val.checked_div(d).unwrap_or(val),
-        // Reason for fallback: modulo by zero returns 0
-        NumOp::Mod(m) => val.checked_rem(m).unwrap_or(0),
-        NumOp::Mul(m) => val.saturating_mul(m),
-        NumOp::Add(a) => val.saturating_add(a),
-        NumOp::Sub(s) => val.saturating_sub(s),
-    }
-}
-
-/// Extracted value used for printf-style format interpolation in descriptions.
-#[derive(Debug, Clone)]
-pub enum FormatValue {
-    None,
-    U64(u64),
-    I64(i64),
-    Str(String),
-    Date(i64),
-}
-
-/// Formats a Unix timestamp as UTC `ctime`-compatible string:
-/// `%a %b %e %H:%M:%S %Y`.
-fn format_timestamp(secs: i64) -> String {
-    if let Some(dt) = chrono::DateTime::from_timestamp(secs, 0) {
-        dt.format("%a %b %e %H:%M:%S %Y").to_string()
-    } else {
-        format!("{secs}")
-    }
-}
-
-fn apply_padding(s: &str, width: usize, zero_pad: bool) -> String {
-    if s.len() >= width {
-        s.to_string()
-    } else {
-        let pad_char = if zero_pad { '0' } else { ' ' };
-        let diff = width.saturating_sub(s.len());
-        let mut out = String::with_capacity(width);
-        for _ in 0..diff {
-            out.push(pad_char);
-        }
-        out.push_str(s);
-        out
-    }
-}
-
-/// Formats a libmagic rule description interpolating `%s`, `%d`, `%x`, etc. specifiers.
-pub fn format_magic_description(desc: &str, val: &FormatValue) -> String {
-    if !desc.contains('%') {
-        return desc.to_string();
+/// Reads a DER tag number from `data` starting at `*offset`.
+///
+/// Returns the decoded tag number and advances `*offset` by the consumed bytes.
+pub fn read_der_tag(data: &[u8], offset: &mut usize) -> Option<u32> {
+    let first = *data.get(*offset)?;
+    *offset = offset.saturating_add(1);
+    let tag = u32::from(first & 0x1F);
+    if tag != 0x1F {
+        return Some(tag);
     }
 
-    let mut result = String::with_capacity(desc.len().saturating_add(16));
-    let chars: Vec<char> = desc.chars().collect();
-    let mut i = 0;
-
-    while i < chars.len() {
-        if let Some(&c) = chars.get(i) {
-            if c != '%' {
-                result.push(c);
-                i = i.saturating_add(1);
-                continue;
-            }
-
-            i = i.saturating_add(1);
-            if let Some(&next) = chars.get(i) {
-                if next == '%' {
-                    result.push('%');
-                    i = i.saturating_add(1);
-                    continue;
-                }
-            }
-
-            let mut zero_pad = false;
-            let mut width: usize = 0;
-            let mut alt_form = false;
-
-            while let Some(&f) = chars.get(i) {
-                if f == '0' {
-                    zero_pad = true;
-                    i = i.saturating_add(1);
-                } else if f == '#' {
-                    alt_form = true;
-                    i = i.saturating_add(1);
-                } else if f == '-' || f == '+' || f == ' ' {
-                    i = i.saturating_add(1);
-                } else {
-                    break;
-                }
-            }
-
-            while let Some(&w) = chars.get(i) {
-                if let Some(digit) = w.to_digit(10) {
-                    // Reason for fallback: decimal digit 0..=9 conversion to usize defaults to 0
-                    let d = usize::try_from(digit).unwrap_or(0);
-                    width = width.saturating_mul(10).saturating_add(d);
-                    i = i.saturating_add(1);
-                } else {
-                    break;
-                }
-            }
-
-            let mut precision: Option<usize> = None;
-            if let Some(&'.') = chars.get(i) {
-                i = i.saturating_add(1);
-                let mut prec: usize = 0;
-                while let Some(&p) = chars.get(i) {
-                    if let Some(digit) = p.to_digit(10) {
-                        // Reason for fallback: decimal digit 0..=9 conversion to usize defaults to 0
-                        let d = usize::try_from(digit).unwrap_or(0);
-                        prec = prec.saturating_mul(10).saturating_add(d);
-                        i = i.saturating_add(1);
-                    } else {
-                        break;
-                    }
-                }
-                precision = Some(prec);
-            }
-
-            while let Some(&lm) = chars.get(i) {
-                if lm == 'l' || lm == 'h' || lm == 'z' || lm == 'j' || lm == 't' || lm == 'L' {
-                    i = i.saturating_add(1);
-                } else {
-                    break;
-                }
-            }
-
-            // Reason for fallback: format specifier truncated at end of format string defaults to string specifier 's'
-            let spec = chars.get(i).copied().unwrap_or('s');
-            i = i.saturating_add(1);
-
-            let formatted = match (spec, val) {
-                ('s', FormatValue::Str(s)) => {
-                    let s_trimmed = if let Some(p) = precision {
-                        s.chars().take(p).collect::<String>()
-                    } else {
-                        s.clone()
-                    };
-                    apply_padding(&s_trimmed, width, zero_pad)
-                }
-                ('s', FormatValue::Date(ts)) => format_timestamp(*ts),
-                ('s', FormatValue::U64(n)) => n.to_string(),
-                ('s', FormatValue::I64(n)) => n.to_string(),
-                ('d' | 'i', FormatValue::I64(n)) => {
-                    let s = n.to_string();
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('d' | 'i', FormatValue::U64(n)) => {
-                    let s = n.to_string();
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('u', FormatValue::U64(n)) => {
-                    let s = n.to_string();
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('u', FormatValue::I64(n)) => {
-                    let s = n.to_string();
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('x', FormatValue::U64(n)) => {
-                    let s = if alt_form && *n != 0 {
-                        format!("0x{:x}", n)
-                    } else {
-                        format!("{:x}", n)
-                    };
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('x', FormatValue::I64(n)) => {
-                    let s = if alt_form && *n != 0 {
-                        format!("0x{:x}", n)
-                    } else {
-                        format!("{:x}", n)
-                    };
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('X', FormatValue::U64(n)) => {
-                    let s = if alt_form && *n != 0 {
-                        format!("0X{:X}", n)
-                    } else {
-                        format!("{:X}", n)
-                    };
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('X', FormatValue::I64(n)) => {
-                    let s = if alt_form && *n != 0 {
-                        format!("0X{:X}", n)
-                    } else {
-                        format!("{:X}", n)
-                    };
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('o', FormatValue::U64(n)) => {
-                    let s = if alt_form && *n != 0 {
-                        format!("0{:o}", n)
-                    } else {
-                        format!("{:o}", n)
-                    };
-                    apply_padding(&s, width, zero_pad)
-                }
-                ('c', FormatValue::U64(n)) => {
-                    if let Ok(b) = u8::try_from(*n) {
-                        char::from(b).to_string()
-                    } else {
-                        "?".to_string()
-                    }
-                }
-                (_, FormatValue::Str(s)) => s.clone(),
-                (_, FormatValue::U64(n)) => n.to_string(),
-                (_, FormatValue::I64(n)) => n.to_string(),
-                (_, FormatValue::Date(ts)) => format_timestamp(*ts),
-                (_, FormatValue::None) => String::new(),
-            };
-
-            result.push_str(&formatted);
-        } else {
+    let mut tag_val = tag;
+    while *offset < data.len() {
+        let byte = *data.get(*offset)?;
+        *offset = offset.saturating_add(1);
+        let val7 = u32::from(byte & 0x7F);
+        tag_val = tag_val.checked_mul(128)?.checked_add(val7)?;
+        if (byte & 0x80) == 0 {
             break;
         }
     }
-
-    result
+    Some(tag_val)
 }
 
-/// Reads raw integer value at dereference offset according to indirect type.
-fn read_indirect_val<S: DetectionSource + ?Sized>(
-    source: &mut S,
-    deref_pos: u64,
-    ind_type: IndirectType,
-) -> Option<i64> {
-    match ind_type {
-        IndirectType::Byte => {
-            let mut b = [0u8; 1];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 1 { return None; }
-            Some(i64::from(b[0]))
-        }
-        IndirectType::ShortLe => {
-            let mut b = [0u8; 2];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 2 { return None; }
-            Some(i64::from(u16::from_le_bytes(b)))
-        }
-        IndirectType::ShortBe => {
-            let mut b = [0u8; 2];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 2 { return None; }
-            Some(i64::from(u16::from_be_bytes(b)))
-        }
-        IndirectType::LongLe => {
-            let mut b = [0u8; 4];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 4 { return None; }
-            Some(i64::from(u32::from_le_bytes(b)))
-        }
-        IndirectType::LongBe => {
-            let mut b = [0u8; 4];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 4 { return None; }
-            Some(i64::from(u32::from_be_bytes(b)))
-        }
-        IndirectType::QuadLe => {
-            let mut b = [0u8; 8];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 8 { return None; }
-            i64::try_from(u64::from_le_bytes(b)).ok()
-        }
-        IndirectType::QuadBe => {
-            let mut b = [0u8; 8];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 8 { return None; }
-            i64::try_from(u64::from_be_bytes(b)).ok()
-        }
-        IndirectType::Id3Be => {
-            let mut b = [0u8; 4];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 4 { return None; }
-            let val = ((u32::from(b[0]) & 0x7f) << 21)
-                | ((u32::from(b[1]) & 0x7f) << 14)
-                | ((u32::from(b[2]) & 0x7f) << 7)
-                | (u32::from(b[3]) & 0x7f);
-            Some(i64::from(val))
-        }
-        IndirectType::Id3Le => {
-            let mut b = [0u8; 4];
-            let n = source.read_at(deref_pos, &mut b).ok()?;
-            if n < 4 { return None; }
-            let val = (u32::from(b[0]) & 0x7f)
-                | ((u32::from(b[1]) & 0x7f) << 7)
-                | ((u32::from(b[2]) & 0x7f) << 14)
-                | ((u32::from(b[3]) & 0x7f) << 21);
-            Some(i64::from(val))
-        }
-    }
-}
+/// Reads a DER length from `data` starting at `*offset`.
+///
+/// Supports both short-form (1 byte) and long-form (multibyte) DER encodings.
+/// Advances `*offset` by the number of length descriptor bytes.
+pub fn read_der_length(data: &[u8], offset: &mut usize) -> Option<usize> {
+    let first = *data.get(*offset)?;
+    *offset = offset.saturating_add(1);
 
-/// Resolves an `Offset` to an absolute byte position within `source`.
-fn resolve_offset<S: DetectionSource + ?Sized>(
-    offset: &Offset,
-    base_offset: u64,
-    prev_match_end: u64,
-    source: &mut S,
-    depth: usize,
-) -> Option<u64> {
-    if depth > 16 {
-        return None;
+    if (first & 0x80) == 0 {
+        return Some(usize::from(first & 0x7F));
     }
-    match offset {
-        Offset::Bof(off) => base_offset.checked_add(*off),
-        Offset::Eof(off) => {
-            let total = source.total_len()?;
-            total.checked_sub(*off)
-        }
-        Offset::Relative(rel) => {
-            if *rel >= 0 {
-                let add = u64::try_from(*rel).ok()?;
-                prev_match_end.checked_add(add)
-            } else {
-                let sub = u64::try_from(rel.checked_neg()?).ok()?;
-                prev_match_end.checked_sub(sub)
-            }
-        }
-        Offset::Indirect { base, ind_type, adjustment, multiplier } => {
-            let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
-            let target_i64 = raw_val.checked_add(*adjustment)?;
-            let target_u64 = u64::try_from(target_i64).ok()?;
-            base_offset.checked_add(target_u64)
-        }
-        Offset::RelativeIndirect { base, ind_type, adjustment, multiplier } => {
-            let deref_pos = resolve_offset(base, base_offset, prev_match_end, source, depth.saturating_add(1))?;
-            let raw_val = read_indirect_val(source, deref_pos, *ind_type)?.checked_mul(*multiplier)?;
-            let rel_val = raw_val.checked_add(*adjustment)?;
-            if rel_val >= 0 {
-                let add = u64::try_from(rel_val).ok()?;
-                prev_match_end.checked_add(add)
-            } else {
-                let sub = u64::try_from(rel_val.checked_neg()?).ok()?;
-                prev_match_end.checked_sub(sub)
-            }
-        }
-        Offset::Search { start, .. } => base_offset.checked_add(*start),
-    }
-}
 
-/// Evaluates a hierarchical magic rule recursively with subroutine and relative match context.
-fn evaluate_rule_internal<S: DetectionSource + ?Sized>(
-    rule: &HierarchicalMagicRule,
-    source: &mut S,
-    base_offset: u64,
-    prev_match_end: u64,
-    templates: &HashMap<String, HierarchicalMagicRule>,
-    depth: usize,
-) -> Option<RuleMatchResult> {
-    if depth > 32 {
+    let num_bytes = usize::from(first & 0x7F);
+    if num_bytes == 0 || num_bytes > 4 {
         return None;
     }
 
-    let pos = resolve_offset(&rule.offset, base_offset, prev_match_end, source, 0)?;
+    let mut len: usize = 0;
+    for _ in 0..num_bytes {
+        let byte = *data.get(*offset)?;
+        *offset = offset.saturating_add(1);
+        len = len.checked_shl(8)?.checked_add(usize::from(byte))?;
+    }
+    Some(len)
+}
 
-    let mut match_len: usize = 0;
-    let mut der_match_info: Option<(usize, usize)> = None;
-    let mut format_val = FormatValue::None;
-    let mut use_subroutine_result: Option<RuleMatchResult> = None;
+/// Converts a DER tag number to its canonical name matching upstream `der__tag`.
+pub fn tag_to_name(tag: u32) -> String {
+    let tag_idx = usize::try_from(tag).ok();
+    if let Some(idx) = tag_idx {
+        if let Some(&name) = DER_TAG_NAMES.get(idx) {
+            return name.to_string();
+        }
+    }
+    format!("{tag:#x}")
+}
 
-    let matched = match &rule.test {
-        MagicTest::ExactBytes(expected) => {
-            let mut buf = vec![0u8; expected.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n >= expected.len() && buf == *expected {
-                match_len = expected.len();
-                format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
-                true
+/// Formats the decoded DER payload matching upstream `der_data` in `der.c`.
+pub fn format_der_data(tag: u32, payload: &[u8]) -> String {
+    match tag {
+        DER_TAG_PRINTABLE_STRING | DER_TAG_UTF8_STRING | DER_TAG_IA5_STRING => {
+            String::from_utf8_lossy(payload).to_string()
+        }
+        DER_TAG_UTCTIME => {
+            if let [y1, y2, m1, m2, d1, d2, h1, h2, min1, min2, s1, s2, ..] = payload {
+                format!(
+                    "20{y1_c}{y2_c}-{m1_c}{m2_c}-{d1_c}{d2_c} {h1_c}{h2_c}:{min1_c}{min2_c}:{s1_c}{s2_c} GMT",
+                    y1_c = char::from(*y1),
+                    y2_c = char::from(*y2),
+                    m1_c = char::from(*m1),
+                    m2_c = char::from(*m2),
+                    d1_c = char::from(*d1),
+                    d2_c = char::from(*d2),
+                    h1_c = char::from(*h1),
+                    h2_c = char::from(*h2),
+                    min1_c = char::from(*min1),
+                    min2_c = char::from(*min2),
+                    s1_c = char::from(*s1),
+                    s2_c = char::from(*s2),
+                )
             } else {
-                false
+                payload.iter().map(|b| format!("{b:02x}")).collect::<String>()
             }
         }
-        MagicTest::MaskedBytes { bytes, mask } => {
-            let mut buf = vec![0u8; bytes.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < bytes.len() {
-                false
-            } else {
-                let mut ok = true;
-                for i in 0..bytes.len() {
-                    let actual = *buf.get(i)?;
-                    let m = *mask.get(i)?;
-                    let exp = *bytes.get(i)?;
-                    if (actual & m) != exp {
-                        ok = false;
-                        break;
-                    }
-                }
-                if ok {
-                    match_len = bytes.len();
-                    format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
-                }
-                ok
-            }
-        }
-        MagicTest::String { pattern, flags } => {
-            if flags.compact_whitespace {
-                let max_read = pattern.len().saturating_add(512);
-                let mut buf = vec![0u8; max_read];
-                let n = source.read_at(pos, &mut buf).ok()?;
-                let Some(slice) = buf.get(..n) else { return None; };
-                let mut a_idx = 0;
-                let mut b_idx = 0;
-                let mut matched = true;
-                while a_idx < pattern.len() {
-                    let Some(&pa) = pattern.get(a_idx) else {
-                        matched = false;
-                        break;
-                    };
-                    if pa.is_ascii_whitespace() {
-                        a_idx = a_idx.saturating_add(1);
-                        if flags.blank_insensitive {
-                            while let Some(&b) = slice.get(b_idx) {
-                                if !b.is_ascii_whitespace() {
-                                    break;
-                                }
-                                b_idx = b_idx.saturating_add(1);
-                            }
-                        } else {
-                            if b_idx >= slice.len() {
-                                matched = false;
-                                break;
-                            }
-                            let Some(&pb) = slice.get(b_idx) else {
-                                matched = false;
-                                break;
-                            };
-                            if pb.is_ascii_whitespace() {
-                                b_idx = b_idx.saturating_add(1);
-                                while let Some(&b) = slice.get(b_idx) {
-                                    if !b.is_ascii_whitespace() {
-                                        break;
-                                    }
-                                    b_idx = b_idx.saturating_add(1);
-                                }
-                            } else {
-                                matched = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        if b_idx >= slice.len() {
-                            matched = false;
-                            break;
-                        }
-                        let Some(&pb) = slice.get(b_idx) else {
-                            matched = false;
-                            break;
-                        };
-                        let eq = if flags.case_insensitive {
-                            pa.to_ascii_lowercase() == pb.to_ascii_lowercase()
-                        } else {
-                            pa == pb
-                        };
-                        if eq {
-                            a_idx = a_idx.saturating_add(1);
-                            b_idx = b_idx.saturating_add(1);
-                        } else {
-                            matched = false;
-                            break;
-                        }
-                    }
-                }
-                if matched {
-                    match_len = b_idx;
-                    // Reason for fallback: slice calculation beyond buffer bounds defaults to empty slice
-                    let matched_bytes = slice.get(..b_idx).unwrap_or(&[]);
-                    format_val = FormatValue::Str(String::from_utf8_lossy(matched_bytes).to_string());
-                    true
-                } else {
-                    false
-                }
-            } else {
-                let mut buf = vec![0u8; pattern.len()];
-                let n = source.read_at(pos, &mut buf).ok()?;
-                if n < pattern.len() {
-                    false
-                } else {
-                    let ok = if flags.case_insensitive {
-                        buf.to_ascii_lowercase() == pattern.to_ascii_lowercase()
-                    } else {
-                        buf == *pattern
-                    };
-                    if ok {
-                        match_len = pattern.len();
-                        format_val = FormatValue::Str(String::from_utf8_lossy(&buf).to_string());
-                    }
-                    ok
-                }
-            }
-        }
-        MagicTest::StringAny(flags) => {
-            let mut buf = [0u8; 256];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n == 0 {
-                false
-            } else {
-                let Some(slice) = buf.get(..n) else { return None; };
-                // Reason for fallback: if no null or newline delimiter is found, string spans to end of read slice
-                let len = slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(n);
-                // Reason for fallback: subslice to delimiter defaults to empty slice
-                let mut s = String::from_utf8_lossy(slice.get(..len).unwrap_or(&[])).to_string();
-                if flags.trim {
-                    s = s.trim().to_string();
-                }
-                match_len = len;
-                format_val = FormatValue::Str(s);
-                true
-            }
-        }
-        MagicTest::StringRelOp { pattern, op, flags } => {
-            let mut buf = vec![0u8; pattern.len()];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < pattern.len() {
-                false
-            } else {
-                let cmp = if flags.case_insensitive {
-                    buf.to_ascii_lowercase().cmp(&pattern.to_ascii_lowercase())
-                } else {
-                    buf.cmp(pattern)
-                };
-                let ok = match op {
-                    RelOp::Eq => cmp == std::cmp::Ordering::Equal,
-                    RelOp::Ne => cmp != std::cmp::Ordering::Equal,
-                    RelOp::Gt => cmp == std::cmp::Ordering::Greater,
-                    RelOp::Lt => cmp == std::cmp::Ordering::Less,
-                    RelOp::BitAnd | RelOp::BitClear | RelOp::Any => true,
-                };
-                if ok {
-                    let mut full_buf = [0u8; 256];
-                    // Reason for fallback: read error when fetching string format value defaults to 0 bytes read
-                    let fn_bytes = source.read_at(pos, &mut full_buf).unwrap_or(0);
-                    // Reason for fallback: slice defaults to empty slice if read length exceeds buffer
-                    let full_slice = full_buf.get(..fn_bytes).unwrap_or(&[]);
-                    // Reason for fallback: if no null or newline delimiter is found, string spans full buffer
-                    let str_len = full_slice
-                        .iter()
-                        .position(|&b| b == 0 || b == b'\r' || b == b'\n')
-                        .unwrap_or(fn_bytes);
-                    // Reason for fallback: subslice to delimiter defaults to original pattern buffer
-                    let mut s = String::from_utf8_lossy(full_slice.get(..str_len).unwrap_or(&buf)).to_string();
-                    if flags.trim {
-                        s = s.trim().to_string();
-                    }
-                    match_len = pattern.len().max(str_len);
-                    format_val = FormatValue::Str(s);
-                }
-                ok
-            }
-        }
-        MagicTest::PascalString { pattern, length_size, length_includes_itself } => {
-            let prefix_len = match length_size {
-                PascalLengthSize::Byte => 1,
-                PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2,
-                PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4,
-            };
-            let mut pfx = vec![0u8; prefix_len];
-            let n = source.read_at(pos, &mut pfx).ok()?;
-            if n < prefix_len {
-                false
-            } else {
-                let raw_len = match length_size {
-                    PascalLengthSize::Byte => usize::from(*pfx.first()?),
-                    PascalLengthSize::ShortLe => {
-                        let b = <[u8; 2]>::try_from(pfx.get(..2)?).ok()?;
-                        usize::from(u16::from_le_bytes(b))
-                    }
-                    PascalLengthSize::ShortBe => {
-                        let b = <[u8; 2]>::try_from(pfx.get(..2)?).ok()?;
-                        usize::from(u16::from_be_bytes(b))
-                    }
-                    PascalLengthSize::LongLe => {
-                        let b = <[u8; 4]>::try_from(pfx.get(..4)?).ok()?;
-                        usize::try_from(u32::from_le_bytes(b)).ok()?
-                    }
-                    PascalLengthSize::LongBe => {
-                        let b = <[u8; 4]>::try_from(pfx.get(..4)?).ok()?;
-                        usize::try_from(u32::from_be_bytes(b)).ok()?
-                    }
-                };
-                let payload_len = if *length_includes_itself {
-                    raw_len.saturating_sub(prefix_len)
-                } else {
-                    raw_len
-                };
-                let prefix_len_u64 = match length_size {
-                    PascalLengthSize::Byte => 1u64,
-                    PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2u64,
-                    PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4u64,
-                };
-                let read_len = payload_len.min(pattern.len());
-                let mut content_buf = vec![0u8; read_len];
-                let content_pos = pos.saturating_add(prefix_len_u64);
-                let cn = source.read_at(content_pos, &mut content_buf).ok()?;
-                if cn >= pattern.len() && content_buf == *pattern {
-                    match_len = prefix_len.saturating_add(payload_len);
-                    format_val = FormatValue::Str(String::from_utf8_lossy(&content_buf).to_string());
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-        MagicTest::PascalStringAny { length_size, length_includes_itself } => {
-            let prefix_len = match length_size {
-                PascalLengthSize::Byte => 1,
-                PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2,
-                PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4,
-            };
-            let mut pfx = vec![0u8; prefix_len];
-            let n = source.read_at(pos, &mut pfx).ok()?;
-            if n < prefix_len {
-                false
-            } else {
-                let raw_len = match length_size {
-                    PascalLengthSize::Byte => usize::from(*pfx.first()?),
-                    PascalLengthSize::ShortLe => {
-                        let b = <[u8; 2]>::try_from(pfx.get(..2)?).ok()?;
-                        usize::from(u16::from_le_bytes(b))
-                    }
-                    PascalLengthSize::ShortBe => {
-                        let b = <[u8; 2]>::try_from(pfx.get(..2)?).ok()?;
-                        usize::from(u16::from_be_bytes(b))
-                    }
-                    PascalLengthSize::LongLe => {
-                        let b = <[u8; 4]>::try_from(pfx.get(..4)?).ok()?;
-                        usize::try_from(u32::from_le_bytes(b)).ok()?
-                    }
-                    PascalLengthSize::LongBe => {
-                        let b = <[u8; 4]>::try_from(pfx.get(..4)?).ok()?;
-                        usize::try_from(u32::from_be_bytes(b)).ok()?
-                    }
-                };
-                let payload_len = if *length_includes_itself {
-                    raw_len.saturating_sub(prefix_len)
-                } else {
-                    raw_len
-                };
-                let prefix_len_u64 = match length_size {
-                    PascalLengthSize::Byte => 1u64,
-                    PascalLengthSize::ShortLe | PascalLengthSize::ShortBe => 2u64,
-                    PascalLengthSize::LongLe | PascalLengthSize::LongBe => 4u64,
-                };
-                let read_len = payload_len.min(256);
-                let mut content_buf = vec![0u8; read_len];
-                let content_pos = pos.saturating_add(prefix_len_u64);
-                let cn = source.read_at(content_pos, &mut content_buf).ok()?;
-                let Some(content_slice) = content_buf.get(..cn) else { return None; };
-                // Reason for fallback: if no null or newline delimiter is found, string spans full slice
-                let str_len = content_slice.iter().position(|&b| b == 0 || b == b'\r' || b == b'\n').unwrap_or(cn);
-                // Reason for fallback: subslice to delimiter defaults to full slice
-                let s = String::from_utf8_lossy(content_slice.get(..str_len).unwrap_or(content_slice)).to_string();
-                match_len = prefix_len.saturating_add(str_len);
-                format_val = FormatValue::Str(s);
-                true
-            }
-        }
-        MagicTest::Regex { pattern, case_insensitive, max_bytes, line_mode, offset_start } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n == 0 {
-                false
-            } else {
-                let slice = buf.get(..n)?;
-                let text = String::from_utf8_lossy(slice);
-                let search_text = if *line_mode {
-                    // Reason for fallback: text may be empty or contain only a single line
-                    text.lines().next().unwrap_or("")
-                } else {
-                    text.as_ref()
-                };
-                let re = regex::RegexBuilder::new(pattern)
-                    .case_insensitive(*case_insensitive)
-                    .build()
-                    .ok()?;
-                if let Some(m) = re.find(search_text) {
-                    match_len = if *offset_start {
-                        m.start()
-                    } else {
-                        m.end()
-                    };
-                    format_val = FormatValue::Str(m.as_str().to_string());
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-        MagicTest::U8 { value, op, mask, num_op } => {
-            let mut buf = [0u8; 1];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 1 {
-                false
-            } else {
-                let mut val = buf[0];
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u8 retains original value
-                val = u8::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 1;
-                    format_val = FormatValue::U64(u64::from(val));
-                }
-                ok
-            }
-        }
-        MagicTest::U16Le { value, op, mask, num_op } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u16 retains original value
-                val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 2;
-                    format_val = FormatValue::U64(u64::from(val));
-                }
-                ok
-            }
-        }
-        MagicTest::U16Be { value, op, mask, num_op } => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let mut val = u16::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u16 retains original value
-                val = u16::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 2;
-                    format_val = FormatValue::U64(u64::from(val));
-                }
-                ok
-            }
-        }
-        MagicTest::U32Le { value, op, mask, num_op } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u32 retains original value
-                val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 4;
-                    format_val = FormatValue::U64(u64::from(val));
-                }
-                ok
-            }
-        }
-        MagicTest::U32Be { value, op, mask, num_op } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let mut val = u32::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                // Reason for fallback: arithmetic overflow when downcasting u64 num_op result back to u32 retains original value
-                val = u32::try_from(apply_num_op_u64(u64::from(val), *num_op)).unwrap_or(val);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 4;
-                    format_val = FormatValue::U64(u64::from(val));
-                }
-                ok
-            }
-        }
-        MagicTest::U64Le { value, op, mask, num_op } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_le_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                val = apply_num_op_u64(val, *num_op);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 8;
-                    format_val = FormatValue::U64(val);
-                }
-                ok
-            }
-        }
-        MagicTest::U64Be { value, op, mask, num_op } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let mut val = u64::from_be_bytes(buf);
-                if let Some(m) = mask {
-                    val &= m;
-                }
-                val = apply_num_op_u64(val, *num_op);
-                let ok = eval_rel_op(val, *op, *value);
-                if ok {
-                    match_len = 8;
-                    format_val = FormatValue::U64(val);
-                }
-                ok
-            }
-        }
-        MagicTest::Date32Le { value, op, adjustment } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let raw = u32::from_le_bytes(buf);
-                let ok = eval_rel_op(raw, *op, *value);
-                if ok {
-                    match_len = 4;
-                    let raw_i64 = i64::from(i32::from_le_bytes(buf));
-                    let adj = raw_i64.saturating_add(*adjustment);
-                    format_val = FormatValue::Date(adj);
-                }
-                ok
-            }
-        }
-        MagicTest::Date32Be { value, op, adjustment } => {
-            let mut buf = [0u8; 4];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 4 {
-                false
-            } else {
-                let raw = u32::from_be_bytes(buf);
-                let ok = eval_rel_op(raw, *op, *value);
-                if ok {
-                    match_len = 4;
-                    let raw_i64 = i64::from(i32::from_be_bytes(buf));
-                    let adj = raw_i64.saturating_add(*adjustment);
-                    format_val = FormatValue::Date(adj);
-                }
-                ok
-            }
-        }
-        MagicTest::Date64Le { value, op, adjustment } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let raw = u64::from_le_bytes(buf);
-                let ok = eval_rel_op(raw, *op, *value);
-                if ok {
-                    match_len = 8;
-                    let raw_i64 = i64::from_le_bytes(buf);
-                    let adj = raw_i64.saturating_add(*adjustment);
-                    format_val = FormatValue::Date(adj);
-                }
-                ok
-            }
-        }
-        MagicTest::Date64Be { value, op, adjustment } => {
-            let mut buf = [0u8; 8];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 8 {
-                false
-            } else {
-                let raw = u64::from_be_bytes(buf);
-                let ok = eval_rel_op(raw, *op, *value);
-                if ok {
-                    match_len = 8;
-                    let raw_i64 = i64::from_be_bytes(buf);
-                    let adj = raw_i64.saturating_add(*adjustment);
-                    format_val = FormatValue::Date(adj);
-                }
-                ok
-            }
-        }
-        MagicTest::MsDosDate => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let raw = u16::from_le_bytes(buf);
-                let day = raw & 0x1F;
-                let month_num = (raw >> 5) & 0x0F;
-                let year_diff = u32::from((raw >> 9) & 0x7F);
-                let year = 1980u32.saturating_add(year_diff);
-                let months = ["Jan", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                // Reason for fallback: invalid MS-DOS month number defaults to Jan matching libmagic output
-                let m_str = months.get(usize::from(month_num)).copied().unwrap_or("Jan");
-                let s = format!("{m_str} {day:02} {year}");
-                match_len = 2;
-                format_val = FormatValue::Str(s);
-                true
-            }
-        }
-        MagicTest::MsDosTime => {
-            let mut buf = [0u8; 2];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n < 2 {
-                false
-            } else {
-                let raw = u16::from_le_bytes(buf);
-                let sec = (raw & 0x1F).saturating_mul(2);
-                let min = (raw >> 5) & 0x3F;
-                let hour = (raw >> 11) & 0x1F;
-                let s = format!("{hour:02}:{min:02}:{sec:02}");
-                match_len = 2;
-                format_val = FormatValue::Str(s);
-                true
-            }
-        }
-        MagicTest::Guid(expected) => {
-            let mut buf = [0u8; 16];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if n >= 16 && buf == *expected {
-                match_len = 16;
-                true
-            } else {
-                false
-            }
-        }
-        MagicTest::OffsetVal => {
-            match_len = 0;
-            format_val = FormatValue::U64(pos);
-            true
-        }
-        MagicTest::Default => {
-            match_len = 0;
-            true
-        }
-        MagicTest::Clear => {
-            match_len = 0;
-            true
-        }
-        MagicTest::Search { pattern, max_bytes, flags, negated } => {
-            let mut buf = vec![0u8; *max_bytes];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            if let Some(slice) = buf.get(..n) {
-                if pattern.is_empty() {
-                    !negated
-                } else if flags.case_insensitive {
-                    let pat_lower = pattern.to_ascii_lowercase();
-                    let slice_lower = slice.to_ascii_lowercase();
-                    if let Some(found_idx) = slice_lower.windows(pat_lower.len()).position(|w| w == pat_lower.as_slice()) {
-                        if *negated {
-                            false
-                        } else {
-                            match_len = found_idx.saturating_add(pattern.len());
-                            if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
-                                format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
-                            }
-                            true
-                        }
-                    } else {
-                        *negated
-                    }
-                } else if let Some(found_idx) = slice.windows(pattern.len()).position(|w| w == pattern.as_slice()) {
-                    if *negated {
-                        false
-                    } else {
-                        match_len = found_idx.saturating_add(pattern.len());
-                        if let Some(sub) = slice.get(found_idx..found_idx.saturating_add(pattern.len())) {
-                            format_val = FormatValue::Str(String::from_utf8_lossy(sub).to_string());
-                        }
-                        true
-                    }
-                } else {
-                    *negated
-                }
-            } else {
-                false
-            }
-        }
-        MagicTest::Der(pattern) => {
-            let mut buf = vec![0u8; 8192];
-            let n = source.read_at(pos, &mut buf).ok()?;
-            let slice = buf.get(..n)?;
-            if let Some(res) = crate::der::match_der(pattern, slice) {
-                match_len = res.header_len;
-                der_match_info = Some((res.header_len, res.payload_len));
-                format_val = FormatValue::Str(res.formatted_val);
-                true
-            } else {
-                false
-            }
-        }
-        MagicTest::Use(template_name) => {
-            if let Some(tpl) = templates.get(template_name) {
-                // Reason for fallback: template without top-level description defaults to empty description string
-                let mut sub_desc = tpl.description.clone().unwrap_or_default();
-                let mut sub_mime = tpl.mime.clone();
-                let mut sub_ext = tpl.ext.clone();
-                let mut sub_apple = tpl.apple.clone();
-                let mut sub_score = tpl.strength;
-                let mut sub_end = pos;
-                let mut sub_sibling = pos;
-                let mut sub_nospace = sub_desc.starts_with('\u{8}');
+        _ => payload.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+    }
+}
 
-                let mut matched_any_in_sub = false;
-                for child in &tpl.children {
-                    if child.test == MagicTest::Clear {
-                        matched_any_in_sub = false;
-                    }
-                    if child.test == MagicTest::Default && matched_any_in_sub {
-                        continue;
-                    }
-                    if let Some(cm) = evaluate_rule_internal(
-                        child,
-                        source,
-                        pos,
-                        sub_sibling,
-                        templates,
-                        depth.saturating_add(1),
-                    ) {
-                        matched_any_in_sub = true;
-                        sub_end = sub_end.max(cm.match_end);
-                        if matches!(child.test, MagicTest::Der(_)) {
-                            sub_sibling = cm.next_sibling_offset;
-                        }
-                        if !cm.description.is_empty() {
-                            if cm.nospace || cm.description.starts_with('\u{8}') {
-                                let stripped = cm.description.trim_start_matches('\u{8}');
-                                if sub_desc.ends_with(' ') {
-                                    sub_desc.pop();
-                                }
-                                if sub_desc.is_empty() {
-                                    sub_nospace = true;
-                                }
-                                sub_desc.push_str(stripped);
-                            } else {
-                                if !sub_desc.is_empty() && !sub_desc.ends_with(' ') {
-                                    let starts_with_punct = cm.description.starts_with(',')
-                                        || cm.description.starts_with(';')
-                                        || cm.description.starts_with(':');
-                                    if !starts_with_punct {
-                                        sub_desc.push(' ');
-                                    }
-                                }
-                                sub_desc.push_str(&cm.description);
-                            }
-                        }
-                        if cm.mime.is_some() { sub_mime = cm.mime; }
-                        if cm.ext.is_some() { sub_ext = cm.ext; }
-                        if cm.apple.is_some() { sub_apple = cm.apple; }
-                        sub_score = sub_score.saturating_add(15).max(cm.score);
-                    }
-                }
-                if matched_any_in_sub {
-                    use_subroutine_result = Some(RuleMatchResult {
-                        description: sub_desc,
-                        mime: sub_mime,
-                        ext: sub_ext,
-                        apple: sub_apple,
-                        score: sub_score,
-                        match_end: sub_end,
-                        next_sibling_offset: sub_sibling,
-                        nospace: sub_nospace,
-                    });
-                    true
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-        MagicTest::Name(_) => false,
-        MagicTest::Indirect => {
-            let mut best_match: Option<RuleMatchResult> = None;
-            for r in super::magic_data::COMPILED_MAGIC_RULES.iter() {
-                if let Some(res) = evaluate_rule_internal(r, source, pos, pos, templates, depth.saturating_add(1)) {
-                    if let Some(ref current_best) = best_match {
-                        if res.score > current_best.score {
-                            best_match = Some(res);
-                        }
-                    } else {
-                        best_match = Some(res);
-                    }
-                }
-            }
-            if let Some(bm) = best_match {
-                let mut full_desc = String::new();
-                if let Some(raw) = &rule.description {
-                    full_desc.push_str(raw);
-                }
-                if !bm.description.is_empty() {
-                    if !full_desc.is_empty() && !full_desc.ends_with(' ') {
-                        let starts_with_punct = bm.description.starts_with(',')
-                            || bm.description.starts_with(';')
-                            || bm.description.starts_with(':');
-                        if !starts_with_punct {
-                            full_desc.push(' ');
-                        }
-                    }
-                    full_desc.push_str(&bm.description);
-                }
-                use_subroutine_result = Some(RuleMatchResult {
-                    description: full_desc,
-                    mime: bm.mime.or_else(|| rule.mime.clone()),
-                    ext: bm.ext.or_else(|| rule.ext.clone()),
-                    apple: bm.apple.or_else(|| rule.apple.clone()),
-                    score: rule.strength.saturating_add(bm.score),
-                    match_end: bm.match_end,
-                    next_sibling_offset: bm.next_sibling_offset,
-                    nospace: false,
-                });
-                true
-            } else {
-                false
-            }
-        }
-    };
-
-    if !matched {
+/// Parses a DER rule pattern from a magic rule line value string.
+///
+/// Syntax examples:
+/// - `seq`
+/// - `set`
+/// - `null`
+/// - `eoc`
+/// - `int1=00`
+/// - `int2=0dfa`
+/// - `int65=x`
+/// - `obj_id3=550406`
+/// - `prt_str=x`
+pub fn parse_der_pattern(raw: &str) -> Option<DerPattern> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
         return None;
     }
 
-    let (mut description, mut mime, mut ext, mut apple, mut score, this_match_end, mut nospace, mut overall_match_end, this_sibling_end) = if let Some(sub_res) = use_subroutine_result {
-        (sub_res.description, sub_res.mime, sub_res.ext, sub_res.apple, sub_res.score, pos, sub_res.nospace, sub_res.match_end, sub_res.next_sibling_offset)
+    let (tag_part, val_part) = if let Some((before_eq, after_eq)) = trimmed.split_once('=') {
+        (before_eq.trim(), Some(after_eq.trim().to_string()))
     } else {
-        let desc = if let Some(raw) = &rule.description {
-            format_magic_description(raw, &format_val)
-        } else {
-            String::new()
-        };
-        // Reason for fallback: match_len exceeding u64 limit defaults to 0 offset addition
-        let m_end = pos.saturating_add(u64::try_from(match_len).unwrap_or(0));
-        let sib_end = if let Some((hdr, pay)) = der_match_info {
-            let offset_delta = match u64::try_from(hdr.saturating_add(pay)) {
-                Ok(total) => total,
-                Err(_) => 0,
-            };
-            pos.saturating_add(offset_delta)
-        } else {
-            m_end
-        };
-        let starts_with_bs = desc.starts_with('\u{8}');
-        (desc, rule.mime.clone(), rule.ext.clone(), rule.apple.clone(), rule.strength, m_end, starts_with_bs, m_end, sib_end)
+        (trimmed, None)
     };
-    let mut matched_any_in_level = false;
 
-    // Recursively evaluate children to specialize description and boost score
-    let mut current_child_offset = this_match_end;
-    for child in &rule.children {
-        if child.test == MagicTest::Clear {
-            matched_any_in_level = false;
-        }
-        if child.test == MagicTest::Default && matched_any_in_level {
-            continue;
-        }
-        if let Some(child_match) = evaluate_rule_internal(
-            child,
-            source,
-            base_offset,
-            current_child_offset,
-            templates,
-            depth.saturating_add(1),
-        ) {
-            matched_any_in_level = true;
-            overall_match_end = overall_match_end.max(child_match.match_end);
-            if matches!(child.test, MagicTest::Der(_)) {
-                current_child_offset = child_match.next_sibling_offset;
-            }
-            if !child_match.description.is_empty() {
-                if child_match.nospace || child_match.description.starts_with('\u{8}') {
-                    let stripped = child_match.description.trim_start_matches('\u{8}');
-                    if description.ends_with(' ') {
-                        description.pop();
-                    }
-                    if description.is_empty() {
-                        nospace = true;
-                    }
-                    description.push_str(stripped);
-                } else {
-                    if !description.is_empty() && !description.ends_with(' ') {
-                        let starts_with_punct = child_match.description.starts_with(',')
-                            || child_match.description.starts_with(';')
-                            || child_match.description.starts_with(':');
-                        if !starts_with_punct {
-                            description.push(' ');
-                        }
-                    }
-                    description.push_str(&child_match.description);
+    // Find the longest matching tag name from DER_TAG_NAMES that prefixes tag_part
+    let mut matched_tag: Option<&str> = None;
+    for name in &DER_TAG_NAMES {
+        if tag_part.starts_with(name) {
+            if let Some(prev) = matched_tag {
+                if name.len() > prev.len() {
+                    matched_tag = Some(name);
                 }
-            }
-            if child_match.mime.is_some() {
-                mime = child_match.mime;
-            }
-            if child_match.ext.is_some() {
-                ext = child_match.ext;
-            }
-            if child_match.apple.is_some() {
-                apple = child_match.apple;
-            }
-            if child.test == MagicTest::Indirect {
-                score = score.saturating_add(child_match.score);
             } else {
-                score = score.saturating_add(15).max(child_match.score);
+                matched_tag = Some(name);
             }
         }
     }
 
-    if rule.cont_level == 0
-        && description.trim().is_empty()
-        && mime.is_none()
-        && ext.is_none()
-        && apple.is_none()
-    {
-        return None;
-    }
+    let (tag, expected_len) = if let Some(tag_name) = matched_tag {
+        let remainder = match tag_part.get(tag_name.len()..) {
+            Some(r) => r,
+            None => "",
+        };
+        let len = if remainder.is_empty() {
+            None
+        } else {
+            Some(remainder.parse::<usize>().ok()?)
+        };
+        (tag_name.to_string(), len)
+    } else {
+        (tag_part.to_string(), None)
+    };
 
-    Some(RuleMatchResult {
-        description,
-        mime,
-        ext,
-        apple,
-        score,
-        match_end: overall_match_end,
-        next_sibling_offset: this_sibling_end,
-        nospace,
+    Some(DerPattern {
+        tag,
+        expected_len,
+        expected_val: val_part,
     })
 }
 
-/// Evaluates a hierarchical magic rule against a payload source using provided subroutines.
-pub fn evaluate_rule_with_templates<S: DetectionSource + ?Sized>(
-    rule: &HierarchicalMagicRule,
-    source: &mut S,
-    templates: &HashMap<String, HierarchicalMagicRule>,
-) -> Option<RuleMatchResult> {
-    evaluate_rule_internal(rule, source, 0, 0, templates, 0)
-}
+/// Evaluates a `DerPattern` against bytes starting at the beginning of `data`.
+///
+/// Returns `Some(DerMatchResult)` on successful match.
+pub fn match_der(pattern: &DerPattern, data: &[u8]) -> Option<DerMatchResult> {
+    let mut offset: usize = 0;
+    let tag = read_der_tag(data, &mut offset)?;
+    let tag_name = tag_to_name(tag);
 
-/// Evaluates a single `HierarchicalMagicRule` and its child tree against a `DetectionSource`.
-pub fn evaluate_rule<S: DetectionSource + ?Sized>(
-    rule: &HierarchicalMagicRule,
-    source: &mut S,
-) -> Option<RuleMatchResult> {
-    evaluate_rule_with_templates(rule, source, &super::magic_data::COMPILED_MAGIC_TEMPLATES)
-}
+    if tag_name != pattern.tag {
+        return None;
+    }
 
+    let payload_len = read_der_length(data, &mut offset)?;
+    let header_len = offset;
 
-/// A signature rule defining magic bytes to inspect in a file header (legacy compatibility).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct MagicPattern {
-    /// Byte offset where signature starts in file header (typically 0).
-    pub offset: usize,
-    /// Byte pattern expected at offset.
-    pub bytes: &'static [u8],
-    /// Optional byte mask (same length as bytes).
-    pub mask: Option<&'static [u8]>,
-    /// Confidence or priority score when pattern matches (default: 100).
-    pub priority: u32,
-}
-
-impl MagicPattern {
-    /// Constructs an exact byte sequence magic pattern at offset 0.
-    pub const fn exact(bytes: &'static [u8]) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: None,
-            priority: 100,
+    if let Some(exp_len) = pattern.expected_len {
+        if payload_len != exp_len {
+            return None;
         }
     }
 
-    /// Constructs an exact byte sequence magic pattern at a specific offset and priority.
-    pub const fn exact_at(
-        offset: usize,
-        bytes: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset,
-            bytes,
-            mask: None,
-            priority,
-        }
-    }
-
-    /// Constructs a masked byte magic pattern at offset 0.
-    pub const fn masked(
-        bytes: &'static [u8],
-        mask: &'static [u8],
-        priority: u32,
-    ) -> Self {
-        Self {
-            offset: 0,
-            bytes,
-            mask: Some(mask),
-            priority,
-        }
-    }
-
-    /// Checks if a byte slice matches this magic pattern.
-    pub fn matches(&self, data: &[u8]) -> bool {
-        let end = self.offset.saturating_add(self.bytes.len());
-        if data.len() < end {
-            return false;
-        }
-        let slice = match data.get(self.offset..end) {
-            Some(s) => s,
-            None => return false,
+    if let Some(ref exp_val) = pattern.expected_val {
+        let inspect_len = payload_len.min(data.len().saturating_sub(header_len));
+        let end_idx = header_len.saturating_add(inspect_len);
+        let Some(payload) = data.get(header_len..end_idx) else {
+            return None;
         };
-
-        match self.mask {
-            Some(mask) => {
-                if mask.len() != self.bytes.len() {
-                    return false;
-                }
-                for ((&byte, &m), &expected) in
-                    slice.iter().zip(mask).zip(self.bytes)
-                {
-                    if (byte & m) != expected {
-                        return false;
-                    }
-                }
-                true
-            }
-            None => slice == self.bytes,
+        let formatted_val = format_der_data(tag, payload);
+        if exp_val != "x" && exp_val != &formatted_val {
+            return None;
         }
+        Some(DerMatchResult {
+            header_len,
+            payload_len,
+            formatted_val,
+        })
+    } else {
+        Some(DerMatchResult {
+            header_len,
+            payload_len,
+            formatted_val: String::new(),
+        })
     }
 }
 
@@ -1858,276 +706,105 @@ impl MagicPattern {
 )]
 mod tests {
     use super::*;
-    use super::super::magic_parser::parse_magic_content;
 
     #[ctb_test]
-    fn test_magic_pattern_matching() {
-        let gzip_magic = MagicPattern::exact(&[0x1F, 0x8B]);
-        assert!(gzip_magic.matches(&[0x1F, 0x8B, 0x08, 0x00]));
-        assert!(!gzip_magic.matches(&[0x1F, 0xA0, 0x08, 0x00]));
+    fn test_parse_der_pattern_variants() {
+        let p_seq = parse_der_pattern("seq").unwrap();
+        assert_eq!(p_seq.tag, "seq");
+        assert_eq!(p_seq.expected_len, None);
+        assert_eq!(p_seq.expected_val, None);
 
-        let lzw_block_magic =
-            MagicPattern::masked(&[0x1F, 0x9D, 0x80], &[0xFF, 0xFF, 0x80], 110);
-        assert!(lzw_block_magic.matches(&[0x1F, 0x9D, 0x90]));
-        assert!(!lzw_block_magic.matches(&[0x1F, 0x9D, 0x10]));
+        let p_int = parse_der_pattern("int1=00").unwrap();
+        assert_eq!(p_int.tag, "int");
+        assert_eq!(p_int.expected_len, Some(1));
+        assert_eq!(p_int.expected_val.as_deref(), Some("00"));
+
+        let p_oid = parse_der_pattern("obj_id3=550406").unwrap();
+        assert_eq!(p_oid.tag, "obj_id");
+        assert_eq!(p_oid.expected_len, Some(3));
+        assert_eq!(p_oid.expected_val.as_deref(), Some("550406"));
+
+        let p_str = parse_der_pattern("prt_str=x").unwrap();
+        assert_eq!(p_str.tag, "prt_str");
+        assert_eq!(p_str.expected_len, None);
+        assert_eq!(p_str.expected_val.as_deref(), Some("x"));
     }
 
     #[ctb_test]
-    fn test_hierarchical_evaluation() {
-        let content = r#"
-0	belong		0x00051600	AppleSingle encoded Macintosh file
-!:mime	application/x-apple-single
-!:ext	as
->4	belong		0x00020000	\b, version 2.0
->4	belong		0x00010000	\b, version 1.0
-"#;
-        let rules = parse_magic_content(content);
-        assert_eq!(rules.len(), 1);
+    fn test_der_tag_and_length_decoding() {
+        // Tag 0x30 (constructed sequence), short length 0x05
+        let data = [0x30, 0x05, 0x01, 0x02, 0x03, 0x04, 0x05];
+        let mut offset = 0;
+        let tag = read_der_tag(&data, &mut offset).unwrap();
+        assert_eq!(tag, DER_TAG_SEQUENCE);
+        assert_eq!(tag_to_name(tag), "seq");
+        assert_eq!(offset, 1);
 
-        let apple_single_v2 = [
-            0x00, 0x05, 0x16, 0x00, // Magic
-            0x00, 0x02, 0x00, 0x00, // Version 2.0
-            0x00, 0x00, 0x00, 0x00,
-        ];
+        let len = read_der_length(&data, &mut offset).unwrap();
+        assert_eq!(len, 5);
+        assert_eq!(offset, 2);
 
-        let mut slice: &[u8] = &apple_single_v2;
-        let result = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert_eq!(result.mime, Some("application/x-apple-single".to_string()));
-        assert_eq!(result.ext, Some("as".to_string()));
-        assert!(result.description.contains("version 2.0"));
-        assert!(result.score > 50);
+        // Long form length: 0x82 0x01 0x00 -> 256
+        let long_len_data = [0x30, 0x82, 0x01, 0x00];
+        let mut offset2 = 1;
+        let len2 = read_der_length(&long_len_data, &mut offset2).unwrap();
+        assert_eq!(len2, 256);
+        assert_eq!(offset2, 4);
     }
 
     #[ctb_test]
-    fn test_relative_offset_evaluation() {
-        let content = r#"
-0	string		\x1f\x8b	gzip
->&0	byte		8		\b, deflated
->>&0	byte		x		\b, flags %02x
-"#;
-        let rules = parse_magic_content(content);
-        let sample = [0x1f, 0x8b, 0x08, 0x04];
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("gzip, deflated, flags 04"));
-    }
+    fn test_match_der_success_and_failure() {
+        // INTEGER of length 1, value 0x00
+        let der_int = [0x02, 0x01, 0x00];
+        let pat_exact = parse_der_pattern("int1=00").unwrap();
+        let res = match_der(&pat_exact, &der_int).unwrap();
+        assert_eq!(res.header_len, 2);
+        assert_eq!(res.payload_len, 1);
+        assert_eq!(res.formatted_val, "00");
 
-    #[ctb_test]
-    fn test_indirect_offset_evaluation() {
-        let content = r#"
-0	string		MZ		DOS executable
->(0x10.l)	string	PE\0\0		\b, PE header
-"#;
-        let rules = parse_magic_content(content);
-        let mut file_data = vec![0u8; 64];
-        file_data[0] = b'M';
-        file_data[1] = b'Z';
-        // Put pointer at 0x10 pointing to 0x20
-        file_data[0x10] = 0x20;
-        file_data[0x20] = b'P';
-        file_data[0x21] = b'E';
-        file_data[0x22] = 0;
-        file_data[0x23] = 0;
+        let pat_wrong_val = parse_der_pattern("int1=01").unwrap();
+        assert!(match_der(&pat_wrong_val, &der_int).is_none());
 
-        let mut slice: &[u8] = &file_data;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("DOS executable, PE header"));
-    }
+        let pat_wrong_len = parse_der_pattern("int2=00").unwrap();
+        assert!(match_der(&pat_wrong_len, &der_int).is_none());
 
-    #[ctb_test]
-    fn test_formatted_descriptions_and_dates() {
-        let content = r#"
-0	lequad		0x0102030405060708	Header %016llx
->8	ledate		x			\b, created %s
-"#;
-        let rules = parse_magic_content(content);
-        let mut data = vec![0u8; 16];
-        data[0..8].copy_from_slice(&0x0102030405060708u64.to_le_bytes());
-        // 1609459200 = 2021-01-01 00:00:00 UTC
-        data[8..12].copy_from_slice(&1609459200u32.to_le_bytes());
-
-        let mut slice: &[u8] = &data;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("0102030405060708"));
-        assert!(res.description.contains("Jan") && res.description.contains("2021"));
-    }
-
-    #[ctb_test]
-    fn test_negative_date_stamps() {
-        let content = r#"
-0	string		HIST		Historical record
->4	ledate		x		\b, date %s
-"#;
-        let rules = parse_magic_content(content);
-        let mut data = vec![0u8; 16];
-        data[0..4].copy_from_slice(b"HIST");
-        // -86400 = 1969-12-31 00:00:00 UTC
-        data[4..8].copy_from_slice(&(-86400i32).to_le_bytes());
-
-        let mut slice: &[u8] = &data;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("Historical record"));
-        assert!(res.description.contains("Dec") && res.description.contains("1969"));
-    }
-
-    #[ctb_test]
-    fn test_subroutine_use_evaluation() {
-        let content = r#"
-0	name		common-arch
->4	byte		1		\b, 32-bit
->4	byte		2		\b, 64-bit
-
-0	string		\177ELF		ELF
->0	use		common-arch
-"#;
-        let (rules, templates) = super::super::magic_parser::parse_magic_content_with_templates(content);
-        let sample = [0x7f, b'E', b'L', b'F', 0x02];
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule_with_templates(&rules[0], &mut slice, &templates).unwrap();
-        assert_eq!(res.description, "ELF, 64-bit");
-    }
-
-    #[ctb_test]
-    fn test_regex_matching() {
-        let content = r#"
-0	regex/c/128	^<!doctype\s+html	HTML document
-"#;
-        let rules = parse_magic_content(content);
-        let sample = b"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\">";
-        let mut slice: &[u8] = &sample[..];
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert_eq!(res.description, "HTML document");
-    }
-
-    #[ctb_test]
-    fn test_pascal_string_matching() {
-        let content = r#"
-0	pstring/B	Hello			Pascal Greeting
-"#;
-        let rules = parse_magic_content(content);
-        let sample = [5, b'H', b'e', b'l', b'l', b'o', b'!'];
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert_eq!(res.description, "Pascal Greeting");
-    }
-
-    #[ctb_test]
-    fn test_evaluate_indirect_multiplier_and_synchsafe() {
-        let content = r#"
-0	string		TEST		Test
->(4.l*2+2)	string		HIT		\b, multiplier hit
->(12.I+2)	string		TAG		\b, synchsafe hit
-"#;
-        let rules = parse_magic_content(content);
-        let mut synch_sample = vec![0u8; 150];
-        synch_sample[0..4].copy_from_slice(b"TEST");
-        synch_sample[4..8].copy_from_slice(&10u32.to_le_bytes()); // mult: 10*2+2 = 22
-        synch_sample[22..25].copy_from_slice(b"HIT");
-        // At offset 12: ID3 synchsafe bytes: [0, 0, 0, 0x1A] -> 26. 26 + 2 = 28.
-        synch_sample[12..16].copy_from_slice(&[0x00, 0x00, 0x00, 0x1A]);
-        synch_sample[28..31].copy_from_slice(b"TAG");
-
-        let mut slice: &[u8] = &synch_sample;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("multiplier hit"));
-        assert!(res.description.contains("synchsafe hit"));
-    }
-
-    #[ctb_test]
-    fn test_evaluate_search_negation() {
-        let content_pass = r#"
-0	string		TEST		Test
->0	search/64	!FORBIDDEN	\b, cleanly negated
-"#;
-        let rules_pass = parse_magic_content(content_pass);
-        let sample = b"TEST This is a clean test without forbidden word";
-        let mut slice: &[u8] = sample;
-        let res = evaluate_rule(&rules_pass[0], &mut slice).unwrap();
-        assert!(res.description.contains("cleanly negated"));
-
-        let sample_fail = b"TEST This has FORBIDDEN keyword inside";
-        let mut slice_fail: &[u8] = sample_fail;
-        let res_fail = evaluate_rule(&rules_pass[0], &mut slice_fail).unwrap();
-        assert!(!res_fail.description.contains("cleanly negated"));
-    }
-
-    #[ctb_test]
-    fn test_evaluate_recursive_indirect_magic() {
-        let content = r#"
-0	string		WRAP		Wrapper
->4	indirect	x		\b:
-"#;
-        let rules = parse_magic_content(content);
-        let mut sample = vec![0u8; 32];
-        sample[0..4].copy_from_slice(b"WRAP");
-        sample[4..8].copy_from_slice(&[0x1F, 0x8B, 0x08, 0x00]);
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("Wrapper"));
-        assert!(res.description.contains("gzip compressed data"));
-    }
-
-    #[ctb_test]
-    fn test_evaluate_der_rules() {
-        let content = r#"
-0	der	seq
->&0	der	int1=00
->&0	der	int3=010001	DER Encoded Key Pair, 512 bits
-"#;
-        let rules = parse_magic_content(content);
-        // Sequence (tag 0x30, len 8) containing:
-        // - INTEGER (tag 0x02, len 1, val 0x00)
-        // - INTEGER (tag 0x02, len 3, val 0x01, 0x00, 0x01)
-        let sample = [
-            0x30, 0x08,
-            0x02, 0x01, 0x00,
-            0x02, 0x03, 0x01, 0x00, 0x01,
-        ];
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule(&rules[0], &mut slice).unwrap();
-        assert!(res.description.contains("DER Encoded Key Pair, 512 bits"));
-    }
-
-    #[ctb_test]
-    fn test_evaluate_der_hierarchical_certificate_info() {
-        let content = r#"
-0	name	certinfo
->0	der	seq
->>&0	der	set
->>>&0	der	seq
->>>>&0	der	obj_id3=550406
->>>>&0	der	prt_str=x	\b, countryName=%s
-
-0	der	seq
->&0	der	seq
->>&0	der	int1=00		DER Encoded Certificate request
->>&0	use	certinfo
-"#;
-        let (rules, tpls) = crate::magic_parser::parse_magic_content_with_templates(content);
-        // Outer SEQUENCE (0x30, len 20)
-        // -> Inner SEQUENCE (0x30, len 18)
-        //    -> INTEGER (0x02, len 1, val 0x00) (3 bytes)
-        //    -> SEQUENCE (0x30, len 13) (certinfo)
-        //       -> SET (0x31, len 11)
-        //          -> SEQUENCE (0x30, len 9)
-        //             -> OID (0x06, len 3, val 55 04 06) (5 bytes)
-        //             -> PRINTABLE_STRING (0x13, len 2, val "US") (4 bytes)
-        let sample = [
-            0x30, 0x14, // Outer seq
-            0x30, 0x12, // Inner seq
-            0x02, 0x01, 0x00, // int1=00
-            0x30, 0x0D, // seq (start of certinfo)
-            0x31, 0x0B, // set
-            0x30, 0x09, // seq
-            0x06, 0x03, 0x55, 0x04, 0x06, // obj_id3=550406
-            0x13, 0x02, b'U', b'S', // prt_str="US"
-        ];
-        let mut slice: &[u8] = &sample;
-        let res = evaluate_rule_with_templates(&rules[0], &mut slice, &tpls).unwrap();
-        assert!(res.description.contains("DER Encoded Certificate request"));
-        assert!(res.description.contains("countryName=US"));
+        // UTF8String of length 4, "Test"
+        let der_utf8 = [0x0C, 0x04, b'T', b'e', b's', b't'];
+        let pat_utf8 = parse_der_pattern("utf8_str=x").unwrap();
+        let res_utf8 = match_der(&pat_utf8, &der_utf8).unwrap();
+        assert_eq!(res_utf8.header_len, 2);
+        assert_eq!(res_utf8.payload_len, 4);
+        assert_eq!(res_utf8.formatted_val, "Test");
     }
 }
+
+/*
+ * Copyright (c) 2016 Christos Zoulas
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+ * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The preceding notice is from src/der.c in `file`.
+ */
 /*
 /*
  * Adapted from: apptype.c, Written by Eberhard Mattes and put into the

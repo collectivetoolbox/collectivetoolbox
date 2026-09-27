@@ -1558,6 +1558,156 @@ pub fn probe_decompression<S: DetectionSource + ?Sized>(
 }
 
 // ---------------------------------------------------------------------------
+// 8. SIM-H Magnetic Tape Image Inspector (`is_simh.c`)
+// ---------------------------------------------------------------------------
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum SimhEndianness {
+    Little,
+    Big,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+struct SimhLen {
+    raw: u32,
+    padded: usize,
+}
+
+fn get_simh_record_len(
+    slice: &[u8],
+    offset: &mut usize,
+    endianness: SimhEndianness,
+) -> Option<SimhLen> {
+    if offset.saturating_add(4) > slice.len() {
+        return None;
+    }
+    let b0 = *slice.get(*offset)?;
+    let b1 = *slice.get(offset.saturating_add(1))?;
+    let b2 = *slice.get(offset.saturating_add(2))?;
+    let b3 = *slice.get(offset.saturating_add(3))?;
+    let bytes = [b0, b1, b2, b3];
+    *offset = offset.saturating_add(4);
+
+    let n = match endianness {
+        SimhEndianness::Little => u32::from_le_bytes(bytes),
+        SimhEndianness::Big => u32::from_be_bytes(bytes),
+    };
+
+    if n == 0xFFFF_FFFF {
+        return Some(SimhLen { raw: 0xFFFF_FFFF, padded: 0 });
+    }
+
+    // Upstream check: Bits 24 to 27 are not used (must match).
+    if (n & 0x00FF_FFFF) != (n & 0x0FFF_FFFF) {
+        return None;
+    }
+
+    let raw = n & 0x00FF_FFFF;
+    let mut padded = raw;
+    // Odd record lengths are padded to an even number of bytes on tape
+    if (padded & 1) != 0 {
+        padded = padded.saturating_add(1);
+    }
+    let padded_usize = usize::try_from(padded).ok()?;
+    Some(SimhLen { raw, padded: padded_usize })
+}
+
+fn simh_parse_endian(data: &[u8], endianness: SimhEndianness) -> bool {
+    let mut offset: usize = 0;
+    let mut num_tapemarks: usize = 0;
+    let mut num_records: usize = 0;
+    let max_tapemarks = 10usize;
+
+    while data.len().saturating_sub(offset) >= 4 {
+        let rec = match get_simh_record_len(data, &mut offset, endianness) {
+            Some(r) => r,
+            None => return false,
+        };
+
+        if (num_tapemarks > 0 || num_records > 0) && rec.raw == 0xFFFF_FFFF {
+            // End of medium after at least one record or tapemark
+            break;
+        }
+
+        if rec.raw == 0 {
+            num_tapemarks = num_tapemarks.saturating_add(1);
+            if num_tapemarks >= max_tapemarks {
+                break;
+            }
+            continue;
+        }
+
+        offset = match offset.checked_add(rec.padded) {
+            Some(o) => o,
+            None => return false,
+        };
+
+        if data.len().saturating_sub(offset) < 4 {
+            break;
+        }
+
+        let trailer = match get_simh_record_len(data, &mut offset, endianness) {
+            Some(t) => t,
+            None => return false,
+        };
+
+        if rec.raw != trailer.raw {
+            return false;
+        }
+        num_records = num_records.saturating_add(1);
+    }
+
+    let tapemark_bytes = num_tapemarks.saturating_mul(4);
+    if tapemark_bytes == offset && num_records == 0 {
+        return false;
+    }
+    if num_records == 0 {
+        return false;
+    }
+
+    true
+}
+
+fn simh_parse(data: &[u8]) -> bool {
+    // Try standard Little-Endian first; if that fails, try Big-Endian.
+    // This provides robust support without host byte-order dependency.
+    simh_parse_endian(data, SimhEndianness::Little)
+        || simh_parse_endian(data, SimhEndianness::Big)
+}
+
+/// Inspects source for SIM-H magnetic tape image format (`is_simh.c`).
+pub fn inspect_simh<S: DetectionSource + ?Sized>(
+    source: &mut S,
+) -> Result<Option<DetectionCandidate>> {
+    let inspect_bytes = 65536usize;
+    let mut buf = vec![0u8; inspect_bytes];
+    let n = match source.read_at(0, &mut buf) {
+        Ok(read_len) => read_len,
+        Err(_) => return Ok(None),
+    };
+    let Some(sample) = buf.get(..n) else {
+        return Ok(None);
+    };
+
+    if !simh_parse(sample) {
+        return Ok(None);
+    }
+
+    Ok(Some(DetectionCandidate {
+        format_id: None,
+        dc_id: None,
+        mime: Some("application/SIMH-tape-data".to_string()),
+        description: "SIMH tape data".to_string(),
+        confidence: ConfidenceTier::Moderate,
+        score: 80,
+        evidence: vec![DetectionEvidence::ContainerStructure {
+            detail: "SIMH magnetic tape image format with valid record framing".to_string(),
+            score: 80,
+        }],
+    }))
+}
+
+// ---------------------------------------------------------------------------
 // Public Subsystem Coordinator
 // ---------------------------------------------------------------------------
 
@@ -1610,6 +1760,12 @@ pub fn detect_container_candidates<S: DetectionSource + ?Sized>(
         candidates.push(csv_cand);
     }
 
+    // 8. SIM-H magnetic tape image inspection
+    if let Ok(Some(simh_cand)) = inspect_simh(source) {
+        candidates.push(simh_cand);
+        return Ok(candidates);
+    }
+
     Ok(candidates)
 }
 
@@ -1654,6 +1810,75 @@ mod tests {
         assert_eq!(cand.description, "CSV text");
         assert_eq!(cand.mime.as_deref(), Some("text/csv"));
         assert_eq!(cand.format_id, Some(FormatId::Csv));
+    }
+
+    #[ctb_test]
+    fn test_inspect_simh_valid_tape_le() {
+        // Record 1: 5 bytes "HELLO" (odd, padded to 6 bytes on tape)
+        // Record 2: Tapemark (4 bytes of 0x00)
+        // Record 3: 4 bytes "TAPE" (even, 4 bytes on tape)
+        let mut tape = Vec::new();
+        // Record 1: len 5 (LE)
+        tape.extend_from_slice(&5u32.to_le_bytes());
+        tape.extend_from_slice(b"HELLO\0"); // 5 data + 1 pad
+        tape.extend_from_slice(&5u32.to_le_bytes());
+        // Tapemark
+        tape.extend_from_slice(&0u32.to_le_bytes());
+        // Record 2: len 4 (LE)
+        tape.extend_from_slice(&4u32.to_le_bytes());
+        tape.extend_from_slice(b"TAPE");
+        tape.extend_from_slice(&4u32.to_le_bytes());
+
+        let mut source: &[u8] = &tape;
+        let cand = inspect_simh(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "SIMH tape data");
+        assert_eq!(cand.mime.as_deref(), Some("application/SIMH-tape-data"));
+    }
+
+    #[ctb_test]
+    fn test_inspect_simh_valid_tape_be() {
+        // Big-endian record len
+        let mut tape = Vec::new();
+        tape.extend_from_slice(&4u32.to_be_bytes());
+        tape.extend_from_slice(b"DATA");
+        tape.extend_from_slice(&4u32.to_be_bytes());
+
+        let mut source: &[u8] = &tape;
+        let cand = inspect_simh(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "SIMH tape data");
+    }
+
+    #[ctb_test]
+    fn test_inspect_simh_eom_marker() {
+        let mut tape = Vec::new();
+        tape.extend_from_slice(&2u32.to_le_bytes());
+        tape.extend_from_slice(b"OK");
+        tape.extend_from_slice(&2u32.to_le_bytes());
+        // End of Medium
+        tape.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+
+        let mut source: &[u8] = &tape;
+        let cand = inspect_simh(&mut source).unwrap().unwrap();
+        assert_eq!(cand.description, "SIMH tape data");
+    }
+
+    #[ctb_test]
+    fn test_inspect_simh_reject_all_tapemarks() {
+        // All zeros (tapemarks only) must be rejected
+        let zeros = vec![0u8; 64];
+        let mut source: &[u8] = &zeros;
+        assert!(inspect_simh(&mut source).unwrap().is_none());
+    }
+
+    #[ctb_test]
+    fn test_inspect_simh_reject_mismatched_lengths() {
+        let mut tape = Vec::new();
+        tape.extend_from_slice(&4u32.to_le_bytes());
+        tape.extend_from_slice(b"DATA");
+        tape.extend_from_slice(&3u32.to_le_bytes()); // Mismatched trailer length
+
+        let mut source: &[u8] = &tape;
+        assert!(inspect_simh(&mut source).unwrap().is_none());
     }
 
     #[ctb_test]
