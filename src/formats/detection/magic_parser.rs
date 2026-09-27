@@ -645,6 +645,62 @@ pub enum MagicTest {
     MsDosDate,
     MsDosTime,
     Guid([u8; 16]),
+    GuidLe([u8; 16]),
+    GuidBe([u8; 16]),
+    GuidLeAny,
+    GuidBeAny,
+    FloatLe {
+        value_bits: u32,
+        op: RelOp,
+    },
+    FloatBe {
+        value_bits: u32,
+        op: RelOp,
+    },
+    DoubleLe {
+        value_bits: u64,
+        op: RelOp,
+    },
+    DoubleBe {
+        value_bits: u64,
+        op: RelOp,
+    },
+    String16Le {
+        pattern: Vec<u8>,
+        flags: StringFlags,
+        op: RelOp,
+    },
+    String16Be {
+        pattern: Vec<u8>,
+        flags: StringFlags,
+        op: RelOp,
+    },
+    String16LeAny(StringFlags),
+    String16BeAny(StringFlags),
+    VarintLe {
+        value: u64,
+        op: RelOp,
+        mask: Option<u64>,
+    },
+    VarintBe {
+        value: u64,
+        op: RelOp,
+        mask: Option<u64>,
+    },
+    DateWindows64Le {
+        value: u64,
+        op: RelOp,
+        adjustment: i64,
+    },
+    DateWindows64Be {
+        value: u64,
+        op: RelOp,
+        adjustment: i64,
+    },
+    Octal {
+        pattern: Vec<u8>,
+        is_any: bool,
+    },
     OffsetVal,
     Default,
     Clear,
@@ -940,6 +996,23 @@ fn parse_guid(s: &str) -> Option<[u8; 16]> {
         let b = u8::from_str_radix(chunk_str, 16).ok()?;
         let idx = 8usize.saturating_add(i);
         if let Some(slot) = out.get_mut(idx) {
+            *slot = b;
+        }
+    }
+    Some(out)
+}
+
+/// Parses a 16-byte big-endian RFC 4122 UUID string.
+fn parse_guid_be(s: &str) -> Option<[u8; 16]> {
+    let clean = s.trim().replace('-', "");
+    if clean.len() != 32 {
+        return None;
+    }
+    let mut out = [0u8; 16];
+    for (i, chunk) in clean.as_bytes().chunks_exact(2).enumerate() {
+        let chunk_str = std::str::from_utf8(chunk).ok()?;
+        let b = u8::from_str_radix(chunk_str, 16).ok()?;
+        if let Some(slot) = out.get_mut(i) {
             *slot = b;
         }
     }
@@ -1339,9 +1412,145 @@ pub fn parse_magic_line(line: &str) -> Option<(usize, Offset, MagicTest, Option<
         }
         "lemsdosdate" | "msdosdate" => MagicTest::MsDosDate,
         "lemsdostime" | "msdostime" => MagicTest::MsDosTime,
-        "guid" => {
-            let g = parse_guid(val_str)?;
-            MagicTest::Guid(g)
+        "guid" | "leguid" => {
+            if val_str == "x" {
+                MagicTest::GuidLeAny
+            } else {
+                let g = parse_guid(val_str)?;
+                MagicTest::GuidLe(g)
+            }
+        }
+        "beguid" => {
+            if val_str == "x" {
+                MagicTest::GuidBeAny
+            } else {
+                let g = parse_guid_be(val_str)?;
+                MagicTest::GuidBe(g)
+            }
+        }
+        "float" | "lefloat" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::FloatLe { value_bits: 0, op: RelOp::Any }
+            } else {
+                let val: f32 = num_str.parse().ok()?;
+                MagicTest::FloatLe { value_bits: val.to_bits(), op }
+            }
+        }
+        "befloat" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::FloatBe { value_bits: 0, op: RelOp::Any }
+            } else {
+                let val: f32 = num_str.parse().ok()?;
+                MagicTest::FloatBe { value_bits: val.to_bits(), op }
+            }
+        }
+        "double" | "ledouble" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::DoubleLe { value_bits: 0, op: RelOp::Any }
+            } else {
+                let val: f64 = num_str.parse().ok()?;
+                MagicTest::DoubleLe { value_bits: val.to_bits(), op }
+            }
+        }
+        "bedouble" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::DoubleBe { value_bits: 0, op: RelOp::Any }
+            } else {
+                let val: f64 = num_str.parse().ok()?;
+                MagicTest::DoubleBe { value_bits: val.to_bits(), op }
+            }
+        }
+        "lestring16" => {
+            let flags = parse_string_flags(flags_str);
+            if val_str == "x" {
+                MagicTest::String16LeAny(flags)
+            } else if let Some(stripped) = val_str.strip_prefix('>') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Gt }
+            } else if let Some(stripped) = val_str.strip_prefix('<') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Lt }
+            } else if let Some(stripped) = val_str.strip_prefix('!') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Ne }
+            } else if let Some(stripped) = val_str.strip_prefix('=') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Eq }
+            } else {
+                let bytes = decode_magic_escapes(val_str);
+                MagicTest::String16Le { pattern: bytes, flags, op: RelOp::Eq }
+            }
+        }
+        "bestring16" => {
+            let flags = parse_string_flags(flags_str);
+            if val_str == "x" {
+                MagicTest::String16BeAny(flags)
+            } else if let Some(stripped) = val_str.strip_prefix('>') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Gt }
+            } else if let Some(stripped) = val_str.strip_prefix('<') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Lt }
+            } else if let Some(stripped) = val_str.strip_prefix('!') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Ne }
+            } else if let Some(stripped) = val_str.strip_prefix('=') {
+                let bytes = decode_magic_escapes(stripped);
+                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Eq }
+            } else {
+                let bytes = decode_magic_escapes(val_str);
+                MagicTest::String16Be { pattern: bytes, flags, op: RelOp::Eq }
+            }
+        }
+        "levarint" => {
+            let mask = mask_str.and_then(parse_magic_int);
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::VarintLe { value: 0, op: RelOp::Any, mask }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::VarintLe { value: val, op, mask }
+            }
+        }
+        "bevarint" => {
+            let mask = mask_str.and_then(parse_magic_int);
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::VarintBe { value: 0, op: RelOp::Any, mask }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::VarintBe { value: val, op, mask }
+            }
+        }
+        "qwdate" | "beqwdate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::DateWindows64Be { value: 0, op: RelOp::Any, adjustment: type_adj }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::DateWindows64Be { value: val, op, adjustment: type_adj }
+            }
+        }
+        "leqwdate" => {
+            let (op, num_str) = parse_op_and_val(val_str);
+            if op == RelOp::Any {
+                MagicTest::DateWindows64Le { value: 0, op: RelOp::Any, adjustment: type_adj }
+            } else {
+                let val = parse_magic_int(num_str)?;
+                MagicTest::DateWindows64Le { value: val, op, adjustment: type_adj }
+            }
+        }
+        "octal" => {
+            if val_str == "x" {
+                MagicTest::Octal { pattern: Vec::new(), is_any: true }
+            } else {
+                let bytes = decode_magic_escapes(val_str);
+                MagicTest::Octal { pattern: bytes, is_any: false }
+            }
         }
         "offset" => MagicTest::OffsetVal,
         "default" => MagicTest::Default,
@@ -1416,7 +1625,33 @@ pub fn calculate_rule_strength(test: &MagicTest) -> u32 {
         MagicTest::U64Le { op, .. } | MagicTest::U64Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(80) },
         MagicTest::Date32Le { op, .. } | MagicTest::Date32Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(40) },
         MagicTest::Date64Le { op, .. } | MagicTest::Date64Be { op, .. } => if *op == RelOp::Any { 0 } else { base.saturating_add(80) },
-        MagicTest::Guid(_) => base.saturating_add(160),
+        MagicTest::Guid(_) | MagicTest::GuidLe(_) | MagicTest::GuidBe(_) => base.saturating_add(160),
+        MagicTest::GuidLeAny | MagicTest::GuidBeAny => 0,
+        MagicTest::FloatLe { op, .. } | MagicTest::FloatBe { op, .. } => {
+            if *op == RelOp::Any { 0 } else { base.saturating_add(40) }
+        }
+        MagicTest::DoubleLe { op, .. } | MagicTest::DoubleBe { op, .. } => {
+            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+        }
+        MagicTest::String16Le { pattern, .. } | MagicTest::String16Be { pattern, .. } => {
+            // Reason for fallback: Divisor 2 is non-zero so dividing 16-bit byte length to character count cannot fail.
+            let char_count = pattern.len().checked_div(2).unwrap_or(0);
+            base.saturating_add(pattern_len_strength(char_count).saturating_mul(mult))
+        }
+        MagicTest::String16LeAny(_) | MagicTest::String16BeAny(_) => 0,
+        MagicTest::VarintLe { op, .. } | MagicTest::VarintBe { op, .. } => {
+            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+        }
+        MagicTest::DateWindows64Le { op, .. } | MagicTest::DateWindows64Be { op, .. } => {
+            if *op == RelOp::Any { 0 } else { base.saturating_add(80) }
+        }
+        MagicTest::Octal { pattern, is_any } => {
+            if *is_any {
+                0
+            } else {
+                base.saturating_add(pattern_len_strength(pattern.len()).saturating_mul(mult))
+            }
+        }
         MagicTest::MsDosDate | MagicTest::MsDosTime | MagicTest::OffsetVal => base.saturating_add(20),
         MagicTest::Der(pat) => {
             if pat.expected_val.as_deref() == Some("x")
@@ -1754,6 +1989,65 @@ mod tests {
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].children.len(), 1);
         assert_eq!(rules[0].children[0].test, MagicTest::Use("elf-details".to_string()));
+    }
+
+    #[crate::ctb_test]
+    fn test_parse_new_magic_types() {
+        let content = r#"
+0	string		TEST		Header
+>0	lefloat		>0.0001		lefloat rule
+>4	befloat		!0.0		befloat rule
+>8	ledouble	8.642135e+130	ledouble rule
+>16	bedouble	x		bedouble wildcard
+>24	lestring16	Workbook	lestring16 match
+>32	bestring16/c	Title		bestring16 case-insensitive
+>40	lestring16	x		lestring16 any
+>48	bestring16	x		bestring16 any
+>56	levarint	300		levarint rule
+>64	bevarint&0xFF	120		bevarint with mask
+>72	qwdate+3600	x		qwdate with adjustment
+>80	leqwdate	>1000		leqwdate rule
+>88	octal		0755		octal pattern
+>96	octal		x		octal any
+>104	guid		7B5C52E4-D88C-4DA7-AEB1-5378D02996D3	guid match
+>120	leguid		x		leguid any
+>136	beguid		00112233-4455-6677-8899-AABBCCDDEEFF	beguid match
+>152	beguid		x		beguid any
+"#;
+        let rules = parse_magic_content(content);
+        assert_eq!(rules.len(), 1);
+        let root = &rules[0];
+        assert_eq!(root.children.len(), 18);
+
+        // lefloat >0.0001
+        assert!(matches!(root.children[0].test, MagicTest::FloatLe { op: RelOp::Gt, .. }));
+        // befloat !0.0
+        assert!(matches!(root.children[1].test, MagicTest::FloatBe { op: RelOp::Ne, .. }));
+        // ledouble
+        assert!(matches!(root.children[2].test, MagicTest::DoubleLe { op: RelOp::Eq, .. }));
+        // bedouble x
+        assert!(matches!(root.children[3].test, MagicTest::DoubleBe { op: RelOp::Any, .. }));
+        // lestring16 Workbook
+        assert!(matches!(root.children[4].test, MagicTest::String16Le { ref pattern, op: RelOp::Eq, .. } if pattern == b"Workbook"));
+        // bestring16/c Title
+        assert!(matches!(root.children[5].test, MagicTest::String16Be { ref pattern, flags, .. } if pattern == b"Title" && flags.case_insensitive));
+        // lestring16 x / bestring16 x
+        assert!(matches!(root.children[6].test, MagicTest::String16LeAny(_)));
+        assert!(matches!(root.children[7].test, MagicTest::String16BeAny(_)));
+        // levarint / bevarint
+        assert!(matches!(root.children[8].test, MagicTest::VarintLe { value: 300, op: RelOp::Eq, mask: None }));
+        assert!(matches!(root.children[9].test, MagicTest::VarintBe { value: 120, op: RelOp::Eq, mask: Some(0xFF) }));
+        // qwdate / leqwdate
+        assert!(matches!(root.children[10].test, MagicTest::DateWindows64Be { op: RelOp::Any, adjustment: 3600, .. }));
+        assert!(matches!(root.children[11].test, MagicTest::DateWindows64Le { value: 1000, op: RelOp::Gt, .. }));
+        // octal
+        assert!(matches!(root.children[12].test, MagicTest::Octal { ref pattern, is_any: false } if pattern == b"0755"));
+        assert!(matches!(root.children[13].test, MagicTest::Octal { is_any: true, .. }));
+        // guid / leguid / beguid
+        assert!(matches!(root.children[14].test, MagicTest::GuidLe(_)));
+        assert!(matches!(root.children[15].test, MagicTest::GuidLeAny));
+        assert!(matches!(root.children[16].test, MagicTest::GuidBe(_)));
+        assert!(matches!(root.children[17].test, MagicTest::GuidBeAny));
     }
 }
 /*

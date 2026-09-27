@@ -46,17 +46,17 @@ Here is the audited breakdown of features, subsystems, data types, and heuristic
 
 ## 2. Magic Rule Data Types Missing from the Engine
 
-Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file.h#L253-L315) and [`src/softmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/softmagic.c) support several comparison types that are omitted in [`MagicTest`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs#L544):
+Upstream [`src/file.h`](file:///workspaces/ctoolbox/old/filedetect/file/src/file.h#L253-L315) and [`src/softmagic.c`](file:///workspaces/ctoolbox/old/filedetect/file/src/softmagic.c) support several comparison types. All 7 previously missing types have been implemented in [`MagicTest`](file:///workspaces/ctoolbox/src/formats/detection/magic_parser.rs) and evaluated in [`magic.rs`](file:///workspaces/ctoolbox/src/formats/detection/magic.rs):
 
 | Upstream Type (`file.h`) | Syntax / Meaning | Upstream Responsibility | Ctoolbox Status |
 | :--- | :--- | :--- | :--- |
-| `FILE_FLOAT`, `FILE_BEFLOAT`, `FILE_LEFLOAT` | `float`, `befloat`, `lefloat` | IEEE-754 32-bit single-precision float comparison with relational operators. | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_DOUBLE`, `FILE_BEDOUBLE`, `FILE_LEDOUBLE` | `double`, `bedouble`, `ledouble` | IEEE-754 64-bit double-precision float comparison. | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_BESTRING16`, `FILE_LESTRING16` | `bestring16`, `lestring16` | Fixed-endian 16-bit wide character string comparisons. | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_BEVARINT`, `FILE_LEVARINT` | `bevarint`, `levarint` | Variable-length integer encoding (e.g. MIDI / Protobuf). | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_QWDATE`, `FILE_LEQWDATE`, `FILE_BEQWDATE` | `qwdate`, `leqwdate`, `beqwdate` | Windows 64-bit `FILETIME` timestamp (100ns increments since 1601-01-01). | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_OCTAL` | `octal` | Direct comparison against ASCII octal digit strings. | **Missing** from `MagicTest` and `magic_parser.rs`. |
-| `FILE_LEGUID`, `FILE_BEGUID` | `leguid`, `beguid` | Distinguishes Microsoft mixed-endian GUIDs from standard big-endian RFC 4122 UUIDs. | **Only generic mixed-endian `guid` is parsed**; big-endian `beguid` is not supported. |
+| `FILE_FLOAT`, `FILE_BEFLOAT`, `FILE_LEFLOAT` | `float`, `befloat`, `lefloat` | IEEE-754 32-bit single-precision float comparison with relational operators. | **Implemented** in `MagicTest::FloatLe` / `FloatBe` and `magic.rs`. Decodes raw IEEE bits with relational IEEE semantics (`<`, `>`, `<=`, `>=`, `=`, `!`, `x`). |
+| `FILE_DOUBLE`, `FILE_BEDOUBLE`, `FILE_LEDOUBLE` | `double`, `bedouble`, `ledouble` | IEEE-754 64-bit double-precision float comparison. | **Implemented** in `MagicTest::DoubleLe` / `DoubleBe` and `magic.rs`. Decodes 64-bit IEEE bits with float format description specifiers (`%f`, `%g`, `%e`). |
+| `FILE_BESTRING16`, `FILE_LESTRING16` | `bestring16`, `lestring16` | Fixed-endian 16-bit wide character string comparisons. | **Implemented** in `MagicTest::String16Le` / `String16Be` and `magic.rs`. Supports case-insensitive matching (`/c`), wildcard matching (`x`), and description substitution. |
+| `FILE_BEVARINT`, `FILE_LEVARINT` | `bevarint`, `levarint` | Variable-length integer encoding (e.g. MIDI / Protobuf). | **Implemented** in `MagicTest::VarintLe` / `VarintBe` and `magic.rs`. Decodes 7-bit continuation byte sequences with bitmasking and relational comparison. |
+| `FILE_QWDATE`, `FILE_LEQWDATE`, `FILE_BEQWDATE` | `qwdate`, `leqwdate`, `beqwdate` | Windows 64-bit `FILETIME` timestamp (100ns increments since 1601-01-01). | **Implemented** in `MagicTest::DateWindows64Le` / `DateWindows64Be` and `magic.rs`. Converts Windows epoch to Unix timestamp and formats via standard date representation. |
+| `FILE_OCTAL` | `octal` | Direct comparison against ASCII octal digit strings. | **Implemented** in `MagicTest::Octal` and `magic.rs`. Compares ASCII octal digits, parses numeric value, and formats as decimal or raw string. |
+| `FILE_LEGUID`, `FILE_BEGUID` | `guid`, `leguid`, `beguid` | Distinguishes Microsoft mixed-endian GUIDs from standard big-endian RFC 4122 UUIDs. | **Implemented** in `MagicTest::GuidLe` / `GuidBe` and `magic.rs`. Supports little/mixed-endian (`guid`, `leguid`) and big-endian (`beguid`), wildcards (`x`), and uppercase standard formatted GUID string substitution. |
 
 ---
 
