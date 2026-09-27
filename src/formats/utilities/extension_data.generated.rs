@@ -196,6 +196,14 @@ pub static EXTENSION_REGISTRY: &[ExtensionEntry] = &[
         rule: ExtensionRule::sensitive("C"),
     },
     ExtensionEntry {
+        format_id: FormatId::Freeze2,
+        rule: ExtensionRule::sensitive("F"),
+    },
+    ExtensionEntry {
+        format_id: FormatId::Freeze1,
+        rule: ExtensionRule::sensitive("F"),
+    },
+    ExtensionEntry {
         format_id: FormatId::Lz4,
         rule: ExtensionRule::insensitive("lz4"),
     },

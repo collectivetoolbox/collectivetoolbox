@@ -1323,6 +1323,10 @@ pub enum FormatId {
     PaddingZero,
     /// Fit-to-limit padding (Short 620, Category: v:padding)
     PaddingFit,
+    /// freeze: Freeze 2.X format (LZSS + Dynamic Huffman) (Short 621, Category: compression)
+    Freeze2,
+    /// freeze: Freeze 1.0 format (LZSS + Dynamic Huffman) (Short 622, Category: compression)
+    Freeze1,
 }
 
 impl FormatId {
@@ -1423,7 +1427,9 @@ impl FormatId {
             | Self::Orz
             | Self::Lzfse
             | Self::Lzma
-            | Self::Lzma2 => FormatCategory::Compression,
+            | Self::Lzma2
+            | Self::Freeze2
+            | Self::Freeze1 => FormatCategory::Compression,
             Self::Tar
             | Self::Zip
             | Self::CtbAssetBundle
@@ -2581,6 +2587,8 @@ impl FormatId {
             "paddingnone" | "padding_none" => Some(Self::PaddingNone),
             "paddingzero" | "padding_zero" => Some(Self::PaddingZero),
             "paddingfit" | "padding_fit" => Some(Self::PaddingFit),
+            "freeze2" | "freeze" | "melt" => Some(Self::Freeze2),
+            "freeze1" | "freeze-1" | "melt1" => Some(Self::Freeze1),
             _ => None,
         }
     }
@@ -3210,6 +3218,8 @@ impl FormatId {
             Self::PaddingNone => "PaddingNone",
             Self::PaddingZero => "PaddingZero",
             Self::PaddingFit => "PaddingFit",
+            Self::Freeze2 => "Freeze2",
+            Self::Freeze1 => "Freeze1",
         }
     }
 
@@ -4016,6 +4026,8 @@ impl FormatId {
             Self::PaddingNone => "f618",
             Self::PaddingZero => "f619",
             Self::PaddingFit => "f620",
+            Self::Freeze2 => "f621",
+            Self::Freeze1 => "f622",
         }
     }
 
@@ -4645,6 +4657,8 @@ impl FormatId {
             "f618" => Some(Self::PaddingNone),
             "f619" => Some(Self::PaddingZero),
             "f620" => Some(Self::PaddingFit),
+            "f621" => Some(Self::Freeze2),
+            "f622" => Some(Self::Freeze1),
             _ => None,
         }
     }
@@ -5274,6 +5288,8 @@ impl FormatId {
             Self::PaddingNone => Some(2228842_u128),
             Self::PaddingZero => Some(2228843_u128),
             Self::PaddingFit => Some(2228844_u128),
+            Self::Freeze2 => Some(2228845_u128),
+            Self::Freeze1 => Some(2228846_u128),
         }
     }
 
@@ -5915,6 +5931,8 @@ impl FormatId {
             2228842_u128 => Some(Self::PaddingNone),
             2228843_u128 => Some(Self::PaddingZero),
             2228844_u128 => Some(Self::PaddingFit),
+            2228845_u128 => Some(Self::Freeze2),
+            2228846_u128 => Some(Self::Freeze1),
             _ => None,
         }
     }
@@ -7162,3 +7180,7 @@ pub const DC_PADDING_NONE: DcChar = DcChar::from_format(618);
 pub const DC_PADDING_ZERO: DcChar = DcChar::from_format(619);
 /// DcChar constant for Format `PaddingFit` (Short f620, Category: v:padding): Fit-to-limit padding
 pub const DC_PADDING_FIT: DcChar = DcChar::from_format(620);
+/// DcChar constant for Format `Freeze2` (Short f621, Category: compression): freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+pub const DC_FREEZE2: DcChar = DcChar::from_format(621);
+/// DcChar constant for Format `Freeze1` (Short f622, Category: compression): freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+pub const DC_FREEZE1: DcChar = DcChar::from_format(622);

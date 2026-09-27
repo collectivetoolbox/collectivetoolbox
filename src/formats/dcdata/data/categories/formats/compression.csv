@@ -31,6 +31,8 @@ Import/export/tests support columns meaning:
 2228272,48,Pack,"`pack` format, common version (Huffman)",compression,"@magic_name(""packed data"")",case:.z,,,,pack,4,4,4,,,
 2228273,49,OldPack,"`pack` format, early PDP-11 Unix binary tree",compression,"@magic_name(""old packed data"")",case:.z,,,,"old-pack, oldpack, early-pack",4,4,4,,,
 2228274,50,Compact,`compact` (McMaster Adaptive Huffman),compression,"@magic_name(""compacted data"")",case:.C,,,,compact,4,4,4,,,
+2228845,621,Freeze2,freeze: Freeze 2.X format (LZSS + Dynamic Huffman),compression,"@magic_name(""Freeze 2.X compressed data""), @magic_name(""frozen file 2.1"")",case:.F,,,,"freeze, freeze2, melt",4,4,4,,,
+2228846,622,Freeze1,freeze: Freeze 1.0 format (LZSS + Dynamic Huffman),compression,"@magic_name(""Freeze 1.0 compressed data""), @magic_name(""frozen file 1.0"")",case:.F,,,,"freeze1, freeze-1, melt1",4,4,4,,,
 2228524,300,Rzip,rzip,compression,,,,,,,,,,,,
 2228525,301,Lrzip,lrzip (Long Range Zip),compression,,,,,,,,,,,,
 2228526,302,Bzip3,Bzip3,compression,,,,,,,,,,,,

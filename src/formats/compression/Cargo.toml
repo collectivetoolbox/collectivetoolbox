@@ -13,6 +13,7 @@ ctb-formats-compression-compact = { path = "./compact" }
 ctb-formats-compression-compress = { path = "./compress" }
 ctb-formats-compression-pack = { path = "./pack" }
 ctb-formats-compression-sco-compress = { path = "./sco_compress" }
+ctb-formats-compression-freeze = { path = "./freeze" }
 ctb-formats-compression-libraries = { path = "./libraries" }
 ctb-formats-utilities = { path = "../utilities" }
 ctb-formats-detection = { path = "../detection" }

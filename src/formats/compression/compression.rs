@@ -40,6 +40,7 @@ pub use ctb_formats_compression_compact as compact;
 pub use ctb_formats_compression_compress as compress;
 pub use ctb_formats_compression_pack as pack;
 pub use ctb_formats_compression_sco_compress as sco_compress;
+pub use ctb_formats_compression_freeze as freeze;
 pub use ctb_formats_compression_libraries as libraries;
 
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -103,6 +104,8 @@ impl CompressionFormatExt for FormatId {
                 | Self::Pack
                 | Self::OldPack
                 | Self::Compact
+                | Self::Freeze2
+                | Self::Freeze1
         )
     }
 
@@ -200,6 +203,12 @@ pub fn compress_stream_direct(
         FormatId::Compact => {
             compact::compress_compact_stream(reader, writer)
         }
+        FormatId::Freeze2 => {
+            freeze::compress_freeze2_stream(reader, writer)
+        }
+        FormatId::Freeze1 => {
+            freeze::compress_freeze1_stream(reader, writer)
+        }
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -294,6 +303,12 @@ pub fn decompress_stream(
         FormatId::Compact => {
             compact::decompress_compact_stream(reader, writer)
         }
+        FormatId::Freeze2 => {
+            freeze::decompress_freeze2_stream(reader, writer)
+        }
+        FormatId::Freeze1 => {
+            freeze::decompress_freeze1_stream(reader, writer)
+        }
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -386,6 +401,8 @@ mod tests {
             FormatId::Pack,
             FormatId::OldPack,
             FormatId::Compact,
+            FormatId::Freeze2,
+            FormatId::Freeze1,
         ];
         let crate_formats = [
             FormatId::Brotli,
@@ -537,6 +554,8 @@ mod tests {
         assert_eq!(FormatId::ScoCompress.extension(), "Z");
         assert_eq!(FormatId::Pack.extension(), "z");
         assert_eq!(FormatId::Compact.extension(), "C");
+        assert_eq!(FormatId::Freeze2.extension(), "F");
+        assert_eq!(FormatId::Freeze1.extension(), "F");
         assert_eq!(FormatId::Lz4.extension(), "lz4");
         assert_eq!(FormatId::Lzma.extension(), "lzma");
         assert_eq!(FormatId::Lzma2.extension(), "lzma");
@@ -683,6 +702,10 @@ mod tests {
             FormatId::Compact => {
                 &["fixtures/example2 with lemurs.pan.C"]
             }
+            FormatId::Freeze2 => {
+                &["fixtures/example2 with lemurs.pan.F"]
+            }
+            FormatId::Freeze1 => &[],
             FormatId::Lz4 => {
                 &["fixtures/example2 with lemurs.pan.lz4"]
             }
@@ -840,6 +863,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_compact() {
         run_format_test_suite(FormatId::Compact);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_freeze2() {
+        run_format_test_suite(FormatId::Freeze2);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_freeze1() {
+        run_format_test_suite(FormatId::Freeze1);
     }
 
     #[crate::ctb_test]

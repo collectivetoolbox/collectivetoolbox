@@ -59,7 +59,9 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
+if [ -n "${CTB_BIN:-}" ]; then
+    :
+elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
     CTB_BIN="$REPO_ROOT/target/release/ctoolbox"
 else
     export RUSTFLAGS="-Awarnings"
@@ -76,6 +78,7 @@ trap cleanup EXIT
 
 echo "=== 1. Preparing and Compiling Historical Tools in Temporary Directory ==="
 
+if [ -d "$REPO_ROOT/old/unix-tools" ]; then
 # 1a. Prepare compress 1.0 (July 1984, Spencer W. Thomas)
 TMP_C1="$TMP_DIR/compress-1.0.c"
 python3 - "$REPO_ROOT" "$TMP_C1" << 'EOF'
@@ -206,6 +209,33 @@ gcc -w -O2 -o "$TMP_DIR/opcat" "$TMP_OPCAT_C"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/compact" "$TMP_COMPACT_DIR/compact.c" "$TMP_COMPACT_DIR/tree.c"
 gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$TMP_DIR/uncompact" "$TMP_COMPACT_DIR/uncompact.c" "$TMP_COMPACT_DIR/tree.c"
 gcc -w -O2 -o "$TMP_DIR/bzip-0.21" "$TMP_BZIP_C"
+fi
+
+# 1f. Prepare freeze 2.5.0 (Leonid A. Broukhis 1990-1993)
+mkdir -p "$TMP_DIR/freeze_inc"
+cat << 'EOF' > "$TMP_DIR/freeze_inc/config.h"
+#define SEGMENTED 1
+#define HAVE_LONG_FILE_NAMES 1
+#define DIRENT 1
+#define UTIME 1
+#define COMPAT 1
+EOF
+FREEZE_SRC="$REPO_ROOT/old/freeze-2.5.0-44.fc45.src/freeze-2.5.0/freeze-2.5.0"
+gcc -w -std=gnu89 -fcommon -O2 \
+    -I"$TMP_DIR/freeze_inc" \
+    -I"$FREEZE_SRC" \
+    -DCOMPAT=1 \
+    -DDEFFILE=\"/dev/null\" \
+    -Dgetc=fgetc \
+    -Dputc=fputc \
+    -o "$TMP_DIR/freeze" \
+    "$FREEZE_SRC/freeze.c" \
+    "$FREEZE_SRC/encode.c" \
+    "$FREEZE_SRC/decode.c" \
+    "$FREEZE_SRC/huf.c" \
+    "$FREEZE_SRC/lz.c" \
+    "$FREEZE_SRC/bitio.c" \
+    "$FREEZE_SRC/default.c"
 
 echo "=== 2. Preparing Test Datasets and Corpora ==="
 
@@ -323,6 +353,9 @@ historic_compress() {
         brotli)
             brotli -c < "$in_file" > "$out_file" 2>/dev/null || true
             ;;
+        freeze)
+            "$TMP_DIR/freeze" -f -c < "$in_file" > "$out_file" 2>/dev/null || [ $? -eq 2 ]
+            ;;
         *)
             echo "Unknown historic compressor: $tool" >&2
             return 1
@@ -378,6 +411,9 @@ historic_decompress() {
         brotli)
             brotli -d -c < "$in_file" > "$out_file"
             ;;
+        freeze)
+            "$TMP_DIR/freeze" -d -c < "$in_file" > "$out_file" 2>/dev/null
+            ;;
         *)
             echo "Unknown historic decompressor: $tool" >&2
             return 1
@@ -397,6 +433,7 @@ tool_ext() {
         gzip) echo ".gz" ;;
         bzip2) echo ".bz2" ;;
         brotli) echo ".br" ;;
+        freeze) echo ".F" ;;
         *) echo ".compressed" ;;
     esac
 }
@@ -415,6 +452,7 @@ tool_fmt() {
         gzip) echo "gzip" ;;
         bzip2) echo "bzip2" ;;
         brotli) echo "brotli" ;;
+        freeze) echo "freeze2" ;;
         *) echo "" ;;
     esac
 }
@@ -433,6 +471,8 @@ FORWARD_TESTS=(
     "old-pack:opcat"
     "compact:uncompact"
     "bzip:bzip-0.21"
+    "freeze2:freeze"
+    "freeze1:freeze"
 )
 
 if command -v gunzip >/dev/null 2>&1; then
@@ -498,6 +538,7 @@ REVERSE_COMPRESSORS=(
     "sys3-pack"
     "opack"
     "bzip-0.21"
+    "freeze"
 )
 
 if command -v gzip >/dev/null 2>&1; then

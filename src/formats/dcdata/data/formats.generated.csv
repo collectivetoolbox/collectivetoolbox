@@ -627,3 +627,5 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228842,f618,No padding,0,BN,,!Cx,.Formats:v:padding,"@ident(""PaddingNone"")",Numbers formatted without leading padding.,,,,,,,,,
 2228843,f619,Fixed-width zero padding,0,BN,,!Cx,.Formats:v:padding,"@ident(""PaddingZero"")",Numbers zero-padded to a fixed minimum width.,,,,,,,,,
 2228844,f620,Fit-to-limit padding,0,BN,,!Cx,.Formats:v:padding,"@ident(""PaddingFit"")",Numbers zero-padded to fit the maximum representation width of a given chunk limit.,,,,,,,,,
+2228845,f621,freeze: Freeze 2.X format (LZSS + Dynamic Huffman),0,BN,,!Cx,.Formats:compression,"@ident(""Freeze2""), @nick(""freeze""), @nick(""freeze2""), @nick(""melt""), @magic_name(""Freeze 2.X compressed data""), @magic_name(""frozen file 2.1"")",,case:.F,,,,4,4,4,,
+2228846,f622,freeze: Freeze 1.0 format (LZSS + Dynamic Huffman),0,BN,,!Cx,.Formats:compression,"@ident(""Freeze1""), @nick(""freeze1""), @nick(""freeze-1""), @nick(""melt1""), @magic_name(""Freeze 1.0 compressed data""), @magic_name(""frozen file 1.0"")",,case:.F,,,,4,4,4,,

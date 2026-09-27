@@ -6,3 +6,13 @@
 0	string		CTBASSET	Collective Toolbox Asset Bundle
 !:mime	application/octet-stream
 !:ext	rsrc
+
+# Freeze compressed data
+0	string		\037\237	Freeze 2.X compressed data
+!:mime	application/x-freeze
+!:ext	F
+
+0	string		\037\236	Freeze 1.0 compressed data
+!:mime	application/x-freeze
+!:ext	F
+
