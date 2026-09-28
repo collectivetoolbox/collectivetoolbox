@@ -22,4 +22,4 @@ set -euxo pipefail
 # Change directory to the repository root
 cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." || exit 1
 
-./src/formats/compression/data/fixtures/test-historic-compressors || exit 1
+./scripts/test-compressors "$@" || exit 1

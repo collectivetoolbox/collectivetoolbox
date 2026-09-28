@@ -42,15 +42,13 @@ CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
 
 if [[ -n "$CTB_BIN" ]]; then
     CARGO_CMD="$CTB_BIN"
+elif [[ -x "target/release/ctoolbox" ]]; then
+    CARGO_CMD="target/release/ctoolbox"
+elif [[ -x "target/x86_64-unknown-linux-musl/release/ctoolbox" ]]; then
+    CARGO_CMD="target/x86_64-unknown-linux-musl/release/ctoolbox"
 elif [[ -x "built/linux-x64/ctoolbox" ]]; then
     echo "Warning: Reusing existing pre-built binary at built/linux-x64/ctoolbox (may be stale if source changed)" >&2
     CARGO_CMD="built/linux-x64/ctoolbox"
-elif [[ -x "target/x86_64-unknown-linux-musl/release/ctoolbox" ]]; then
-    echo "Warning: Reusing existing pre-built binary at target/x86_64-unknown-linux-musl/release/ctoolbox (may be stale if source changed)" >&2
-    CARGO_CMD="target/x86_64-unknown-linux-musl/release/ctoolbox"
-elif [[ -x "target/release/ctoolbox" ]]; then
-    echo "Warning: Reusing existing pre-built binary at target/release/ctoolbox (may be stale if source changed)" >&2
-    CARGO_CMD="target/release/ctoolbox"
 else
     export RUSTFLAGS="-Awarnings"
     CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
@@ -218,8 +216,8 @@ fi
 
 # Test CompressLzw1 (compress 1.0 headerless) format
 echo "Testing compress1 (CompressLzw1 headerless mode) format..."
-$CARGO_CMD compress compress1 "$TEST_FILE" -o "$TMP_DIR/sample1.txt.Z1.0" --force
-$CARGO_CMD decompress compress1 "$TMP_DIR/sample1.txt.Z1.0" -o "$TMP_DIR/lzw1_decompressed.txt" --force
+$CARGO_CMD compress compress1 "$TEST_FILE" -o "$TMP_DIR/sample1.txt.1.0.Z" --force
+$CARGO_CMD decompress compress1 "$TMP_DIR/sample1.txt.1.0.Z" -o "$TMP_DIR/lzw1_decompressed.txt" --force
 cmp "$TEST_FILE" "$TMP_DIR/lzw1_decompressed.txt" || exit 1
 
 # 7. Test decompressing embedded fixtures directly
@@ -230,10 +228,10 @@ diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_br.pan"
 $CARGO_CMD decompress "$FIXTURE_RAW.gz" -o "$TMP_DIR/fixture_gz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_gz.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.deflate" -o "$TMP_DIR/fixture_deflate.pan" --force
+$CARGO_CMD decompress "$FIXTURE_RAW.ctblib.deflate" -o "$TMP_DIR/fixture_deflate.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_deflate.pan"
 
-$CARGO_CMD decompress "$FIXTURE_RAW.zz" -o "$TMP_DIR/fixture_zz.pan" --force
+$CARGO_CMD decompress "$FIXTURE_RAW.ctblib.zz" -o "$TMP_DIR/fixture_zz.pan" --force
 diff -u "$FIXTURE_RAW" "$TMP_DIR/fixture_zz.pan"
 
 $CARGO_CMD decompress "$FIXTURE_RAW.z" -o "$TMP_DIR/fixture_z.pan" --force

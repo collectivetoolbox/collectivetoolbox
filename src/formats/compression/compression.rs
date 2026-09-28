@@ -671,30 +671,34 @@ mod tests {
                 &["fixtures/example2 with lemurs.pan.gz"]
             }
             FormatId::Deflate => {
-                &["fixtures/example2 with lemurs.pan.deflate"]
+                &["fixtures/example2 with lemurs.pan.ctblib.deflate"]
             }
             FormatId::Zlib => {
-                &["fixtures/example2 with lemurs.pan.zz"]
+                &["fixtures/example2 with lemurs.pan.ctblib.zz"]
             }
             FormatId::Bzip2 => {
                 &["fixtures/example2 with lemurs.pan.bz2"]
             }
-            FormatId::Bzip => &[],
+            FormatId::Bzip => {
+                &["fixtures/example2 with lemurs.pan.bz"]
+            }
             FormatId::ScoCompress => {
-                &["fixtures/example2 with lemurs.pan.sco"]
+                &["fixtures/example2 with lemurs.pan.synthetic.sco"]
             }
             FormatId::CompressLzw => &[
                 "fixtures/example2 with lemurs.pan.Z",
-                "fixtures/example2 with lemurs.pan.Z3.0",
-                "fixtures/example2 with lemurs.pan.Z12",
+                "fixtures/example2 with lemurs.pan.3.0.Z",
+                "fixtures/example2 with lemurs.pan.12.Z",
             ],
             FormatId::CompressLzw2 => {
-                &["fixtures/example2 with lemurs.pan.Z2.0"]
+                &["fixtures/example2 with lemurs.pan.2.0.Z"]
             }
             FormatId::CompressLzw1 => {
-                &["fixtures/example2 with lemurs.pan.Z1.0"]
+                &["fixtures/example2 with lemurs.pan.1.0.Z"]
             }
-            FormatId::CompressLzw16 => &[],
+            FormatId::CompressLzw16 => {
+                &["fixtures/example2 with lemurs.pan.1.6.Z"]
+            }
             FormatId::Pack => &["fixtures/example2 with lemurs.pan.z"],
             FormatId::OldPack => {
                 &["fixtures/example2 with lemurs.pan.old.z"]
@@ -703,27 +707,29 @@ mod tests {
                 &["fixtures/example2 with lemurs.pan.C"]
             }
             FormatId::Freeze2 => {
-                &["fixtures/example2 with lemurs.pan.F"]
+                &["fixtures/example2 with lemurs.pan.2.0.F"]
             }
-            FormatId::Freeze1 => &[],
+            FormatId::Freeze1 => {
+                &["fixtures/example2 with lemurs.pan.synthetic.1.0.F"]
+            }
             FormatId::Lz4 => {
-                &["fixtures/example2 with lemurs.pan.lz4"]
+                &["fixtures/example2 with lemurs.pan.ctblib.lz4"]
             }
             FormatId::Lzma => {
-                &["fixtures/example2 with lemurs.pan.lzma"]
+                &["fixtures/example2 with lemurs.pan.ctblib.lzma"]
             }
             FormatId::Lzma2 => {
-                &["fixtures/example2 with lemurs.pan.lzma2"]
+                &["fixtures/example2 with lemurs.pan.ctblib.lzma2"]
             }
             FormatId::Lzip => {
-                &["fixtures/example2 with lemurs.pan.lz"]
+                &["fixtures/example2 with lemurs.pan.ctblib.lz"]
             }
             FormatId::Xz => &["fixtures/example2 with lemurs.pan.xz"],
             FormatId::Zstd => {
-                &["fixtures/example2 with lemurs.pan.zst"]
+                &["fixtures/example2 with lemurs.pan.ctblib.zst"]
             }
             FormatId::Lzo => {
-                &["fixtures/example2 with lemurs.pan.lzo"]
+                &["fixtures/example2 with lemurs.pan.ctblib.lzo"]
             }
             _ => &[],
         };

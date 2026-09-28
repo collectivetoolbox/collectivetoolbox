@@ -1,101 +1,56 @@
 # Compression Data Fixtures
 
-This directory contains uncompressed and compressed test fixture files generated from [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) using the historical Unix compression utilities in [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools) as well as modern encoders.
-NOTE: old/unix-tools is not included in this repository except temporarily to generate fixtures, so you'll have to locate them on Usenet archive, etc. to re-generate (I'd encourage that! If you don't get the same results, please let me know and I can investigate.)
+This directory contains uncompressed and compressed test fixture files generated from [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) using the historical Unix compression utilities in [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools), modern system encoders, and `ctoolbox` implementations.
 
 ---
 
 ## Fixtures Overview
 
-| Filename | Format / Utility Variant | Magic Header Bytes | Algorithm & Features | Size | SHA-512 Prefix |
-| :--- | :--- | :---: | :--- | :---: | :---: |
-| [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) | Raw Input Data | None | Raw uncompressed PAN image asset | 2,086 B | `978683ef9d39...` |
-| [`example2 with lemurs.pan.Z1.0`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z1.0) | `compress 1.0` (Headerless) | None (Headerless) | Spencer W. Thomas (July 4 1984) original headerless LZW | 953 B | `18d0b0c7e481...` |
-| [`example2 with lemurs.pan.Z1.6`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z1.6) | `compress 1.6` (Sorted Chain) | None (Headerless) | Joe Orost (August 1 1984) sorted-chain headerless LZW | 993 B | `be0114bc198f...` |
-| [`example2 with lemurs.pan.Z2.0`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z2.0) | `compress 2.0` (Non-Block) | `0x1F 0x9D 0x10` | Turkowski & Orost (Aug 28 1984) LZW without block mode | 993 B | `3d285b5c9e4b...` |
-| [`example2 with lemurs.pan.Z3.0`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z3.0) | `compress 3.0` (Block Mode) | `0x1F 0x9D 0x90` | Woods & Orost (Jan 1985) LZW with `BLOCK_MODE` bit `0x80` & `CLEAR` code | 953 B | `44934371a4f1...` |
-| [`example2 with lemurs.pan.Z12`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z12) | `compress 4.0` (`-b 12`) | `0x1F 0x9D 0x8C` | 1986 LZW with maxbits restricted to 12 (`0x80 \| 12`) | 953 B | `e38101abe904...` |
-| [`example2 with lemurs.pan.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z) | `ncompress` Standard LZW | `0x1F 0x9D 0x90` | Modern ncompress 16-bit block LZW stream | 953 B | `44934371a4f1...` |
-| [`example2 with lemurs.pan.br`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.br) | Brotli | None (Stream) | Brotli sliding-window LZ77 + Huffman | 823 B | `8c02e1f41be1...` |
-| [`example2 with lemurs.pan.deflate`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.deflate) | Raw Deflate | None (Stream) | RFC 1951 raw DEFLATE stream | 832 B | `9119daf9075d...` |
-| [`example2 with lemurs.pan.gz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.gz) | Gzip | `0x1F 0x8B` | RFC 1952 DEFLATE stream wrapped in Gzip container | 867 B | `da25f701d2c5...` |
-| [`example2 with lemurs.pan.zz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.zz) | Zlib | `0x78 0x9C` | RFC 1950 Zlib-wrapped DEFLATE stream | 838 B | `9ef6eae2bd5c...` |
-| [`example2 with lemurs.pan.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.z) | System III/V `pack` | `0x1F 0x1E` | Canonical Huffman coding with level leaf table | 1,057 B | `7f8319d5cf5d...` |
-| [`example2 with lemurs.pan.old.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.old.z) | Early Unix `pack` | `0x1F 0x1F` | Steve Zucker ~1977 PDP-11 binary tree dictionary | 1,404 B | `3aef34365c10...` |
-| [`example2 with lemurs.pan.sco`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.sco) | SCO `compress -H` | `0x1F 0xA0` | LZSS sliding window dictionary + static Huffman | 954 B |
+| Filename | Source / Utility Variant | Magic Header Bytes | Algorithm & Features | Size |
+| :--- | :--- | :---: | :--- | :---: |
+| [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) | Raw Input Data | None | Raw uncompressed PAN image asset | 2,086 B |
+| [`example2 with lemurs.pan.1.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.1.0.Z) | `compress 1.0` (Headerless) | None (Headerless) | Spencer W. Thomas (July 4 1984) original headerless LZW | 953 B |
+| [`example2 with lemurs.pan.1.6.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.1.6.Z) | `compress 1.6` (Sorted Chain) | None (Headerless) | Joe Orost (August 1 1984) sorted-chain headerless LZW | 990 B |
+| [`example2 with lemurs.pan.2.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.2.0.Z) | `compress 2.0` (Non-Block) | `0x1F 0x9D 0x10` | Turkowski & Orost (Aug 28 1984) LZW without block mode | 993 B |
+| [`example2 with lemurs.pan.3.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.3.0.Z) | `compress 3.0` (Block Mode) | `0x1F 0x9D 0x90` | Woods & Orost (Jan 1985) LZW with `BLOCK_MODE` bit `0x80` & `CLEAR` code | 953 B |
+| [`example2 with lemurs.pan.12.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.12.Z) | `compress 4.0` (`-b 12`) | `0x1F 0x9D 0x8C` | 1986 LZW with maxbits restricted to 12 (`0x80 \| 12`) | 953 B |
+| [`example2 with lemurs.pan.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z) | `ncompress` Standard LZW | `0x1F 0x9D 0x90` | Modern ncompress 16-bit block LZW stream | 953 B |
+| [`example2 with lemurs.pan.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.z) | System III/V `pack` | `0x1F 0x1E` | Canonical Huffman coding with level leaf table | 1,057 B |
+| [`example2 with lemurs.pan.old.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.old.z) | Early Unix `pack` | `0x1F 0x1F` | Steve Zucker ~1977 PDP-11 binary tree dictionary | 1,404 B |
 | [`example2 with lemurs.pan.C`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.C) | `compact` (Adaptive Huffman) | `0x1F 0xFF` / `0xFF 0x1F` | McMaster's 1979 Online Adaptive Huffman Coder | 998 B |
-| [`example2 with lemurs.pan.lz4`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lz4) | LZ4 | `0x04 0x22 0x4D 0x18` | LZ4 Frame compression | 1,120 B | `fdb6efe2bf69...` |
-| [`example2 with lemurs.pan.lzma`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzma) | LZMA | `0x5D 0x00 0x00` | LZMA stream format | 803 B | `928c2ce1e927...` |
-| [`example2 with lemurs.pan.lzma2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzma2) | LZMA2 | None (Stream) | LZMA2 raw stream format | 792 B | `e62c27b9e47b...` |
-| [`example2 with lemurs.pan.lz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lz) | Lzip | `0x4C 0x5A 0x49 0x50` | Lzip format (LZMA-based) | 816 B | `30c1ca95f9e8...` |
-| [`example2 with lemurs.pan.xz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.xz) | XZ | `0xFD 0x37 0x7A 0x58 0x5A 0x00` | XZ container format (LZMA2) | 848 B | `3222a582ace1...` |
-| [`example2 with lemurs.pan.zst`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.zst) | Zstandard | `0x28 0xB5 0x2F 0xFD` | Zstandard compressed frame | 879 B | `f236221b3e8a...` |
-| [`example2 with lemurs.pan.lzo`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.lzo) | LZO | None (Stream) | LZO byte stream | 948 B | `7f60cad50c72...` |
----
-
-## Hexdump Header Comparison of LZW Formats
-
-```text
-=== example2 with lemurs.pan.Z1.0 (compress 1.0, Spencer Thomas July 1984) ===
-00000000  22 10 00 10 48 a1 0c 9e  30 6d e0 b0 29 23 03 c4
-
-=== example2 with lemurs.pan.Z1.6 (compress 1.6, Joe Orost Aug 1 1984) ===
-00000000  00 00 02 11 00 00 00 00  00 50 20 10 00 11 06 1e
-
-=== example2 with lemurs.pan.Z2.0 (compress 2.0, Turkowski & Orost Aug 28 1984) ===
-00000000  1f 9d 10 22 10 00 10 48  a1 0c 9e 30 6d e0 b0 29
-
-=== example2 with lemurs.pan.Z12 (compress 4.0 -b 12, Thomas et al. 1986) ===
-00000000  1f 9d 8c 22 10 00 18 48  a1 0c 9e 30 6d e0 b0 29
-
-=== example2 with lemurs.pan.Z3.0 (compress 3.0, Woods & Orost Jan 1985) ===
-00000000  1f 9d 90 22 10 00 18 48  a1 0c 9e 30 6d e0 b0 29
-
-=== example2 with lemurs.pan.Z (ncompress, Jannesen & Frysinger) ===
-00000000  1f 9d 90 22 10 00 18 48  a1 0c 9e 30 6d e0 b0 29
-```
+| [`example2 with lemurs.pan.bz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.bz) | `bzip 0.21` | `0x42 0x5A 0x30` | Julian Seward 1996 original bzip1 format | 769 B |
+| [`example2 with lemurs.pan.2.0.F`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.2.0.F) | `freeze 2.5` | `0x1F 0x9F` | Leonid Broukhis Freeze 2.X format | 883 B |
+| [`example2 with lemurs.pan.synthetic.1.0.F`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.synthetic.1.0.F) | Synthetic (`ctoolbox`) | `0x1F 0x9E` | Freeze 1.0 format (LZSS + Dynamic Huffman with fixed Table 1) | 884 B |
+| [`example2 with lemurs.pan.synthetic.sco`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.synthetic.sco) | Synthetic (`ctoolbox`) | `0x1F 0xA0` | SCO `compress -H` (LZSS sliding window dictionary + static Huffman) | 954 B |
+| [`example2 with lemurs.pan.gz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.gz) | System `gzip` | `0x1F 0x8B` | RFC 1952 DEFLATE stream wrapped in Gzip container | 867 B |
+| [`example2 with lemurs.pan.bz2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.bz2) | System `bzip2` | `0x42 0x5A 0x68` | Bzip2 format | 879 B |
+| [`example2 with lemurs.pan.br`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.br) | System `brotli` | None (Stream) | Brotli sliding-window LZ77 + Huffman | 823 B |
+| [`example2 with lemurs.pan.xz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.xz) | System `xz` | `0xFD 0x37 0x7A 0x58 0x5A 0x00` | XZ container format (LZMA2) | 848 B |
+| [`example2 with lemurs.pan.ctblib.deflate`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.deflate) | Wrapped library (`ctblib`) | None (Stream) | RFC 1951 raw DEFLATE stream | 832 B |
+| [`example2 with lemurs.pan.ctblib.zz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.zz) | Wrapped library (`ctblib`) | `0x78 0x9C` | RFC 1950 Zlib-wrapped DEFLATE stream | 838 B |
+| [`example2 with lemurs.pan.ctblib.lz4`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lz4) | Wrapped library (`ctblib`) | `0x04 0x22 0x4D 0x18` | LZ4 Frame compression | 1,120 B |
+| [`example2 with lemurs.pan.ctblib.lzma`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzma) | Wrapped library (`ctblib`) | `0x5D 0x00 0x00` | LZMA stream format | 803 B |
+| [`example2 with lemurs.pan.ctblib.lzma2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzma2) | Wrapped library (`ctblib`) | None (Stream) | LZMA2 raw stream format | 792 B |
+| [`example2 with lemurs.pan.ctblib.lz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lz) | Wrapped library (`ctblib`) | `0x4C 0x5A 0x49 0x50` | Lzip format (LZMA-based) | 816 B |
+| [`example2 with lemurs.pan.ctblib.zst`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.zst) | Wrapped library (`ctblib`) | `0x28 0xB5 0x2F 0xFD` | Zstandard compressed frame | 879 B |
+| [`example2 with lemurs.pan.ctblib.lzo`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzo) | Wrapped library (`ctblib`) | None (Stream) | LZO byte stream | 948 B |
 
 ---
 
 ## Detailed Generation Steps
 
-Every historical fixture in this directory is generated directly from its respective source tree under [`old/unix-tools/compress`](file:///workspaces/ctoolbox/old/unix-tools/compress) and [`old/unix-tools/ncompress`](file:///workspaces/ctoolbox/old/unix-tools/ncompress) using the automated build script [`generate-compression-fixtures`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/generate-compression-fixtures).
+All historical fixtures in this directory are generated directly from their respective source trees under [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools) using the shared compiler [`build-historic-compressors`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/build-historic-compressors) and automated generator [`generate-compression-fixtures`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/generate-compression-fixtures).
 
 ### Execution Command
-To re-compile all historical tools and re-generate all fixtures, run:
+To re-compile all historical tools and re-generate all 23 fixtures, run:
 ```bash
 ./src/formats/compression/data/fixtures/generate-compression-fixtures
-# or:
-./scripts/generate-compression-fixtures
 ```
 
-### Note
-
-Some additional fixtures were generated as follows:
-
-```rust
-    #[crate::ctb_test]
-    fn generate_new_fixtures() {
-        use std::path::{Path, PathBuf};
-        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let raw_path = manifest_dir.join("data/fixtures/example2 with lemurs.pan");
-        let raw_data = std::fs::read(&raw_path)
-            .unwrap_or_else(|e| panic!("Failed to read {}: {e:?}", raw_path.display()));
-
-        let new_formats: [(CompressionFormat, PathBuf); 7] = [
-            (CompressionFormat::Lz4, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lz4")),
-            (CompressionFormat::Lzma, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzma")),
-            (CompressionFormat::Lzma2, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzma2")),
-            (CompressionFormat::Lzip, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lz")),
-            (CompressionFormat::Xz, manifest_dir.join("data/fixtures/example2 with lemurs.pan.xz")),
-            (CompressionFormat::Zstd, manifest_dir.join("data/fixtures/example2 with lemurs.pan.zst")),
-            (CompressionFormat::Lzo, manifest_dir.join("data/fixtures/example2 with lemurs.pan.lzo")),
-        ];
-
-        for (fmt, out_path) in new_formats {
-            let compressed = compress(&raw_data, fmt).expect("Failed to compress fixture");
-            std::fs::write(&out_path, &compressed)
-                .unwrap_or_else(|e| panic!("Failed to write {}: {e:?}", out_path.display()));
-        }
-    }
+### Compatibility Testing
+To run the full forward and reverse compatibility suite across historical tools, system tools, and corpora:
+```bash
+./src/formats/compression/data/fixtures/test-compressors
+# or for fast synthetic dataset testing:
+./src/formats/compression/data/fixtures/test-compressors --fast
 ```

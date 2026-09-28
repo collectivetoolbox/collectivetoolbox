@@ -1280,7 +1280,7 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_freeze2_decompress_fixture() {
-        let fixture_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan.F") {
+        let fixture_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan.2.0.F") {
             Ok(d) => d,
             Err(_) => return,
         };
@@ -1290,6 +1290,28 @@ mod tests {
         };
         let mut out = Vec::new();
         decompress_freeze2_stream(&mut fixture_data.as_slice(), &mut out).expect("Decompression failed");
+        if out != raw_data {
+            for (idx, (a, b)) in out.iter().zip(raw_data.iter()).enumerate() {
+                if a != b {
+                    panic!("Mismatch at index {idx}: got {a} ('{}'), expected {b} ('{}')", char::from(*a), char::from(*b));
+                }
+            }
+            panic!("Length mismatch: got {}, expected {}", out.len(), raw_data.len());
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_freeze1_decompress_fixture() {
+        let fixture_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan.synthetic.1.0.F") {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        let raw_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan") {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        let mut out = Vec::new();
+        decompress_freeze1_stream(&mut fixture_data.as_slice(), &mut out).expect("Decompression failed");
         if out != raw_data {
             for (idx, (a, b)) in out.iter().zip(raw_data.iter()).enumerate() {
                 if a != b {

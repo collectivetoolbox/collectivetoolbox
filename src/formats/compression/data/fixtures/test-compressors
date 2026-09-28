@@ -1,0 +1,388 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Unified compression test script: verifies bidirectional compatibility between
+# ctoolbox and external/historical compression utilities across all supported formats.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$SCRIPT_DIR"
+while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do
+    REPO_ROOT="$(dirname "$REPO_ROOT")"
+done
+
+RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
+
+FILTER="${FILTER:-}"
+DATASET_FILTER="${DATASET_FILTER:-}"
+FAST_MODE="${FAST:-${QUICK:-0}}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            echo "Usage: $0 [options] [format_or_tool_filter] [dataset_filter]"
+            echo ""
+            echo "Options:"
+            echo "  -f, --filter FILTER     Filter test format or tool (e.g. 'compact', 'compress1', 'bzip')"
+            echo "  -d, --dataset PATTERN   Filter datasets by filename substring (e.g. 'fox', 'mozilla')"
+            echo "  -q, --quick, --fast     Only run synthetic datasets (skip full corpora)"
+            echo "  -h, --help              Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 compact                  # Run only compact/uncompact tests"
+            echo "  $0 bzip                     # Run only bzip tests"
+            echo "  $0 compact mozilla          # Run compact on mozilla dataset only"
+            echo "  $0 --fast                   # Run all compressors on quick synthetic datasets"
+            exit 0
+            ;;
+        -q|--quick|--fast)
+            FAST_MODE=1
+            shift
+            ;;
+        -f|--filter)
+            FILTER="$2"
+            shift 2
+            ;;
+        -d|--dataset)
+            DATASET_FILTER="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$FILTER" ]; then
+                FILTER="$1"
+            elif [ -z "$DATASET_FILTER" ]; then
+                DATASET_FILTER="$1"
+            fi
+            shift
+            ;;
+    esac
+done
+
+# Verify required system tools exist upfront; fail immediately if missing
+for req_tool in gzip gunzip bzip2 brotli xz; do
+    if ! command -v "$req_tool" >/dev/null 2>&1; then
+        echo "Error: Required system tool '$req_tool' not found in PATH." >&2
+        exit 1
+    fi
+done
+
+# Determine ctoolbox binary
+if [ -n "${CTB_BIN:-}" ]; then
+    :
+elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
+    CTB_BIN="$REPO_ROOT/target/release/ctoolbox"
+elif [ -f "$REPO_ROOT/built/linux-x64/ctoolbox" ]; then
+    CTB_BIN="$REPO_ROOT/built/linux-x64/ctoolbox"
+# DO NOT USE DEBUG BUILD FOR THIS; IT IS VERY SLOW.
+#elif [ -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
+#    CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
+else
+    export RUSTFLAGS="-Awarnings"
+    CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+fi
+
+mkdir -p "$REPO_ROOT/built"
+TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_test_compressors_XXXXXX")"
+cleanup() {
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+# 1. Compile historical tools using shared build script
+"$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
+
+# 2. Prepare test datasets
+echo "=== Preparing Test Datasets ==="
+echo -n "The quick brown fox jumps over the lazy dog. 1234567890!" > "$TMP_DIR/in_fox.txt"
+
+python3 -c "
+with open('$TMP_DIR/in_rep.txt', 'wb') as f:
+    f.write(b'ABCDEFGH12345678\n' * 1500)
+"
+
+cp "$RAW_FILE" "$TMP_DIR/in_lemurs.pan"
+
+python3 -c "
+import random
+random.seed(42)
+with open('$TMP_DIR/in_rand.bin', 'wb') as f:
+    f.write(bytes([random.randint(0, 255) for _ in range(65536)]))
+"
+
+DATASETS=(
+    "$TMP_DIR/in_fox.txt"
+    "$TMP_DIR/in_rep.txt"
+    "$TMP_DIR/in_lemurs.pan"
+    "$TMP_DIR/in_rand.bin"
+)
+
+if [ "$FAST_MODE" -eq 0 ] && [ -d "$REPO_ROOT/old/corpora" ]; then
+    while IFS= read -r -d '' cfile; do
+        DATASETS+=("$cfile")
+    done < <(find "$REPO_ROOT/old/corpora" -type f -print0 | sort -z)
+fi
+
+echo "Total test datasets: ${#DATASETS[@]}"
+
+# 3. Invocation helpers
+ctb_compress() {
+    local fmt="$1" in_file="$2" out_file="$3"
+    $CTB_BIN compress "$fmt" "$in_file" -o "$out_file" --force
+}
+
+ctb_decompress() {
+    local fmt="$1" in_file="$2" out_file="$3"
+    $CTB_BIN decompress "$fmt" "$in_file" -o "$out_file" --force
+}
+
+tool_compress() {
+    local tool="$1" in_file="$2" out_file="$3"
+    case "$tool" in
+        compress-1.0)
+            "$TMP_DIR/compress-1.0" < "$in_file" > "$out_file"
+            ;;
+        compress-1.6)
+            "$TMP_DIR/compress-1.6" < "$in_file" > "$out_file"
+            ;;
+        compress-2.0)
+            "$TMP_DIR/compress-2.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compress-3.0)
+            "$TMP_DIR/compress-3.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compress-4.0)
+            "$TMP_DIR/compress-4.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compress-apollo)
+            "$TMP_DIR/compress-apollo" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        ncompress)
+            "$TMP_DIR/ncompress" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        compact)
+            "$TMP_DIR/compact" < "$in_file" > "$out_file"
+            ;;
+        sys3-pack)
+            local stem="sp_$RANDOM"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./sys3-pack "$stem" >/dev/null 2>&1 || true)
+            if [ -f "$TMP_DIR/$stem.z" ]; then
+                mv "$TMP_DIR/$stem.z" "$out_file"
+            fi
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        opack)
+            local stem="op_$RANDOM"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./opack "$stem" >/dev/null 2>&1 || true)
+            if [ -f "$TMP_DIR/$stem.z" ]; then
+                mv "$TMP_DIR/$stem.z" "$out_file"
+            fi
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        bzip-0.21)
+            "$TMP_DIR/bzip-0.21" < "$in_file" > "$out_file"
+            ;;
+        freeze)
+            "$TMP_DIR/freeze" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
+            ;;
+        gzip)
+            gzip -c < "$in_file" > "$out_file"
+            ;;
+        bzip2)
+            bzip2 -c < "$in_file" > "$out_file"
+            ;;
+        brotli)
+            brotli -c < "$in_file" > "$out_file"
+            ;;
+        xz)
+            xz -c < "$in_file" > "$out_file"
+            ;;
+        ctoolbox)
+            # Self-compression for formats without external CLI
+            ctb_compress "$CURRENT_FORMAT" "$in_file" "$out_file"
+            ;;
+        *)
+            echo "Unknown tool for compression: $tool" >&2
+            exit 1
+            ;;
+    esac
+}
+
+tool_decompress() {
+    local tool="$1" in_file="$2" out_file="$3"
+    case "$tool" in
+        compress-1.0)
+            "$TMP_DIR/compress-1.0" -d < "$in_file" > "$out_file"
+            ;;
+        compress-1.6)
+            "$TMP_DIR/compress-2.0" -c -d -n < "$in_file" > "$out_file"
+            ;;
+        compress-2.0)
+            "$TMP_DIR/compress-2.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-3.0)
+            "$TMP_DIR/compress-3.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-4.0)
+            "$TMP_DIR/compress-4.0" -c -d < "$in_file" > "$out_file"
+            ;;
+        compress-apollo)
+            "$TMP_DIR/compress-apollo" -c -d < "$in_file" > "$out_file"
+            ;;
+        ncompress)
+            "$TMP_DIR/ncompress" -c -d < "$in_file" > "$out_file"
+            ;;
+        uncompact)
+            "$TMP_DIR/uncompact" < "$in_file" > "$out_file"
+            ;;
+        sys3-pcat)
+            local stem="pc_$RANDOM.z"
+            cp "$in_file" "$TMP_DIR/$stem"
+            (cd "$TMP_DIR" && ./sys3-pcat "$stem" > "$out_file")
+            rm -f "$TMP_DIR/$stem"
+            ;;
+        opcat)
+            "$TMP_DIR/opcat" "$in_file" > "$out_file"
+            ;;
+        bzip-0.21)
+            "$TMP_DIR/bzip-0.21" -d < "$in_file" > "$out_file"
+            ;;
+        freeze)
+            "$TMP_DIR/freeze" -d -c < "$in_file" > "$out_file"
+            ;;
+        gunzip)
+            gunzip -c < "$in_file" > "$out_file"
+            ;;
+        bzip2)
+            bzip2 -d -c < "$in_file" > "$out_file"
+            ;;
+        brotli)
+            brotli -d -c < "$in_file" > "$out_file"
+            ;;
+        xz)
+            xz -d -c < "$in_file" > "$out_file"
+            ;;
+        ctoolbox)
+            # Self-decompression for formats without external CLI
+            ctb_decompress "$CURRENT_FORMAT" "$in_file" "$out_file"
+            ;;
+        *)
+            echo "Unknown tool for decompression: $tool" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# -----------------------------------------------------------------------------
+# 4. Declarative Unified Test Matrix for ALL 23 Formats
+# Format: format|tool_name|ext|test_forward|test_reverse|comp_tool|decomp_tool
+# -----------------------------------------------------------------------------
+TEST_MATRIX=(
+    # Historical LZW variants
+    "compress1|compress-1.0|.1.0.Z|1|1|compress-1.0|compress-1.0"
+    "compress16|compress-1.6|.1.6.Z|1|1|compress-1.6|compress-1.6"
+    "compress2|compress-2.0|.2.0.Z|1|1|compress-2.0|compress-2.0"
+    "compress2|gunzip|.2.0.Z|1|0||gunzip"
+    "compress|compress-3.0|.3.0.Z|1|1|compress-3.0|compress-3.0"
+    "compress|compress-4.0|.Z|1|1|compress-4.0|compress-4.0"
+    "compress|compress-apollo|.Z|1|1|compress-apollo|compress-apollo"
+    "compress|ncompress|.Z|1|1|ncompress|ncompress"
+    "compress|gunzip|.Z|1|0||gunzip"
+
+    # Historical Huffman & BSD
+    "pack|sys3-pack|.z|1|1|sys3-pack|sys3-pcat"
+    "pack|gunzip|.z|1|0||gunzip"
+    "old-pack|opack|.old.z|1|1|opack|opcat"
+    "compact|compact|.C|1|1|compact|uncompact"
+
+    # Historical Freeze & Bzip
+    "bzip|bzip-0.21|.bz|1|1|bzip-0.21|bzip-0.21"
+    "freeze2|freeze|.2.0.F|1|1|freeze|freeze"
+    "freeze1|freeze|.synthetic.1.0.F|1|0||freeze"
+
+    # Modern System Tools
+    "gzip|gzip|.gz|1|1|gzip|gunzip"
+    "bzip2|bzip2|.bz2|1|1|bzip2|bzip2"
+    "brotli|brotli|.br|1|1|brotli|brotli"
+    "xz|xz|.xz|1|1|xz|xz"
+
+    # In-repo synthetic / SCO
+    "sco-compress|gunzip|.synthetic.sco|1|0||gunzip"
+    "sco-compress|ctoolbox|.synthetic.sco|1|1|ctoolbox|ctoolbox"
+
+    # Library-wrapped (ctblib) self-roundtrip
+    "deflate|ctoolbox|.ctblib.deflate|1|1|ctoolbox|ctoolbox"
+    "zlib|ctoolbox|.ctblib.zz|1|1|ctoolbox|ctoolbox"
+    "lz4|ctoolbox|.ctblib.lz4|1|1|ctoolbox|ctoolbox"
+    "lzma|ctoolbox|.ctblib.lzma|1|1|ctoolbox|ctoolbox"
+    "lzma2|ctoolbox|.ctblib.lzma2|1|1|ctoolbox|ctoolbox"
+    "lzip|ctoolbox|.ctblib.lz|1|1|ctoolbox|ctoolbox"
+    "zstd|ctoolbox|.ctblib.zst|1|1|ctoolbox|ctoolbox"
+    "lzo|ctoolbox|.ctblib.lzo|1|1|ctoolbox|ctoolbox"
+)
+
+echo "=== Running Compression Compatibility Tests ==="
+
+TOTAL_TESTS=0
+
+for row in "${TEST_MATRIX[@]}"; do
+    IFS="|" read -r fmt tool ext do_fwd do_rev comp_tool decomp_tool <<< "$row"
+    CURRENT_FORMAT="$fmt"
+
+    # Filtering
+    if [ -n "$FILTER" ]; then
+        if [[ "$fmt" != *"$FILTER"* && "$tool" != *"$FILTER"* ]]; then
+            continue
+        fi
+    fi
+
+    for in_path in "${DATASETS[@]}"; do
+        dataset="$(basename "$in_path")"
+        if [ -n "$DATASET_FILTER" ]; then
+            if [[ "$dataset" != *"$DATASET_FILTER"* ]]; then
+                continue
+            fi
+        fi
+
+        # Forward Test: ctoolbox compress -> external tool decompress
+        if [ "$do_fwd" -eq 1 ]; then
+            c_file="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}${ext}"
+            d_file="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
+
+            echo "[Forward] ctoolbox compress '$fmt' -> '$decomp_tool' decompress on '$dataset'..."
+            ctb_compress "$fmt" "$in_path" "$c_file"
+            tool_decompress "$decomp_tool" "$c_file" "$d_file"
+            if ! cmp "$in_path" "$d_file"; then
+                echo "FAIL: Forward roundtrip mismatch: format '$fmt', decompressor '$decomp_tool', dataset '$dataset'" >&2
+                exit 1
+            fi
+            rm -f "$c_file" "$d_file"
+            TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        fi
+
+        # Reverse Test: external tool compress -> ctoolbox decompress
+        if [ "$do_rev" -eq 1 ]; then
+            c_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}${ext}"
+            d_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}.decompressed"
+
+            rm -f "$c_file" "$d_file"
+            echo "[Reverse] '$comp_tool' compress -> ctoolbox decompress '$fmt' on '$dataset'..."
+            tool_compress "$comp_tool" "$in_path" "$c_file"
+            if [ -f "$c_file" ] && [ -s "$c_file" ]; then
+                ctb_decompress "$fmt" "$c_file" "$d_file"
+                if ! cmp "$in_path" "$d_file"; then
+                    echo "FAIL: Reverse roundtrip mismatch: compressor '$comp_tool', ctb format '$fmt', dataset '$dataset'" >&2
+                    exit 1
+                fi
+                rm -f "$c_file" "$d_file"
+                TOTAL_TESTS=$((TOTAL_TESTS + 1))
+            else
+                echo "  (skipped: tool produced no output due to negative compression savings)"
+            fi
+        fi
+    done
+done
+
+echo ""
+echo "=== ALL $TOTAL_TESTS COMPRESSION COMPATIBILITY TESTS PASSED CLEANLY! ==="
