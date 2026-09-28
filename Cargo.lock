@@ -2914,6 +2914,7 @@ name = "ctb-formats-compression-rzip"
 version = "0.0.0"
 dependencies = [
  "bzip2",
+ "crc32fast",
  "ctb-utilities",
 ]
 

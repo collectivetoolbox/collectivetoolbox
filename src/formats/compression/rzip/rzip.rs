@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-2.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later AND GPL-2.0-or-later AND BSD-3-Clause AND LGPL-2.1-or-later
 // SPDX-License-Identifier for parts derived from rzip: GPL-2.0-or-later
+// SPDX-License-Identifier for parts derived from glibc: BSD-3-Clause AND LGPL-2.1-or-later
 /*
 This file is part of Collective Toolbox, a database and document workspace and utilities.
 Copyright (C) 2026 Collective Toolbox Developers
@@ -18,7 +19,7 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// See license note at end of this file for parts derived from rzip.
+// See license note at end of this file for parts derived from rzip and glibc (the random number generator in test_regenerate_hash_index_table is the part from glibc).
 
 //! Implementation of the `rzip` 2.1 compression format.
 //!
@@ -82,7 +83,7 @@ const LEVELS: [CompressionLevel; 10] = [
 ];
 
 /// Table generated using Mark Adler's CRC-32 polynomial algorithm (0xEDB88320).
-const CRC_TABLE: [u32; 256] = [
+pub const CRC_TABLE: [u32; 256] = [
     0x0000_0000, 0x7707_3096, 0xEE0E_612C, 0x9909_51BA, 0x076D_C419,
     0x706A_F48F, 0xE963_A535, 0x9E64_95A3, 0x0EDB_8832, 0x79DC_B8A4,
     0xE0D5_E91E, 0x97D2_D988, 0x09B6_4C2B, 0x7EB1_7CBD, 0xE7B8_2D07,
@@ -138,17 +139,14 @@ const CRC_TABLE: [u32; 256] = [
 ];
 
 /// Updates a running CRC-32 with buffer data (initial value 0, no final !).
+///
+/// Computes Mark Adler's CRC-32 using `crc32fast::Hasher` with `new_with_initial(!crc)`
+/// and inverted finalize (`!`), matching rzip 2.1's algorithm with SIMD acceleration.
 #[inline]
-fn update_crc32(mut crc: u32, buf: &[u8]) -> u32 {
-    for &b in buf {
-        let b_u32 = u32::from(b);
-        let low_crc = crc & 0xFF;
-        let idx_u32 = (b_u32 ^ low_crc) & 0xFF;
-        let idx = usize::try_from(idx_u32).unwrap_or(0);
-        let table_val = CRC_TABLE.get(idx).copied().unwrap_or(0);
-        crc = table_val ^ (crc.wrapping_shr(8));
-    }
-    crc
+fn update_crc32(crc: u32, buf: &[u8]) -> u32 {
+    let mut hasher = crc32fast::Hasher::new_with_initial(!crc);
+    hasher.update(buf);
+    !hasher.finalize()
 }
 
 /// Precomputed 256-entry hash index table matching glibc default `random()`.
@@ -1131,6 +1129,91 @@ mod tests {
     }
 
     #[crate::ctb_test]
+    fn test_regenerate_crc_table() {
+        // Regenerates Mark Adler's CRC-32 table (polynomial 0xEDB8_8320)
+        // as described in rzip-2.1/crc32.c and the PNG specification (ISO/IEC 15948:2004).
+        let mut generated_table = [0u32; 256];
+        for (i, entry) in generated_table.iter_mut().enumerate() {
+            let mut c = u32::try_from(i).unwrap_or(0);
+            for _ in 0..8 {
+                if (c & 1) != 0 {
+                    c = 0xEDB8_8320 ^ (c.wrapping_shr(1));
+                } else {
+                    c = c.wrapping_shr(1);
+                }
+            }
+            *entry = c;
+        }
+
+        assert_eq!(
+            generated_table, CRC_TABLE,
+            "Generated CRC-32 table must match CRC_TABLE"
+        );
+
+        // Also verify against crc32fast::Hasher for every single byte
+        for (i, &expected) in CRC_TABLE.iter().enumerate() {
+            let byte = u8::try_from(i).unwrap_or(0);
+            let mut hasher = crc32fast::Hasher::new_with_initial(!0);
+            hasher.update(&[byte]);
+            let computed = !hasher.finalize();
+            assert_eq!(
+                computed, expected,
+                "crc32fast single-byte hash must match table at index {i}"
+            );
+        }
+    }
+
+    #[crate::ctb_test]
+    fn test_regenerate_hash_index_table() {
+        // Regenerates HASH_INDEX matching old/unix-tools/rzip-2.1/rzip.c init_hash_indexes():
+        //   for (i = 0; i < 256; i++) {
+        //       hash_index[i] = ((random() << 16) ^ random());
+        //   }
+        // where random() is the default glibc additive lagged Fibonacci PRNG (TYPE_3, seed 1).
+        let mut state = [0u32; 31];
+        state[0] = 1;
+        for i in 1_usize..31_usize {
+            let prev = state.get(i.saturating_sub(1)).copied().unwrap_or(0);
+            let prod = u64::from(prev).wrapping_mul(16807);
+            let val = prod.wrapping_rem(0x7FFF_FFFF);
+            if let Some(slot) = state.get_mut(i) {
+                *slot = u32::try_from(val).unwrap_or(0);
+            }
+        }
+
+        let mut fptr = 3usize;
+        let mut rptr = 0usize;
+
+        let mut glibc_random = || -> u32 {
+            let s_f = state[fptr];
+            let s_r = state[rptr];
+            let val = s_f.wrapping_add(s_r);
+            state[fptr] = val;
+            let res = (val.wrapping_shr(1)) & 0x7FFF_FFFF;
+            fptr = (fptr.wrapping_add(1)).wrapping_rem(31);
+            rptr = (rptr.wrapping_add(1)).wrapping_rem(31);
+            res
+        };
+
+        // Glibc srandom() warms up the state with 10 * 31 = 310 calls to random().
+        for _ in 0..310 {
+            glibc_random();
+        }
+
+        let mut generated_hash_index = [0u32; 256];
+        for entry in &mut generated_hash_index {
+            let r1 = glibc_random();
+            let r2 = glibc_random();
+            *entry = (r1.wrapping_shl(16)) ^ r2;
+        }
+
+        assert_eq!(
+            generated_hash_index, HASH_INDEX,
+            "Generated HASH_INDEX must match precomputed HASH_INDEX"
+        );
+    }
+
+    #[crate::ctb_test]
     fn test_rzip_roundtrip_empty() {
         let compressed = compress_bytes(b"").unwrap();
         assert_eq!(compressed.len(), 24);
@@ -1162,9 +1245,9 @@ mod tests {
     #[crate::ctb_test]
     fn test_rzip_roundtrip_binary_random() {
         let mut data = vec![0u8; 10000];
-        let mut seed = 123456789_u32;
+        let mut seed = 123_456_789_u32;
         for b in &mut data {
-            seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
+            seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
             let val = u8::try_from((seed.wrapping_shr(16)) & 0xFF).unwrap();
             *b = val;
         }
@@ -1179,7 +1262,7 @@ mod tests {
         if let Some(first) = compressed.first_mut() {
             *first = b'X';
         }
-        assert!(decompress_bytes(&compressed).is_err());
+        let _ = decompress_bytes(&compressed).unwrap_err();
     }
 
     #[crate::ctb_test]
@@ -1189,7 +1272,7 @@ mod tests {
         if let Some(target) = compressed.get_mut(last) {
             *target ^= 0xFF;
         }
-        assert!(decompress_bytes(&compressed).is_err());
+        let _ = decompress_bytes(&compressed).unwrap_err();
     }
 }
 
@@ -2218,4 +2301,120 @@ GNU Lesser General Public License instead of this License. But first,
 please read <https://www.gnu.org/licenses/why-not-lgpl.html>.
 ```
 
+*/
+
+/* License details for parts derived from glibc:
+
+From stdlib/random.c:
+
+```
+/* Copyright (C) 1995-2026 Free Software Foundation, Inc.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
+/*
+ * This is derived from the Berkeley source:
+ *	@(#)random.c	5.5 (Berkeley) 7/6/88
+ * It was reworked for the GNU C Library by Roland McGrath.
+ * Rewritten to use reentrant functions by Ulrich Drepper, 1995.
+ */
+
+/*
+   Copyright (C) 1983 Regents of the University of California.
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+   4. Neither the name of the University nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   SUCH DAMAGE.*/
+```
+
+From stdlib/random_r.c:
+
+```
+/*
+   Copyright (C) 1995-2026 Free Software Foundation, Inc.
+
+   The GNU C Library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   The GNU C Library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with the GNU C Library; if not, see
+   <https://www.gnu.org/licenses/>.  */
+
+/*
+   Copyright (C) 1983 Regents of the University of California.
+   All rights reserved.
+
+   Redistribution and use in source and binary forms, with or without
+   modification, are permitted provided that the following conditions
+   are met:
+
+   1. Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+   2. Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+   4. Neither the name of the University nor the names of its contributors
+      may be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+   THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+   ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+   FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+   OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+   HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+   SUCH DAMAGE.*/
+
+/*
+ * This is derived from the Berkeley source:
+ *	@(#)random.c	5.5 (Berkeley) 7/6/88
+ * It was reworked for the GNU C Library by Roland McGrath.
+ * Rewritten to be reentrant by Ulrich Drepper, 1995
+ */
+```
 */
