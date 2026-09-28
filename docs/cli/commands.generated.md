@@ -287,7 +287,7 @@ Supported compression formats:
   zst, zstd: Zstandard compression
   lz, lzip: Lzip compression
   xz: XZ compression
-  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress: `compress` format, modern LZW block format
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
@@ -295,6 +295,9 @@ Supported compression formats:
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
+  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   lz4: LZ4
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
@@ -741,7 +744,7 @@ Supported compression formats:
   zst, zstd: Zstandard compression
   lz, lzip: Lzip compression
   xz: XZ compression
-  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format
+  compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress: `compress` format, modern LZW block format
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
   compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
@@ -749,6 +752,9 @@ Supported compression formats:
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
   compact: `compact` (McMaster Adaptive Huffman)
+  melt, freeze, freeze2: freeze: Freeze 2.X format (LZSS + Dynamic Huffman)
+  melt1, freeze1, freeze-1: freeze: Freeze 1.0 format (LZSS + Dynamic Huffman)
+  rz, rzip: rzip: rzip format (long range chunk matching + bzip2)
   lz4: LZ4
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)

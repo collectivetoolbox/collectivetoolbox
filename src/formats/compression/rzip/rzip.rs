@@ -209,10 +209,18 @@ const HASH_INDEX: [u32; 256] = [
 ];
 
 #[inline]
+#[expect(
+    clippy::expect_used,
+    reason = "u8 cast to usize is always strictly within the 256-element HASH_INDEX table"
+)]
 fn tag_index(b: u8) -> u32 {
     let idx = usize::from(b);
-    HASH_INDEX.get(idx).copied().unwrap_or(0)
+    HASH_INDEX
+        .get(idx)
+        .copied()
+        .expect("u8 is bounded by 0..=255 for 256-element HASH_INDEX")
 }
+
 
 #[inline]
 fn compute_full_tag(slice: &[u8]) -> u32 {
@@ -266,13 +274,12 @@ struct MatchFinder {
 }
 
 impl MatchFinder {
-    fn new(level: &CompressionLevel, chunk_size: usize) -> Self {
-        let entry_size = size_of::<HashEntry>();
-        let entries_per_mb = (1024_usize.checked_mul(1024).unwrap_or(1_048_576))
-            .checked_div(entry_size)
-            .unwrap_or(131_072);
-
-        let target_size = level.mb_used.checked_mul(entries_per_mb).unwrap_or(131_072);
+    fn new(level: &CompressionLevel, chunk_size: usize) -> Result<Self> {
+        const ENTRIES_PER_MB: usize = (1024 * 1024) / size_of::<HashEntry>();
+        let target_size = level
+            .mb_used
+            .checked_mul(ENTRIES_PER_MB)
+            .context("Target hashtable size calculation overflow")?;
 
         // Adapt table size for smaller chunks while honoring maximum bits
         let mut bits = 0u32;
@@ -288,10 +295,14 @@ impl MatchFinder {
         }
 
         let cap = 1_usize.wrapping_shl(bits);
-        let limit = (cap.checked_div(3).unwrap_or(0)).checked_mul(2).unwrap_or(cap);
+        let limit = cap
+            .checked_div(3)
+            .context("Non-zero divisor")?
+            .checked_mul(2)
+            .context("Hash limit calculation overflow")?;
         let initial_mask = (1_u32.wrapping_shl(level.initial_freq)).wrapping_sub(1);
 
-        Self {
+        Ok(Self {
             hash_bits: bits,
             hash_limit: limit,
             hash_count: 0,
@@ -300,7 +311,7 @@ impl MatchFinder {
             victim_round: 0,
             max_chain_len: level.max_chain_len,
             table: vec![HashEntry::default(); cap],
-        }
+        })
     }
 
     #[inline]
@@ -309,15 +320,22 @@ impl MatchFinder {
     }
 
     #[inline]
+    #[expect(
+        clippy::expect_used,
+        reason = "u32 fits in usize on supported 32-bit and 64-bit architectures"
+    )]
     fn primary_hash(&self, t: u32) -> usize {
-        let t_usize = usize::try_from(t).unwrap_or(0);
+        let t_usize = usize::try_from(t)
+            .expect("u32 fits in usize on supported 32-bit and 64-bit architectures");
         t_usize & self.mask()
     }
 
     #[inline]
     fn is_empty(&self, h: usize) -> bool {
-        let entry = self.table.get(h).copied().unwrap_or_default();
-        entry.offset == 0 && entry.tag == 0
+        match self.table.get(h) {
+            Some(entry) => entry.offset == 0 && entry.tag == 0,
+            None => true,
+        }
     }
 
     #[inline]
@@ -336,12 +354,13 @@ impl MatchFinder {
                 if self.is_empty(ptr) {
                     continue;
                 }
-                let t = self.table.get(ptr).map_or(0, |e| e.tag);
+                let Some(entry) = self.table.get_mut(ptr) else {
+                    continue;
+                };
+                let t = entry.tag;
                 if (t & better) != better {
-                    if let Some(entry) = self.table.get_mut(ptr) {
-                        entry.offset = 0;
-                        entry.tag = 0;
-                    }
+                    entry.offset = 0;
+                    entry.tag = 0;
                     self.hash_count = self.hash_count.saturating_sub(1);
                     return better;
                 }
@@ -358,8 +377,11 @@ impl MatchFinder {
         let mut round = 0usize;
 
         while !self.is_empty(h) {
-            let entry_tag = self.table.get(h).map_or(0, |e| e.tag);
-            let entry_offset = self.table.get(h).map_or(0, |e| e.offset);
+            let Some(entry) = self.table.get(h).copied() else {
+                break;
+            };
+            let entry_tag = entry.tag;
+            let entry_offset = entry.offset;
 
             if self.minimum_bitness(entry_tag) {
                 self.hash_count = self.hash_count.saturating_sub(1);
@@ -441,6 +463,10 @@ impl MatchFinder {
         }
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "u32 fits in usize on supported 32-bit and 64-bit architectures"
+    )]
     fn find_best_match(
         &self,
         t: u32,
@@ -455,16 +481,18 @@ impl MatchFinder {
         let mut h = self.primary_hash(t);
 
         while !self.is_empty(h) {
-            let entry = self.table.get(h).copied().unwrap_or_default();
-            if t == entry.tag {
-                let op = usize::try_from(entry.offset).unwrap_or(0);
-                let (mlen, rev) = Self::match_len(buf, p_idx, op, last_match);
-                if mlen >= length && mlen > 0 {
-                    length = mlen;
-                    best_offset = entry.offset.saturating_sub(
-                        u32::try_from(rev).unwrap_or(0),
-                    );
-                    best_rev = rev;
+            if let Some(entry) = self.table.get(h) {
+                if t == entry.tag {
+                    let op = usize::try_from(entry.offset)
+                        .expect("u32 fits in usize on supported 32-bit and 64-bit architectures");
+                    let (mlen, rev) = Self::match_len(buf, p_idx, op, last_match);
+                    if mlen >= length && mlen > 0 {
+                        length = mlen;
+                        // Reason for fallback: on 64-bit systems with huge chunks rev could theoretically exceed u32, saturating offset subtraction to 0
+                        let rev_u32 = u32::try_from(rev).unwrap_or(u32::MAX);
+                        best_offset = entry.offset.saturating_sub(rev_u32);
+                        best_rev = rev;
+                    }
                 }
             }
             h = (h.wrapping_add(1)) & mask;
@@ -486,11 +514,15 @@ struct ChunkStreamWriter {
 impl ChunkStreamWriter {
     fn new(bzip_level: u32) -> Result<Self> {
         let bufsize = if bzip_level == 0 {
-            100_usize.checked_mul(1024).unwrap_or(102_400)
+            100_usize
+                .checked_mul(1024)
+                .context("Buffer size calculation overflow")?
         } else {
-            (100_usize.checked_mul(1024).unwrap_or(102_400))
-                .checked_mul(usize::try_from(bzip_level).unwrap_or(1))
-                .unwrap_or(102_400)
+            100_usize
+                .checked_mul(1024)
+                .context("Buffer size calculation overflow")?
+                .checked_mul(usize::try_from(bzip_level).context("bzip level overflow")?)
+                .context("Buffer size calculation overflow")?
         };
 
         let mut writer = Self {
@@ -521,7 +553,7 @@ impl ChunkStreamWriter {
     }
 
     fn flush_buffer(&mut self, stream: usize) -> Result<()> {
-        let u_len_usize = self.stream_buf.get(stream).map_or(0, Vec::len);
+        let u_len_usize = self.stream_buf.get(stream).context("Invalid stream index")?.len();
         if u_len_usize == 0 {
             return Ok(());
         }
@@ -532,7 +564,7 @@ impl ChunkStreamWriter {
         let cur_pos_u32 = u32::try_from(cur_pos).context("Chunk offset overflow")?;
 
         // 1. Back-patch previous block header's next_head pointer
-        let prev_head = self.last_head.get(stream).copied().unwrap_or(0);
+        let prev_head = *self.last_head.get(stream).context("Invalid stream index")?;
         self.out.seek(SeekFrom::Start(
             u64::try_from(prev_head).context("Seek offset overflow")?,
         ))?;
@@ -561,15 +593,11 @@ impl ChunkStreamWriter {
             if compressed.len() < max_benefit {
                 (CTYPE_BZIP2, compressed)
             } else {
-                let raw = self.stream_buf.get_mut(stream)
-                    .map(std::mem::take)
-                    .unwrap_or_default();
+                let raw = std::mem::take(self.stream_buf.get_mut(stream).context("Invalid stream index")?);
                 (CTYPE_NONE, raw)
             }
         } else {
-            let raw = self.stream_buf.get_mut(stream)
-                .map(std::mem::take)
-                .unwrap_or_default();
+            let raw = std::mem::take(self.stream_buf.get_mut(stream).context("Invalid stream index")?);
             (CTYPE_NONE, raw)
         };
 
@@ -602,16 +630,14 @@ impl ChunkStreamWriter {
     fn write_stream(&mut self, stream: usize, data: &[u8]) -> Result<()> {
         let mut remaining = data;
         while !remaining.is_empty() {
-            let current_len = self.stream_buf.get(stream).map_or(0, Vec::len);
-            let space = self.bufsize.saturating_sub(current_len);
+            let buf = self.stream_buf.get_mut(stream).context("Invalid stream index")?;
+            let space = self.bufsize.saturating_sub(buf.len());
             let n = remaining.len().min(space);
             let slice = remaining.get(..n).context("Slice range error")?;
-            if let Some(buf) = self.stream_buf.get_mut(stream) {
-                buf.extend_from_slice(slice);
-            }
+            buf.extend_from_slice(slice);
             remaining = remaining.get(n..).context("Slice range error")?;
 
-            let updated_len = self.stream_buf.get(stream).map_or(0, Vec::len);
+            let updated_len = self.stream_buf.get(stream).context("Invalid stream index")?.len();
             if updated_len >= self.bufsize {
                 self.flush_buffer(stream)?;
             }
@@ -698,7 +724,7 @@ fn emit_match(
 /// Compresses a single chunk of input data and returns the multiplexed chunk bytes.
 fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
     let mut sw = ChunkStreamWriter::new(level.bzip_level)?;
-    let mut finder = MatchFinder::new(level, chunk.len());
+    let mut finder = MatchFinder::new(level, chunk.len())?;
     let mut tag_mask = (1_u32.wrapping_shl(level.initial_freq)).wrapping_sub(1);
 
     let mut last_match = 0usize;
@@ -714,9 +740,9 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
 
         while p < end {
             p = p.saturating_add(1);
-            let prev = chunk.get(p.saturating_sub(1)).copied().unwrap_or(0);
+            let prev = *chunk.get(p.saturating_sub(1)).context("Prev chunk byte out of bounds")?;
             let next_idx = p.saturating_add(MINIMUM_MATCH.saturating_sub(1));
-            let next = chunk.get(next_idx).copied().unwrap_or(0);
+            let next = *chunk.get(next_idx).context("Next chunk byte out of bounds")?;
             t = compute_next_tag(prev, next, t);
 
             if (t & finder.minimum_tag_mask) != finder.minimum_tag_mask {
@@ -737,7 +763,7 @@ fn compress_chunk(chunk: &[u8], level: &CompressionLevel) -> Result<Vec<u8>> {
             if mlen > current_len {
                 current_p = p.saturating_sub(rev);
                 current_len = mlen;
-                current_ofs = usize::try_from(offset).unwrap_or(0);
+                current_ofs = usize::try_from(offset).context("Offset overflow")?;
             }
 
             let reached_great = current_len >= GREAT_MATCH;
@@ -822,7 +848,10 @@ pub fn compress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> Res
     }
 
     // 2. Compress in chunks
-    let chunk_size = level_idx.checked_mul(CHUNK_MULTIPLE).unwrap_or(CHUNK_MULTIPLE).max(CHUNK_MULTIPLE);
+    let chunk_size = level_idx
+        .max(1)
+        .checked_mul(CHUNK_MULTIPLE)
+        .context("Chunk size calculation overflow")?;
     let mut offset = 0usize;
 
     while offset < total_uncompressed {
@@ -847,64 +876,64 @@ fn read_demuxed_streams<R: Read>(reader: &mut R) -> Result<[Vec<u8>; NUM_STREAMS
     let mut init_headers = [0u8; 26];
     reader.read_exact(&mut init_headers).context("Failed to read initial stream headers")?;
 
-    let s0_type = init_headers.first().copied().unwrap_or(0);
+    let s0_type = *init_headers.first().context("Stream 0 type missing")?;
     ensure!(s0_type == CTYPE_NONE, "Unexpected initial stream 0 type {s0_type}");
-    let s0_bytes = init_headers.get(9..13).context("Stream 0 offset slice")?;
-    let s0_next = u32::from_le_bytes([
-        s0_bytes.first().copied().unwrap_or(0),
-        s0_bytes.get(1).copied().unwrap_or(0),
-        s0_bytes.get(2).copied().unwrap_or(0),
-        s0_bytes.get(3).copied().unwrap_or(0),
-    ]);
+    let s0_bytes: [u8; 4] = init_headers
+        .get(9..13)
+        .context("Stream 0 offset slice")?
+        .try_into()
+        .context("Stream 0 offset length")?;
+    let s0_next = u32::from_le_bytes(s0_bytes);
 
-    let s1_type = init_headers.get(13).copied().unwrap_or(0);
+    let s1_type = *init_headers.get(13).context("Stream 1 type missing")?;
     ensure!(s1_type == CTYPE_NONE, "Unexpected initial stream 1 type {s1_type}");
-    let s1_bytes = init_headers.get(22..26).context("Stream 1 offset slice")?;
-    let s1_next = u32::from_le_bytes([
-        s1_bytes.first().copied().unwrap_or(0),
-        s1_bytes.get(1).copied().unwrap_or(0),
-        s1_bytes.get(2).copied().unwrap_or(0),
-        s1_bytes.get(3).copied().unwrap_or(0),
-    ]);
+    let s1_bytes: [u8; 4] = init_headers
+        .get(22..26)
+        .context("Stream 1 offset slice")?
+        .try_into()
+        .context("Stream 1 offset length")?;
+    let s1_next = u32::from_le_bytes(s1_bytes);
 
     let mut next_head = [s0_next, s1_next];
     let mut stream_data = [Vec::<u8>::new(), Vec::<u8>::new()];
     let mut cur_offset = 26_u32;
 
-    while next_head.first().copied().unwrap_or(0) != 0 || next_head.get(1).copied().unwrap_or(0) != 0 {
+    while next_head.iter().any(|&h| h != 0) {
         let mut block_header = [0u8; STREAM_BLOCK_HEADER_SIZE];
         reader.read_exact(&mut block_header).context("Failed to read stream block header")?;
 
-        let c_type = block_header.first().copied().unwrap_or(0);
-        let c_len = u32::from_le_bytes([
-            block_header.get(1).copied().unwrap_or(0),
-            block_header.get(2).copied().unwrap_or(0),
-            block_header.get(3).copied().unwrap_or(0),
-            block_header.get(4).copied().unwrap_or(0),
-        ]);
-        let u_len = u32::from_le_bytes([
-            block_header.get(5).copied().unwrap_or(0),
-            block_header.get(6).copied().unwrap_or(0),
-            block_header.get(7).copied().unwrap_or(0),
-            block_header.get(8).copied().unwrap_or(0),
-        ]);
-        let block_next = u32::from_le_bytes([
-            block_header.get(9).copied().unwrap_or(0),
-            block_header.get(10).copied().unwrap_or(0),
-            block_header.get(11).copied().unwrap_or(0),
-            block_header.get(12).copied().unwrap_or(0),
-        ]);
+        let c_type = *block_header.first().context("Missing block c_type")?;
+        let c_len_bytes: [u8; 4] = block_header
+            .get(1..5)
+            .context("c_len slice")?
+            .try_into()
+            .context("c_len length")?;
+        let c_len = u32::from_le_bytes(c_len_bytes);
+
+        let u_len_bytes: [u8; 4] = block_header
+            .get(5..9)
+            .context("u_len slice")?
+            .try_into()
+            .context("u_len length")?;
+        let u_len = u32::from_le_bytes(u_len_bytes);
+
+        let block_next_bytes: [u8; 4] = block_header
+            .get(9..13)
+            .context("block_next slice")?
+            .try_into()
+            .context("block_next length")?;
+        let block_next = u32::from_le_bytes(block_next_bytes);
 
         let c_len_usize = usize::try_from(c_len).context("Block length overflow")?;
         let mut payload = vec![0u8; c_len_usize];
         reader.read_exact(&mut payload).context("Failed to read block payload")?;
 
-        let stream_idx = if next_head.first().copied().unwrap_or(0) == cur_offset {
+        let stream_idx = if next_head.first().is_some_and(|&h| h == cur_offset) {
             if let Some(target) = next_head.first_mut() {
                 *target = block_next;
             }
             0
-        } else if next_head.get(1).copied().unwrap_or(0) == cur_offset {
+        } else if next_head.get(1).is_some_and(|&h| h == cur_offset) {
             if let Some(target) = next_head.get_mut(1) {
                 *target = block_next;
             }
@@ -965,7 +994,7 @@ fn replay_stream0_instructions<W: Write>(
         if s0.read_exact(&mut head_buf).is_err() {
             bail!("Unexpected end of stream 0 control data");
         }
-        let head = head_buf.first().copied().unwrap_or(0);
+        let [head] = head_buf;
 
         let mut len_buf = [0u8; 2];
         s0.read_exact(&mut len_buf).context("Failed to read record length")?;
@@ -1044,9 +1073,7 @@ fn decompress_chunk<R: Read, W: Write>(
     writer: &mut W,
     remaining_file_size: u64,
 ) -> Result<u64> {
-    let mut streams = read_demuxed_streams(reader)?;
-    let s0 = streams.first_mut().map(std::mem::take).unwrap_or_default();
-    let s1 = streams.get_mut(1).map(std::mem::take).unwrap_or_default();
+    let [s0, s1] = read_demuxed_streams(reader)?;
     replay_stream0_instructions(s0, s1, writer, remaining_file_size)
 }
 
@@ -1061,25 +1088,26 @@ pub fn decompress_stream<R: Read, W: Write>(reader: &mut R, writer: &mut W) -> R
         "Not an rzip file: magic mismatch"
     );
 
-    let major = magic_header.get(4).copied().unwrap_or(0);
-    let minor = magic_header.get(5).copied().unwrap_or(0);
+    let major = *magic_header.get(4).context("Missing major byte")?;
+    let minor = *magic_header.get(5).context("Missing minor byte")?;
     ensure!(
         major == RZIP_MAJOR && minor == RZIP_MINOR,
         "Unsupported rzip version {major}.{minor}, expected {RZIP_MAJOR}.{RZIP_MINOR}"
     );
 
-    let low_32 = u32::from_be_bytes([
-        magic_header.get(6).copied().unwrap_or(0),
-        magic_header.get(7).copied().unwrap_or(0),
-        magic_header.get(8).copied().unwrap_or(0),
-        magic_header.get(9).copied().unwrap_or(0),
-    ]);
-    let high_32 = u32::from_be_bytes([
-        magic_header.get(10).copied().unwrap_or(0),
-        magic_header.get(11).copied().unwrap_or(0),
-        magic_header.get(12).copied().unwrap_or(0),
-        magic_header.get(13).copied().unwrap_or(0),
-    ]);
+    let low_bytes: [u8; 4] = magic_header
+        .get(6..10)
+        .context("Low size bytes")?
+        .try_into()
+        .context("Low size length")?;
+    let low_32 = u32::from_be_bytes(low_bytes);
+
+    let high_bytes: [u8; 4] = magic_header
+        .get(10..14)
+        .context("High size bytes")?
+        .try_into()
+        .context("High size length")?;
+    let high_32 = u32::from_be_bytes(high_bytes);
     let expected_size = u64::from(low_32) | (u64::from(high_32).wrapping_shl(32));
 
     if expected_size == 0 {
@@ -1121,6 +1149,16 @@ pub fn decompress_bytes(input: &[u8]) -> Result<Vec<u8>> {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
