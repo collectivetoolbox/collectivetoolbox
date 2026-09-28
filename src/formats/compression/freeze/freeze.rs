@@ -1204,31 +1204,6 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_freeze2_roundtrip_empty() {
-        let input = b"";
-        let mut comp = Vec::new();
-        compress_freeze2_stream(&mut &input[..], &mut comp).expect("Empty compression failed");
-
-        let mut decomp = Vec::new();
-        decompress_freeze2_stream(&mut comp.as_slice(), &mut decomp)
-            .expect("Empty decompression failed");
-        assert_eq!(decomp, input);
-    }
-
-    #[crate::ctb_test]
-    fn test_freeze2_roundtrip_repetitive() {
-        let input = b"ABCDEFGH12345678".repeat(500);
-        let mut comp = Vec::new();
-        compress_freeze2_stream(&mut input.as_slice(), &mut comp).expect("Compression failed");
-
-        assert!(comp.len() < input.len(), "Compression must save space on repetitive data");
-
-        let mut decomp = Vec::new();
-        decompress_freeze2_stream(&mut comp.as_slice(), &mut decomp).expect("Decompression failed");
-        assert_eq!(decomp, input);
-    }
-
-    #[crate::ctb_test]
     fn test_freeze1_roundtrip_simple() {
         let input = b"Hello, Freeze 1.0! Testing backward-compatible format roundtrip.";
         let mut comp = Vec::new();
@@ -1243,31 +1218,6 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_freeze1_roundtrip_empty() {
-        let input = b"";
-        let mut comp = Vec::new();
-        compress_freeze1_stream(&mut &input[..], &mut comp).expect("Empty compression failed");
-
-        let mut decomp = Vec::new();
-        decompress_freeze1_stream(&mut comp.as_slice(), &mut decomp)
-            .expect("Empty decompression failed");
-        assert_eq!(decomp, input);
-    }
-
-    #[crate::ctb_test]
-    fn test_freeze1_roundtrip_repetitive() {
-        let input = b"ABCDEFGH12345678".repeat(500);
-        let mut comp = Vec::new();
-        compress_freeze1_stream(&mut input.as_slice(), &mut comp).expect("Compression failed");
-
-        assert!(comp.len() < input.len(), "Compression must save space on repetitive data");
-
-        let mut decomp = Vec::new();
-        decompress_freeze1_stream(&mut comp.as_slice(), &mut decomp).expect("Decompression failed");
-        assert_eq!(decomp, input);
-    }
-
-    #[crate::ctb_test]
     fn test_freeze_invalid_magic() {
         let bad = [0x00, 0x00, 0x41];
         let mut out = Vec::new();
@@ -1276,50 +1226,6 @@ mod tests {
 
         let res1 = decompress_freeze1_stream(&mut &bad[..], &mut out);
         assert!(res1.is_err());
-    }
-
-    #[crate::ctb_test]
-    fn test_freeze2_decompress_fixture() {
-        let fixture_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan.2.0.F") {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        let raw_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan") {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        let mut out = Vec::new();
-        decompress_freeze2_stream(&mut fixture_data.as_slice(), &mut out).expect("Decompression failed");
-        if out != raw_data {
-            for (idx, (a, b)) in out.iter().zip(raw_data.iter()).enumerate() {
-                if a != b {
-                    panic!("Mismatch at index {idx}: got {a} ('{}'), expected {b} ('{}')", char::from(*a), char::from(*b));
-                }
-            }
-            panic!("Length mismatch: got {}, expected {}", out.len(), raw_data.len());
-        }
-    }
-
-    #[crate::ctb_test]
-    fn test_freeze1_decompress_fixture() {
-        let fixture_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan.synthetic.1.0.F") {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        let raw_data = match std::fs::read("/workspaces/ctoolbox/src/formats/compression/data/fixtures/example2 with lemurs.pan") {
-            Ok(d) => d,
-            Err(_) => return,
-        };
-        let mut out = Vec::new();
-        decompress_freeze1_stream(&mut fixture_data.as_slice(), &mut out).expect("Decompression failed");
-        if out != raw_data {
-            for (idx, (a, b)) in out.iter().zip(raw_data.iter()).enumerate() {
-                if a != b {
-                    panic!("Mismatch at index {idx}: got {a} ('{}'), expected {b} ('{}')", char::from(*a), char::from(*b));
-                }
-            }
-            panic!("Length mismatch: got {}, expected {}", out.len(), raw_data.len());
-        }
     }
 }
 

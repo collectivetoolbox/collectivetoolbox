@@ -549,6 +549,22 @@ mod tests {
             parse_compression_format("lzo").unwrap(),
             FormatId::Lzo
         );
+        assert_eq!(
+            parse_compression_format("rzip").unwrap(),
+            FormatId::Rzip
+        );
+        assert_eq!(
+            parse_compression_format("rz").unwrap(),
+            FormatId::Rzip
+        );
+        assert_eq!(
+            parse_compression_format("freeze").unwrap(),
+            FormatId::Freeze2
+        );
+        assert_eq!(
+            parse_compression_format("freeze1").unwrap(),
+            FormatId::Freeze1
+        );
 
         assert_eq!(FormatId::Brotli.extension(), "br");
         assert_eq!(FormatId::Gzip.extension(), "gz");
@@ -561,6 +577,7 @@ mod tests {
         assert_eq!(FormatId::Compact.extension(), "C");
         assert_eq!(FormatId::Freeze2.extension(), "F");
         assert_eq!(FormatId::Freeze1.extension(), "F");
+        assert_eq!(FormatId::Rzip.extension(), "rz");
         assert_eq!(FormatId::Lz4.extension(), "lz4");
         assert_eq!(FormatId::Lzma.extension(), "lzma");
         assert_eq!(FormatId::Lzma2.extension(), "lzma");
@@ -589,6 +606,18 @@ mod tests {
                 .into_iter()
                 .find(|&fid| is_supported(fid)),
             Some(FormatId::Compact)
+        );
+        assert_eq!(
+            lookup_format_by_extension("F")
+                .into_iter()
+                .find(|&fid| is_supported(fid)),
+            Some(FormatId::Freeze2)
+        );
+        assert_eq!(
+            lookup_format_by_extension("rz")
+                .into_iter()
+                .find(|&fid| is_supported(fid)),
+            Some(FormatId::Rzip)
         );
     }
 
@@ -629,6 +658,14 @@ mod tests {
         assert_eq!(
             detect(Some(&[0xFF, 0x1F]), None),
             Some(FormatId::Compact)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9F]), None),
+            Some(FormatId::Freeze2)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9E]), None),
+            Some(FormatId::Freeze1)
         );
         assert_eq!(
             detect(Some(&[0x04, 0x22, 0x4D, 0x18]), None),
@@ -721,6 +758,9 @@ mod tests {
             FormatId::Freeze1 => {
                 &["fixtures/example2 with lemurs.pan.synthetic.1.0.F"]
             }
+            FormatId::Rzip => {
+                &["fixtures/example2 with lemurs.pan.rz"]
+            }
             FormatId::Lz4 => {
                 &["fixtures/example2 with lemurs.pan.ctblib.lz4"]
             }
@@ -794,6 +834,12 @@ mod tests {
                 data.len(),
                 decompressed.len()
             );
+            if case_name == "repetitive" {
+                assert!(
+                    compressed.len() < data.len(),
+                    "Repetitive data failed to compress for format {format:?}"
+                );
+            }
         }
 
         for &fixture_path in fixtures {

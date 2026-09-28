@@ -150,6 +150,9 @@ fn update_crc32(crc: u32, buf: &[u8]) -> u32 {
 }
 
 /// Precomputed 256-entry hash index table matching glibc default `random()`.
+/// Upstream doesn't use a const table. LLM stated that it means it's not
+/// consistent across platforms, while using a precomputed table is; which
+/// sounds plausible but I haven't verified.
 const HASH_INDEX: [u32; 256] = [
     0x771C_23C6, 0xFE5A_4873, 0xC518_5CFF, 0xF61F_58EC, 0x59C1_7CCD,
     0x08C4_D7AB, 0x0045_1EFB, 0xDCA6_E146, 0x5BAC_62C2, 0x45E5_27F8,
@@ -1217,43 +1220,11 @@ mod tests {
     fn test_rzip_roundtrip_empty() {
         let compressed = compress_bytes(b"").unwrap();
         assert_eq!(compressed.len(), 24);
+        assert_eq!(&compressed[0..4], &RZIP_MAGIC);
+        assert_eq!(compressed[4], RZIP_MAJOR);
+        assert_eq!(compressed[5], RZIP_MINOR);
         let decompressed = decompress_bytes(&compressed).unwrap();
         assert!(decompressed.is_empty());
-    }
-
-    #[crate::ctb_test]
-    fn test_rzip_roundtrip_small() {
-        let data = b"Hello, world!";
-        let compressed = compress_bytes(data).unwrap();
-        let decompressed = decompress_bytes(&compressed).unwrap();
-        assert_eq!(decompressed, data);
-    }
-
-    #[crate::ctb_test]
-    fn test_rzip_roundtrip_repetitive() {
-        let pattern = b"The quick brown fox jumps over the lazy dog. 1234567890!\n";
-        let mut data = Vec::new();
-        for _ in 0..500 {
-            data.extend_from_slice(pattern);
-        }
-        let compressed = compress_bytes(&data).unwrap();
-        assert!(compressed.len() < data.len());
-        let decompressed = decompress_bytes(&compressed).unwrap();
-        assert_eq!(decompressed, data);
-    }
-
-    #[crate::ctb_test]
-    fn test_rzip_roundtrip_binary_random() {
-        let mut data = vec![0u8; 10000];
-        let mut seed = 123_456_789_u32;
-        for b in &mut data {
-            seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
-            let val = u8::try_from((seed.wrapping_shr(16)) & 0xFF).unwrap();
-            *b = val;
-        }
-        let compressed = compress_bytes(&data).unwrap();
-        let decompressed = decompress_bytes(&compressed).unwrap();
-        assert_eq!(decompressed, data);
     }
 
     #[crate::ctb_test]
