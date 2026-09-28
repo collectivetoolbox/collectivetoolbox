@@ -148,16 +148,28 @@ import random
 random.seed(42)
 with open('$TMP_DIR/in_rand.bin', 'wb') as f:
     f.write(bytes([random.randint(0, 255) for _ in range(65536)]))
-for size in (0, 1, 2, 3, 65535, 65537):
+for size in (0, 1, 2, 3, 65535, 65536, 65537):
     with open('$TMP_DIR/in_boundary_%d.bin' % size, 'wb') as f:
         f.write(bytes(random.randrange(256) for _ in range(size)))
 "
 
+python3 -c "
+import random
+random.seed(42)
+with open('$TMP_DIR/in_rand2.bin', 'wb') as f:
+    f.write(bytes([random.randint(0, 255) for _ in range(3276800)]))
+"
+python3 -c "
+import random
+random.seed(42)
+with open('$TMP_DIR/in_rand3.bin', 'wb') as f:
+    f.write(bytes([random.randint(0, 255) for _ in range(67108864)]))
+"
 DATASETS=(
     "$TMP_DIR/in_fox.txt"
     "$TMP_DIR/in_rep.txt"
     "$TMP_DIR/in_lemurs.pan"
-    "$TMP_DIR/in_rand.bin"
+    "$TMP_DIR/in_ran"*".bin"
     "$TMP_DIR"/in_boundary_*.bin
 )
 
