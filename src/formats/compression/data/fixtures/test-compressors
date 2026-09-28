@@ -210,7 +210,9 @@ tool_compress() {
             message="$(cd "$TMP_DIR" && ./sys3-pack "$stem" 2>&1)" || status=$?
             if [[ "$status" -eq 0 ]]; then
                 mv "$TMP_DIR/$stem.z" "$out_file"
-            elif [[ "$status" -eq 1 && ( "$message" == *": no saving - file unchanged" || "$message" == *": trivial file - file unchanged" ) ]]; then
+                # Historical sys3-pack (1978) lacks length-limited Huffman tree construction
+                # and aborts when unconstrained tree depth exceeds 24 levels.
+            elif [[ "$status" -eq 1 && ( "$message" == *": no saving - file unchanged" || "$message" == *": trivial file - file unchanged" || "$message" == *": Huffman tree has too many levels - file unchanged" ) ]]; then
                 REVERSE_SKIP_REASON="$message"
             else
                 echo "sys3-pack failed ($status): $message" >&2

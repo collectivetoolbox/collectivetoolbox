@@ -2906,6 +2906,7 @@ dependencies = [
 name = "ctb-formats-compression-pack"
 version = "0.0.0"
 dependencies = [
+ "ctb-formats-compression-sco-compress",
  "ctb-utilities",
 ]
 

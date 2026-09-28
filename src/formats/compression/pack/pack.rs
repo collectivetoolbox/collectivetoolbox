@@ -51,11 +51,17 @@ and Mark Adler for the decompression code. */
 //! This supports packing small inputs that would be rejected by original pack
 //! implementations.
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::io::{Read, Write};
+
+use ctb_formats_compression_sco_compress::build_huffman_lengths;
 
 /// Magic header bytes for standard System III/V `pack` (`0x1F`, `0x1E`).
 pub const PACK_MAGIC: [u8; 2] = [0x1F, 0x1E];
@@ -345,21 +351,6 @@ impl PartialOrd for HuffmanNode {
     }
 }
 
-fn collect_depths(node: &HuffmanNode, depth: usize, depths: &mut [usize; 257]) {
-    if let Some(sym) = node.symbol {
-        if let Some(slot) = depths.get_mut(sym) {
-            *slot = depth;
-        }
-    } else {
-        if let Some(ref l) = node.left {
-            collect_depths(l, depth.saturating_add(1), depths);
-        }
-        if let Some(ref r) = node.right {
-            collect_depths(r, depth.saturating_add(1), depths);
-        }
-    }
-}
-
 /// Compresses a stream into standard System III/V `pack` format (`0x1F 0x1E`). Not an actual streaming compressor; requires sufficient memory.
 pub fn compress_pack_stream(
     reader: &mut impl Read,
@@ -376,7 +367,7 @@ pub fn compress_pack_stream(
     )?;
 
     // Frequency counting
-    let mut freqs = [0u64; 257];
+    let mut freqs = [0u32; 257];
     for &b in &input_bytes {
         let idx = usize::from(b);
         let count = freqs.get_mut(idx).context("Invalid frequency index")?;
@@ -386,51 +377,9 @@ pub fn compress_pack_stream(
     let eob_slot = freqs.get_mut(END_SYMBOL).context("Invalid EOB slot")?;
     *eob_slot = 1;
 
-    // Build min-heap for Huffman tree
-    let mut heap = BinaryHeap::new();
-    for (sym, &freq) in freqs.iter().enumerate() {
-        if freq > 0 {
-            heap.push(HuffmanNode {
-                freq,
-                symbol: Some(sym),
-                left: None,
-                right: None,
-            });
-        }
-    }
-
-    // Ensure at least 2 leaves in tree
-    if heap.len() < 2 {
-        for (dummy_sym, &freq) in freqs.iter().enumerate() {
-            if freq == 0 {
-                heap.push(HuffmanNode {
-                    freq: 1,
-                    symbol: Some(dummy_sym),
-                    left: None,
-                    right: None,
-                });
-                if heap.len() >= 2 {
-                    break;
-                }
-            }
-        }
-    }
-
-    while heap.len() > 1 {
-        let left = heap.pop().context("Heap underflow")?;
-        let right = heap.pop().context("Heap underflow")?;
-        let parent_freq = left.freq.saturating_add(right.freq);
-        heap.push(HuffmanNode {
-            freq: parent_freq,
-            symbol: None,
-            left: Some(Box::new(left)),
-            right: Some(Box::new(right)),
-        });
-    }
-
-    let root = heap.pop().context("Huffman tree root missing")?;
-    let mut depths = [0usize; 257];
-    collect_depths(&root, 0, &mut depths);
+    let mut bit_lengths = [0u8; 257];
+    build_huffman_lengths(&freqs, u8::try_from(MAX_BITLEN)?, &mut bit_lengths)?;
+    let mut depths = bit_lengths.map(usize::from);
 
     #[expect(
         clippy::expect_used,
@@ -442,12 +391,6 @@ pub fn compress_pack_stream(
         .max()
         .expect("depths is a non-empty 257-element array")
         .max(1);
-    if max_len > MAX_BITLEN {
-        bail!(
-            "Generated Huffman code length {max_len} exceeds maximum allowed depth {MAX_BITLEN}"
-        );
-    }
-
     // Ensure END_SYMBOL (256) is at maximum depth (max_len)
     if let Some(end_depth) = depths.get_mut(END_SYMBOL) {
         if *end_depth < max_len {
@@ -585,6 +528,37 @@ pub fn compress_pack_stream(
     bw.flush_bits()?;
 
     Ok(u64::try_from(orig_size)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[crate::ctb_test]
+    fn package_merge_limits_pack_tree_to_24_levels() -> Result<()> {
+        let mut input = Vec::new();
+        let mut previous = 1usize;
+        let mut current = 1usize;
+        for symbol in 0u8..26 {
+            input.extend(std::iter::repeat_n(symbol, previous));
+            let next = previous.saturating_add(current);
+            previous = current;
+            current = next;
+        }
+
+        let mut packed = Vec::new();
+        compress_pack_stream(&mut input.as_slice(), &mut packed)?;
+        let max_depth = packed
+            .get(6)
+            .copied()
+            .context("Packed stream is missing its maximum depth")?;
+        assert!((1..=24).contains(&max_depth));
+
+        let mut unpacked = Vec::new();
+        decompress_pack_stream(&mut packed.as_slice(), &mut unpacked)?;
+        assert_eq!(unpacked, input);
+        Ok(())
+    }
 }
 
 // -----------------------------------------------------------------------------

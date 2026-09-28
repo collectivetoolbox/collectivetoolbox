@@ -7,6 +7,7 @@ path="pack.rs"
 crate-type = ["lib"]
 
 [dependencies]
+ctb-formats-compression-sco-compress = { path = "../sco_compress" }
 ctb-utilities = { path = "../../../utilities" }
 
 [lints]

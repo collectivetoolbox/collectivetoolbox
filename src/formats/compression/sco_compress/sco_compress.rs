@@ -33,7 +33,11 @@ and Mark Adler for the decompression code. */
 //! Specification reference: `data/docs/compress-sco.md`
 //! Reference decompressor: `old/unix-tools/gzip-1.14/gzip-1.14/unlzh.c`
 
-#[allow(unused_imports, clippy::wildcard_imports, reason = "Standard workspace crate prelude")]
+#[allow(
+    unused_imports,
+    clippy::wildcard_imports,
+    reason = "Standard workspace crate prelude"
+)]
 pub(crate) use ctb_utilities::*;
 use std::io::{Read, Write};
 
@@ -787,7 +791,8 @@ struct PackageItem {
     leaves: Vec<usize>,
 }
 
-fn build_huffman_lengths(
+/// Builds optimal length-limited Huffman code lengths with Package-Merge.
+pub fn build_huffman_lengths(
     freqs: &[u32],
     max_bits: u8,
     bitlen: &mut [u8],
