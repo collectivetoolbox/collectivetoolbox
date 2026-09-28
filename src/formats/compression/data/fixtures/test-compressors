@@ -20,7 +20,7 @@ fi
 FILTER="${FILTER:-}"
 DATASET_FILTER="${DATASET_FILTER:-}"
 FAST_MODE="${FAST:-${QUICK:-0}}"
-JOBS="${JOBS:-4}"
+JOBS="${JOBS:-12}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -626,7 +626,7 @@ for case_id in range(1, case_count + 1):
         if outcome == "PASS" and raw != "-" and int(raw) > 0 and compressed != "-":
             ratio = f"{int(compressed) / int(raw):.4f}"
         values = (outcome, direction, fmt, tool, dataset, raw, compressed, ratio, elapsed, reason)
-        print(" | ".join(value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") for value in values))
+        print(",".join(value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") for value in values))
     if status and not reported_failure:
         print(f"FAIL | Case {case_id}: worker exited with status {status}; see case log")
     elif reported_failure and not status:
