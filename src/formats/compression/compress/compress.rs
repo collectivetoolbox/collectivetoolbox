@@ -298,6 +298,9 @@ pub fn compress_lzw_stream(
         .checked_shl(n_bits)
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
     .saturating_sub(1);
+    if format == FormatId::CompressLzw16 {
+      maxcode = FIRST_FREE_NONBLOCK;
+    }
 
     let mut total_in = 0u64;
     let mut ent: Option<u32> = None;
@@ -475,6 +478,9 @@ pub fn decompress_lzw_stream(
         .checked_shl(n_bits)
         .ok_or_else(|| anyhow::anyhow!("n_bits {n_bits} exceeds 31 bits"))?)
     .saturating_sub(1);
+    if format == FormatId::CompressLzw16 {
+      maxcode = FIRST_FREE_NONBLOCK;
+    }
 
     let mut oldcode: i32 = -1;
     let mut finchar: u8 = 0;
@@ -611,6 +617,26 @@ pub fn decompress_lzw_stream(
 )]
 mod tests {
     use super::*;
+
+  #[crate::ctb_test]
+  fn test_compress16_initial_width_transition() -> Result<()> {
+    let input = b"ABC";
+    let mut compressed = Vec::new();
+    compress_lzw_stream(
+      &mut input.as_slice(),
+      &mut compressed,
+      FormatId::CompressLzw16,
+    )?;
+    assert_eq!(compressed, [0x41, 0x84, 0, 0, 0, 0, 0, 0, 0, 0x43, 0]);
+    let mut decompressed = Vec::new();
+    decompress_lzw_stream(
+      &mut compressed.as_slice(),
+      &mut decompressed,
+      FormatId::CompressLzw16,
+    )?;
+    assert_eq!(decompressed, input);
+    Ok(())
+  }
 
     #[crate::ctb_test]
     fn test_compress_lzw_roundtrip() {

@@ -281,11 +281,11 @@ The `compress` bitstream format underwent critical structural evolution between 
 | **`BLOCK_MODE` Flag** | N/A (Unblocked) | N/A (Unblocked) | `0` (Unblocked; bit 7 of Byte 2 = `0`) | `1` by default (bit 7 of Byte 2 = `0x80`); `0` if `-C` |
 | **Code 256 Usage** | First dynamic dictionary code (`free_ent = 256`) | First dynamic dictionary code (`free_ent = 256`) | First dynamic dictionary code (`free_ent = 256`) | Reserved **`CLEAR` code** (flushes dictionary in block mode) |
 | **First Dynamic Code** | `256` | `256` | `256` | **`257`** (`free_ent = 257`) |
-| **`maxcode` Expression** | `1 << n_bits - 1` *(buggy)* | `1 << n_bits - 1` *(buggy)* | `((1 << n_bits) - 1)` *(corrected)* | `((1 << n_bits) - 1)` |
-| **9-Bit Code Capacity** | 1 dynamic code (entry 256 only) | 1 dynamic code (entry 256 only) | 256 dynamic codes (entries 256–511) | 255 dynamic codes (entries 257–511) |
-| **9-to-10 Bit Transition** | Triggered at `free_ent > 256` | Triggered at `free_ent > 256` | Triggered at `free_ent > 511` | Triggered at `free_ent > 511` |
-| **Bit Transition Flush** | Flushes full `n_bits`-byte buffer | Flushes full `n_bits`-byte buffer | Bitstream realigned to byte boundary | Bitstream realigned to byte boundary |
-| **Bit Packing Engine** | VAX assembly (`insv` / `extzv`) | Portable C (`insert_bit` / `fetch`) | Portable C bit manipulation | Portable C bit manipulation |
+| **Initial `maxcode`** | `511` in the archived source | `1 << INIT_BITS - 1` = `256` | `((1 << n_bits) - 1)` | `((1 << n_bits) - 1)` |
+| **9-Bit Code Capacity** | 256 dynamic codes (entries 256–511) | 1 dynamic code (entry 256 only) | 256 dynamic codes (entries 256–511) | 255 dynamic codes (entries 257–511) |
+| **9-to-10 Bit Transition** | Triggered at `free_ent > 511` | Triggered at `free_ent > 256` | Triggered at `free_ent > 511` | Triggered at `free_ent > 511` |
+| **Bit Transition Flush** | Flushes full `n_bits`-byte buffer | Flushes full `n_bits`-byte buffer | Flushes full `n_bits`-byte buffer | Flushes full `n_bits`-byte buffer |
+| **Bit Packing Engine** | VAX assembly (`insv` / `extzv`) | VAX assembly or host-word C (`insert_bit` / `fetch`) | Portable C bit manipulation | Portable C bit manipulation |
 | **String Table Lookup** | Array of structs + linked list | 4 separate arrays + sorted chain | 4 separate arrays + sorted chain | Open-addressing double hashing (`htab` / `codetab`) |
 | **CLI & File Handling** | Filter only (`stdin` $\to$ `stdout`) | Shell scripts (`Pack`/`Unpack`/`Pcat`) | In-binary replacement, `.Z` suffix | In-binary replacement, `-q`, `zmore` filter |
 
@@ -331,34 +331,26 @@ The `compress` bitstream format underwent critical structural evolution between 
 
 ---
 
-#### 2.2.3 Bit Width Increment Threshold (`maxcode`) & 1.x vs 2.0 Incompatibility
+#### 2.2.3 Bit Width Increment Threshold in the Archived Sources
 
-A major binary format incompatibility exists between `compress 1.x` and `compress 2.0+` due to an operator precedence bug in the original C source code:
+The checked-in 1.0 source initializes `maxcode` to the literal `511`. The 1.6
+source instead initializes it with `1 << INIT_BITS - 1`, which C evaluates as
+`1 << (9 - 1)`, or `256`. Its first width transition therefore happens after
+the first dictionary entry is added. Both sources use `(1 << n_bits) - 1`
+for subsequent transitions: the unusual threshold is initial-only, not a
+rule that applies at every width.
 
-* **The `compress 1.0` / `1.6` Bug**:
-  In `compress 1.0` and `1.6`, `maxcode` (the entry count threshold that triggers bumping code width $N \to N+1$) was written as:
-  ```c
-  long int maxcode = 1 << n_bits - 1;
-  ```
-  Because the C operator precedence of subtraction (`-`) is higher than bitwise left-shift (`<<`), the compiler evaluated this expression as:
-  $$\text{maxcode} = 1 \ll (n\_bits - 1)$$
-  * At initial width $n\_bits = 9$: $\text{maxcode} = 1 \ll 8 = 256$.
-  * When the first dynamic entry (`free_ent = 256`) was added to the table, `free_ent` became 257. The check `free_ent > maxcode` ($257 > 256$) evaluated to **true immediately** after generating just **one** dynamic entry at 9 bits.
-  * Consequently, `compress 1.0` and `1.6` switched from 9-bit codes to 10-bit codes at code 257, from 10-bit to 11-bit at code 513 ($\text{maxcode} = 1 \ll 9 = 512$), from 11-bit to 12-bit at code 1025, and so on.
+This is observable stream behavior, even though it originates in a precedence
+bug. Fixture builders must preserve it. `compress16` models the 1.6 VAX layout
+with this early transition; `compress1` models the archived 1.0 source. A
+standard 2.0 decoder with `-n` is not an oracle for the early-transition 1.6
+stream. The fixtures are verified with their respective historical decoders.
 
-* **The `compress 2.0+` Correction**:
-  In `compress 2.0`, Joe Orost corrected the macro definition to:
-  ```c
-  #define MAXCODE(n_bits) ((1 << (n_bits)) - 1)
-  ```
-  This evaluated $\text{maxcode}$ correctly as $2^{n\_bits} - 1$:
-  * At initial width $n\_bits = 9$: $\text{maxcode} = 2^9 - 1 = 511$.
-  * Codes 256 through 511 (256 dynamic entries) are all emitted as 9-bit codes.
-  * The transition to 10 bits occurs when `free_ent` exceeds 511 (at code 512).
-  * Transition to 11 bits occurs at code 1024 ($\text{maxcode} = 1023$), 12 bits at code 2048 ($\text{maxcode} = 2047$), etc.
-
-* **Binary Incompatibility**:
-  Because code bit-widths transition at completely different stream indices (code 257 in 1.x vs code 512 in 2.0+), a stream generated by `compress 1.0` or `1.6` cannot be decompressed by standard `compress 2.0+` decoders (and vice versa). Compiling `compress 2.0` with `-DCOMPATIBLE` restored the buggy 1.x `maxcode` logic to read and write legacy 1.x files.
+The 1.6 non-VAX C branch packs fields from the high bits of native integer
+words, then writes partial words with `fwrite`. It does not round-trip even
+`ABC` on the reviewed little-endian LP64 host. The fixture builder ports both
+VAX bit operations to byte-oriented C instead of treating this broken
+host-word output as a portable format. It does not change the threshold.
 
 ---
 
@@ -368,8 +360,10 @@ A major binary format incompatibility exists between `compress 1.x` and `compres
   * In `compress 1.0`, code packing relied on VAX assembly inline instructions (`insv` to insert bitfields into a `buf[BITS]` array). `compress 1.6` added C helper functions (`insert_bit` and `fetch`).
   * When `free_ent > maxcode` triggered a bit-width increase ($n\_bits \to n\_bits + 1$), if there were remaining bits in the output buffer (`offset > 0`), `compress 1.0` and `1.6` forcibly wrote out the **entire buffer** of $n\_bits$ (old width) bytes (`fwrite(buf, 1, n_bits, stdout)`), reset `offset = 0`, and then incremented $n\_bits$.
 
-* **`compress 3.0+` Byte Realignment**:
-  * In `compress 3.0+`, whenever code bit-width increases or a `CLEAR` code (`256`) is emitted, the bitstream is realigned to the next full byte boundary (zero-padding any unwritten fractional bits in the current byte accumulator).
+* **`compress 3.0+` Block Realignment**:
+  * A width increase or `CLEAR` code flushes the current group of up to eight
+    codes to its full old-width byte count, not merely the next byte boundary.
+    Decoders discard the unused tail of that group before changing width.
 
 ---
 

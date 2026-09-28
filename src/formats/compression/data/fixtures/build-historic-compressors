@@ -13,6 +13,20 @@ done
 
 DEST_DIR="${1:-$REPO_ROOT/built/bin_historic_tools}"
 mkdir -p "$DEST_DIR"
+DEST_DIR="$(cd "$DEST_DIR" && pwd)"
+
+patch_source() {
+    python3 -c '
+import sys
+
+def replace(source, old, new):
+    if old not in source:
+        raise ValueError(f"Historical source patch no longer matches: {old!r}")
+    return source.replace(old, new)
+
+exec(compile(sys.stdin.read(), "<historical-source-patch>", "exec"))
+' "$@"
+}
 
 WORK_DIR="$(mktemp -d "$DEST_DIR/build_historic_tools_XXXXXX")"
 cleanup_work() {
@@ -26,7 +40,7 @@ echo "=== Preparing and Compiling Historical Tools in $DEST_DIR ==="
 # 1. compress 1.0 (July 1984, Spencer W. Thomas)
 # -----------------------------------------------------------------------------
 TMP_C1="$WORK_DIR/compress-1.0.c"
-python3 - "$REPO_ROOT" "$TMP_C1" << 'EOF'
+patch_source "$REPO_ROOT" "$TMP_C1" << 'EOF'
 import sys, os
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/compress/compress-1.0/compress.c")
@@ -42,7 +56,7 @@ static unsigned char rmask[9] = {0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f,
 vax_insv = """#ifndef vax\nYou lose\n#endif\nasm( "insv 4(ap),r11,r10,(r9)" );"""
 c_insv = """bp += (r_off >> 3); r_off &= 7; *bp = (*bp & rmask[r_off]) | ((code << r_off) & lmask[r_off]); bp++; bits -= (8 - r_off); code >>= 8 - r_off; if ( bits >= 8 ) { *bp = code; bp++; bits -= 8; code >>= 8; } if ( bits > 0 ) *bp = code;"""
 vax_extv = """#ifndef vax\nYou lose\n#endif\nasm( "extzv r10,r9,(r8),r11" );"""
-c_extv = """bp += (r_off >> 3); code = ((unsigned char)bp[0] | ((unsigned char)bp[1] << 8) | ((unsigned char)bp[2] << 16)) >> (r_off & 7); code &= (1 << n_bits) - 1;"""
+c_extv = """{ int bit; code = 0; for (bit = 0; bit < n_bits; bit++) { int pos = r_off + bit; code |= (long)((((unsigned char *)bp)[pos / 8] >> (pos % 8)) & 1) << bit; } }"""
 
 getopt_code = """
 int ch_opt;
@@ -51,11 +65,11 @@ while ((ch_opt = getopt(argc, argv, "d")) != -1) {
 }
 """
 
-code = code.replace("static char buf[BITS];", masks)
-code = code.replace(vax_insv, c_insv)
-code = code.replace(vax_extv, c_extv)
-code = code.replace("compress( infile );\nelse if", "{ compress( infile ); exit(0); }\nelse if")
-code = code.replace("#endif\n\nif ( maxbits > BITS )", getopt_code + "\n#endif\n\nif ( maxbits > BITS )")
+code = replace(code, "static char buf[BITS];", masks)
+code = replace(code, vax_insv, c_insv)
+code = replace(code, vax_extv, c_extv)
+code = replace(code, "compress( infile );\nelse if", "{ compress( infile ); exit(0); }\nelse if")
+code = replace(code, "#endif\n\nif ( maxbits > BITS )", getopt_code + "\n#endif\n\nif ( maxbits > BITS )")
 
 with open(out_file, "w") as f:
     f.write(code)
@@ -67,7 +81,7 @@ gcc -w -std=gnu89 -fcommon -DNO_SCANARGS=1 -O2 -o "$DEST_DIR/compress-1.0" "$TMP
 # 2. compress 1.6 (August 1984, Joe Orost)
 # -----------------------------------------------------------------------------
 TMP_C16="$WORK_DIR/compress-1.6.c"
-python3 - "$REPO_ROOT" "$TMP_C16" << 'EOF'
+patch_source "$REPO_ROOT" "$TMP_C16" << 'EOF'
 import sys, os
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/compress/compress-1.6/compress.c")
@@ -97,16 +111,22 @@ if ( bits >= 8 ) {
 if ( bits > 0 ) *bp = code;
 """
 
-code = code.replace("compress( infile );\nelse", "{ compress( infile ); exit(0); }\nelse")
-# Fix operator precedence bug in original compress 1.6 where 1 << INIT_BITS - 1 was 1 << (9-1) = 256 instead of 511
-code = code.replace("long int maxcode = 1 << INIT_BITS - 1;", "long int maxcode = (1 << INIT_BITS) - 1;")
+code = replace(code, "compress( infile );\nelse", "{ compress( infile ); exit(0); }\nelse")
 # Replace non-portable int buffer and insert_bit with standard byte buffer and portable bit insertion
-code = code.replace("""#if vax
+code = replace(code, """#if vax
 static char buf[BITS];
 #else
 static int buf[(BITS+sizeof(int)-sizeof(char))/sizeof(int)];
 #endif""", masks)
-code = code.replace("insert_bit(code);", c_insv)
+code = replace(code, "insert_bit(code);", c_insv)
+code = replace(code, "code = fetch();", """{
+int bit;
+code = 0;
+for (bit = 0; bit < n_bits; bit++) {
+    int pos = offset + bit;
+    code |= (long)((((unsigned char *)buf)[pos / 8] >> (pos % 8)) & 1) << bit;
+}
+}""")
 
 with open(out_file, "w") as f:
     f.write(code)
@@ -128,7 +148,7 @@ gcc -w -std=gnu89 -O2 -o "$DEST_DIR/ncompress" "$REPO_ROOT/old/unix-tools/ncompr
 # -----------------------------------------------------------------------------
 TMP_COMPACT_DIR="$WORK_DIR/compact_src"
 mkdir -p "$TMP_COMPACT_DIR"
-python3 - "$REPO_ROOT" "$TMP_COMPACT_DIR" << 'EOF'
+patch_source "$REPO_ROOT" "$TMP_COMPACT_DIR" << 'EOF'
 import sys, os
 repo_root, out_dir = sys.argv[1], sys.argv[2]
 hdr_src = os.path.join(repo_root, "old/unix-tools/compact-uncompact/4.1cBSD-compact.h")
@@ -141,25 +161,23 @@ with open(cmp_src, "r") as f: cmp_code = f.read()
 with open(unc_src, "r") as f: unc_code = f.read()
 with open(tree_src, "r") as f: tree_code = f.read()
 
-hdr_code = hdr_code.replace("int ch;", "long ch;").replace("typedef int longint;", "typedef long longint;")
-hdr_code = hdr_code.replace("dir [514]", "dir [1024]")
-cmp_code = cmp_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
-cmp_code = cmp_code.replace("dir [513] . next = NULL;", "dir [1023] . next = NULL;").replace("(j = 513)", "(j = 1023)")
-unc_code = unc_code.replace('#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
-unc_code = unc_code.replace("dir [513] . next = NULL;", "dir [1023] . next = NULL;").replace("(j = 513)", "(j = 1023)")
-unc_code = unc_code.replace("if (d . integ == EF) break;", "if (d . integ == EF) { if (i >= argc) { fclose(cfp); fclose(uncfp); exit(0); } goto closeboth; }")
+hdr_code = replace(hdr_code, "int ch;", "long ch;")
+hdr_code = replace(hdr_code, "typedef int longint;", "typedef long longint;")
+hdr_code = replace(hdr_code, "dir [514]", "dir [1024]")
+cmp_code = replace(cmp_code, '#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
+cmp_code = replace(cmp_code, "dir [513] . next = NULL;", "dir [1023] . next = NULL;")
+cmp_code = replace(cmp_code, "(j = 513)", "(j = 1023)")
+unc_code = replace(unc_code, '#include "compact.h"', '#include "compact.h"\n#include <unistd.h>')
+unc_code = replace(unc_code, "dir [513] . next = NULL;", "dir [1023] . next = NULL;")
+unc_code = replace(unc_code, "(j = 513)", "(j = 1023)")
+unc_code = replace(unc_code, "if (d . integ == EF) break;", "if (d . integ == EF) { if (i >= argc) { fclose(cfp); fclose(uncfp); exit(0); } goto closeboth; }")
 
-old_copy = """			q . ch = t -> sp [ts] . ch;	/*  {					*/
-			s . ch = r -> sp [rs] . ch;	/*  {					*/
-			t -> sp [ts] . ch = s . ch;	/*  { change code when Cory gets v. 7	*/
-			r -> sp [rs] . ch = q . ch;	/*  {					*/"""
-new_copy = """			q = t -> sp [ts];
-			s = r -> sp [rs];
-			t -> sp [ts] = s;
-			r -> sp [rs] = q;"""
-tree_code = tree_code.replace(old_copy, new_copy)
-tree_code = tree_code.replace("exch (t, ts, q . ch, r, rs);", "exch (t, ts, q, r, rs);")
-tree_code = tree_code.replace("exch (r, rs, s . ch, t, ts);", "exch (r, rs, s, t, ts);")
+tree_code = replace(tree_code, "q . ch = t -> sp [ts] . ch;", "q = t -> sp [ts];")
+tree_code = replace(tree_code, "s . ch = r -> sp [rs] . ch;", "s = r -> sp [rs];")
+tree_code = replace(tree_code, "t -> sp [ts] . ch = s . ch;", "t -> sp [ts] = s;")
+tree_code = replace(tree_code, "r -> sp [rs] . ch = q . ch;", "r -> sp [rs] = q;")
+tree_code = replace(tree_code, "exch (t, ts, q . ch, r, rs);", "exch (t, ts, q, r, rs);")
+tree_code = replace(tree_code, "exch (r, rs, s . ch, t, ts);", "exch (r, rs, s, t, ts);")
 
 with open(os.path.join(out_dir, "compact.h"), "w") as f: f.write(hdr_code)
 with open(os.path.join(out_dir, "compact.c"), "w") as f: f.write(cmp_code)
@@ -174,13 +192,13 @@ gcc -w -std=gnu89 -fcommon -O2 -I "$TMP_COMPACT_DIR" -o "$DEST_DIR/uncompact" "$
 # 5. sys3-pack, sys3-pcat, opack, opcat (AT&T System III / PDP-11 Zucker 1977)
 # -----------------------------------------------------------------------------
 TMP_OPCAT_C="$WORK_DIR/opcat.c"
-python3 - "$REPO_ROOT" "$TMP_OPCAT_C" << 'EOF'
+patch_source "$REPO_ROOT" "$TMP_OPCAT_C" << 'EOF'
 import sys, os
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/pack-unpack-pcat/pts-opack-port/pcat.c")
 with open(src_file, "r") as f: code = f.read()
-code = code.replace("*a++rgv", "*++argv")
-code = code.replace("short keysize, hi, lo;", "unsigned short keysize, hi, lo;")
+code = replace(code, "*a++rgv", "*++argv")
+code = replace(code, "short keysize, hi, lo;", "unsigned short keysize, hi, lo;")
 with open(out_file, "w") as f: f.write(code)
 EOF
 
@@ -193,15 +211,15 @@ gcc -w -O2 -o "$DEST_DIR/opcat" "$TMP_OPCAT_C"
 # 6. bzip 0.21 (August 1996, Julian Seward)
 # -----------------------------------------------------------------------------
 TMP_BZIP_C="$WORK_DIR/bzip-0.21.c"
-python3 - "$REPO_ROOT" "$TMP_BZIP_C" << 'EOF'
+patch_source "$REPO_ROOT" "$TMP_BZIP_C" << 'EOF'
 import sys, os
 repo_root, out_file = sys.argv[1], sys.argv[2]
 src_file = os.path.join(repo_root, "old/unix-tools/bzip-0.21-ami/bzip.c")
 with open(src_file, "r") as f:
     code = f.read()
-code = code.replace("#define MY_S_IFREG  S_IFREG", "#define MY_S_IFREG(x)  S_ISREG(x)")
-code = code.replace("void mySignalCatcher ( IntNative *n )", "void mySignalCatcher ( IntNative n )")
-code = code.replace("void mySIGSEGVorSIGBUScatcher ( IntNative *n )", "void mySIGSEGVorSIGBUScatcher ( IntNative n )")
+code = replace(code, "#define MY_S_IFREG  S_IFREG", "#define MY_S_IFREG(x)  S_ISREG(x)")
+code = replace(code, "void mySignalCatcher ( IntNative *n )", "void mySignalCatcher ( IntNative n )")
+code = replace(code, "void mySIGSEGVorSIGBUScatcher ( IntNative *n )", "void mySIGSEGVorSIGBUScatcher ( IntNative n )")
 with open(out_file, "w") as f:
     f.write(code)
 EOF

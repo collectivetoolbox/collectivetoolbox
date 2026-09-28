@@ -1,56 +1,145 @@
 # Compression Data Fixtures
 
-This directory contains uncompressed and compressed test fixture files generated from [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) using the historical Unix compression utilities in [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools), modern system encoders, and `ctoolbox` implementations.
+The 34 compressed fixtures in this directory expand to the 2,086-byte Panorama
+database [example2 with lemurs.pan](example2%20with%20lemurs.pan).
+Historical sources live in [old/unix-tools](../../../../../old/unix-tools).
+Names distinguish historical versions, synthetic in-repository encoders
+(`synthetic`), wrapped Rust libraries (`ctblib`), and independent encoders
+(`external`). ZPAQ is intentionally absent.
 
----
+## Fixture Inventory
 
-## Fixtures Overview
+Each suffix below follows `example2 with lemurs.pan`.
 
-| Filename | Source / Utility Variant | Magic Header Bytes | Algorithm & Features | Size |
-| :--- | :--- | :---: | :--- | :---: |
-| [`example2 with lemurs.pan`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan) | Raw Input Data | None | Raw uncompressed PAN image asset | 2,086 B |
-| [`example2 with lemurs.pan.1.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.1.0.Z) | `compress 1.0` (Headerless) | None (Headerless) | Spencer W. Thomas (July 4 1984) original headerless LZW | 953 B |
-| [`example2 with lemurs.pan.1.6.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.1.6.Z) | `compress 1.6` (Sorted Chain) | None (Headerless) | Joe Orost (August 1 1984) sorted-chain headerless LZW | 990 B |
-| [`example2 with lemurs.pan.2.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.2.0.Z) | `compress 2.0` (Non-Block) | `0x1F 0x9D 0x10` | Turkowski & Orost (Aug 28 1984) LZW without block mode | 993 B |
-| [`example2 with lemurs.pan.3.0.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.3.0.Z) | `compress 3.0` (Block Mode) | `0x1F 0x9D 0x90` | Woods & Orost (Jan 1985) LZW with `BLOCK_MODE` bit `0x80` & `CLEAR` code | 953 B |
-| [`example2 with lemurs.pan.12.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.12.Z) | `compress 4.0` (`-b 12`) | `0x1F 0x9D 0x8C` | 1986 LZW with maxbits restricted to 12 (`0x80 \| 12`) | 953 B |
-| [`example2 with lemurs.pan.Z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.Z) | `ncompress` Standard LZW | `0x1F 0x9D 0x90` | Modern ncompress 16-bit block LZW stream | 953 B |
-| [`example2 with lemurs.pan.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.z) | System III/V `pack` | `0x1F 0x1E` | Canonical Huffman coding with level leaf table | 1,057 B |
-| [`example2 with lemurs.pan.old.z`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.old.z) | Early Unix `pack` | `0x1F 0x1F` | Steve Zucker ~1977 PDP-11 binary tree dictionary | 1,404 B |
-| [`example2 with lemurs.pan.C`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.C) | `compact` (Adaptive Huffman) | `0x1F 0xFF` / `0xFF 0x1F` | McMaster's 1979 Online Adaptive Huffman Coder | 998 B |
-| [`example2 with lemurs.pan.bz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.bz) | `bzip 0.21` | `0x42 0x5A 0x30` | Julian Seward 1996 original bzip1 format | 769 B |
-| [`example2 with lemurs.pan.2.0.F`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.2.0.F) | `freeze 2.5` | `0x1F 0x9F` | Leonid Broukhis Freeze 2.X format | 883 B |
-| [`example2 with lemurs.pan.synthetic.1.0.F`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.synthetic.1.0.F) | Synthetic (`ctoolbox`) | `0x1F 0x9E` | Freeze 1.0 format (LZSS + Dynamic Huffman with fixed Table 1) | 884 B |
-| [`example2 with lemurs.pan.synthetic.sco`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.synthetic.sco) | Synthetic (`ctoolbox`) | `0x1F 0xA0` | SCO `compress -H` (LZSS sliding window dictionary + static Huffman) | 954 B |
-| [`example2 with lemurs.pan.gz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.gz) | System `gzip` | `0x1F 0x8B` | RFC 1952 DEFLATE stream wrapped in Gzip container | 867 B |
-| [`example2 with lemurs.pan.bz2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.bz2) | System `bzip2` | `0x42 0x5A 0x68` | Bzip2 format | 879 B |
-| [`example2 with lemurs.pan.br`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.br) | System `brotli` | None (Stream) | Brotli sliding-window LZ77 + Huffman | 823 B |
-| [`example2 with lemurs.pan.xz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.xz) | System `xz` | `0xFD 0x37 0x7A 0x58 0x5A 0x00` | XZ container format (LZMA2) | 848 B |
-| [`example2 with lemurs.pan.ctblib.deflate`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.deflate) | Wrapped library (`ctblib`) | None (Stream) | RFC 1951 raw DEFLATE stream | 832 B |
-| [`example2 with lemurs.pan.ctblib.zz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.zz) | Wrapped library (`ctblib`) | `0x78 0x9C` | RFC 1950 Zlib-wrapped DEFLATE stream | 838 B |
-| [`example2 with lemurs.pan.ctblib.lz4`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lz4) | Wrapped library (`ctblib`) | `0x04 0x22 0x4D 0x18` | LZ4 Frame compression | 1,120 B |
-| [`example2 with lemurs.pan.ctblib.lzma`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzma) | Wrapped library (`ctblib`) | `0x5D 0x00 0x00` | LZMA stream format | 803 B |
-| [`example2 with lemurs.pan.ctblib.lzma2`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzma2) | Wrapped library (`ctblib`) | None (Stream) | LZMA2 raw stream format | 792 B |
-| [`example2 with lemurs.pan.ctblib.lz`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lz) | Wrapped library (`ctblib`) | `0x4C 0x5A 0x49 0x50` | Lzip format (LZMA-based) | 816 B |
-| [`example2 with lemurs.pan.ctblib.zst`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.zst) | Wrapped library (`ctblib`) | `0x28 0xB5 0x2F 0xFD` | Zstandard compressed frame | 879 B |
-| [`example2 with lemurs.pan.ctblib.lzo`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/example2%20with%20lemurs.pan.ctblib.lzo) | Wrapped library (`ctblib`) | None (Stream) | LZO byte stream | 948 B |
+| Suffix | Encoder / format | Header | Bytes |
+| --- | --- | --- | ---: |
+| `.1.0.Z` | compress 1.0, headerless LZW | None | 958 |
+| `.1.6.Z` | compress 1.6, VAX-layout port, early initial width transition | None | 1022 |
+| `.2.0.Z` | compress 2.0, non-block LZW | `1f 9d 10` | 993 |
+| `.3.0.Z` | compress 3.0, block LZW | `1f 9d 90` | 953 |
+| `.12.Z` | compress 4.0, 12-bit block LZW | `1f 9d 8c` | 953 |
+| `.Z` | ncompress, 16-bit block LZW | `1f 9d 90` | 953 |
+| `.z` | System III pack, canonical Huffman | `1f 1e` | 1057 |
+| `.old.z` | Zucker old-pack, PDP-11 tree representation | `1f 1f` | 1404 |
+| `.C` | BSD compact, adaptive Huffman | `ff 1f` | 998 |
+| `.bz` | bzip 0.21, original bzip1 format | `42 5a 30` | 769 |
+| `.2.0.F` | freeze 2.5, Freeze 2 format | `1f 9f` | 883 |
+| `.synthetic.1.0.F` | ctoolbox Freeze 1, fixed position table | `1f 9e` | 866 |
+| `.synthetic.sco` | ctoolbox SCO compress -H, LZH | `1f a0` | 850 |
+| `.rz` | rzip 2.1, long-range matching and bzip2 blocks | `52 5a 49 50` | 1007 |
+| `.gz` | gzip, RFC 1952 | `1f 8b` | 850 |
+| `.bz2` | bzip2 | `42 5a 68` | 879 |
+| `.br` | Brotli | No fixed magic | 738 |
+| `.xz` | XZ, LZMA2 container | `fd 37 7a 58 5a 00` | 856 |
 
----
+The following formats have **both** library-generated and independently
+generated fixtures. Every file is decoded by both implementations during
+generation and read-only verification.
 
-## Detailed Generation Steps
+An external oracle checks interoperability, not complete algorithmic
+independence: for example, the zstd CLI and Rust wrapper can share upstream
+libzstd code.
 
-All historical fixtures in this directory are generated directly from their respective source trees under [`old/unix-tools`](file:///workspaces/ctoolbox/old/unix-tools) using the shared compiler [`build-historic-compressors`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/build-historic-compressors) and automated generator [`generate-compression-fixtures`](file:///workspaces/ctoolbox/src/formats/compression/data/fixtures/generate-compression-fixtures).
+| Format | Library suffix / bytes | External suffix / bytes | Independent oracle |
+| --- | --- | --- | --- |
+| Raw Deflate, RFC 1951 | `.ctblib.deflate` / 828 | `.external.deflate` / 832 | Python zlib, `wbits=-15` |
+| Zlib, RFC 1950 | `.ctblib.zz` / 834 | `.external.zz` / 838 | Python zlib |
+| LZ4 frame | `.ctblib.lz4` / 1120 | `.external.lz4` / 1107 | lz4 CLI |
+| LZMA-alone | `.ctblib.lzma` / 803 | `.external.lzma` / 803 | xz `--format=lzma` |
+| Raw LZMA2 | `.ctblib.lzma2` / 792 | `.external.lzma2` / 792 | xz, explicit 8-MiB dictionary |
+| Lzip | `.ctblib.lz` / 816 | `.external.lz` / 817 | lzip CLI |
+| Zstandard frame | `.ctblib.zst` / 879 | `.external.zst` / 883 | zstd CLI |
+| Raw LZO1X | `.ctblib.lzo` / 948 | `.external.lzo` / 1064 | reference liblzo2 |
 
-### Execution Command
-To re-compile all historical tools and re-generate all 23 fixtures, run:
+Raw LZO is not an lzop container. It has neither the lzop magic header nor an
+embedded output length; the test oracle receives the expected raw length.
+
+## Generation and Verification
+
+[build-historic-compressors](build-historic-compressors) builds disposable
+copies of the historical sources. Source substitutions fail if their anchors
+are absent. The current build recipes are tested on little-endian LP64 Linux;
+their native-word assumptions are not a cross-platform historical emulator.
+
+Test-only prerequisites: Bash, GCC, Python 3, gzip, bzip2, Brotli, XZ, lzip,
+lz4, zstd, the bzip2 development library (for historical rzip), and liblzo2.
+These are external test tools, not application dependencies.
+
+Build a current CLI before testing. `CTB_BIN` is an executable path, not a
+shell command; without it the scripts may reuse an existing binary.
+
 ```bash
-./src/formats/compression/data/fixtures/generate-compression-fixtures
+cargo build --release -p ctoolbox --bin ctoolbox
+export CTB_BIN="$PWD/target/release/ctoolbox"
+
+# Read committed bytes without regenerating or changing them.
+src/formats/compression/data/fixtures/generate-compression-fixtures --verify-only
+
+# Stage all outputs, verify every file, then publish them.
+src/formats/compression/data/fixtures/generate-compression-fixtures
+
+# Generate into a separate directory for comparison.
+src/formats/compression/data/fixtures/generate-compression-fixtures --output-dir /tmp/compression-fixtures
 ```
 
-### Compatibility Testing
-To run the full forward and reverse compatibility suite across historical tools, system tools, and corpora:
+Verification uses ctoolbox plus the historical decoder or independent library
+for every fixture. Synthetic SCO is verified by gunzip; synthetic Freeze 1 by
+freeze 2.5's COMPAT decoder. Generation failures leave existing fixtures
+untouched. Gzip uses `-n` so source filenames and timestamps cannot cause churn.
+Compressed bytes can still change across encoder versions or settings; exact
+byte equality is not a validity requirement.
+
+## Compatibility Testing
+
 ```bash
-./src/formats/compression/data/fixtures/test-compressors
-# or for fast synthetic dataset testing:
-./src/formats/compression/data/fixtures/test-compressors --fast
+cargo test -p ctb-formats-compression --lib
+src/formats/compression/data/fixtures/test-compressors --fast
+src/formats/compression/data/fixtures/test-compressors --dataset dickens
+src/formats/compression/data/fixtures/test-compressors
 ```
+
+The quick matrix covers empty and 1/2/3-byte inputs, repetitive data, the raw
+fixture, and deterministic random inputs of 65,535/65,536/65,537 bytes. It tests
+both directions against external implementations, including 12-bit LZW. Full
+mode requires a nonempty `old/corpora` directory and adds its files. The two
+genuine SCO streams in the optional
+ancient corpus are checked against their known raw files and gunzip as well.
+
+Known historical empty-input defects, one-byte Compact output refusal, and
+pack's explicit trivial/no-savings refusals are reported as skips. Other tool
+errors and missing outputs fail the run, as does selecting no tests. Old-pack
+uses `-s` so incompressible input is exercised instead of silently skipped.
+Rust tests still require empty round trips except for Compact, which explicitly
+rejects empty input.
+
+## Audit of e3ab1ce13 and 10d1a6048
+
+- Both versions of the changed Brotli (823 -> 738), gzip (867 -> 850), XZ
+  (848 -> 856), Deflate (832 -> 828), and zlib (838 -> 834) fixtures decode to
+  the original raw bytes with independent decoders. These changes are valid
+  encoder/metadata variations, not evidence of data corruption.
+- The original 1,022-byte non-VAX compress 1.6 fixture was reproducible but
+  broken: its original decoder did not reproduce the input, even for `ABC`.
+  The commit's 990-byte replacement was decodable but also changed the initial
+  threshold from 256 to 511, masking a format-compatibility defect. The current
+  1,022-byte fixture is **different** from the original: it ports both VAX bit
+  operations while preserving the historical threshold. The Rust codec now
+  preserves that initial threshold too. See the
+  [LZW format notes](../docs/compress-ncompress.md).
+- The 1.0 bit-extraction port could read beyond its buffer. It now extracts
+  only the required bits. The Compact union-copy patch previously never
+  matched its source; it now applies and is checked. Other build patches
+  concern pointer/union representation, capacity, CLI exits, signal callback
+  types, file-type checks, or unsigned size words, rather than deliberately
+  changing coding rules. Compatibility tests validate their observed output;
+  this is not proof of equivalence on every historical architecture.
+- The shared-test refactor removed strict Freeze empty-input checks and
+  replaced mixed-pattern repetition with a single repeated byte. Both gaps
+  are corrected, and missing raw fixtures now fail instead of using fallback
+  data. All eight new independent fixtures are included in Rust tests.
+
+Validation during this review: 39 compression-crate tests, 568 quick matrix
+comparisons (18 explicit skips), 59 comparisons on the 10-MB Dickens corpus
+(no skips), and all 34 fixtures through both decoders. The complete 416-MB
+corpus was not run. Original-hardware equivalence, a genuine Freeze 1 encoder,
+and a native SCO encoder remain outside this validation.

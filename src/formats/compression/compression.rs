@@ -717,10 +717,16 @@ mod tests {
                 &["fixtures/example2 with lemurs.pan.gz"]
             }
             FormatId::Deflate => {
-                &["fixtures/example2 with lemurs.pan.ctblib.deflate"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.deflate",
+                    "fixtures/example2 with lemurs.pan.external.deflate",
+                ]
             }
             FormatId::Zlib => {
-                &["fixtures/example2 with lemurs.pan.ctblib.zz"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.zz",
+                    "fixtures/example2 with lemurs.pan.external.zz",
+                ]
             }
             FormatId::Bzip2 => {
                 &["fixtures/example2 with lemurs.pan.bz2"]
@@ -762,23 +768,41 @@ mod tests {
                 &["fixtures/example2 with lemurs.pan.rz"]
             }
             FormatId::Lz4 => {
-                &["fixtures/example2 with lemurs.pan.ctblib.lz4"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.lz4",
+                    "fixtures/example2 with lemurs.pan.external.lz4",
+                ]
             }
             FormatId::Lzma => {
-                &["fixtures/example2 with lemurs.pan.ctblib.lzma"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.lzma",
+                    "fixtures/example2 with lemurs.pan.external.lzma",
+                ]
             }
             FormatId::Lzma2 => {
-                &["fixtures/example2 with lemurs.pan.ctblib.lzma2"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.lzma2",
+                    "fixtures/example2 with lemurs.pan.external.lzma2",
+                ]
             }
             FormatId::Lzip => {
-                &["fixtures/example2 with lemurs.pan.ctblib.lz"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.lz",
+                    "fixtures/example2 with lemurs.pan.external.lz",
+                ]
             }
             FormatId::Xz => &["fixtures/example2 with lemurs.pan.xz"],
             FormatId::Zstd => {
-                &["fixtures/example2 with lemurs.pan.ctblib.zst"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.zst",
+                    "fixtures/example2 with lemurs.pan.external.zst",
+                ]
             }
             FormatId::Lzo => {
-                &["fixtures/example2 with lemurs.pan.ctblib.lzo"]
+                &[
+                    "fixtures/example2 with lemurs.pan.ctblib.lzo",
+                    "fixtures/example2 with lemurs.pan.external.lzo",
+                ]
             }
             _ => &[],
         };
@@ -811,17 +835,19 @@ mod tests {
 
         let raw_fixture =
             get_compression_data("fixtures/example2 with lemurs.pan")
-                .unwrap_or_else(|| b"Fallback fixture data".to_vec());
+                .expect("Raw compression fixture missing");
         let random_data =
             rand_bytes(random_bytes_len).expect("Could not get random bytes");
         let repetitive_small = vec![b'A'; 200];
         let repetitive_data = vec![b'A'; 200000];
+        let repetitive_pattern = b"ABCDEFGH12345678".repeat(500);
 
-        let test_cases: [(&str, &[u8]); 7] = [
+        let test_cases: [(&str, &[u8]); 8] = [
             ("empty", b""),
             ("small_string", b"ABC"),
             ("repetitive_small", &repetitive_small),
             ("repetitive", &repetitive_data),
+            ("repetitive_pattern", &repetitive_pattern),
             (
                 "quick_fox",
                 b"The quick brown fox jumps over the lazy dog. 1234567890!",
@@ -831,12 +857,13 @@ mod tests {
         ];
 
         for (case_name, data) in test_cases {
+            if data.is_empty() && format == FormatId::Compact {
+                assert!(compress(data, format).is_err());
+                continue;
+            }
             let compressed = match compress(data, format) {
                 Ok(c) => c,
                 Err(e) => {
-                    if data.is_empty() {
-                        continue;
-                    }
                     panic!(
                         "Compression failed for case '{case_name}', format {format:?}: {e:?}"
                     );
@@ -851,7 +878,7 @@ mod tests {
                 data.len(),
                 decompressed.len()
             );
-            if case_name == "repetitive" {
+            if matches!(case_name, "repetitive" | "repetitive_pattern") {
                 assert!(
                     compressed.len() < data.len(),
                     "Repetitive data failed to compress for format {format:?}"

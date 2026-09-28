@@ -11,7 +11,19 @@ while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do
 done
 
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
-FIXTURES_DIR="$REPO_ROOT/src/formats/compression/data/fixtures"
+OUTPUT_DIR="$SCRIPT_DIR"
+VERIFY_ONLY=0
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --verify-only) VERIFY_ONLY=1; shift ;;
+        --output-dir) OUTPUT_DIR="$(realpath -m "$2")"; shift 2 ;;
+        -h|--help)
+            echo "Usage: $0 [--verify-only] [--output-dir DIRECTORY]"
+            exit 0
+            ;;
+        *) echo "Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
 
 mkdir -p "$REPO_ROOT/built"
 TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_gen_fixtures_XXXXXX")"
@@ -19,25 +31,32 @@ cleanup() {
     rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
+FIXTURES_DIR="$TMP_DIR/fixtures"
+if [[ "$VERIFY_ONLY" -eq 1 ]]; then
+    FIXTURES_DIR="$OUTPUT_DIR"
+else
+    mkdir "$FIXTURES_DIR"
+fi
 
 # 0. Locate ctoolbox binary
 if [ -n "${CTB_BIN:-}" ]; then
-    :
+    CTB_CMD=("$CTB_BIN")
 elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
-    CTB_BIN="$REPO_ROOT/target/release/ctoolbox"
+    CTB_CMD=("$REPO_ROOT/target/release/ctoolbox")
 elif [ -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
-    CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
+    CTB_CMD=("$REPO_ROOT/target/debug/ctoolbox")
 elif [ -f "$REPO_ROOT/built/linux-x64/ctoolbox" ]; then
-    CTB_BIN="$REPO_ROOT/built/linux-x64/ctoolbox"
+    CTB_CMD=("$REPO_ROOT/built/linux-x64/ctoolbox")
 else
     export RUSTFLAGS="-Awarnings"
-    CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+    CTB_CMD=(cargo run --release -q -p ctoolbox --bin ctoolbox --)
 fi
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
 
-echo "=== Generating All Compression Fixtures ==="
+if [[ "$VERIFY_ONLY" -eq 0 ]]; then
+echo "=== Generating All Compression Fixtures Into Staging ==="
 
 # --- Historical Tools (from old/unix-tools) ---
 
@@ -84,7 +103,7 @@ mv "$TMP_DIR/raw_opack.z" "$FIXTURES_DIR/example2 with lemurs.pan.old.z"
 # --- Dedicated System Tools ---
 
 # GNU gzip
-gzip -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.gz"
+gzip -n -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.gz"
 
 # bzip2
 bzip2 -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.bz2"
@@ -98,82 +117,93 @@ xz -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.xz"
 # --- Synthetic Formats (ctoolbox in-repo implementation due to lack of tools) ---
 
 # SCO compress -H
-$CTB_BIN compress sco-compress "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.sco" --force
+"${CTB_CMD[@]}" compress sco-compress "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.sco" --force
 
 # Freeze 1.0 (LZSS + Dynamic Huffman with fixed Table 1)
-$CTB_BIN compress freeze1 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F" --force
+"${CTB_CMD[@]}" compress freeze1 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F" --force
 
 # --- Crate Library Wrappers (ctblib) ---
 
-$CTB_BIN compress deflate "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.deflate" --force
-$CTB_BIN compress zlib "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zz" --force
-$CTB_BIN compress lz4 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz4" --force
-$CTB_BIN compress lzma "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma" --force
-$CTB_BIN compress lzma2 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma2" --force
-$CTB_BIN compress lzip "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz" --force
-$CTB_BIN compress zstd "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zst" --force
-$CTB_BIN compress lzo "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzo" --force
+"${CTB_CMD[@]}" compress deflate "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.deflate" --force
+"${CTB_CMD[@]}" compress zlib "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zz" --force
+"${CTB_CMD[@]}" compress lz4 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz4" --force
+"${CTB_CMD[@]}" compress lzma "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma" --force
+"${CTB_CMD[@]}" compress lzma2 "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma2" --force
+"${CTB_CMD[@]}" compress lzip "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz" --force
+"${CTB_CMD[@]}" compress zstd "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zst" --force
+"${CTB_CMD[@]}" compress lzo "$RAW_FILE" -o "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzo" --force
+
+python3 "$SCRIPT_DIR/codec-oracle.py" compress deflate < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.deflate"
+python3 "$SCRIPT_DIR/codec-oracle.py" compress zlib < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.zz"
+python3 "$SCRIPT_DIR/codec-oracle.py" compress lzo < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.lzo"
+xz --format=lzma -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.lzma"
+xz --format=raw --lzma2=dict=8MiB -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.lzma2"
+lzip -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.lz"
+lz4 -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.lz4"
+zstd -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.external.zst"
+fi
 
 echo "=== Verifying Fixture Decompressions ==="
 
 verify_decomp() {
-    local desc="$1" in_fixture="$2" dec_cmd="$3"
-    echo "Verifying $desc..."
-    eval "$dec_cmd" > "$TMP_DIR/verify.pan"
-    if ! cmp "$RAW_FILE" "$TMP_DIR/verify.pan"; then
-        echo "Error: Decompression verification failed for $desc" >&2
-        exit 1
-    fi
+    local format="$1" suffix="$2"
+    shift 2
+    local fixture="$FIXTURES_DIR/example2 with lemurs.pan.$suffix"
+    echo "Verifying $suffix with ctoolbox and $1..."
+    "${CTB_CMD[@]}" decompress "$format" "$fixture" -o "$TMP_DIR/verify.pan" --force
+    cmp "$RAW_FILE" "$TMP_DIR/verify.pan"
+    "$@" < "$fixture" > "$TMP_DIR/verify.pan"
+    cmp "$RAW_FILE" "$TMP_DIR/verify.pan"
+    VERIFIED=$((VERIFIED + 1))
 }
 
-verify_decomp "compress 1.0" "$FIXTURES_DIR/example2 with lemurs.pan.1.0.Z" "\"$TMP_DIR/compress-2.0\" -c -d -n < \"$FIXTURES_DIR/example2 with lemurs.pan.1.0.Z\""
-verify_decomp "compress 1.6" "$FIXTURES_DIR/example2 with lemurs.pan.1.6.Z" "\"$TMP_DIR/compress-2.0\" -c -d -n < \"$FIXTURES_DIR/example2 with lemurs.pan.1.6.Z\""
-verify_decomp "compress 2.0" "$FIXTURES_DIR/example2 with lemurs.pan.2.0.Z" "\"$TMP_DIR/compress-2.0\" -c -d < \"$FIXTURES_DIR/example2 with lemurs.pan.2.0.Z\""
-verify_decomp "compress 3.0" "$FIXTURES_DIR/example2 with lemurs.pan.3.0.Z" "\"$TMP_DIR/compress-3.0\" -c -d < \"$FIXTURES_DIR/example2 with lemurs.pan.3.0.Z\""
-verify_decomp "compress 4.0" "$FIXTURES_DIR/example2 with lemurs.pan.12.Z" "\"$TMP_DIR/compress-4.0\" -c -d < \"$FIXTURES_DIR/example2 with lemurs.pan.12.Z\""
-verify_decomp "ncompress" "$FIXTURES_DIR/example2 with lemurs.pan.Z" "\"$TMP_DIR/ncompress\" -c -d < \"$FIXTURES_DIR/example2 with lemurs.pan.Z\""
+VERIFIED=0
+verify_decomp compress1 1.0.Z "$TMP_DIR/compress-1.0" -d
+verify_decomp compress16 1.6.Z "$TMP_DIR/compress-1.6" -d
+verify_decomp compress2 2.0.Z "$TMP_DIR/compress-2.0" -c -d
+verify_decomp compress 3.0.Z "$TMP_DIR/compress-3.0" -c -d
+verify_decomp compress 12.Z "$TMP_DIR/compress-4.0" -c -d
+verify_decomp compress Z "$TMP_DIR/ncompress" -c -d
 
+unpack_sys3() {
+    (cd "$TMP_DIR" && ./sys3-pcat dec_pack.z)
+}
 cp "$FIXTURES_DIR/example2 with lemurs.pan.z" "$TMP_DIR/dec_pack.z"
-verify_decomp "sys3-pack" "$FIXTURES_DIR/example2 with lemurs.pan.z" "(cd \"$TMP_DIR\" && ./sys3-pcat dec_pack.z)"
+verify_decomp pack z unpack_sys3
+verify_decomp old-pack old.z "$TMP_DIR/opcat" "$FIXTURES_DIR/example2 with lemurs.pan.old.z"
+verify_decomp compact C "$TMP_DIR/uncompact"
+verify_decomp bzip bz "$TMP_DIR/bzip-0.21" -d
+verify_decomp freeze2 2.0.F "$TMP_DIR/freeze" -d -c
+verify_decomp freeze1 synthetic.1.0.F "$TMP_DIR/freeze" -d -c
 
-verify_decomp "opack" "$FIXTURES_DIR/example2 with lemurs.pan.old.z" "\"$TMP_DIR/opcat\" \"$FIXTURES_DIR/example2 with lemurs.pan.old.z\""
-verify_decomp "compact" "$FIXTURES_DIR/example2 with lemurs.pan.C" "\"$TMP_DIR/uncompact\" < \"$FIXTURES_DIR/example2 with lemurs.pan.C\""
-verify_decomp "bzip 0.21" "$FIXTURES_DIR/example2 with lemurs.pan.bz" "\"$TMP_DIR/bzip-0.21\" -d < \"$FIXTURES_DIR/example2 with lemurs.pan.bz\""
-verify_decomp "freeze 2.0" "$FIXTURES_DIR/example2 with lemurs.pan.2.0.F" "\"$TMP_DIR/freeze\" -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.2.0.F\""
-verify_decomp "freeze 1.0 (melt)" "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F" "\"$TMP_DIR/freeze\" -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F\""
-verify_decomp "rzip 2.1" "$FIXTURES_DIR/example2 with lemurs.pan.rz" "\"$TMP_DIR/rzip\" -d -k -f -o \"$TMP_DIR/rzip_out.pan\" \"$FIXTURES_DIR/example2 with lemurs.pan.rz\" >/dev/null && cat \"$TMP_DIR/rzip_out.pan\""
+unpack_rzip() {
+    "$TMP_DIR/rzip" -d -k -f -o "$TMP_DIR/rzip_out.pan" "$FIXTURES_DIR/example2 with lemurs.pan.rz" >/dev/null
+    cat "$TMP_DIR/rzip_out.pan"
+}
+verify_decomp rzip rz unpack_rzip
+verify_decomp gzip gz gunzip -c
+verify_decomp bzip2 bz2 bzip2 -d -c
+verify_decomp brotli br brotli -d -c
+verify_decomp xz xz xz -d -c
+verify_decomp sco-compress synthetic.sco gunzip -c
 
-verify_decomp "gzip" "$FIXTURES_DIR/example2 with lemurs.pan.gz" "gunzip -c < \"$FIXTURES_DIR/example2 with lemurs.pan.gz\""
-verify_decomp "bzip2" "$FIXTURES_DIR/example2 with lemurs.pan.bz2" "bzip2 -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.bz2\""
-verify_decomp "brotli" "$FIXTURES_DIR/example2 with lemurs.pan.br" "brotli -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.br\""
-verify_decomp "xz" "$FIXTURES_DIR/example2 with lemurs.pan.xz" "xz -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.xz\""
+for source in ctblib external; do
+    verify_decomp deflate "$source.deflate" python3 "$SCRIPT_DIR/codec-oracle.py" decompress deflate
+    verify_decomp zlib "$source.zz" python3 "$SCRIPT_DIR/codec-oracle.py" decompress zlib
+    verify_decomp lzo "$source.lzo" python3 "$SCRIPT_DIR/codec-oracle.py" decompress lzo --raw-size "$(wc -c < "$RAW_FILE")"
+    verify_decomp lz4 "$source.lz4" lz4 -d -c
+    verify_decomp lzma "$source.lzma" xz --format=lzma -d -c
+    verify_decomp lzma2 "$source.lzma2" xz --format=raw --lzma2=dict=8MiB -d -c
+    verify_decomp lzip "$source.lz" lzip -d -c
+    verify_decomp zstd "$source.zst" zstd -d -c
+done
 
-verify_decomp "sco-compress" "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.sco" "$CTB_BIN decompress sco-compress \"$FIXTURES_DIR/example2 with lemurs.pan.synthetic.sco\" -o -"
-verify_decomp "deflate" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.deflate" "$CTB_BIN decompress deflate \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.deflate\" -o -"
-verify_decomp "zlib" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zz" "$CTB_BIN decompress zlib \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zz\" -o -"
-verify_decomp "lz4" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz4" "$CTB_BIN decompress lz4 \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz4\" -o -"
-verify_decomp "lzma" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma" "$CTB_BIN decompress lzma \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma\" -o -"
-verify_decomp "lzma2" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma2" "$CTB_BIN decompress lzma2 \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzma2\" -o -"
-verify_decomp "lzip" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz" "$CTB_BIN decompress lzip \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lz\" -o -"
-verify_decomp "zstd" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zst" "$CTB_BIN decompress zstd \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.zst\" -o -"
-verify_decomp "lzo" "$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzo" "$CTB_BIN decompress lzo \"$FIXTURES_DIR/example2 with lemurs.pan.ctblib.lzo\" -o -"
-
-# Clean up any old renamed fixtures
-rm -f "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.Z1.6" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.Z2.0" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.Z3.0" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.Z12" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.F" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.sco" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.deflate" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.zz" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.lz4" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.lzma" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.lzma2" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.lz" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.zst" \
-      "$FIXTURES_DIR/example2 with lemurs.pan.lzo"
+if [[ "$VERIFY_ONLY" -eq 0 ]]; then
+    mkdir -p "$OUTPUT_DIR"
+    for fixture in "$FIXTURES_DIR"/*; do
+        mv "$fixture" "$OUTPUT_DIR/$(basename "$fixture")"
+    done
+fi
 
 echo ""
-echo "All 24 compression fixtures successfully generated and verified!"
+echo "All $VERIFIED compression fixtures verified by ctoolbox and independent decoders!"

@@ -59,7 +59,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Verify required system tools exist upfront; fail immediately if missing
-for req_tool in gzip gunzip bzip2 brotli xz; do
+for req_tool in gzip gunzip bzip2 brotli xz lzip lz4 zstd python3; do
     if ! command -v "$req_tool" >/dev/null 2>&1; then
         echo "Error: Required system tool '$req_tool' not found in PATH." >&2
         exit 1
@@ -68,17 +68,17 @@ done
 
 # Determine ctoolbox binary
 if [ -n "${CTB_BIN:-}" ]; then
-    :
+    CTB_CMD=("$CTB_BIN")
 elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
-    CTB_BIN="$REPO_ROOT/target/release/ctoolbox"
+    CTB_CMD=("$REPO_ROOT/target/release/ctoolbox")
 elif [ -f "$REPO_ROOT/built/linux-x64/ctoolbox" ]; then
-    CTB_BIN="$REPO_ROOT/built/linux-x64/ctoolbox"
+    CTB_CMD=("$REPO_ROOT/built/linux-x64/ctoolbox")
 # DO NOT USE DEBUG BUILD FOR THIS; IT IS VERY SLOW.
 #elif [ -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
 #    CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
 else
     export RUSTFLAGS="-Awarnings"
-    CTB_BIN="cargo run --release -q -p ctoolbox --bin ctoolbox --"
+    CTB_CMD=(cargo run --release -q -p ctoolbox --bin ctoolbox --)
 fi
 
 mkdir -p "$REPO_ROOT/built"
@@ -107,6 +107,9 @@ import random
 random.seed(42)
 with open('$TMP_DIR/in_rand.bin', 'wb') as f:
     f.write(bytes([random.randint(0, 255) for _ in range(65536)]))
+for size in (0, 1, 2, 3, 65535, 65537):
+    with open('$TMP_DIR/in_boundary_%d.bin' % size, 'wb') as f:
+        f.write(bytes(random.randrange(256) for _ in range(size)))
 "
 
 DATASETS=(
@@ -114,12 +117,23 @@ DATASETS=(
     "$TMP_DIR/in_rep.txt"
     "$TMP_DIR/in_lemurs.pan"
     "$TMP_DIR/in_rand.bin"
+    "$TMP_DIR"/in_boundary_*.bin
 )
 
-if [ "$FAST_MODE" -eq 0 ] && [ -d "$REPO_ROOT/old/corpora" ]; then
+if [[ "$FAST_MODE" -eq 0 ]]; then
+    if [[ ! -d "$REPO_ROOT/old/corpora" ]]; then
+        echo "Error: Full compatibility testing requires old/corpora; use --fast for synthetic datasets." >&2
+        exit 1
+    fi
+    corpus_count=0
     while IFS= read -r -d '' cfile; do
         DATASETS+=("$cfile")
+        corpus_count=$((corpus_count + 1))
     done < <(find "$REPO_ROOT/old/corpora" -type f -print0 | sort -z)
+    if [[ "$corpus_count" -eq 0 ]]; then
+        echo "Error: The compatibility corpus contains no files." >&2
+        exit 1
+    fi
 fi
 
 echo "Total test datasets: ${#DATASETS[@]}"
@@ -127,12 +141,12 @@ echo "Total test datasets: ${#DATASETS[@]}"
 # 3. Invocation helpers
 ctb_compress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    $CTB_BIN compress "$fmt" "$in_file" -o "$out_file" --force
+    "${CTB_CMD[@]}" compress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 ctb_decompress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    $CTB_BIN decompress "$fmt" "$in_file" -o "$out_file" --force
+    "${CTB_CMD[@]}" decompress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 tool_compress() {
@@ -153,6 +167,9 @@ tool_compress() {
         compress-4.0)
             "$TMP_DIR/compress-4.0" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
             ;;
+        compress-4.0-12)
+            "$TMP_DIR/compress-4.0" -b 12 -f -c < "$in_file" > "$out_file" || [[ $? -eq 2 ]]
+            ;;
         compress-apollo)
             "$TMP_DIR/compress-apollo" -f -c < "$in_file" > "$out_file" || [ $? -eq 2 ]
             ;;
@@ -161,24 +178,39 @@ tool_compress() {
             ;;
         compact)
             "$TMP_DIR/compact" < "$in_file" > "$out_file"
+            if [[ "$(wc -c < "$in_file")" -eq 1 && ! -s "$out_file" ]]; then
+                REVERSE_SKIP_REASON="BSD compact requires two input bytes to emit a stream"
+            fi
             ;;
         sys3-pack)
             local stem="sp_$RANDOM"
             cp "$in_file" "$TMP_DIR/$stem"
-            (cd "$TMP_DIR" && ./sys3-pack "$stem" >/dev/null 2>&1 || true)
-            if [ -f "$TMP_DIR/$stem.z" ]; then
+            local status=0 message
+            message="$(cd "$TMP_DIR" && ./sys3-pack "$stem" 2>&1)" || status=$?
+            if [[ "$status" -eq 0 ]]; then
                 mv "$TMP_DIR/$stem.z" "$out_file"
+            elif [[ "$status" -eq 1 && ( "$message" == *": no saving - file unchanged" || "$message" == *": trivial file - file unchanged" ) ]]; then
+                REVERSE_SKIP_REASON="$message"
+            else
+                echo "sys3-pack failed ($status): $message" >&2
+                return 1
             fi
-            rm -f "$TMP_DIR/$stem"
+            if [[ -e "$TMP_DIR/$stem" ]]; then rm "$TMP_DIR/$stem"; fi
             ;;
         opack)
             local stem="op_$RANDOM"
             cp "$in_file" "$TMP_DIR/$stem"
-            (cd "$TMP_DIR" && ./opack "$stem" >/dev/null 2>&1 || true)
-            if [ -f "$TMP_DIR/$stem.z" ]; then
+            local status=0 message
+            message="$(cd "$TMP_DIR" && ./opack -s "$stem" 2>&1)" || status=$?
+            if [[ "$status" -eq 0 ]]; then
                 mv "$TMP_DIR/$stem.z" "$out_file"
+            elif [[ "$status" -eq 2 && "$message" == *": Trivial file" ]]; then
+                REVERSE_SKIP_REASON="$message"
+            else
+                echo "opack failed ($status): $message" >&2
+                return 1
             fi
-            rm -f "$TMP_DIR/$stem"
+            if [[ -e "$TMP_DIR/$stem" ]]; then rm "$TMP_DIR/$stem"; fi
             ;;
         bzip-0.21)
             "$TMP_DIR/bzip-0.21" < "$in_file" > "$out_file"
@@ -190,7 +222,7 @@ tool_compress() {
             "$TMP_DIR/rzip" -k -f -o "$out_file" "$in_file"
             ;;
         gzip)
-            gzip -c < "$in_file" > "$out_file"
+            gzip -n -c < "$in_file" > "$out_file"
             ;;
         bzip2)
             bzip2 -c < "$in_file" > "$out_file"
@@ -200,6 +232,18 @@ tool_compress() {
             ;;
         xz)
             xz -c < "$in_file" > "$out_file"
+            ;;
+        lzma)
+            xz --format=lzma -c < "$in_file" > "$out_file"
+            ;;
+        lzma2)
+            xz --format=raw --lzma2=dict=8MiB -c < "$in_file" > "$out_file"
+            ;;
+        lzip|lz4|zstd)
+            "$tool" -c < "$in_file" > "$out_file"
+            ;;
+        deflate|zlib|lzo)
+            python3 "$SCRIPT_DIR/codec-oracle.py" compress "$tool" < "$in_file" > "$out_file"
             ;;
         ctoolbox)
             # Self-compression for formats without external CLI
@@ -219,7 +263,7 @@ tool_decompress() {
             "$TMP_DIR/compress-1.0" -d < "$in_file" > "$out_file"
             ;;
         compress-1.6)
-            "$TMP_DIR/compress-2.0" -c -d -n < "$in_file" > "$out_file"
+            "$TMP_DIR/compress-1.6" -d < "$in_file" > "$out_file"
             ;;
         compress-2.0)
             "$TMP_DIR/compress-2.0" -c -d < "$in_file" > "$out_file"
@@ -227,7 +271,7 @@ tool_decompress() {
         compress-3.0)
             "$TMP_DIR/compress-3.0" -c -d < "$in_file" > "$out_file"
             ;;
-        compress-4.0)
+        compress-4.0|compress-4.0-12)
             "$TMP_DIR/compress-4.0" -c -d < "$in_file" > "$out_file"
             ;;
         compress-apollo)
@@ -243,7 +287,7 @@ tool_decompress() {
             local stem="pc_$RANDOM.z"
             cp "$in_file" "$TMP_DIR/$stem"
             (cd "$TMP_DIR" && ./sys3-pcat "$stem" > "$out_file")
-            rm -f "$TMP_DIR/$stem"
+            rm "$TMP_DIR/$stem"
             ;;
         opcat)
             "$TMP_DIR/opcat" "$in_file" > "$out_file"
@@ -269,6 +313,18 @@ tool_decompress() {
         xz)
             xz -d -c < "$in_file" > "$out_file"
             ;;
+        lzma)
+            xz --format=lzma -d -c < "$in_file" > "$out_file"
+            ;;
+        lzma2)
+            xz --format=raw --lzma2=dict=8MiB -d -c < "$in_file" > "$out_file"
+            ;;
+        lzip|lz4|zstd)
+            "$tool" -d -c < "$in_file" > "$out_file"
+            ;;
+        deflate|zlib|lzo)
+            python3 "$SCRIPT_DIR/codec-oracle.py" decompress "$tool" --raw-size "$(wc -c < "$in_path")" < "$in_file" > "$out_file"
+            ;;
         ctoolbox)
             # Self-decompression for formats without external CLI
             ctb_decompress "$CURRENT_FORMAT" "$in_file" "$out_file"
@@ -281,7 +337,7 @@ tool_decompress() {
 }
 
 # -----------------------------------------------------------------------------
-# 4. Declarative Unified Test Matrix for ALL 23 Formats
+# 4. Declarative Unified Test Matrix for Supported Formats
 # Format: format|tool_name|ext|test_forward|test_reverse|comp_tool|decomp_tool
 # -----------------------------------------------------------------------------
 TEST_MATRIX=(
@@ -292,6 +348,7 @@ TEST_MATRIX=(
     "compress2|gunzip|.2.0.Z|1|0||gunzip"
     "compress|compress-3.0|.3.0.Z|1|1|compress-3.0|compress-3.0"
     "compress|compress-4.0|.Z|1|1|compress-4.0|compress-4.0"
+    "compress|compress-4.0-12|.12.Z|1|1|compress-4.0-12|compress-4.0-12"
     "compress|compress-apollo|.Z|1|1|compress-apollo|compress-apollo"
     "compress|ncompress|.Z|1|1|ncompress|ncompress"
     "compress|gunzip|.Z|1|0||gunzip"
@@ -318,20 +375,21 @@ TEST_MATRIX=(
     "sco-compress|gunzip|.synthetic.sco|1|0||gunzip"
     "sco-compress|ctoolbox|.synthetic.sco|1|1|ctoolbox|ctoolbox"
 
-    # Library-wrapped (ctblib) self-roundtrip
-    "deflate|ctoolbox|.ctblib.deflate|1|1|ctoolbox|ctoolbox"
-    "zlib|ctoolbox|.ctblib.zz|1|1|ctoolbox|ctoolbox"
-    "lz4|ctoolbox|.ctblib.lz4|1|1|ctoolbox|ctoolbox"
-    "lzma|ctoolbox|.ctblib.lzma|1|1|ctoolbox|ctoolbox"
-    "lzma2|ctoolbox|.ctblib.lzma2|1|1|ctoolbox|ctoolbox"
-    "lzip|ctoolbox|.ctblib.lz|1|1|ctoolbox|ctoolbox"
-    "zstd|ctoolbox|.ctblib.zst|1|1|ctoolbox|ctoolbox"
-    "lzo|ctoolbox|.ctblib.lzo|1|1|ctoolbox|ctoolbox"
+    # Independent oracles for library-wrapped formats
+    "deflate|zlib|.deflate|1|1|deflate|deflate"
+    "zlib|zlib|.zz|1|1|zlib|zlib"
+    "lz4|lz4|.lz4|1|1|lz4|lz4"
+    "lzma|xz|.lzma|1|1|lzma|lzma"
+    "lzma2|xz|.lzma2|1|1|lzma2|lzma2"
+    "lzip|lzip|.lz|1|1|lzip|lzip"
+    "zstd|zstd|.zst|1|1|zstd|zstd"
+    "lzo|liblzo2|.lzo|1|1|lzo|lzo"
 )
 
 echo "=== Running Compression Compatibility Tests ==="
 
 TOTAL_TESTS=0
+TOTAL_SKIPS=0
 
 for row in "${TEST_MATRIX[@]}"; do
     IFS="|" read -r fmt tool ext do_fwd do_rev comp_tool decomp_tool <<< "$row"
@@ -352,6 +410,12 @@ for row in "${TEST_MATRIX[@]}"; do
             fi
         fi
 
+        if [[ ! -s "$in_path" && ( "$fmt" == compact || "$fmt" == compress1 || "$fmt" == compress16 || "$fmt" == old-pack || "$fmt" == pack || "$fmt" == lzo || "$tool" == compress-2.0 || "$tool" == compress-3.0 ) ]]; then
+            echo "[Skip] '$fmt' / '$tool': historical oracle or raw-stream convention does not support empty input"
+            TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
+            continue
+        fi
+
         # Forward Test: ctoolbox compress -> external tool decompress
         if [ "$do_fwd" -eq 1 ]; then
             c_file="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}${ext}"
@@ -364,7 +428,7 @@ for row in "${TEST_MATRIX[@]}"; do
                 echo "FAIL: Forward roundtrip mismatch: format '$fmt', decompressor '$decomp_tool', dataset '$dataset'" >&2
                 exit 1
             fi
-            rm -f "$c_file" "$d_file"
+            rm "$c_file" "$d_file"
             TOTAL_TESTS=$((TOTAL_TESTS + 1))
         fi
 
@@ -373,23 +437,53 @@ for row in "${TEST_MATRIX[@]}"; do
             c_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}${ext}"
             d_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}.decompressed"
 
-            rm -f "$c_file" "$d_file"
             echo "[Reverse] '$comp_tool' compress -> ctoolbox decompress '$fmt' on '$dataset'..."
+            REVERSE_SKIP_REASON=""
             tool_compress "$comp_tool" "$in_path" "$c_file"
-            if [ -f "$c_file" ] && [ -s "$c_file" ]; then
+            if [[ -n "$REVERSE_SKIP_REASON" ]]; then
+                echo "  [Skip] $REVERSE_SKIP_REASON"
+                TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
+            elif [[ -f "$c_file" ]]; then
                 ctb_decompress "$fmt" "$c_file" "$d_file"
                 if ! cmp "$in_path" "$d_file"; then
                     echo "FAIL: Reverse roundtrip mismatch: compressor '$comp_tool', ctb format '$fmt', dataset '$dataset'" >&2
                     exit 1
                 fi
-                rm -f "$c_file" "$d_file"
+                rm "$c_file" "$d_file"
                 TOTAL_TESTS=$((TOTAL_TESTS + 1))
             else
-                echo "  (skipped: tool produced no output due to negative compression savings)"
+                echo "FAIL: '$comp_tool' produced no output file" >&2
+                exit 1
             fi
         fi
     done
 done
 
+if [[ -z "$FILTER" || sco-compress == *"$FILTER"* || gunzip == *"$FILTER"* ]]; then
+    archive_dir="$REPO_ROOT/old/archivers/ancient/testing/test_files"
+    for pair in "test_C1_sco.Z|test_C1.raw" "test_C2_sco.Z|test_C2.xm"; do
+        IFS='|' read -r compressed_name raw_name <<< "$pair"
+        if [[ -n "$DATASET_FILTER" && "$compressed_name" != *"$DATASET_FILTER"* ]]; then
+            continue
+        fi
+        if [[ ! -d "$archive_dir" ]]; then
+            echo "[Skip] Archived SCO fixture corpus is not installed"
+            TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
+            continue
+        fi
+        echo "[Archived] SCO fixture '$compressed_name' -> ctoolbox and gunzip..."
+        ctb_decompress sco-compress "$archive_dir/$compressed_name" "$TMP_DIR/archived.pan"
+        cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+        gunzip -c < "$archive_dir/$compressed_name" > "$TMP_DIR/archived.pan"
+        cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+        TOTAL_TESTS=$((TOTAL_TESTS + 2))
+    done
+fi
+
+if [[ "$TOTAL_TESTS" -eq 0 ]]; then
+    echo "Error: No compression compatibility tests ran; check the format and dataset filters." >&2
+    exit 1
+fi
+
 echo ""
-echo "=== ALL $TOTAL_TESTS COMPRESSION COMPATIBILITY TESTS PASSED CLEANLY! ==="
+echo "=== $TOTAL_TESTS COMPRESSION COMPATIBILITY TESTS PASSED; $TOTAL_SKIPS explicit skips ==="
