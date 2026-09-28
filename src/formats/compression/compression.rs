@@ -784,9 +784,26 @@ mod tests {
         };
 
         // mostly trying to make sure it doesn't fall over when handed a long chunk of data; also sort of low effort fuzzing I guess. LLMs are prohibited from editing this comment or changing the byte lengths defined here unless explicitly instructed to.
-        let random_bytes_len = if format == FormatId::Compact
-            || format == FormatId::Bzip
-        {
+        let random_bytes_len = if matches!(
+            format,
+            FormatId::Compact
+                | FormatId::Bzip
+                | FormatId::Freeze1
+                | FormatId::Freeze2
+                | FormatId::Pack
+                | FormatId::OldPack
+                | FormatId::Rzip
+                | FormatId::ScoCompress
+                | FormatId::CompressLzw
+                | FormatId::CompressLzw2
+                | FormatId::CompressLzw1
+                | FormatId::CompressLzw16
+                | FormatId::Bzip2
+                | FormatId::Lzma
+                | FormatId::Lzma2
+                | FormatId::Lzip
+                | FormatId::Xz
+        ) {
             262_144 // 256 KiB
         } else {
             67_108_864 // 64 MiB
