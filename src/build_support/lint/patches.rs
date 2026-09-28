@@ -17,10 +17,10 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Lint tool to verify that vendor patch crates are actively utilized in Cargo.toml manifests.
+//! Lint tool to verify that vendor patch crates are actively utilized in
+//! Cargo.toml manifests.
 
 use std::collections::BTreeMap;
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -28,15 +28,14 @@ use anyhow::{Context, Result, bail};
 use cargo_metadata::{Metadata, MetadataCommand, Package};
 use toml::{Table, Value};
 
-fn main() -> Result<()> {
-    let workspace_root = workspace_root_from_args()?;
-    let metadata = MetadataCommand::new()
-        .manifest_path(workspace_root.join("Cargo.toml"))
-        .exec()
-        .context("failed to load cargo metadata")?;
+/// Checks patched crate utilization against provided cargo metadata.
+pub fn check_with_metadata(
+    workspace_root: &Path,
+    metadata: &Metadata,
+) -> Result<Vec<String>> {
     let root_manifest = metadata.workspace_root.join("Cargo.toml");
     let root_document = parse_manifest(root_manifest.as_std_path())?;
-    let patched_crates = patched_crates(&workspace_root, &root_document);
+    let patched = patched_crates(workspace_root, &root_document);
 
     let mut violations = Vec::new();
     for package in &metadata.packages {
@@ -44,13 +43,13 @@ fn main() -> Result<()> {
             continue;
         }
         if should_skip_manifest(
-            &workspace_root,
+            workspace_root,
             package.manifest_path.as_std_path(),
         ) {
             continue;
         }
         collect_manifest_violations(
-            &workspace_root,
+            workspace_root,
             root_manifest.as_std_path(),
             package,
             &mut violations,
@@ -58,11 +57,23 @@ fn main() -> Result<()> {
     }
 
     collect_resolution_violations(
-        &workspace_root,
-        &metadata,
-        &patched_crates,
+        workspace_root,
+        metadata,
+        &patched,
         &mut violations,
     );
+
+    Ok(violations)
+}
+
+/// Runs patch verification for the workspace root.
+pub fn run(workspace_root: &Path) -> Result<()> {
+    let metadata = MetadataCommand::new()
+        .manifest_path(workspace_root.join("Cargo.toml"))
+        .exec()
+        .context("failed to load cargo metadata")?;
+
+    let violations = check_with_metadata(workspace_root, &metadata)?;
 
     if violations.is_empty() {
         println!("patch lint passed");
@@ -75,18 +86,6 @@ fn main() -> Result<()> {
     }
 
     bail!("found patch manifest violations")
-}
-
-fn workspace_root_from_args() -> Result<PathBuf> {
-    let mut args = env::args_os();
-    let _program = args.next();
-    let Some(root) = args.next() else {
-        bail!("usage: lint-patches <workspace-root>");
-    };
-    if args.next().is_some() {
-        bail!("usage: lint-patches <workspace-root>");
-    }
-    Ok(PathBuf::from(root))
 }
 
 fn collect_manifest_violations(

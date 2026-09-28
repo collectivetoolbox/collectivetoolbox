@@ -20,32 +20,32 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! Lint tool to check and enforce the standard repository test boilerplate on
 //! test modules (`mod tests` / `#[cfg(test)]`).
 
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use ctb_build_support::standard_boilerplate::{
-    get_standard_boilerplate, get_standard_repository_test_allows, REQUIRED_LINTS,
-};
+use quote::ToTokens;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
+use crate::standard_boilerplate::{
+    REQUIRED_LINTS, get_standard_boilerplate, get_standard_repository_test_allows,
+};
 
-#[derive(Debug)]
-struct Violation {
-    file: PathBuf,
-    line: usize,
-    message: String,
-    replace_start_line: usize,
-    replace_end_line: usize,
-    needs_cfg_test: bool,
-    mod_line: usize,
+#[derive(Debug, Clone)]
+pub struct BoilerplateViolation {
+    pub file: PathBuf,
+    pub line: usize,
+    pub message: String,
+    pub replace_start_line: usize,
+    pub replace_end_line: usize,
+    pub needs_cfg_test: bool,
+    pub mod_line: usize,
 }
 
-struct TestModuleVisitor<'a> {
-    file_path: &'a Path,
-    violations: Vec<Violation>,
+pub struct TestModuleVisitor<'a> {
+    pub file_path: &'a Path,
+    pub violations: Vec<BoilerplateViolation>,
 }
 
 impl<'ast> Visit<'ast> for TestModuleVisitor<'_> {
@@ -68,7 +68,6 @@ impl<'ast> Visit<'ast> for TestModuleVisitor<'_> {
             self.check_test_mod(item_mod, has_cfg_test);
         }
 
-        // Continue visiting nested items
         syn::visit::visit_item_mod(self, item_mod);
     }
 }
@@ -77,7 +76,6 @@ impl TestModuleVisitor<'_> {
     fn check_test_mod(&mut self, item_mod: &syn::ItemMod, has_cfg_test: bool) {
         let mod_line = item_mod.ident.span().start().line;
 
-        // Find existing cfg attr and boilerplate attr (allow or expect)
         let mut cfg_span: Option<(usize, usize)> = None;
         let mut boilerplate_attr_span: Option<(usize, usize)> = None;
         let mut found_boilerplate_allow = false;
@@ -123,7 +121,7 @@ impl TestModuleVisitor<'_> {
         };
 
         if !has_cfg_test {
-            self.violations.push(Violation {
+            self.violations.push(BoilerplateViolation {
                 file: self.file_path.to_path_buf(),
                 line: mod_line,
                 message: "Test module is missing `#[cfg(test)]` attribute".to_string(),
@@ -136,7 +134,7 @@ impl TestModuleVisitor<'_> {
         }
 
         if is_expect {
-            self.violations.push(Violation {
+            self.violations.push(BoilerplateViolation {
                 file: self.file_path.to_path_buf(),
                 line: boilerplate_attr_span.map_or(mod_line, |s| s.0),
                 message: "Test boilerplate uses `#[expect(...)]` instead of `#[allow(...)]`".to_string(),
@@ -149,7 +147,7 @@ impl TestModuleVisitor<'_> {
         }
 
         if !found_boilerplate_allow {
-            self.violations.push(Violation {
+            self.violations.push(BoilerplateViolation {
                 file: self.file_path.to_path_buf(),
                 line: mod_line,
                 message: "Test module is missing standard repository test boilerplate `#[allow(..., reason = \"Standard repository test boilerplate\")]`".to_string(),
@@ -159,7 +157,7 @@ impl TestModuleVisitor<'_> {
                 mod_line,
             });
         } else if !missing_lints.is_empty() {
-            self.violations.push(Violation {
+            self.violations.push(BoilerplateViolation {
                 file: self.file_path.to_path_buf(),
                 line: boilerplate_attr_span.map_or(mod_line, |s| s.0),
                 message: format!(
@@ -175,29 +173,16 @@ impl TestModuleVisitor<'_> {
     }
 }
 
-use quote::ToTokens;
-
-fn find_rs_files(dir: &Path, rs_files: &mut Vec<PathBuf>) -> Result<()> {
-    if !dir.is_dir() {
-        return Ok(());
-    }
-    for entry in fs::read_dir(dir)? {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_dir() {
-            let name = entry.file_name();
-            if name == "vendor" || name == "target" || name == ".git" || name == "built" {
-                continue;
-            }
-            find_rs_files(&path, rs_files)?;
-        } else if path.extension().is_some_and(|ext| ext == "rs") {
-            rs_files.push(path);
-        }
-    }
-    Ok(())
+pub fn check_file_ast(file_path: &Path, syntax_tree: &syn::File) -> Vec<BoilerplateViolation> {
+    let mut visitor = TestModuleVisitor {
+        file_path,
+        violations: Vec::new(),
+    };
+    visitor.visit_file(syntax_tree);
+    visitor.violations
 }
 
-fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
+pub fn fix_file(file_path: &Path, violations: &[BoilerplateViolation]) -> Result<bool> {
     if violations.is_empty() {
         return Ok(false);
     }
@@ -205,8 +190,7 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
     let content = fs::read_to_string(file_path)?;
     let lines: Vec<&str> = content.lines().collect();
 
-    // Sort violations in reverse line order so line index changes don't shift earlier violations
-    let mut sorted_violations: Vec<&Violation> = violations.iter().collect();
+    let mut sorted_violations: Vec<&BoilerplateViolation> = violations.iter().collect();
     sorted_violations.sort_by(|a, b| b.mod_line.cmp(&a.mod_line));
 
     let mut new_lines: Vec<String> = lines.into_iter().map(String::from).collect();
@@ -227,7 +211,6 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
         } else {
             &std_allow
         };
-
 
         let replacement_lines: Vec<String> = boilerplate_template
             .lines()
@@ -252,22 +235,28 @@ fn fix_file(file_path: &Path, violations: &[Violation]) -> Result<bool> {
     Ok(true)
 }
 
-fn main() -> Result<()> {
-    let mut args: Vec<String> = env::args().skip(1).collect();
-    let mut do_fix = false;
-    let mut workspace_root = None;
-
-    for arg in args.drain(..) {
-        if arg == "--fix" {
-            do_fix = true;
-        } else if workspace_root.is_none() {
-            workspace_root = Some(PathBuf::from(arg));
-        } else {
-            bail!("unexpected argument: {arg}");
+pub fn find_rs_files(dir: &Path, rs_files: &mut Vec<PathBuf>) -> Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            let name = entry.file_name();
+            if name == "vendor" || name == "target" || name == ".git" || name == "built" {
+                continue;
+            }
+            find_rs_files(&path, rs_files)?;
+        } else if path.extension().is_some_and(|ext| ext == "rs") {
+            rs_files.push(path);
         }
     }
+    Ok(())
+}
 
-    let workspace_root = workspace_root.unwrap_or_else(|| PathBuf::from("."));
+/// Runs test boilerplate verification.
+pub fn run(workspace_root: &Path, do_fix: bool) -> Result<()> {
     let src_dir = workspace_root.join("src");
     if !src_dir.is_dir() {
         bail!("src directory not found at {}", src_dir.display());
@@ -293,24 +282,19 @@ fn main() -> Result<()> {
             continue;
         };
 
-        let mut visitor = TestModuleVisitor {
-            file_path,
-            violations: Vec::new(),
-        };
+        let violations = check_file_ast(file_path, &syntax_tree);
 
-        visitor.visit_file(&syntax_tree);
-
-        if !visitor.violations.is_empty() {
+        if !violations.is_empty() {
             files_with_violations = files_with_violations.saturating_add(1);
-            total_violations = total_violations.saturating_add(visitor.violations.len());
+            total_violations = total_violations.saturating_add(violations.len());
 
             if do_fix {
-                if fix_file(file_path, &visitor.violations)? {
+                if fix_file(file_path, &violations)? {
                     fixed_files = fixed_files.saturating_add(1);
                 }
             } else {
-                for v in &visitor.violations {
-                    let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
+                for v in &violations {
+                    let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
                     eprintln!("{}:{}: {}", relative.display(), v.line, v.message);
                 }
             }

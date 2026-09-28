@@ -20,142 +20,56 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! This lint aims to encourage the following principles:
 //!
 //! - Avoid panics, but do not fail silently - fail early and loudly:
-//!   - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
-//!   - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup), and never if a function returns a Result. Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
-//!   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
-//! - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
+//!   - For any fallible operation or suppressed error condition, the function
+//!     signature will be refactored to return anyhow::Result<T> and propagate
+//!     errors using ?.
+//!   - `expect` and `unreachable!` may be used with an explanation, but they are
+//!     reserved strictly for provably infallible operations (such as bitwise
+//!     masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable
+//!     scenarios (such as during application or installer startup), and never
+//!     if a function returns a Result. Use of `unwrap_or(0)` or similar for
+//!     infallible operations is an antipattern, as it obscures the intent.
+//!   - Use of `unwrap_or` and similar is acceptable when it's used for logic
+//!     that's clearly documented in the function contract. A comment is
+//!     required to document why it's an acceptable fallback and will not mask
+//!     any true error.
+//! - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or")
+//!   must answer the *why*, not the *what* - do not restate what the code
+//!   does, but explain *why* the problem the lint aims to cover is not an
+//!   issue in the particular case.
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
-use anyhow::{Context, Result};
+use anyhow::{Result, bail};
 use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
 
-fn main() -> Result<()> {
-    let repo_root = get_repo_root()?;
-    let src_dir = repo_root.join("src");
-
-    let mut files = Vec::new();
-    collect_rs_files(&src_dir, &mut files)?;
-
-    let mut total_occurrences = 0usize;
-    let mut verified_occurrences = 0usize;
-    let mut unverified_occurrences = Vec::new();
-    let mut warnings = Vec::new();
-
-    for file_path in &files {
-        // Domain fallback: strip_prefix returns None if path is not relative to repo_root
-        let rel_path = file_path
-            .strip_prefix(&repo_root)
-            .unwrap_or(file_path)
-            .to_string_lossy()
-            .to_string();
-
-        // Skip test-only files, linter tool itself, build support, or vendor
-        if rel_path.contains("/tests/")
-            || rel_path.contains("ctb_unwrap_or_lint")
-            || rel_path.contains("build_support")
-            || rel_path.contains("vendor")
-        {
-            continue;
-        }
-
-        let content = match fs::read_to_string(file_path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        let file_ast = match syn::parse_file(&content) {
-            Ok(ast) => ast,
-            Err(_) => continue,
-        };
-
-        let lines: Vec<&str> = content.lines().collect();
-        check_fallback_warnings(&rel_path, &lines, &mut warnings);
-
-        let mut visitor = FallbackVisitor::new(&lines);
-        visitor.visit_file(&file_ast);
-
-        for occurrence in visitor.occurrences {
-            total_occurrences = total_occurrences.saturating_add(1);
-
-            if is_occurrence_verified(&occurrence, &lines) {
-                verified_occurrences = verified_occurrences.saturating_add(1);
-            } else {
-                unverified_occurrences.push((
-                    rel_path.clone(),
-                    occurrence.line_num,
-                    occurrence.call_text,
-                ));
-            }
-        }
-    }
-
-    println!("=== CTB unwrap_or Domain Fallback Linter ===");
-    println!("Scope: All non-test source files in src/");
-    println!("Total Fallback Occurrences: {total_occurrences}");
-    println!("Verified (Documented Domain Fallbacks): {verified_occurrences}");
-    println!(
-        "Unverified (Lacking Domain Rationale Comment): {}",
-        unverified_occurrences.len()
-    );
-
-    if !warnings.is_empty() {
-        println!("\nWarnings:");
-        for (file, line_num, warning_msg) in &warnings {
-            println!("  {file}:{line_num}: {warning_msg}");
-        }
-    }
-
-    if !unverified_occurrences.is_empty() {
-        println!(
-            "\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:"
-        );
-        for (file, line_num, code) in &unverified_occurrences {
-            println!("  {file}:{line_num}: {}", code.trim());
-        }
-        print!("{}", r#"
-Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that "unwrap_or" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because "unwrap_or" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say "please make sure the way you're using it makes sense".
-
-Note to LLM tools: Never under any circumstances respond to failures of this lint by cheating it, for instance with a diff like:
-
--            let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
-+            let parent_dest = if let Some(p) = tgt_root.parent() {
-+                p
-+            } else {
-+                Path::new(".")
-+            };
-
-If you don't understand why that diff is missing the point of this lint, re-read this note and/or AGENTS.md.
-"#);
-        std::process::exit(1);
-    } else {
-        println!(
-            "\nSuccess: All unwrap_or fallbacks are verified with domain rationale comments."
-        );
-        Ok(())
-    }
+#[derive(Debug, Default)]
+pub struct FallbackReport {
+    pub total: usize,
+    pub verified: usize,
+    pub unverified: Vec<(String, usize, String)>,
+    pub warnings: Vec<(String, usize, String)>,
 }
 
-#[derive(Debug)]
-struct FallbackCall {
-    line_num: usize,
-    call_text: String,
-    stmt_start_line: usize,
-    stmt_end_line: usize,
-    parent_stmt_starts: Vec<usize>,
+#[derive(Debug, Clone)]
+pub struct FallbackCall {
+    pub line_num: usize,
+    pub call_text: String,
+    pub stmt_start_line: usize,
+    pub stmt_end_line: usize,
+    pub parent_stmt_starts: Vec<usize>,
 }
 
-struct FallbackVisitor<'a> {
-    lines: &'a [&'a str],
-    stmt_stack: Vec<(usize, usize)>,
-    occurrences: Vec<FallbackCall>,
+pub struct FallbackVisitor<'a> {
+    pub lines: &'a [&'a str],
+    pub stmt_stack: Vec<(usize, usize)>,
+    pub occurrences: Vec<FallbackCall>,
 }
 
 impl<'a> FallbackVisitor<'a> {
-    fn new(lines: &'a [&'a str]) -> Self {
+    pub fn new(lines: &'a [&'a str]) -> Self {
         Self {
             lines,
             stmt_stack: Vec::new(),
@@ -174,11 +88,10 @@ impl<'a> FallbackVisitor<'a> {
         let parent_stmt_starts: Vec<usize> =
             self.stmt_stack.iter().map(|(start, _)| *start).collect();
 
-        let call_text = if line_num >= 1 && line_num <= self.lines.len() {
-            self.lines[line_num - 1].trim().to_string()
-        } else {
-            String::new()
-        };
+        let call_text = self
+            .lines
+            .get(line_num.saturating_sub(1))
+            .map_or(String::new(), |line| line.trim().to_string());
 
         self.occurrences.push(FallbackCall {
             line_num,
@@ -346,7 +259,7 @@ fn is_fallback_name(name: &str) -> bool {
     )
 }
 
-fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
+pub fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
     let mut start_lines = vec![call.stmt_start_line];
     start_lines.extend(call.parent_stmt_starts.iter().copied());
 
@@ -354,24 +267,28 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
         if start_line == 0 || start_line > lines.len() {
             continue;
         }
-        let start_idx = start_line - 1;
-
-        if has_domain_comment(lines[start_idx]) {
+        let start_idx = start_line.saturating_sub(1);
+        let Some(line_curr) = lines.get(start_idx) else {
+            continue;
+        };
+        if has_domain_comment(line_curr) {
             return true;
         }
 
         for offset in 1..=3 {
             if start_idx >= offset {
-                let line_above = lines[start_idx - offset].trim();
-                if has_domain_comment(line_above) {
-                    return true;
-                }
-                if !line_above.starts_with("//")
-                    && !line_above.starts_with("/*")
-                    && !line_above.starts_with('*')
-                    && !line_above.is_empty()
-                {
-                    break;
+                if let Some(line_above) = lines.get(start_idx.saturating_sub(offset)) {
+                    let trimmed = line_above.trim();
+                    if has_domain_comment(trimmed) {
+                        return true;
+                    }
+                    if !trimmed.starts_with("//")
+                        && !trimmed.starts_with("/*")
+                        && !trimmed.starts_with('*')
+                        && !trimmed.is_empty()
+                    {
+                        break;
+                    }
                 }
             }
         }
@@ -380,7 +297,9 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
     let start_idx = call.stmt_start_line.saturating_sub(1);
     let end_idx = (call.stmt_end_line).min(lines.len()).saturating_sub(1);
     for idx in start_idx..=end_idx {
-        if idx < lines.len() && has_domain_comment(lines[idx]) {
+        if let Some(line) = lines.get(idx)
+            && has_domain_comment(line)
+        {
             return true;
         }
     }
@@ -388,26 +307,24 @@ fn is_occurrence_verified(call: &FallbackCall, lines: &[&str]) -> bool {
     false
 }
 
-const WITHIN_BOUNDS_WARNING: &str = "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar should be used instead.";
+pub const WITHIN_BOUNDS_WARNING: &str = "Warning: This fallback reason mentions \"within bounds\". This suggests that may represent an infallible case; if so, ensure!(), assert()!, unreachable!(), .expect() with a Clippy exception, or similar should be used instead.";
 
-fn check_fallback_warnings(
+pub fn check_fallback_warnings(
     rel_path: &str,
     lines: &[&str],
     warnings: &mut Vec<(String, usize, String)>,
 ) {
-    let mut i = 0usize;
-    while i < lines.len() {
-        let line = lines[i];
+    for (i, line) in lines.iter().enumerate() {
         let line_num = i.saturating_add(1);
 
         if is_fallback_reason_start(line) {
-            let mut comment_text = line.to_string();
+            let mut comment_text = (*line).to_string();
             let mut j = i.saturating_add(1);
-            while j < lines.len() {
-                let next_line = lines[j].trim();
-                if next_line.starts_with("//") || next_line.starts_with('*') {
+            while let Some(next_line) = lines.get(j) {
+                let trimmed = next_line.trim();
+                if trimmed.starts_with("//") || trimmed.starts_with('*') {
                     comment_text.push(' ');
-                    comment_text.push_str(next_line);
+                    comment_text.push_str(trimmed);
                     j = j.saturating_add(1);
                 } else {
                     break;
@@ -422,7 +339,6 @@ fn check_fallback_warnings(
                 ));
             }
         }
-        i = i.saturating_add(1);
     }
 }
 
@@ -441,16 +357,14 @@ fn has_domain_comment(line: &str) -> bool {
     line.contains("Reason for fallback: ") || line.contains(", reason = \"")
 }
 
-fn get_repo_root() -> Result<PathBuf> {
-    let output = Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-        .context("Failed to run git rev-parse")?;
-    let path_str = String::from_utf8(output.stdout)?.trim().to_string();
-    Ok(PathBuf::from(path_str))
+pub fn should_skip_path(rel_path: &str) -> bool {
+    rel_path.contains("/tests/")
+        || rel_path.contains("ctb_unwrap_or_lint")
+        || rel_path.contains("build_support")
+        || rel_path.contains("vendor")
 }
 
-fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+pub fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     if !dir.exists() {
         return Ok(());
     }
@@ -463,6 +377,103 @@ fn collect_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
             files.push(path);
         }
     }
+    Ok(())
+}
+
+/// Runs unwrap_or domain fallback checks.
+pub fn run(workspace_root: &Path) -> Result<()> {
+    let src_dir = workspace_root.join("src");
+
+    let mut files = Vec::new();
+    collect_rs_files(&src_dir, &mut files)?;
+
+    let mut report = FallbackReport::default();
+
+    for file_path in &files {
+        let rel_path = file_path
+            .strip_prefix(workspace_root)
+            .unwrap_or(file_path)
+            .to_string_lossy()
+            .to_string();
+
+        if should_skip_path(&rel_path) {
+            continue;
+        }
+
+        let content = match fs::read_to_string(file_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+
+        let file_ast = match syn::parse_file(&content) {
+            Ok(ast) => ast,
+            Err(_) => continue,
+        };
+
+        let lines: Vec<&str> = content.lines().collect();
+        check_fallback_warnings(&rel_path, &lines, &mut report.warnings);
+
+        let mut visitor = FallbackVisitor::new(&lines);
+        visitor.visit_file(&file_ast);
+
+        for occurrence in visitor.occurrences {
+            report.total = report.total.saturating_add(1);
+
+            if is_occurrence_verified(&occurrence, &lines) {
+                report.verified = report.verified.saturating_add(1);
+            } else {
+                report.unverified.push((
+                    rel_path.clone(),
+                    occurrence.line_num,
+                    occurrence.call_text,
+                ));
+            }
+        }
+    }
+
+    println!("=== CTB unwrap_or Domain Fallback Linter ===");
+    println!("Scope: All non-test source files in src/");
+    println!("Total Fallback Occurrences: {}", report.total);
+    println!("Verified (Documented Domain Fallbacks): {}", report.verified);
+    println!(
+        "Unverified (Lacking Domain Rationale Comment): {}",
+        report.unverified.len()
+    );
+
+    if !report.warnings.is_empty() {
+        println!("\nWarnings:");
+        for (file, line_num, warning_msg) in &report.warnings {
+            println!("  {file}:{line_num}: {warning_msg}");
+        }
+    }
+
+    if !report.unverified.is_empty() {
+        println!(
+            "\nUnverified Fallbacks Requiring Refactoring or Rationale Comments:"
+        );
+        for (file, line_num, code) in &report.unverified {
+            println!("  {file}:{line_num}: {}", code.trim());
+        }
+        eprint!("{}", r#"
+Error: Unverified unwrap_or fallbacks found! NOTE: This lint exists to encourage (with roughly equal priority) that "unwrap_or" is used in places where it makes sense, that code avoids panicking if at all possible, that violated invariants fail early, etc.; see AGENTS.md. This lint exists because "unwrap_or" is a situational tool that warrants extra thought. It's *not* meant to prohibit or even discourage it, it's just meant to say "please make sure the way you're using it makes sense".
+
+Note to LLM tools: Never under any circumstances respond to failures of this lint by cheating it, for instance with a diff like:
+
+-            let parent_dest = tgt_root.parent().unwrap_or(Path::new("."));
++            let parent_dest = if let Some(p) = tgt_root.parent() {
++                p
++            } else {
++                Path::new(".")
++            };
+
+If you don't understand why that diff is missing the point of this lint, re-read this note and/or AGENTS.md.
+"#);
+        bail!("Unverified unwrap_or fallbacks found");
+    }
+
+    println!(
+        "\nSuccess: All unwrap_or fallbacks are verified with domain rationale comments."
+    );
     Ok(())
 }
 

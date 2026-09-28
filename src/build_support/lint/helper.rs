@@ -21,10 +21,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Unsafe filesystem writes in tests without temporary directories.
 //! - Inclusion of all workspace crates under `src/` in the root `Cargo.toml`.
 
-#[path = "lint_helper/workspace_crates.rs"]
-mod workspace_crates;
-
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -32,17 +28,20 @@ use anyhow::{Context, Result, bail};
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 
-struct Violation {
-    file: PathBuf,
-    line: usize,
-    fn_name: String,
-    write_op: String,
+use super::workspace_crates;
+
+#[derive(Debug, Clone)]
+pub struct TempdirViolation {
+    pub file: PathBuf,
+    pub line: usize,
+    pub fn_name: String,
+    pub write_op: String,
 }
 
-struct TestFnVisitor {
-    file_path: PathBuf,
-    file_content: String,
-    violations: Vec<Violation>,
+pub struct TestFnVisitor {
+    pub file_path: PathBuf,
+    pub file_content: String,
+    pub violations: Vec<TempdirViolation>,
 }
 
 impl<'ast> Visit<'ast> for TestFnVisitor {
@@ -81,7 +80,7 @@ impl<'ast> Visit<'ast> for TestFnVisitor {
                     check.visit_block(&node.block);
 
                     if check.has_write {
-                        self.violations.push(Violation {
+                        self.violations.push(TempdirViolation {
                             file: self.file_path.clone(),
                             line: node.sig.ident.span().start().line,
                             fn_name: node.sig.ident.to_string(),
@@ -149,7 +148,7 @@ impl<'ast> Visit<'ast> for WriteCheckVisitor {
     }
 }
 
-fn is_test_fn(item: &syn::ItemFn) -> bool {
+pub fn is_test_fn(item: &syn::ItemFn) -> bool {
     item.attrs.iter().any(|attr| {
         let segments = &attr.path().segments;
         if let Some(last_segment) = segments.last() {
@@ -161,7 +160,22 @@ fn is_test_fn(item: &syn::ItemFn) -> bool {
     })
 }
 
-fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+/// Checks an individual parsed AST for tempdir violations in test functions.
+pub fn check_file_ast(
+    file_path: &Path,
+    file_content: &str,
+    syntax: &syn::File,
+) -> Vec<TempdirViolation> {
+    let mut visitor = TestFnVisitor {
+        file_path: file_path.to_path_buf(),
+        file_content: file_content.to_string(),
+        violations: Vec::new(),
+    };
+    visitor.visit_file(syntax);
+    visitor.violations
+}
+
+pub fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -183,19 +197,10 @@ fn find_rs_files(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn main() -> Result<()> {
-    let mut args = env::args_os();
-    let _program = args.next();
-    let Some(root_arg) = args.next() else {
-        bail!("usage: lint-helper <workspace-root>");
-    };
-    if args.next().is_some() {
-        bail!("usage: lint-helper <workspace-root>");
-    }
-    let workspace_root = PathBuf::from(root_arg);
-
+/// Runs helper checks (workspace crates and tempdir write check in tests).
+pub fn run(workspace_root: &Path) -> Result<()> {
     let mut rs_files = Vec::new();
-    find_rs_files(&workspace_root, &mut rs_files)?;
+    find_rs_files(workspace_root, &mut rs_files)?;
 
     let mut violations = Vec::new();
 
@@ -217,17 +222,11 @@ fn main() -> Result<()> {
             }
         };
 
-        let mut visitor = TestFnVisitor {
-            file_path: file_path.clone(),
-            file_content,
-            violations: Vec::new(),
-        };
-        visitor.visit_file(&syntax);
-        violations.extend(visitor.violations);
+        violations.extend(check_file_ast(&file_path, &file_content, &syntax));
     }
 
     let ws_violations =
-        workspace_crates::check_workspace_crates(&workspace_root)?;
+        workspace_crates::check_workspace_crates(workspace_root)?;
     let mut has_failure = false;
 
     if ws_violations.is_empty() {
@@ -261,7 +260,7 @@ fn main() -> Result<()> {
             "If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block."
         );
         for v in &violations {
-            let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
+            let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
             eprintln!(
                 "  {}:{}: function `{}` called `{}` without tempdir",
                 relative.display(),

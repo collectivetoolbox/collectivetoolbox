@@ -41,4 +41,4 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "=== Running unwrap_or domain fallback linter ==="
-cargo run ${offline} -p ctb-unwrap-or-lint --bin lint-unwrap-or-bin --release
+cargo run ${offline} --manifest-path src/build_support/Cargo.toml --bin ctb-lint -- unwrap-or "$@"

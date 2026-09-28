@@ -22,12 +22,11 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! versions available on crates.io than the versions the patched packages are
 //! based on.
 
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use semver::Version;
 use serde::Deserialize;
 use toml::{Table, Value};
@@ -44,40 +43,20 @@ struct CrateInfo {
     max_stable_version: Option<String>,
 }
 
-struct OutdatedPackage {
-    crate_name: String,
-    local_version: String,
-    crates_io_version: String,
+#[derive(Debug)]
+pub struct OutdatedPackage {
+    pub crate_name: String,
+    pub local_version: String,
+    pub crates_io_version: String,
 }
 
-fn main() -> Result<()> {
-    let (workspace_root, offline) = parse_args()?;
-
-    if offline {
-        println!(
-            "================================================================================"
-        );
-        println!(
-            "==================== VENDORED PACKAGE VERSION CHECK SKIPPED ===================="
-        );
-        println!(
-            "================================================================================"
-        );
-        println!(
-            "Skipping crates.io version check for vendored packages (--offline specified)."
-        );
-        println!(
-            "================================================================================"
-        );
-        println!(
-            "================================================================================"
-        );
-        return Ok(());
-    }
-
+/// Discovers vendored crates and checks their latest versions on crates.io.
+pub fn check_outdated_packages(
+    workspace_root: &Path,
+) -> Result<Vec<OutdatedPackage>> {
     let vendor_dir = workspace_root.join("vendor");
     if !vendor_dir.is_dir() {
-        return Ok(());
+        return Ok(Vec::new());
     }
 
     let vendored_crates = find_vendored_crates(&vendor_dir)?;
@@ -104,6 +83,35 @@ fn main() -> Result<()> {
             });
         }
     }
+
+    Ok(outdated)
+}
+
+/// Runs vendor versions check.
+pub fn run(workspace_root: &Path, offline: bool) -> Result<()> {
+    if offline {
+        println!(
+            "================================================================================"
+        );
+        println!(
+            "==================== VENDORED PACKAGE VERSION CHECK SKIPPED ===================="
+        );
+        println!(
+            "================================================================================"
+        );
+        println!(
+            "Skipping crates.io version check for vendored packages (--offline specified)."
+        );
+        println!(
+            "================================================================================"
+        );
+        println!(
+            "================================================================================"
+        );
+        return Ok(());
+    }
+
+    let outdated = check_outdated_packages(workspace_root)?;
 
     if outdated.is_empty() {
         println!(
@@ -144,32 +152,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn parse_args() -> Result<(PathBuf, bool)> {
-    let args = env::args_os().skip(1);
-    let mut offline = false;
-    let mut root_path = None;
-
-    for arg in args {
-        let arg_str = arg.to_string_lossy();
-        if arg_str == "--offline" {
-            offline = true;
-        } else if root_path.is_none() {
-            root_path = Some(PathBuf::from(arg));
-        } else {
-            bail!("usage: lint-vendor-versions [--offline] <workspace-root>");
-        }
-    }
-
-    let Some(root) = root_path else {
-        bail!("usage: lint-vendor-versions [--offline] <workspace-root>");
-    };
-
-    Ok((root, offline))
-}
-
 /// Discovers vendored crates directly inside `vendor/`, excluding
 /// `ctb-vendored` and `upstream-for-reference`.
-fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
+pub fn find_vendored_crates(vendor_dir: &Path) -> Result<Vec<(String, String)>> {
     let mut results = Vec::new();
     let entries = fs::read_dir(vendor_dir).with_context(|| {
         format!("failed to read directory {}", vendor_dir.display())

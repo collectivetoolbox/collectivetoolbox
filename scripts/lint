@@ -36,14 +36,26 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-echo "=== Checking unwrap_or domain fallbacks ==="
-# This lint aims to encourage the following principles:
-# - Avoid panics, but do not fail silently - fail early and loudly:
-#   - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
-#   - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup), and never if a function returns a Result. Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
-#   - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
-# - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
-./scripts/lint-unwrap-or ${offline} || exit 1
+echo "=== Running Rust linters ==="
+# This includes checks for:
+# - unwrap_or domain fallbacks
+#   This lint aims to encourage the following principles:
+#   - Avoid panics, but do not fail silently - fail early and loudly:
+#     - For any fallible operation or suppressed error condition, the function signature will be refactored to return anyhow::Result<T> and propagate errors using ?.
+#     - `expect` and `unreachable!` may be used with an explanation, but they are reserved strictly for provably infallible operations (such as bitwise masks `x & 0x3F` or range-checked bounds) or genuinely unrecoverable scenarios (such as during application or installer startup), and never if a function returns a Result. Use of `unwrap_or(0)` or similar for infallible operations is an antipattern, as it obscures the intent.
+#     - Use of `unwrap_or` and similar is acceptable when it's used for logic that's clearly documented in the function contract. A comment is required to document why it's an acceptable fallback and will not mask any true error.
+#   - Comments for lint bypasses (such as on uses of "expect" or "unwrap_or") must answer the *why*, not the *what* - do not restate what the code does, but explain *why* the problem the lint aims to cover is not an issue in the particular case.
+# - Patched crate utilization in Cargo.toml
+# - Vendored package version freshness
+# - Unsafe file writes in tests without tempdir
+# - Workspace crate registration in root Cargo.toml
+# - License headers and docblocks
+# - Test module boilerplate
+quick_flag=""
+if [[ -n "$quick" ]]; then
+    quick_flag="--quick"
+fi
+cargo run ${offline} --quiet --manifest-path src/build_support/Cargo.toml --bin ctb-lint -- all ${offline} ${quick_flag} || exit 1
 
 if [[ -n "$quick" ]]; then
     export CTB_SKIP_DOCS=1
@@ -68,20 +80,6 @@ if grep --exclude-dir=vendor -r '!important'; then
 fi
 popd || exit 1
 
-echo "=== Checking that patched crates are actually being used ==="
-./scripts/lint-patches || exit 1
-
-if [[ -z "$quick" ]]; then
-    echo "=== Checking for newer versions of vendored packages ==="
-    ./scripts/lint-vendor-versions ${offline} || exit 1
-fi
-
-echo "=== Checking for unsafe file writes in tests ==="
-./scripts/lint-helper || exit 1
-
-echo "=== Checking file headers and module docblocks ==="
-./scripts/lint-headers || exit 1
-
 echo "=== Validating data tables ==="
 ./scripts/validate-data-tables ${offline} || exit 1
 
@@ -94,9 +92,6 @@ if git grep -E '^\s*#\[(tokio::)?test\]\s*$' -- 'src/' ':!src/build_support/' ':
     echo "Please update tests to use \`#[crate::ctb_test]\` or \`#[crate::ctb_test(\"tokio\")]\`."
     exit 1
 fi
-
-echo "=== Checking test module boilerplate ==="
-./scripts/lint-test-boilerplate || exit 1
 
 echo "=== Running cargo clippy ==="
 if ! RUSTFLAGS="-A warnings -A unfulfilled_lint_expectations" cargo clippy --workspace --all-targets $offline; then

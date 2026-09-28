@@ -28,6 +28,7 @@ pub mod fnv;
 pub mod format_id_codegen;
 pub mod ipc_codegen;
 pub mod license_consts;
+pub mod lint;
 pub mod seabios_builder;
 pub mod standard_boilerplate;
 pub mod v86_generator;

@@ -26,24 +26,24 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
-use ctb_build_support::license_consts::{
+use crate::license_consts::{
     AGPL_3_0_ONLY_COPYRIGHT_BLOCK, AGPL_COPYRIGHT_BLOCK, DEFAULT_AGPL_HEADER,
     DESCRIPTION_DETECTION, DETECTION_LICENSES_OTHER, FILE_ADDITIONAL_LICENSES,
     HASH_AGPL_HEADER, HASH_BSD_DARWIN_HEADER, PAN_MIT_HEADER,
     SCHEME_GPL_HEADER, SPDX_HEADERS_DETECTION,
 };
 
-#[derive(Debug)]
-struct Violation {
-    file: PathBuf,
-    line: usize,
-    message: String,
+#[derive(Debug, Clone)]
+pub struct Violation {
+    pub file: PathBuf,
+    pub line: usize,
+    pub message: String,
 }
 
 /// Recursively find all source files excluding target, vendor, old,
 /// built, generated, .git, data directories without a Cargo.toml,
 /// third-party reference implementations, and patch files.
-fn find_files(
+pub fn find_files(
     dir: &Path,
     rs_files: &mut Vec<PathBuf>,
     scm_files: &mut Vec<PathBuf>,
@@ -837,7 +837,7 @@ fn parse_spdx_licenses(expression: &str) -> BTreeSet<String> {
 }
 
 /// Load the allowed license identifiers from the workspace `Cargo.toml`.
-fn load_allowed_licenses(workspace_root: &Path) -> Result<BTreeSet<String>> {
+pub fn load_allowed_licenses(workspace_root: &Path) -> Result<BTreeSet<String>> {
     let cargo_toml_path = workspace_root.join("Cargo.toml");
     let content = fs::read_to_string(&cargo_toml_path)
         .with_context(|| format!("failed to read {}", cargo_toml_path.display()))?;
@@ -893,7 +893,7 @@ fn check_header_licenses(
 }
 
 /// Lint a single file and record violations.
-fn lint_file(
+pub fn lint_file(
     file_path: &Path,
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
@@ -981,7 +981,7 @@ fn lint_file(
 }
 
 /// Lint a single Scheme file and record violations.
-fn lint_scm_file(
+pub fn lint_scm_file(
     file_path: &Path,
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
@@ -1061,7 +1061,7 @@ fn lint_scm_file(
 }
 
 /// Lint a single Dockerfile and record violations.
-fn lint_docker_file(
+pub fn lint_docker_file(
     file_path: &Path,
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
@@ -1121,7 +1121,7 @@ fn lint_docker_file(
 }
 
 /// Lint a single Python file and record violations.
-fn lint_python_file(
+pub fn lint_python_file(
     file_path: &Path,
     allowed_licenses: &BTreeSet<String>,
     violations: &mut Vec<Violation>,
@@ -1185,7 +1185,7 @@ fn lint_python_file(
 }
 
 /// Lint a single shell script and record violations.
-fn lint_shell_file(
+pub fn lint_shell_file(
     file_path: &Path,
     workspace_root: &Path,
     allowed_licenses: &BTreeSet<String>,
@@ -1587,23 +1587,8 @@ fn add_shell_headers(
     Ok((modified_count, already_valid_count))
 }
 
-fn main() -> Result<()> {
-    let args = env::args().skip(1);
-    let mut workspace_root: Option<PathBuf> = None;
-    let mut do_add_headers = false;
-
-    for arg in args {
-        if arg == "--add-headers" {
-            do_add_headers = true;
-        } else if workspace_root.is_none() {
-            workspace_root = Some(PathBuf::from(arg));
-        } else {
-            bail!("unexpected argument: {arg}");
-        }
-    }
-
-    let workspace_root = workspace_root.unwrap_or_else(|| PathBuf::from("."));
-    let allowed_licenses = load_allowed_licenses(&workspace_root)?;
+pub fn run(workspace_root: &Path, do_add_headers: bool) -> Result<()> {
+    let allowed_licenses = load_allowed_licenses(workspace_root)?;
 
     let mut rs_files = Vec::new();
     let mut scm_files = Vec::new();
@@ -1613,7 +1598,7 @@ fn main() -> Result<()> {
     let mut violations = Vec::new();
 
     find_files(
-        &workspace_root,
+        workspace_root,
         &mut rs_files,
         &mut scm_files,
         &mut docker_files,
@@ -1623,27 +1608,27 @@ fn main() -> Result<()> {
     )?;
 
     if do_add_headers {
-        add_headers(&rs_files, &workspace_root)?;
+        add_headers(&rs_files, workspace_root)?;
         let (scm_modified, scm_valid) =
-            add_scheme_headers(&scm_files, &workspace_root)?;
+            add_scheme_headers(&scm_files, workspace_root)?;
         println!("\nScheme header addition summary:");
         println!("  Modified: {scm_modified}");
         println!("  Already valid: {scm_valid}");
 
         let (docker_modified, docker_valid) =
-            add_docker_headers(&docker_files, &workspace_root)?;
+            add_docker_headers(&docker_files, workspace_root)?;
         println!("\nDockerfile header addition summary:");
         println!("  Modified: {docker_modified}");
         println!("  Already valid: {docker_valid}");
 
         let (python_modified, python_valid) =
-            add_python_headers(&python_files, &workspace_root)?;
+            add_python_headers(&python_files, workspace_root)?;
         println!("\nPython header addition summary:");
         println!("  Modified: {python_modified}");
         println!("  Already valid: {python_valid}");
 
         let (shell_modified, shell_valid) =
-            add_shell_headers(&shell_files, &workspace_root)?;
+            add_shell_headers(&shell_files, workspace_root)?;
         println!("\nShell script header addition summary:");
         println!("  Modified: {shell_modified}");
         println!("  Already valid: {shell_valid}");
@@ -1665,7 +1650,7 @@ fn main() -> Result<()> {
     for file_path in &shell_files {
         lint_shell_file(
             file_path,
-            &workspace_root,
+            workspace_root,
             &allowed_licenses,
             &mut violations,
         )?;
@@ -1698,7 +1683,7 @@ fn main() -> Result<()> {
     );
 
     for v in &violations {
-        let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
+        let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
         eprintln!("  {}:{}: {}", relative.display(), v.line, v.message);
     }
 

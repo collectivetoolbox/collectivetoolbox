@@ -2638,6 +2638,7 @@ dependencies = [
  "fs2",
  "proc-macro2",
  "quote",
+ "rayon",
  "semver 1.0.28",
  "serde",
  "serde_json",
@@ -3834,15 +3835,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ctb-unwrap-or-lint"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "proc-macro2",
- "syn 2.0.117",
-]
-
-[[package]]
 name = "ctb-utilities"
 version = "0.0.0"
 dependencies = [
@@ -4114,7 +4106,6 @@ dependencies = [
  "ctb-storage-asset-bundle",
  "ctb-storage-minimal",
  "ctb-test-macro",
- "ctb-unwrap-or-lint",
  "ctb-utilities",
  "ctb-v86-posix-init",
  "ctb-workspace",
