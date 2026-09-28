@@ -1622,7 +1622,7 @@ if necessary. Here a sample; alter the names:
 That's all there is to it!
 ```
 
-Text of the GPL 3:
+Text of the GPL 3, the license Collective Toolbox reuses freeze under per the or-later option:
 
 ```
 # GNU GENERAL PUBLIC LICENSE
