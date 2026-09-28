@@ -236,4 +236,33 @@ gcc -w -std=gnu89 -fcommon -O2 \
     "$FREEZE_SRC/bitio.c" \
     "$FREEZE_SRC/default.c"
 
+# -----------------------------------------------------------------------------
+# 8. rzip 2.1 (Andrew Tridgell 1998-2003)
+# -----------------------------------------------------------------------------
+mkdir -p "$WORK_DIR/rzip_inc"
+cat << 'EOF' > "$WORK_DIR/rzip_inc/config.h"
+#define SIZEOF_INT 4
+#define SIZEOF_LONG 8
+#define SIZEOF_SHORT 2
+#define HAVE_STRING_H 1
+#define HAVE_MMAP 1
+#define HAVE_STRERROR 1
+#define HAVE_GETOPT_LONG 1
+#define HAVE_LARGE_FILES 1
+#define _FILE_OFFSET_BITS 64
+#include <ctype.h>
+EOF
+RZIP_SRC="$REPO_ROOT/old/unix-tools/rzip-2.1"
+gcc -w -O2 \
+    -I"$WORK_DIR/rzip_inc" \
+    -I"$RZIP_SRC" \
+    -o "$DEST_DIR/rzip" \
+    "$RZIP_SRC/rzip.c" \
+    "$RZIP_SRC/runzip.c" \
+    "$RZIP_SRC/main.c" \
+    "$RZIP_SRC/stream.c" \
+    "$RZIP_SRC/util.c" \
+    "$RZIP_SRC/crc32.c" \
+    -lbz2
+
 echo "All historical tools compiled successfully into $DEST_DIR"

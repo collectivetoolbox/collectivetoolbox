@@ -41,6 +41,7 @@ pub use ctb_formats_compression_compress as compress;
 pub use ctb_formats_compression_pack as pack;
 pub use ctb_formats_compression_sco_compress as sco_compress;
 pub use ctb_formats_compression_freeze as freeze;
+pub use ctb_formats_compression_rzip as rzip;
 pub use ctb_formats_compression_libraries as libraries;
 
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -106,6 +107,7 @@ impl CompressionFormatExt for FormatId {
                 | Self::Compact
                 | Self::Freeze2
                 | Self::Freeze1
+                | Self::Rzip
         )
     }
 
@@ -209,6 +211,7 @@ pub fn compress_stream_direct(
         FormatId::Freeze1 => {
             freeze::compress_freeze1_stream(reader, writer)
         }
+        FormatId::Rzip => rzip::compress_stream(reader, writer),
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -309,6 +312,7 @@ pub fn decompress_stream(
         FormatId::Freeze1 => {
             freeze::decompress_freeze1_stream(reader, writer)
         }
+        FormatId::Rzip => rzip::decompress_stream(reader, writer),
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -403,6 +407,7 @@ mod tests {
             FormatId::Compact,
             FormatId::Freeze2,
             FormatId::Freeze1,
+            FormatId::Rzip,
         ];
         let crate_formats = [
             FormatId::Brotli,
@@ -651,6 +656,10 @@ mod tests {
             ),
             Some(FormatId::Lzo)
         );
+        assert_eq!(
+            detect(Some(b"RZIP\x02\x01"), None),
+            Some(FormatId::Rzip)
+        );
     }
 
     #[crate::ctb_test]
@@ -879,6 +888,11 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_freeze1() {
         run_format_test_suite(FormatId::Freeze1);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_rzip() {
+        run_format_test_suite(FormatId::Rzip);
     }
 
     #[crate::ctb_test]

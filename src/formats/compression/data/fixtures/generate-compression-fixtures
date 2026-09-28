@@ -78,6 +78,9 @@ mv "$TMP_DIR/raw_opack.z" "$FIXTURES_DIR/example2 with lemurs.pan.old.z"
 # Leonid Broukhis freeze 2.5 (Freeze 2.0 format)
 "$TMP_DIR/freeze" -c < "$RAW_FILE" > "$FIXTURES_DIR/example2 with lemurs.pan.2.0.F"
 
+# Andrew Tridgell rzip 2.1
+"$TMP_DIR/rzip" -k -f -o "$FIXTURES_DIR/example2 with lemurs.pan.rz" "$RAW_FILE"
+
 # --- Dedicated System Tools ---
 
 # GNU gzip
@@ -138,6 +141,7 @@ verify_decomp "compact" "$FIXTURES_DIR/example2 with lemurs.pan.C" "\"$TMP_DIR/u
 verify_decomp "bzip 0.21" "$FIXTURES_DIR/example2 with lemurs.pan.bz" "\"$TMP_DIR/bzip-0.21\" -d < \"$FIXTURES_DIR/example2 with lemurs.pan.bz\""
 verify_decomp "freeze 2.0" "$FIXTURES_DIR/example2 with lemurs.pan.2.0.F" "\"$TMP_DIR/freeze\" -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.2.0.F\""
 verify_decomp "freeze 1.0 (melt)" "$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F" "\"$TMP_DIR/freeze\" -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.synthetic.1.0.F\""
+verify_decomp "rzip 2.1" "$FIXTURES_DIR/example2 with lemurs.pan.rz" "\"$TMP_DIR/rzip\" -d -k -f -o \"$TMP_DIR/rzip_out.pan\" \"$FIXTURES_DIR/example2 with lemurs.pan.rz\" >/dev/null && cat \"$TMP_DIR/rzip_out.pan\""
 
 verify_decomp "gzip" "$FIXTURES_DIR/example2 with lemurs.pan.gz" "gunzip -c < \"$FIXTURES_DIR/example2 with lemurs.pan.gz\""
 verify_decomp "bzip2" "$FIXTURES_DIR/example2 with lemurs.pan.bz2" "bzip2 -d -c < \"$FIXTURES_DIR/example2 with lemurs.pan.bz2\""
@@ -172,4 +176,4 @@ rm -f "$FIXTURES_DIR/example2 with lemurs.pan.Z1.0" \
       "$FIXTURES_DIR/example2 with lemurs.pan.lzo"
 
 echo ""
-echo "All 23 compression fixtures successfully generated and verified!"
+echo "All 24 compression fixtures successfully generated and verified!"
