@@ -108,7 +108,8 @@ checks remain sequential within each pair. Worker failures are collected while
 other cases continue, and any failure makes the script exit nonzero. Case logs
 are printed together as workers finish.
 
-The final report lists each direction's status, format, oracle, dataset, input
+The final report table is CSV, with commas and quotes escaped in all fields.
+It lists each direction's status, format, oracle, dataset, input
 and compressed byte counts, compression ratio, and compression wall time.
 Ratios are compressed bytes divided by input bytes, so smaller is better.
 Times include process startup and I/O, but exclude decompression and comparison;
@@ -116,6 +117,21 @@ parallel timings include resource contention, so use `--jobs 1` for timing
 comparisons. Empty-input ratios and unavailable measurements use `-`. Archived
 fixtures show their existing size ratio but no compression time. Known skips
 and failures remain visible in the report; setup failures still abort early.
+
+`SUMMARY` rows follow all per-fixture rows, grouped by format and actual
+compressor (ctoolbox for forward runs, the oracle for reverse runs). They sum
+input bytes, compressed bytes, and elapsed compression seconds from successful
+runs, with a ratio computed from the byte totals rather than averaging ratios.
+Their notes count passes, skips, and failures for those compression runs.
+Archived decoding checks and whole-case empty-input skips are not compression
+runs and do not contribute to these totals. Logs and explanatory text outside
+the table are not CSV.
+
+The 34 committed compressed fixtures in this directory are also decoded
+read-only by ctoolbox and the applicable matrix decoders, then compared with
+the raw fixture. This includes both `ctblib` and `external` variants and adds
+80 comparisons. Format/tool filters apply as usual; the dataset filter matches
+each compressed fixture's filename. Missing or corrupt fixtures fail the run.
 
 The quick matrix covers empty and 1/2/3-byte inputs, repetitive data, the raw
 fixture, and deterministic random inputs of 65,535/65,536/65,537 bytes. It tests

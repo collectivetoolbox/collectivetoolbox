@@ -1,4 +1,7 @@
+import csv
+from decimal import Decimal
 import gzip
+import io
 import os
 from pathlib import Path
 import subprocess
@@ -33,13 +36,13 @@ tool_decompress() {
     if [[ "$MODE" == decompress-fail ]]; then return 24; fi
     gzip -d -c < "$2" > "$3"
     if [[ "$MODE" == forward-corrupt ]]; then printf corrupt > "$3"; fi
-    cmp "$in_path" "$TMP_DIR/storage/scratch"
+    if [[ "$direction" == Forward ]]; then cmp "$in_path" "$TMP_DIR/storage/scratch"; fi
 }
 tool_compress() {
     if [[ "$MODE" == reverse-fail ]]; then return 25; fi
     if [[ "$MODE" == missing-output ]]; then return; fi
     if [[ "$MODE" == skip ]]; then
-        REVERSE_SKIP_REASON="explicit oracle refusal"
+        REVERSE_SKIP_REASON='explicit oracle refusal, "unchanged"'
         return
     fi
     gzip -n -c < "$2" > "$3"
@@ -52,6 +55,12 @@ mock_decompress() {
 
 
 class CompressorRunnerTests(unittest.TestCase):
+    def report_rows(self, output):
+        report = output[output.index("Status,Direction,"):].split("\n\n===", 1)[0]
+        rows = list(csv.reader(io.StringIO(report), strict=True))
+        self.assertTrue(all(len(row) == 10 for row in rows), rows)
+        return rows[1:]
+
     def test_concurrency_limit_with_blocked_workers(self):
         scheduler = DISPATCH[:DISPATCH.index('echo "=== Running Compression Compatibility Tests')]
         setup = r'''
@@ -89,17 +98,23 @@ wait "$controller_pid"
             )
         self.assertEqual(result.returncode, 0, result.stdout)
 
-    def run_runner(self, jobs=4, mode="pass", datasets=8, fmt="gzip", archives=False):
+    def run_runner(self, jobs=4, mode="pass", datasets=8, fmt="gzip", archives=False,
+                   dataset_filter="name", fixture_state="valid"):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             work = root / "work"
             work.mkdir()
             (work / "unused-tool").touch()
+            raw_fixture = root / "example2 with lemurs.pan"
+            raw_fixture.write_bytes(b"fixture data")
+            fixture = root / (raw_fixture.name + ".gz")
+            if fixture_state != "missing":
+                fixture.write_bytes(gzip.compress(b"fixture data" if fixture_state == "valid" else b"wrong data"))
             for index in range(datasets):
                 dataset_dir = root / f"input_{index}"
                 dataset_dir.mkdir()
-                (dataset_dir / "same name.bin").write_bytes(
-                    b"" if fmt == "compact" else bytes([index]) * 65536
+                (dataset_dir / 'same, "name".bin').write_bytes(
+                    b"" if fmt == "compact" else bytes([index]) * (8192 * (index + 1))
                 )
             if archives:
                 archive_dir = root / "old/archivers/ancient/testing/test_files"
@@ -122,7 +137,8 @@ TEST_MATRIX=("$FORMAT|gzip|.gz|1|1|gzip|gunzip")
                 text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 env={**os.environ, "REPO_ROOT": str(root), "TMP_DIR": str(work),
                      "JOBS": str(jobs), "MODE": mode, "FILTER": fmt,
-                     "FORMAT": fmt, "DATASET_FILTER": "", "DATASET_COUNT": str(datasets)},
+                     "FORMAT": fmt, "DATASET_FILTER": dataset_filter, "DATASET_COUNT": str(datasets),
+                     "RAW_FILE": str(raw_fixture)},
                 timeout=30,
             )
             events = work / "events"
@@ -135,8 +151,7 @@ TEST_MATRIX=("$FORMAT|gzip|.gz|1|1|gzip|gunzip")
             self.assertEqual(result.returncode, 0, result.stdout)
             self.assertIn("16 COMPRESSION COMPATIBILITY TESTS PASSED; 0 explicit skips; 0 failed cases", result.stdout)
         def normalized_rows(output):
-            return [line.split(" | ")[:4] + line.split(" | ")[5:8]
-                    for line in output.splitlines() if line.startswith("PASS |")]
+            return [row[:4] + row[5:8] for row in self.report_rows(output) if row[0] == "PASS"]
         self.assertEqual(normalized_rows(serial.stdout), normalized_rows(parallel.stdout))
         for events, limit in ((serial_events, 1), (parallel_events, 4)):
             active = set()
@@ -148,9 +163,9 @@ TEST_MATRIX=("$FORMAT|gzip|.gz|1|1|gzip|gunzip")
                     active.remove(pid)
                 self.assertLessEqual(len(active), limit)
             self.assertFalse(active)
-        for line in parallel.stdout.splitlines():
-            if line.startswith("PASS |"):
-                fields = line.split(" | ")
+        for fields in self.report_rows(parallel.stdout):
+            if fields[0] == "PASS":
+                self.assertIn('same, "name".bin', fields[4])
                 self.assertAlmostEqual(float(fields[7]), int(fields[6]) / int(fields[5]), places=4)
                 self.assertGreaterEqual(float(fields[8]), 0)
 
@@ -160,13 +175,38 @@ TEST_MATRIX=("$FORMAT|gzip|.gz|1|1|gzip|gunzip")
             with self.subTest(mode=mode):
                 result, _ = self.run_runner(mode=mode)
                 self.assertNotEqual(result.returncode, 0, result.stdout)
-                self.assertEqual(sum(line.startswith("FAIL |") for line in result.stdout.splitlines()), 8, result.stdout)
+                self.assertEqual(sum(row[0] == "FAIL" for row in self.report_rows(result.stdout)), 8, result.stdout)
                 self.assertIn("8 failed cases", result.stdout)
 
     def test_skip_survives_timing_wrapper(self):
         result, _ = self.run_runner(mode="skip")
         self.assertEqual(result.returncode, 0, result.stdout)
         self.assertIn("8 COMPRESSION COMPATIBILITY TESTS PASSED; 8 explicit skips; 0 failed cases", result.stdout)
+        for row in self.report_rows(result.stdout):
+            if row[0] == "SKIP":
+                self.assertEqual(row[9], 'explicit oracle refusal, "unchanged"')
+            elif row[0] == "SUMMARY" and row[3] == "gzip":
+                self.assertEqual(row[5:9], ["-"] * 4)
+                self.assertEqual(row[9], "0 passed; 8 skipped; 0 failed")
+
+    def test_compressor_summaries_follow_fixture_rows(self):
+        result, _ = self.run_runner(dataset_filter="")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        rows = self.report_rows(result.stdout)
+        summaries = [row for row in rows if row[0] == "SUMMARY"]
+        self.assertEqual(rows[-2:], summaries)
+        self.assertEqual({row[3] for row in summaries}, {"ctoolbox", "gzip"})
+        for summary in summaries:
+            direction = "Forward" if summary[3] == "ctoolbox" else "Reverse"
+            cases = [row for row in rows if row[:2] == ["PASS", direction]]
+            raw = sum(int(row[5]) for row in cases)
+            compressed = sum(int(row[6]) for row in cases)
+            seconds = sum(Decimal(row[8]) for row in cases)
+            self.assertEqual(int(summary[5]), raw)
+            self.assertEqual(int(summary[6]), compressed)
+            self.assertEqual(summary[7], f"{compressed / raw:.4f}")
+            self.assertEqual(Decimal(summary[8]), seconds)
+            self.assertEqual(summary[9], "8 passed; 0 skipped; 0 failed")
 
     def test_empty_historical_inputs_still_skip(self):
         result, _ = self.run_runner(fmt="compact", datasets=2)
@@ -179,13 +219,29 @@ TEST_MATRIX=("$FORMAT|gzip|.gz|1|1|gzip|gunzip")
         self.assertIn("No compression compatibility tests ran", result.stdout)
 
     def test_archived_comparisons_and_missing_corpus(self):
-        result, _ = self.run_runner(fmt="sco-compress", archives=True)
+        result, _ = self.run_runner(fmt="sco-compress", archives=True, dataset_filter="")
         self.assertEqual(result.returncode, 0, result.stdout)
-        self.assertEqual(sum(line.startswith("PASS | Archived") for line in result.stdout.splitlines()), 4)
-        self.assertIn("20 COMPRESSION COMPATIBILITY TESTS PASSED", result.stdout)
-        missing, _ = self.run_runner(fmt="sco-compress")
+        self.assertEqual(sum(row[:2] == ["PASS", "Archived"] for row in self.report_rows(result.stdout)), 6)
+        self.assertIn("22 COMPRESSION COMPATIBILITY TESTS PASSED", result.stdout)
+        missing, _ = self.run_runner(fmt="sco-compress", dataset_filter="")
         self.assertNotEqual(missing.returncode, 0, missing.stdout)
-        self.assertIn("16 COMPRESSION COMPATIBILITY TESTS PASSED; 0 explicit skips; 1 failed cases", missing.stdout)
+        self.assertIn("18 COMPRESSION COMPATIBILITY TESTS PASSED; 0 explicit skips; 1 failed cases", missing.stdout)
+
+    def test_committed_fixture_decoded_by_both_tools(self):
+        result, _ = self.run_runner(datasets=0, dataset_filter="lemurs")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        rows = self.report_rows(result.stdout)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row[3] for row in rows}, {"ctoolbox", "gunzip"})
+        self.assertTrue(all(row[:2] == ["PASS", "Archived"] and row[8] == "-" for row in rows))
+
+    def test_missing_or_corrupt_committed_fixture_fails(self):
+        for state in ("missing", "corrupt"):
+            with self.subTest(state=state):
+                result, _ = self.run_runner(datasets=0, dataset_filter="lemurs", fixture_state=state)
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertEqual(self.report_rows(result.stdout)[0][0], "FAIL")
+                self.assertIn("1 failed cases", result.stdout)
 
 
 if __name__ == "__main__":

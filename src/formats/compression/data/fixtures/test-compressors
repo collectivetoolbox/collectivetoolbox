@@ -514,23 +514,24 @@ run_case() (
 )
 
 run_archived_case() (
-    compressed_name="$1" raw_name="$2" TMP_DIR="$3"
-    fmt="sco-compress" tool="ctoolbox" direction="Archived" elapsed="-" raw_bytes="-"
-    archive_dir="$REPO_ROOT/old/archivers/ancient/testing/test_files"
-    input_label="$compressed_name" c_file="$archive_dir/$compressed_name"
+    fmt="$1" c_file="$2" in_path="$3" decomp_tool="$4" TMP_DIR="$5"
+    tool="ctoolbox" direction="Archived" elapsed="-" raw_bytes="-"
+    CURRENT_FORMAT="$fmt"
+    input_label="$(basename "$c_file")"
     trap 'status=$?; if [[ "$status" -ne 0 ]]; then record_result FAIL "Command failed (exit $status); see case log"; fi' EXIT
-    if [[ ! -f "$c_file" || ! -f "$archive_dir/$raw_name" ]]; then
-        echo "Error: Archived SCO fixture file '$compressed_name' or '$raw_name' not found in '$archive_dir'." >&2
+    ln -s "${HIST_BINARIES[@]}" "$TMP_DIR/"
+    if [[ ! -f "$c_file" || ! -f "$in_path" ]]; then
+        echo "Error: Archived fixture '$c_file' or raw file '$in_path' not found." >&2
         exit 1
     fi
-    raw_bytes="$(wc -c < "$archive_dir/$raw_name")"
-    echo "[Archived] SCO fixture '$compressed_name' -> ctoolbox and gunzip..."
-    ctb_decompress sco-compress "$c_file" "$TMP_DIR/archived.pan"
-    cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+    raw_bytes="$(wc -c < "$in_path")"
+    echo "[Archived] '$fmt' fixture '$input_label' -> ctoolbox and '$decomp_tool'..."
+    ctb_decompress "$fmt" "$c_file" "$TMP_DIR/archived.pan"
+    cmp "$in_path" "$TMP_DIR/archived.pan"
     record_result PASS
-    tool="gunzip"
-    gunzip -c < "$c_file" > "$TMP_DIR/archived.pan"
-    cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+    tool="$decomp_tool"
+    tool_decompress "$decomp_tool" "$c_file" "$TMP_DIR/archived.pan"
+    cmp "$in_path" "$TMP_DIR/archived.pan"
     record_result PASS
 )
 
@@ -573,6 +574,19 @@ for row in "${TEST_MATRIX[@]}"; do
         if [[ -n "$DATASET_FILTER" && "$dataset" != *"$DATASET_FILTER"* ]]; then continue; fi
         schedule_case run_case "$row" "$in_path"
     done
+
+    fixture_suffixes=("$ext")
+    case "$fmt" in
+        deflate|zlib|lz4|lzma|lzma2|lzip|zstd|lzo)
+            fixture_suffixes=(".ctblib$ext" ".external$ext")
+            ;;
+    esac
+    for suffix in "${fixture_suffixes[@]}"; do
+        fixture_path="$RAW_FILE$suffix"
+        fixture_name="$(basename "$fixture_path")"
+        if [[ -n "$DATASET_FILTER" && "$fixture_name" != *"$DATASET_FILTER"* ]]; then continue; fi
+        schedule_case run_archived_case "$fmt" "$fixture_path" "$RAW_FILE" "$decomp_tool"
+    done
 done
 
 if [[ -z "$FILTER" || sco-compress == *"$FILTER"* || gunzip == *"$FILTER"* ]]; then
@@ -584,7 +598,7 @@ if [[ -z "$FILTER" || sco-compress == *"$FILTER"* || gunzip == *"$FILTER"* ]]; t
         for pair in "test_C1_sco.Z|test_C1.raw" "test_C2_sco.Z|test_C2.xm"; do
             IFS='|' read -r compressed_name raw_name <<< "$pair"
             if [[ -n "$DATASET_FILTER" && "$compressed_name" != *"$DATASET_FILTER"* ]]; then continue; fi
-            schedule_case run_archived_case "$compressed_name" "$raw_name"
+            schedule_case run_archived_case sco-compress "$archive_dir/$compressed_name" "$archive_dir/$raw_name" gunzip
         done
     fi
 fi
@@ -592,23 +606,28 @@ fi
 while [[ "${#ACTIVE_JOBS[@]}" -gt 0 ]]; do wait_for_case; done
 
 python3 - "$RUN_DIR" "$CASE_COUNT" "$FAILED_CASES" <<'PY'
+import csv
+from decimal import Decimal
 import pathlib
 import sys
 
 run_dir = pathlib.Path(sys.argv[1])
 case_count, failures = map(int, sys.argv[2:])
 passed = skipped = 0
+summaries = {}
 print("\n=== Compression Summary ===")
 print("Compression wall seconds include process startup and I/O, under concurrent load.")
 print("Ratio = compressed / input bytes (lower is smaller); '-' means unavailable.")
 print("Forward: ctoolbox compression; Reverse: oracle compression; Archived: no compression run.")
-print("Status | Direction | Format | Tool | Dataset | Input B | Compressed B | Ratio | Seconds | Note")
+print("Summary totals use successful compression runs only; archived decoding checks are excluded.")
+writer = csv.writer(sys.stdout, lineterminator="\n")
+writer.writerow(("Status", "Direction", "Format", "Tool", "Dataset", "Input B", "Compressed B", "Ratio", "Seconds", "Note"))
 for case_id in range(1, case_count + 1):
     case_dir = run_dir / f"case_{case_id}"
     result_path = case_dir / "results"
     status = int((case_dir / "exit-status").read_text())
     if not result_path.is_file():
-        print(f"FAIL | Case {case_id}: worker returned {status} without results")
+        writer.writerow(("FAIL", "Case", "-", "-", f"Case {case_id}", "-", "-", "-", "-", f"Worker returned {status} without results"))
         failures += status == 0
         continue
     fields = result_path.read_bytes().split(b"\0")
@@ -626,11 +645,31 @@ for case_id in range(1, case_count + 1):
         if outcome == "PASS" and raw != "-" and int(raw) > 0 and compressed != "-":
             ratio = f"{int(compressed) / int(raw):.4f}"
         values = (outcome, direction, fmt, tool, dataset, raw, compressed, ratio, elapsed, reason)
-        print(",".join(value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") for value in values))
+        writer.writerow(value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") for value in values)
+        if direction in ("Forward", "Reverse"):
+            compressor = "ctoolbox" if direction == "Forward" else tool
+            totals = summaries.setdefault((fmt, compressor), {
+                "raw": 0, "compressed": 0, "seconds": Decimal(0),
+                "PASS": 0, "SKIP": 0, "FAIL": 0,
+            })
+            totals[outcome] += 1
+            if outcome == "PASS":
+                totals["raw"] += int(raw)
+                totals["compressed"] += int(compressed)
+                totals["seconds"] += Decimal(elapsed)
     if status and not reported_failure:
-        print(f"FAIL | Case {case_id}: worker exited with status {status}; see case log")
+        writer.writerow(("FAIL", "Case", "-", "-", f"Case {case_id}", "-", "-", "-", "-", f"Worker exited with status {status}; see case log"))
     elif reported_failure and not status:
         failures += 1
+for (fmt, compressor), totals in sorted(summaries.items()):
+    ratio = f'{totals["compressed"] / totals["raw"]:.4f}' if totals["raw"] else "-"
+    writer.writerow((
+        "SUMMARY", "Compression", fmt, compressor, "ALL",
+        totals["raw"] if totals["PASS"] else "-",
+        totals["compressed"] if totals["PASS"] else "-", ratio,
+        f'{totals["seconds"]:.3f}' if totals["PASS"] else "-",
+        f'{totals["PASS"]} passed; {totals["SKIP"]} skipped; {totals["FAIL"]} failed',
+    ))
 if not passed:
     print("Error: No compression compatibility tests ran; check the format and dataset filters.", file=sys.stderr)
 print(f"\n=== {passed} COMPRESSION COMPATIBILITY TESTS PASSED; {skipped} explicit skips; {failures} failed cases ===")
