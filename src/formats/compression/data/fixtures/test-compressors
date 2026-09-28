@@ -20,6 +20,7 @@ fi
 FILTER="${FILTER:-}"
 DATASET_FILTER="${DATASET_FILTER:-}"
 FAST_MODE="${FAST:-${QUICK:-0}}"
+JOBS="${JOBS:-4}"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -30,6 +31,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -f, --filter FILTER     Filter test format or tool (e.g. 'compact', 'compress1', 'bzip')"
             echo "  -d, --dataset PATTERN   Filter datasets by filename substring (e.g. 'fox', 'mozilla')"
             echo "  -q, --quick, --fast     Only run synthetic datasets (skip full corpora)"
+            echo "  -j, --jobs COUNT       Concurrent cases (default: JOBS or 4; use 1 for serial)"
             echo "  -h, --help              Show this help message"
             echo ""
             echo "Examples:"
@@ -42,6 +44,14 @@ while [[ $# -gt 0 ]]; do
         -q|--quick|--fast)
             FAST_MODE=1
             shift
+            ;;
+        -j|--jobs)
+            JOBS="${2:-}"
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --jobs requires a positive integer." >&2
+                exit 1
+            fi
+            shift 2
             ;;
         -f|--filter)
             FILTER="$2"
@@ -61,6 +71,15 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [[ ! "$JOBS" =~ ^[1-9][0-9]{0,5}$ ]]; then
+    echo "Error: JOBS/--jobs must be an integer between 1 and 999999." >&2
+    exit 1
+fi
+if (( BASH_VERSINFO[0] < 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] < 1) )); then
+    echo "Error: Parallel test scheduling requires Bash 5.1 or newer." >&2
+    exit 1
+fi
 
 # Verify required system tools exist upfront; fail immediately if missing
 for req_tool in gcc cmp gzip gunzip bzip2 brotli xz lzip lz4 zstd python3; do
@@ -92,18 +111,25 @@ fi
 
 mkdir -p "$REPO_ROOT/built"
 TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_test_compressors_XXXXXX")"
+declare -A ACTIVE_JOBS=()
 cleanup() {
+    local worker_pid
+    for worker_pid in "${!ACTIVE_JOBS[@]}"; do
+        wait "$worker_pid" || true
+    done
     rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
+HIST_BINARIES=()
 for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 compress-apollo ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip; do
     if [[ ! -x "$TMP_DIR/$hist_tool" ]]; then
         echo "Error: Historical compression tool '$hist_tool' failed to build or is missing." >&2
         exit 1
     fi
+    HIST_BINARIES+=("$TMP_DIR/$hist_tool")
 done
 
 # 2. Prepare test datasets
@@ -162,12 +188,12 @@ done
 # 3. Invocation helpers
 ctb_compress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    "${CTB_CMD[@]}" compress "$fmt" "$in_file" -o "$out_file" --force
+    CTB_TEST_STORAGE_DIR="$TMP_DIR/storage" "${CTB_CMD[@]}" compress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 ctb_decompress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    "${CTB_CMD[@]}" decompress "$fmt" "$in_file" -o "$out_file" --force
+    CTB_TEST_STORAGE_DIR="$TMP_DIR/storage" "${CTB_CMD[@]}" decompress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 tool_compress() {
@@ -409,76 +435,143 @@ TEST_MATRIX=(
     "lzo|liblzo2|.lzo|1|1|lzo|lzo"
 )
 
-echo "=== Running Compression Compatibility Tests ==="
+record_result() {
+    local status="$1" reason="${2:-}" compressed_bytes="-"
+    if [[ -f "$c_file" ]]; then
+        compressed_bytes="$(wc -c < "$c_file")"
+    fi
+    printf '%s\0' "$status" "$direction" "$fmt" "$tool" "$input_label" \
+        "$raw_bytes" "$compressed_bytes" "$elapsed" "$reason" >> "$TMP_DIR/results"
+}
 
-TOTAL_TESTS=0
-TOTAL_SKIPS=0
+time_compression() {
+    local TIMEFORMAT='%R'
+    elapsed="-"
+    { time "$@" 2>&3; } 3>&2 2> "$TMP_DIR/compression.time"
+    read -r elapsed < "$TMP_DIR/compression.time"
+}
+
+run_case() (
+    row="$1" in_path="$2" TMP_DIR="$3"
+    raw_bytes="-" c_file="" direction="Case" elapsed="-"
+    IFS="|" read -r fmt tool ext do_fwd do_rev comp_tool decomp_tool <<< "$row"
+    CURRENT_FORMAT="$fmt"
+    dataset="$(basename "$in_path")"
+    input_label="${in_path#"$REPO_ROOT/"}"
+    if [[ "$in_path" == "$RUN_DIR/"* ]]; then input_label="$dataset"; fi
+    trap 'status=$?; if [[ "$status" -ne 0 ]]; then record_result FAIL "Command failed (exit $status); see case log"; fi' EXIT
+    ln -s "${HIST_BINARIES[@]}" "$TMP_DIR/"
+    raw_bytes="$(wc -c < "$in_path")"
+
+    if [[ ! -s "$in_path" && ( "$fmt" == compact || "$fmt" == compress1 || "$fmt" == compress16 || "$fmt" == old-pack || "$fmt" == pack || "$fmt" == lzo || "$tool" == compress-2.0 || "$tool" == compress-3.0 ) ]]; then
+        echo "[Skip] '$fmt' / '$tool': historical oracle or raw-stream convention does not support empty input"
+        record_result SKIP "historical oracle or raw-stream convention does not support empty input"
+        return
+    fi
+
+    # Forward Test: ctoolbox compress -> external tool decompress
+    if [ "$do_fwd" -eq 1 ]; then
+        direction="Forward"
+        c_file="$TMP_DIR/forward${ext}"
+        d_file="$TMP_DIR/forward.decompressed"
+
+        echo "[Forward] ctoolbox compress '$fmt' -> '$decomp_tool' decompress on '$dataset'..."
+        time_compression ctb_compress "$fmt" "$in_path" "$c_file"
+        tool_decompress "$decomp_tool" "$c_file" "$d_file"
+        if ! cmp "$in_path" "$d_file"; then
+            echo "FAIL: Forward roundtrip mismatch: format '$fmt', decompressor '$decomp_tool', dataset '$dataset'" >&2
+            exit 1
+        fi
+        record_result PASS
+        rm "$c_file" "$d_file"
+    fi
+
+    # Reverse Test: external tool compress -> ctoolbox decompress
+    if [ "$do_rev" -eq 1 ]; then
+        direction="Reverse"
+        c_file="$TMP_DIR/reverse${ext}"
+        d_file="$TMP_DIR/reverse.decompressed"
+
+        echo "[Reverse] '$comp_tool' compress -> ctoolbox decompress '$fmt' on '$dataset'..."
+        REVERSE_SKIP_REASON=""
+        time_compression tool_compress "$comp_tool" "$in_path" "$c_file"
+        if [[ -n "$REVERSE_SKIP_REASON" ]]; then
+            echo "  [Skip] $REVERSE_SKIP_REASON"
+            record_result SKIP "$REVERSE_SKIP_REASON"
+        elif [[ -f "$c_file" ]]; then
+            ctb_decompress "$fmt" "$c_file" "$d_file"
+            if ! cmp "$in_path" "$d_file"; then
+                echo "FAIL: Reverse roundtrip mismatch: compressor '$comp_tool', ctb format '$fmt', dataset '$dataset'" >&2
+                exit 1
+            fi
+            record_result PASS
+            rm "$c_file" "$d_file"
+        else
+            echo "FAIL: '$comp_tool' produced no output file" >&2
+            exit 1
+        fi
+    fi
+)
+
+run_archived_case() (
+    compressed_name="$1" raw_name="$2" TMP_DIR="$3"
+    fmt="sco-compress" tool="ctoolbox" direction="Archived" elapsed="-" raw_bytes="-"
+    archive_dir="$REPO_ROOT/old/archivers/ancient/testing/test_files"
+    input_label="$compressed_name" c_file="$archive_dir/$compressed_name"
+    trap 'status=$?; if [[ "$status" -ne 0 ]]; then record_result FAIL "Command failed (exit $status); see case log"; fi' EXIT
+    if [[ ! -f "$c_file" || ! -f "$archive_dir/$raw_name" ]]; then
+        echo "Error: Archived SCO fixture file '$compressed_name' or '$raw_name' not found in '$archive_dir'." >&2
+        exit 1
+    fi
+    raw_bytes="$(wc -c < "$archive_dir/$raw_name")"
+    echo "[Archived] SCO fixture '$compressed_name' -> ctoolbox and gunzip..."
+    ctb_decompress sco-compress "$c_file" "$TMP_DIR/archived.pan"
+    cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+    record_result PASS
+    tool="gunzip"
+    gunzip -c < "$c_file" > "$TMP_DIR/archived.pan"
+    cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
+    record_result PASS
+)
+
+RUN_DIR="$TMP_DIR"
+CASE_COUNT=0
+FAILED_CASES=0
+
+wait_for_case() {
+    local finished_pid status=0 case_dir
+    wait -n -p finished_pid "${!ACTIVE_JOBS[@]}" || status=$?
+    case_dir="${ACTIVE_JOBS[$finished_pid]}"
+    cat "$case_dir/log"
+    printf '%s\n' "$status" > "$case_dir/exit-status"
+    if [[ "$status" -ne 0 ]]; then
+        echo "FAIL: Case ${case_dir##*/} exited with status $status" >&2
+        FAILED_CASES=$((FAILED_CASES + 1))
+    fi
+    unset 'ACTIVE_JOBS[$finished_pid]'
+}
+
+schedule_case() {
+    local case_dir
+    if [[ "${#ACTIVE_JOBS[@]}" -ge "$JOBS" ]]; then wait_for_case; fi
+    CASE_COUNT=$((CASE_COUNT + 1))
+    case_dir="$RUN_DIR/case_$CASE_COUNT"
+    mkdir "$case_dir"
+    "$@" "$case_dir" > "$case_dir/log" 2>&1 &
+    ACTIVE_JOBS[$!]="$case_dir"
+}
+
+echo "=== Running Compression Compatibility Tests ($JOBS concurrent cases) ==="
 
 for row in "${TEST_MATRIX[@]}"; do
     IFS="|" read -r fmt tool ext do_fwd do_rev comp_tool decomp_tool <<< "$row"
-    CURRENT_FORMAT="$fmt"
 
     # Filtering
-    if [ -n "$FILTER" ]; then
-        if [[ "$fmt" != *"$FILTER"* && "$tool" != *"$FILTER"* ]]; then
-            continue
-        fi
-    fi
-
+    if [[ -n "$FILTER" && "$fmt" != *"$FILTER"* && "$tool" != *"$FILTER"* ]]; then continue; fi
     for in_path in "${DATASETS[@]}"; do
         dataset="$(basename "$in_path")"
-        if [ -n "$DATASET_FILTER" ]; then
-            if [[ "$dataset" != *"$DATASET_FILTER"* ]]; then
-                continue
-            fi
-        fi
-
-        if [[ ! -s "$in_path" && ( "$fmt" == compact || "$fmt" == compress1 || "$fmt" == compress16 || "$fmt" == old-pack || "$fmt" == pack || "$fmt" == lzo || "$tool" == compress-2.0 || "$tool" == compress-3.0 ) ]]; then
-            echo "[Skip] '$fmt' / '$tool': historical oracle or raw-stream convention does not support empty input"
-            TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
-            continue
-        fi
-
-        # Forward Test: ctoolbox compress -> external tool decompress
-        if [ "$do_fwd" -eq 1 ]; then
-            c_file="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}${ext}"
-            d_file="$TMP_DIR/fwd_${fmt}_${tool}_${dataset}.decompressed"
-
-            echo "[Forward] ctoolbox compress '$fmt' -> '$decomp_tool' decompress on '$dataset'..."
-            ctb_compress "$fmt" "$in_path" "$c_file"
-            tool_decompress "$decomp_tool" "$c_file" "$d_file"
-            if ! cmp "$in_path" "$d_file"; then
-                echo "FAIL: Forward roundtrip mismatch: format '$fmt', decompressor '$decomp_tool', dataset '$dataset'" >&2
-                exit 1
-            fi
-            rm "$c_file" "$d_file"
-            TOTAL_TESTS=$((TOTAL_TESTS + 1))
-        fi
-
-        # Reverse Test: external tool compress -> ctoolbox decompress
-        if [ "$do_rev" -eq 1 ]; then
-            c_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}${ext}"
-            d_file="$TMP_DIR/rev_${tool}_${fmt}_${dataset}.decompressed"
-
-            echo "[Reverse] '$comp_tool' compress -> ctoolbox decompress '$fmt' on '$dataset'..."
-            REVERSE_SKIP_REASON=""
-            tool_compress "$comp_tool" "$in_path" "$c_file"
-            if [[ -n "$REVERSE_SKIP_REASON" ]]; then
-                echo "  [Skip] $REVERSE_SKIP_REASON"
-                TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
-            elif [[ -f "$c_file" ]]; then
-                ctb_decompress "$fmt" "$c_file" "$d_file"
-                if ! cmp "$in_path" "$d_file"; then
-                    echo "FAIL: Reverse roundtrip mismatch: compressor '$comp_tool', ctb format '$fmt', dataset '$dataset'" >&2
-                    exit 1
-                fi
-                rm "$c_file" "$d_file"
-                TOTAL_TESTS=$((TOTAL_TESTS + 1))
-            else
-                echo "FAIL: '$comp_tool' produced no output file" >&2
-                exit 1
-            fi
-        fi
+        if [[ -n "$DATASET_FILTER" && "$dataset" != *"$DATASET_FILTER"* ]]; then continue; fi
+        schedule_case run_case "$row" "$in_path"
     done
 done
 
@@ -486,30 +579,60 @@ if [[ -z "$FILTER" || sco-compress == *"$FILTER"* || gunzip == *"$FILTER"* ]]; t
     archive_dir="$REPO_ROOT/old/archivers/ancient/testing/test_files"
     if [[ ! -d "$archive_dir" ]]; then
         echo "Error: Archived SCO fixture corpus directory '$archive_dir' is not installed." >&2
-        exit 1
+        FAILED_CASES=$((FAILED_CASES + 1))
+    else
+        for pair in "test_C1_sco.Z|test_C1.raw" "test_C2_sco.Z|test_C2.xm"; do
+            IFS='|' read -r compressed_name raw_name <<< "$pair"
+            if [[ -n "$DATASET_FILTER" && "$compressed_name" != *"$DATASET_FILTER"* ]]; then continue; fi
+            schedule_case run_archived_case "$compressed_name" "$raw_name"
+        done
     fi
-    for pair in "test_C1_sco.Z|test_C1.raw" "test_C2_sco.Z|test_C2.xm"; do
-        IFS='|' read -r compressed_name raw_name <<< "$pair"
-        if [[ -n "$DATASET_FILTER" && "$compressed_name" != *"$DATASET_FILTER"* ]]; then
-            continue
-        fi
-        if [[ ! -f "$archive_dir/$compressed_name" || ! -f "$archive_dir/$raw_name" ]]; then
-            echo "Error: Archived SCO fixture file '$compressed_name' or '$raw_name' not found in '$archive_dir'." >&2
-            exit 1
-        fi
-        echo "[Archived] SCO fixture '$compressed_name' -> ctoolbox and gunzip..."
-        ctb_decompress sco-compress "$archive_dir/$compressed_name" "$TMP_DIR/archived.pan"
-        cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
-        gunzip -c < "$archive_dir/$compressed_name" > "$TMP_DIR/archived.pan"
-        cmp "$archive_dir/$raw_name" "$TMP_DIR/archived.pan"
-        TOTAL_TESTS=$((TOTAL_TESTS + 2))
-    done
 fi
 
-if [[ "$TOTAL_TESTS" -eq 0 ]]; then
-    echo "Error: No compression compatibility tests ran; check the format and dataset filters." >&2
-    exit 1
-fi
+while [[ "${#ACTIVE_JOBS[@]}" -gt 0 ]]; do wait_for_case; done
 
-echo ""
-echo "=== $TOTAL_TESTS COMPRESSION COMPATIBILITY TESTS PASSED; $TOTAL_SKIPS explicit skips ==="
+python3 - "$RUN_DIR" "$CASE_COUNT" "$FAILED_CASES" <<'PY'
+import pathlib
+import sys
+
+run_dir = pathlib.Path(sys.argv[1])
+case_count, failures = map(int, sys.argv[2:])
+passed = skipped = 0
+print("\n=== Compression Summary ===")
+print("Compression wall seconds include process startup and I/O, under concurrent load.")
+print("Ratio = compressed / input bytes (lower is smaller); '-' means unavailable.")
+print("Forward: ctoolbox compression; Reverse: oracle compression; Archived: no compression run.")
+print("Status | Direction | Format | Tool | Dataset | Input B | Compressed B | Ratio | Seconds | Note")
+for case_id in range(1, case_count + 1):
+    case_dir = run_dir / f"case_{case_id}"
+    result_path = case_dir / "results"
+    status = int((case_dir / "exit-status").read_text())
+    if not result_path.is_file():
+        print(f"FAIL | Case {case_id}: worker returned {status} without results")
+        failures += status == 0
+        continue
+    fields = result_path.read_bytes().split(b"\0")
+    if fields.pop() != b"" or len(fields) % 9:
+        raise ValueError(f"Incomplete results for case {case_id}")
+    reported_failure = False
+    for offset in range(0, len(fields), 9):
+        outcome, direction, fmt, tool, dataset, raw, compressed, elapsed, reason = (
+            field.decode("utf-8", errors="backslashreplace") for field in fields[offset:offset + 9]
+        )
+        passed += outcome == "PASS"
+        skipped += outcome == "SKIP"
+        reported_failure |= outcome == "FAIL"
+        ratio = "-"
+        if outcome == "PASS" and raw != "-" and int(raw) > 0 and compressed != "-":
+            ratio = f"{int(compressed) / int(raw):.4f}"
+        values = (outcome, direction, fmt, tool, dataset, raw, compressed, ratio, elapsed, reason)
+        print(" | ".join(value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") for value in values))
+    if status and not reported_failure:
+        print(f"FAIL | Case {case_id}: worker exited with status {status}; see case log")
+    elif reported_failure and not status:
+        failures += 1
+if not passed:
+    print("Error: No compression compatibility tests ran; check the format and dataset filters.", file=sys.stderr)
+print(f"\n=== {passed} COMPRESSION COMPATIBILITY TESTS PASSED; {skipped} explicit skips; {failures} failed cases ===")
+sys.exit(1 if failures or not passed else 0)
+PY

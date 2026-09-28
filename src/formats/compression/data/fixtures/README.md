@@ -93,10 +93,29 @@ byte equality is not a validity requirement.
 
 ```bash
 cargo test -p ctb-formats-compression --lib
+python3 -B tests/test_compressor_runner.py
 src/formats/compression/data/fixtures/test-compressors --fast
+src/formats/compression/data/fixtures/test-compressors --fast --jobs 1
 src/formats/compression/data/fixtures/test-compressors --dataset dickens
 src/formats/compression/data/fixtures/test-compressors
 ```
+
+[test-compressors](test-compressors) requires Bash 5.1 or newer and runs four
+cases concurrently by default. Use `--jobs N` (or `JOBS=N`) to adjust the
+limit; `--jobs 1` runs serially. Each matrix/dataset pair gets isolated scratch
+files and ctoolbox storage/cache via `CTB_TEST_STORAGE_DIR`. Forward and reverse
+checks remain sequential within each pair. Worker failures are collected while
+other cases continue, and any failure makes the script exit nonzero. Case logs
+are printed together as workers finish.
+
+The final report lists each direction's status, format, oracle, dataset, input
+and compressed byte counts, compression ratio, and compression wall time.
+Ratios are compressed bytes divided by input bytes, so smaller is better.
+Times include process startup and I/O, but exclude decompression and comparison;
+parallel timings include resource contention, so use `--jobs 1` for timing
+comparisons. Empty-input ratios and unavailable measurements use `-`. Archived
+fixtures show their existing size ratio but no compression time. Known skips
+and failures remain visible in the report; setup failures still abort early.
 
 The quick matrix covers empty and 1/2/3-byte inputs, repetitive data, the raw
 fixture, and deterministic random inputs of 65,535/65,536/65,537 bytes. It tests

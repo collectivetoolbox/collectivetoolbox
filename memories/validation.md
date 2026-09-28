@@ -7,8 +7,13 @@
 
 
 
+- Panorama export investigation: docs/panorama-format.md and `python3 scripts/diagnose-pan-exports.py` document/probe legacy fixtures without writes. `old/test-export-fixtures` prefers target/release/ctoolbox; it does not rebuild.
 - Panorama debug CLI is `pan2parsejson`. Procedure payloads can contain tokenized code plus a separate source copy; source-only mutation tests the current AST runtime, not necessarily original Panorama execution.
 
 - Dc data validator CLI only recognizes `--write`/`-w`; other flags are silently ignored. Default validates CSVs embedded directly from src/formats/dcdata/data, not the general asset bundle. For read-only live-file validation use validate_all_data_tables_from_repo (covered by test_math_format_metadata); avoid --write when IDs must remain untouched.
 
 - Use `python3 -B` (or PYTHONDONTWRITEBYTECODE=1) when importing repository helpers during probes: fixture directories are embedded and operator auto-commits can capture __pycache__ artifacts.
+
+- Parallel compression CLI tests need a distinct CTB_TEST_STORAGE_DIR per case: shared storage/cache caused intermittent `Directory not empty (os error 39)` failures. The override is supported by utilities::storage.
+- Bash errexit may unwind function-local variables before EXIT traps run. Keep failure-report metadata in worker subshell scope, not function locals; test command errors as well as explicit exits.
+
