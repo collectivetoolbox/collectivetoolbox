@@ -14,7 +14,7 @@ Import/export/tests support columns meaning:
    3=fully implemented for semantic content (and tests for variation in non-semantic details of the structure of the doc being imported)
    4=lossless and roundtrippable (with enough info for unambiguous bit-for-bit reconstruction of any given input)
    5=4+optional strict validation.",References
-2228258,34,Brotli,Brotli compressed stream (RFC 9841),compression,,.br,,,,"brotli, br",4,4,4,,,
+2228258,34,Brotli,Brotli compressed stream (RFC 9841),compression,,".br, .b",,,,"brotli, br",4,4,4,,,
 2228259,35,Gzip,GNU gzip format (RFC 1952),compression,,".gz, .gzip","application/gzip, application/x-gzip",,,"gzip, gz",4,4,4,,,
 2228260,36,Deflate,Raw DEFLATE compressed stream (RFC 1951),compression,,.deflate,,,,"deflate, raw-deflate",4,4,4,,,
 2228261,37,Zlib,Zlib-wrapped DEFLATE stream (RFC 1950),compression,,".zz, .zl",application/zlib,,,"zlib, zz, zl, zlib-deflate",4,4,4,,,
@@ -33,7 +33,7 @@ Import/export/tests support columns meaning:
 2228274,50,Compact,`compact` (McMaster Adaptive Huffman),compression,"@magic_name(""compacted data"")",case:.C,,,,compact,4,4,4,,,
 2228845,621,Freeze2,freeze: Freeze 2.X format (LZSS + Dynamic Huffman),compression,"@magic_name(""Freeze 2.X compressed data""), @magic_name(""frozen file 2.1"")",case:.F,,,,"freeze, freeze2, melt",4,4,4,,,
 2228846,622,Freeze1,freeze: Freeze 1.0 format (LZSS + Dynamic Huffman),compression,"@magic_name(""Freeze 1.0 compressed data""), @magic_name(""frozen file 1.0"")",case:.F,,,,"freeze1, freeze-1, melt1",4,4,4,,,
-2228524,300,Rzip,rzip: rzip format (long range chunk matching + bzip2),compression,"@magic_name(""rzip compressed data"")",case:.rz,application/x-rzip,,,"rzip, rz",4,4,4,,,
+2228524,300,Rzip,rzip: rzip format (long range chunk matching + bzip2),compression,"@magic_name(""rzip compressed data"")",.rz,application/x-rzip,,,"rzip, rz",4,4,4,,,
 2228525,301,Lrzip,lrzip (Long Range Zip),compression,,,,,,,,,,,,
 2228526,302,Bzip3,Bzip3,compression,,,,,,,,,,,,
 2228527,303,Lz4,LZ4,compression,,.lz4,,,,lz4,4,4,4,,,
