@@ -115,7 +115,7 @@ fn list_iana_schemes_by_status(status: &str) -> Result<Vec<String>> {
 static IANA_SCHEMES_SET: std::sync::LazyLock<std::collections::HashSet<String>> =
     std::sync::LazyLock::new(|| {
         list_iana_schemes()
-            .unwrap_or_default()
+            .expect("IANA schemes database failed to load, but should be provided by asset bundle")
             .into_iter()
             .map(|s| s.to_ascii_lowercase())
             .collect()
@@ -124,6 +124,7 @@ static IANA_SCHEMES_SET: std::sync::LazyLock<std::collections::HashSet<String>> 
 /// Checks whether `scheme` matches a known registered IANA URI scheme.
 #[must_use]
 pub fn is_known_scheme(scheme: &str) -> bool {
+    // Reason for fallback: if no trailing colon is present, the trimmed scheme is already bare
     let clean = scheme.trim().strip_suffix(':').unwrap_or(scheme.trim());
     if clean.is_empty() {
         return false;
@@ -183,6 +184,7 @@ pub fn detect_uri(s: &str) -> Option<UriDetection> {
     }
 
     // 2. Check if it's a standalone URI scheme / protocol (e.g. "http", "https", "ftp", "http:")
+    // Reason for fallback: if no trailing colon is present, candidate is already stripped
     let scheme_candidate = trimmed.strip_suffix(':').unwrap_or(trimmed);
     let is_valid_scheme_syntax = !scheme_candidate.is_empty()
         && scheme_candidate

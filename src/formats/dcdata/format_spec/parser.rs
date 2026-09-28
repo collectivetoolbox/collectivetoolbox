@@ -616,7 +616,9 @@ fn parse_param_bindings(
                     paren_depth == 0,
                     "Unclosed '(' in parameter value for '{param_name}'"
                 );
-                let inner_tokens = &tokens[start_idx.saturating_add(1)..scan_idx.saturating_sub(1)];
+                let inner_tokens = tokens
+                    .get(start_idx.saturating_add(1)..scan_idx.saturating_sub(1))
+                    .context("Invalid token slice for parameter value expression")?;
                 let sub_expr = parse_scope(
                     inner_tokens,
                     current_depth.saturating_add(1),

@@ -581,6 +581,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
     // Partition candidates into encoding formats and content formats so character encodings
     // do not conflict with document/identifier/data content formats.
     let is_encoding = |c: &DetectionCandidate| {
+        // Reason for fallback: candidates without a format_id are not encoding formats
         c.format_id
             .map(|fid| fid.category() == ctb_utilities::FormatCategory::Encoding)
             .unwrap_or(false)

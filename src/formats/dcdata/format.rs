@@ -701,6 +701,7 @@ where
                         variant_format_short_ids.contains(sid)
                     }
                     ctb_storage_minimal::shorthand::DcShorthand::Short(sid) => {
+                        // Reason for fallback: out-of-range integer IDs cannot match format IDs
                         usize::try_from(*sid).map_or(false, |s| {
                             variant_format_short_ids.contains(&s)
                         })

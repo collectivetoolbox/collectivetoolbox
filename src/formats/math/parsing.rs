@@ -927,6 +927,7 @@ pub fn detect_numeric_format(s: &str) -> Option<MathDetection> {
         }
     }
 
+    // Reason for fallback: if no leading sign is present, the trimmed string is already unsigned
     let clean = trimmed
         .strip_prefix('+')
         .or_else(|| trimmed.strip_prefix('-'))
@@ -1238,6 +1239,7 @@ pub fn detect_math_format(s: &str) -> Option<MathDetection> {
 
     // 5. Arithmetic expression (evaluates with numeric arithmetic)
     if evaluate_expression(trimmed).is_ok() {
+        // Reason for fallback: space character safely returns None from unicode_vulgar_fraction on empty input
         let has_ops = trimmed.contains('+')
             || trimmed.contains('-')
             || trimmed.contains('*')

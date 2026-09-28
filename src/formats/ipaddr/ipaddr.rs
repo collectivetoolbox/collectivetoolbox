@@ -220,6 +220,7 @@ pub struct IpDetection {
 
 /// Returns true if `raw` matches raw IPv4 without port or CIDR.
 fn is_raw_ipv4(raw: &str) -> bool {
+    // Reason for fallback: regex matching error treats malformed pattern input as non-matching
     raw.parse::<std::net::Ipv4Addr>().is_ok()
         || RE_IPV4_EXACT.is_match(raw).unwrap_or(false)
 }
@@ -238,6 +239,7 @@ fn is_raw_ipv6(raw: &str) -> bool {
             return true;
         }
     }
+    // Reason for fallback: regex matching error treats malformed pattern input as non-matching
     RE_IPV6_EXACT.is_match(raw).unwrap_or(false)
 }
 

@@ -3,6 +3,8 @@ name = "ctb-formats-kaitai-spec-rust"
 version = "0.1.0"
 authors = ["Aon"]
 edition = "2024"
+license = "MIT"
+publish = false
 
 [dependencies]
 kaitai = { path = "../../../runtime" }

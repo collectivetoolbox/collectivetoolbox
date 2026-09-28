@@ -306,6 +306,7 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
     if !lines.is_empty() {
         let all_coreutils = lines.iter().all(|l| parse_coreutils_line(l).is_some());
         if all_coreutils {
+            // Reason for fallback: empty line fallback safely fails parse_coreutils_line if lines is empty
             if let Some((first_digest, _)) = parse_coreutils_line(lines.first().unwrap_or(&"")) {
                 let dlen = first_digest.len();
                 let (fmt, candidates, name) = match dlen {
@@ -327,6 +328,7 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
 
         let all_bsd = lines.iter().all(|l| parse_bsd_line(l).is_some());
         if all_bsd {
+            // Reason for fallback: empty line fallback safely fails parse_bsd_line if lines is empty
             if let Some((algo, _, digest)) = parse_bsd_line(lines.first().unwrap_or(&"")) {
                 let algo_clean = algo.to_ascii_lowercase();
                 let fmt = match algo_clean.as_str() {
@@ -349,6 +351,7 @@ pub fn detect_checksum(s: &str) -> Option<ChecksumDetection> {
 
     // 2. Standalone single hex digest
     if !trimmed.contains('\n') && !trimmed.contains(' ') {
+        // Reason for fallback: if no hex prefix is present, trimmed string is already raw candidate digest
         let clean = trimmed.strip_prefix("0x").or_else(|| trimmed.strip_prefix("0X")).unwrap_or(trimmed);
         if !clean.is_empty() && clean.bytes().all(|b| b.is_ascii_hexdigit()) {
             let len = clean.len();

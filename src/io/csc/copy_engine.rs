@@ -712,6 +712,7 @@ pub fn execute_copy_pipeline(
             let check_atime = args.should_check_atime()
                 || (entity.is_regular() && entity.metadata.used_noatime() && !args.best_effort_metadata);
             #[cfg(unix)]
+            // Reason for fallback: failed metadata read treats path as not being a special device file
             let is_special_as_regular = (args.copy_block_devices_as_regular_files
                 || args.copy_fifos_as_regular_files)
                 && std::fs::symlink_metadata(src_path).map_or(false, |m| {

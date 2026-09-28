@@ -199,6 +199,7 @@ pub fn detect_uuid_format(s: &str) -> Option<UuidDetection> {
 
     if is_oid(trimmed) {
         let lower = trimmed.to_ascii_lowercase();
+        // Reason for fallback: empty string fallback safely fails parse::<u128>() if prefixes are missing
         let num_str = lower
             .strip_prefix("urn:oid:2.25.")
             .or_else(|| lower.strip_prefix("2.25."))

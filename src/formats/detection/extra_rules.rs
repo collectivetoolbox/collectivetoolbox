@@ -466,7 +466,10 @@ pub fn detect_small_format_candidates(
     hint: Option<&DetectionHint>,
 ) -> Vec<DetectionCandidate> {
     // Only inspect samples that are valid text and within reasonable size bounds
-    let max_inspect_len = total_len.unwrap_or(u64::try_from(sample.len()).unwrap_or(0));
+    // Reason for fallback: if conversion fails, default to 0
+    let sample_len = u64::try_from(sample.len()).unwrap_or(0);
+    // Reason for fallback: if total length is unspecified, use sample length to bound inspection size
+    let max_inspect_len = total_len.unwrap_or(sample_len);
     if max_inspect_len > 65_536 {
         return Vec::new();
     }

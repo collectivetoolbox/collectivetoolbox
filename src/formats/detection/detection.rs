@@ -1046,6 +1046,7 @@ pub fn guess_format_report(
         let mut sample_buf = vec![0u8; 4096];
         if let Ok(n) = source.read_at(0, &mut sample_buf) {
             if n > 0 {
+                // Reason for fallback: slice up to n bytes read, falling back to full buffer if n exceeds capacity
                 let sample_slice = sample_buf.get(..n).unwrap_or(&sample_buf);
                 let small_cands = detect_small_format_candidates(sample_slice, source.total_len(), hint);
                 for sc in small_cands {

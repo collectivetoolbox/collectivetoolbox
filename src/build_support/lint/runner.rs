@@ -29,6 +29,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 //! - Joins cargo metadata and checks vendor patch utilization.
 //! - Optionally inspects vendored crate versions.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -51,6 +52,7 @@ struct AstAnalysisResults {
     unwrap_or_verified: usize,
     unwrap_or_unverified: Vec<(String, usize, String)>,
     unwrap_or_warnings: Vec<(String, usize, String)>,
+    io_errors: Vec<String>,
 }
 
 impl AstAnalysisResults {
@@ -62,6 +64,7 @@ impl AstAnalysisResults {
         self.unwrap_or_verified = self.unwrap_or_verified.saturating_add(other.unwrap_or_verified);
         self.unwrap_or_unverified.extend(other.unwrap_or_unverified);
         self.unwrap_or_warnings.extend(other.unwrap_or_warnings);
+        self.io_errors.extend(other.io_errors);
     }
 }
 
@@ -76,8 +79,9 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             .context("failed to load cargo metadata")
     });
 
-    // 2. Discover files in a single traversal
-    let mut rs_files = Vec::new();
+    // 2. Discover files:
+    // Header linter files (with standard header exclusions such as generated directories):
+    let mut header_rs_files = Vec::new();
     let mut scm_files = Vec::new();
     let mut docker_files = Vec::new();
     let mut shell_files = Vec::new();
@@ -86,7 +90,7 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     headers::find_files(
         workspace_root,
-        &mut rs_files,
+        &mut header_rs_files,
         &mut scm_files,
         &mut docker_files,
         &mut shell_files,
@@ -94,58 +98,110 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
         &mut discovery_header_violations,
     )?;
 
+    // AST linter files (all .rs files in workspace, preserving scope across generated/):
+    let mut ast_rs_files = Vec::new();
+    helper::find_rs_files(workspace_root, &mut ast_rs_files)?;
+
+    let header_rs_set: HashSet<&Path> =
+        header_rs_files.iter().map(PathBuf::as_path).collect();
+
     // 3. Load allowed license identifiers from root Cargo.toml
     let allowed_licenses = headers::load_allowed_licenses(workspace_root)?;
 
     // 4. Lint non-Rust source files in parallel
     let non_rs_violations = Mutex::new(discovery_header_violations);
+    let parallel_io_errors = Mutex::new(Vec::new());
 
     scm_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        if headers::lint_scm_file(f, &allowed_licenses, &mut v).is_ok() && !v.is_empty() {
-            if let Ok(mut lock) = non_rs_violations.lock() {
-                lock.extend(v);
+        match headers::lint_scm_file(f, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!("failed to check Scheme file {}: {:#}", f.display(), e));
+                }
             }
         }
     });
 
     docker_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        if headers::lint_docker_file(f, &allowed_licenses, &mut v).is_ok() && !v.is_empty() {
-            if let Ok(mut lock) = non_rs_violations.lock() {
-                lock.extend(v);
+        match headers::lint_docker_file(f, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!("failed to check Dockerfile {}: {:#}", f.display(), e));
+                }
             }
         }
     });
 
     python_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        if headers::lint_python_file(f, &allowed_licenses, &mut v).is_ok() && !v.is_empty() {
-            if let Ok(mut lock) = non_rs_violations.lock() {
-                lock.extend(v);
+        match headers::lint_python_file(f, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!("failed to check Python file {}: {:#}", f.display(), e));
+                }
             }
         }
     });
 
     shell_files.par_iter().for_each(|f| {
         let mut v = Vec::new();
-        if headers::lint_shell_file(f, workspace_root, &allowed_licenses, &mut v).is_ok() && !v.is_empty() {
-            if let Ok(mut lock) = non_rs_violations.lock() {
-                lock.extend(v);
+        match headers::lint_shell_file(f, workspace_root, &allowed_licenses, &mut v) {
+            Ok(()) => {
+                if !v.is_empty() {
+                    if let Ok(mut lock) = non_rs_violations.lock() {
+                        lock.extend(v);
+                    }
+                }
+            }
+            Err(e) => {
+                if let Ok(mut lock) = parallel_io_errors.lock() {
+                    lock.push(format!("failed to check Shell script {}: {:#}", f.display(), e));
+                }
             }
         }
     });
 
     // 5. Parallel single-pass file reading & AST analysis across all .rs files
-    let mut ast_results = rs_files
+    let mut ast_results = ast_rs_files
         .par_iter()
         .fold(AstAnalysisResults::default, |mut acc, file_path| {
-            let Ok(content) = fs::read_to_string(file_path) else {
-                return acc;
+            let content = match fs::read_to_string(file_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    acc.io_errors.push(format!("failed to read {}: {:#}", file_path.display(), e));
+                    return acc;
+                }
             };
 
-            // License and header check on raw file text
-            let _ = headers::lint_file(file_path, &allowed_licenses, &mut acc.header_violations);
+            // License and header check on raw file text if file is header-eligible
+            if header_rs_set.contains(file_path.as_path()) {
+                if let Err(e) = headers::lint_file(file_path, &allowed_licenses, &mut acc.header_violations) {
+                    acc.io_errors.push(format!("failed to check headers in {}: {:#}", file_path.display(), e));
+                }
+            }
 
             let rel_path = file_path
                 .strip_prefix(workspace_root)
@@ -158,8 +214,13 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             let check_unwrap = is_in_src && !unwrap_or::should_skip_path(&rel_path);
 
             // Parse AST only once per file if any AST-based check requires it
-            let Ok(syntax) = syn::parse_file(&content) else {
-                return acc;
+            let syntax = match syn::parse_file(&content) {
+                Ok(s) => s,
+                Err(e) => {
+                    // Files with syntax errors (e.g. Kaitai partial test templates) warn and skip AST checks
+                    eprintln!("Warning: failed to parse {}: {}", file_path.display(), e);
+                    return acc;
+                }
             };
 
             // AST check 1: Tempdir write violations
@@ -204,6 +265,9 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
 
     if let Ok(extra) = non_rs_violations.into_inner() {
         ast_results.header_violations.extend(extra);
+    }
+    if let Ok(io_errs) = parallel_io_errors.into_inner() {
+        ast_results.io_errors.extend(io_errs);
     }
 
     // 6. Check workspace crates declaration
@@ -317,7 +381,7 @@ If you don't understand why that diff is missing the point of this lint, re-read
 
     // --- Section 5: Headers & Docblocks ---
     println!("\n=== Checking file headers and module docblocks ===");
-    let total_files = rs_files
+    let total_header_files = header_rs_files
         .len()
         .saturating_add(scm_files.len())
         .saturating_add(docker_files.len())
@@ -327,8 +391,8 @@ If you don't understand why that diff is missing the point of this lint, re-read
     if ast_results.header_violations.is_empty() {
         println!(
             "header and docblock lint passed ({} files checked: {} Rust, {} Scheme, {} Dockerfile, {} Python, {} Shell)",
-            total_files,
-            rs_files.len(),
+            total_header_files,
+            header_rs_files.len(),
             scm_files.len(),
             docker_files.len(),
             python_files.len(),
@@ -339,7 +403,7 @@ If you don't understand why that diff is missing the point of this lint, re-read
         eprintln!(
             "header and docblock lint failed: found {} violations across {} files.\n",
             ast_results.header_violations.len(),
-            total_files
+            total_header_files
         );
         for v in &ast_results.header_violations {
             let relative = v.file.strip_prefix(workspace_root).unwrap_or(&v.file);
@@ -348,11 +412,19 @@ If you don't understand why that diff is missing the point of this lint, re-read
     }
 
     // --- Section 6: Test Module Boilerplate ---
+    let src_rs_count = ast_rs_files
+        .iter()
+        .filter(|p| {
+            p.strip_prefix(workspace_root)
+                .map_or(false, |r| r.starts_with("src"))
+        })
+        .count();
+
     println!("\n=== Checking test module boilerplate ===");
     if ast_results.boilerplate_violations.is_empty() {
         println!(
             "Test boilerplate lint passed (checked {} Rust files in src/).",
-            rs_files.len()
+            src_rs_count
         );
     } else {
         any_failure = true;
@@ -364,6 +436,14 @@ If you don't understand why that diff is missing the point of this lint, re-read
             "Found {} test boilerplate violations. Run `./scripts/lint-test-boilerplate --fix` to fix them automatically.",
             ast_results.boilerplate_violations.len()
         );
+    }
+
+    if !ast_results.io_errors.is_empty() {
+        any_failure = true;
+        eprintln!("\n=== I/O Errors ===");
+        for err in &ast_results.io_errors {
+            eprintln!("Error: {err}");
+        }
     }
 
     if any_failure {
