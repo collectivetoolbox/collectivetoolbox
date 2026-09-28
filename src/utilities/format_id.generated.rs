@@ -681,7 +681,7 @@ pub enum FormatId {
     MimeBase64,
     /// xxencoding (Short 299, Category: armor)
     Xxencode,
-    /// rzip (Short 300, Category: compression)
+    /// rzip: rzip format (long range chunk matching + bzip2) (Short 300, Category: compression)
     Rzip,
     /// lrzip (Long Range Zip) (Short 301, Category: compression)
     Lrzip,
@@ -2266,7 +2266,7 @@ impl FormatId {
             "numericcharacterreferencehex" | "numeric_character_reference_hex" => Some(Self::NumericCharacterReferenceHex),
             "mimebase64" | "mime_base64" => Some(Self::MimeBase64),
             "xxencode" => Some(Self::Xxencode),
-            "rzip" => Some(Self::Rzip),
+            "rzip" | "rz" => Some(Self::Rzip),
             "lrzip" => Some(Self::Lrzip),
             "bzip3" => Some(Self::Bzip3),
             "lz4" => Some(Self::Lz4),
@@ -6538,7 +6538,7 @@ pub const DC_NUMERIC_CHARACTER_REFERENCE_HEX: DcChar = DcChar::from_format(297);
 pub const DC_MIME_BASE64: DcChar = DcChar::from_format(298);
 /// DcChar constant for Format `Xxencode` (Short f299, Category: armor): xxencoding
 pub const DC_XXENCODE: DcChar = DcChar::from_format(299);
-/// DcChar constant for Format `Rzip` (Short f300, Category: compression): rzip
+/// DcChar constant for Format `Rzip` (Short f300, Category: compression): rzip: rzip format (long range chunk matching + bzip2)
 pub const DC_RZIP: DcChar = DcChar::from_format(300);
 /// DcChar constant for Format `Lrzip` (Short f301, Category: compression): lrzip (Long Range Zip)
 pub const DC_LRZIP: DcChar = DcChar::from_format(301);

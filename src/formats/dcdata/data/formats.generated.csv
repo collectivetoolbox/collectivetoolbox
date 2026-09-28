@@ -306,7 +306,7 @@ Dc,Short,Name (!=deprecated),◌,⇆,Aa,Type,Script,"Aliases; >=xref, <=decompos
 2228521,f297,Numeric Character Reference (hexadecimal),0,BN,,!Cx,.Formats:armor,"@ident(""NumericCharacterReferenceHex"")",,,,,,,,,,
 2228522,f298,"Base64 with separators, line length 76",0,BN,,!Cx,.Formats:armor,"@ident(""MimeBase64"")",,,,,,,,,,
 2228523,f299,xxencoding,0,BN,,!Cx,.Formats:armor,"@ident(""Xxencode"")",,".xxe, .xx",,,,,,,,
-2228524,f300,rzip,0,BN,,!Cx,.Formats:compression,"@ident(""Rzip"")",,,,,,,,,,
+2228524,f300,rzip: rzip format (long range chunk matching + bzip2),0,BN,,!Cx,.Formats:compression,"@ident(""Rzip""), @nick(""rzip""), @nick(""rz""), @magic_name(""rzip compressed data"")",,case:.rz,application/x-rzip,,,4,4,4,,
 2228525,f301,lrzip (Long Range Zip),0,BN,,!Cx,.Formats:compression,"@ident(""Lrzip"")",,,,,,,,,,
 2228526,f302,Bzip3,0,BN,,!Cx,.Formats:compression,"@ident(""Bzip3"")",,,,,,,,,,
 2228527,f303,LZ4,0,BN,,!Cx,.Formats:compression,"@ident(""Lz4""), @nick(""lz4"")",,.lz4,,,,4,4,4,,

@@ -39,6 +39,7 @@ pub const SUPPORTED: &'static [FormatId] = &[
     FormatId::Compact,
     FormatId::Freeze2,
     FormatId::Freeze1,
+    FormatId::Rzip,
     FormatId::Lz4,
     FormatId::Lzo,
     FormatId::Lzma,
@@ -69,6 +70,7 @@ pub const fn is_supported(format: FormatId) -> bool {
             | FormatId::Compact
             | FormatId::Freeze2
             | FormatId::Freeze1
+            | FormatId::Rzip
             | FormatId::Lz4
             | FormatId::Lzo
             | FormatId::Lzma

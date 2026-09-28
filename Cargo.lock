@@ -2851,6 +2851,7 @@ dependencies = [
  "ctb-formats-compression-freeze",
  "ctb-formats-compression-libraries",
  "ctb-formats-compression-pack",
+ "ctb-formats-compression-rzip",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-detection",
  "ctb-formats-utilities",
@@ -2905,6 +2906,14 @@ dependencies = [
 name = "ctb-formats-compression-pack"
 version = "0.0.0"
 dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-rzip"
+version = "0.0.0"
+dependencies = [
+ "bzip2",
  "ctb-utilities",
 ]
 
@@ -4042,6 +4051,7 @@ dependencies = [
  "ctb-formats-compression-freeze",
  "ctb-formats-compression-libraries",
  "ctb-formats-compression-pack",
+ "ctb-formats-compression-rzip",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
