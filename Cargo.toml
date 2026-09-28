@@ -117,6 +117,8 @@ ctb-formats-javascript-boa-host = { path = "src/formats/javascript/boa_host" }
 ctb-formats-javascript-bootstrap-ts = { path = "src/formats/javascript/bootstrap_ts" }
 ctb-formats-json = { path = "src/formats/json" }
 ctb-formats-kaitai = { path = "src/formats/kaitai" }
+ctb-formats-kaitai-spec-rust = { path = "src/formats/kaitai/kaitai_struct_tests/spec/rust" }
+kaitai = { path = "src/formats/kaitai/runtime" }
 ctb-formats-lnk = { path = "src/formats/lnk" }
 ctb-formats-markdown = { path = "src/formats/markdown" }
 ctb-formats-math = { path = "src/formats/math" }

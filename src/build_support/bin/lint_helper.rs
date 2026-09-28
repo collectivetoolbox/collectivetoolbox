@@ -17,7 +17,12 @@ You should have received a copy of the GNU Affero General Public License along
 with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-//! Lint tool to check for unsafe filesystem writes in tests without temporary directories.
+//! Lint tool to check:
+//! - Unsafe filesystem writes in tests without temporary directories.
+//! - Inclusion of all workspace crates under `src/` in the root `Cargo.toml`.
+
+#[path = "lint_helper/workspace_crates.rs"]
+mod workspace_crates;
 
 use std::env;
 use std::fs;
@@ -221,27 +226,55 @@ fn main() -> Result<()> {
         violations.extend(visitor.violations);
     }
 
-    if violations.is_empty() {
-        println!("tempdir lint passed");
-        return Ok(());
-    }
+    let ws_violations =
+        workspace_crates::check_workspace_crates(&workspace_root)?;
+    let mut has_failure = false;
 
-    eprintln!(
-        "tempdir lint failed: found write operations in tests without creating a tempdir first."
-    );
-    eprintln!(
-        "If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block."
-    );
-    for v in &violations {
-        let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
+    if ws_violations.is_empty() {
+        println!("workspace crates lint passed");
+    } else {
+        has_failure = true;
         eprintln!(
-            "  {}:{}: function `{}` called `{}` without tempdir",
-            relative.display(),
-            v.line,
-            v.fn_name,
-            v.write_op
+            "workspace crates lint failed: found {} crate(s) in src/ not registered in root Cargo.toml:",
+            ws_violations.len()
+        );
+        for v in &ws_violations {
+            eprintln!(
+                "  {}: package `{}` is missing from root Cargo.toml",
+                v.relative_path.display(),
+                v.package_name
+            );
+        }
+        eprintln!(
+            "Please register them as dependencies in root Cargo.toml, or add them to [workspace.exclude]."
         );
     }
 
-    bail!("tempdir lint failed with {} violations", violations.len());
+    if violations.is_empty() {
+        println!("tempdir lint passed");
+    } else {
+        has_failure = true;
+        eprintln!(
+            "tempdir lint failed: found write operations in tests without creating a tempdir first."
+        );
+        eprintln!(
+            "If this is intentional, add a `//bypass-tempdir-lint` comment inside the test function block."
+        );
+        for v in &violations {
+            let relative = v.file.strip_prefix(&workspace_root).unwrap_or(&v.file);
+            eprintln!(
+                "  {}:{}: function `{}` called `{}` without tempdir",
+                relative.display(),
+                v.line,
+                v.fn_name,
+                v.write_op
+            );
+        }
+    }
+
+    if has_failure {
+        bail!("lint-helper reported violations");
+    }
+
+    Ok(())
 }

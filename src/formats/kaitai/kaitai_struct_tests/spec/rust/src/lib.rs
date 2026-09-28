@@ -29,7 +29,7 @@ SOFTWARE.
 
 */
 
-pub mod formats;
+pub use ctb_formats_kaitai as formats;
 
 pub mod my_custom_fx;
 pub mod custom_fx;

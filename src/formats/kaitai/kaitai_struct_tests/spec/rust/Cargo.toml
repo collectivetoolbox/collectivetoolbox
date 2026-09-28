@@ -1,15 +1,12 @@
 [package]
-name = "rust"
+name = "ctb-formats-kaitai-spec-rust"
 version = "0.1.0"
 authors = ["Aon"]
 edition = "2024"
-autotests = false
 
 [dependencies]
-kaitai = { path = "../../../runtime/rust" }
-
-[[test]]
-name = "spec"
+kaitai = { path = "../../../runtime" }
+ctb-formats-kaitai = { path = "../../.." }
 
 [lints]
 workspace = true

@@ -3209,6 +3209,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ctb-formats-kaitai-spec-rust"
+version = "0.1.0"
+dependencies = [
+ "ctb-formats-kaitai",
+ "kaitai",
+]
+
+[[package]]
 name = "ctb-formats-lnk"
 version = "0.0.0"
 dependencies = [
@@ -4062,6 +4070,7 @@ dependencies = [
  "ctb-formats-javascript-bootstrap-ts",
  "ctb-formats-json",
  "ctb-formats-kaitai",
+ "ctb-formats-kaitai-spec-rust",
  "ctb-formats-lnk",
  "ctb-formats-markdown",
  "ctb-formats-math",
@@ -4114,6 +4123,7 @@ dependencies = [
  "ctb-workspace-x11-client",
  "ctb-workspace-x11-client-egui",
  "deno_lint",
+ "kaitai",
  "nix 0.30.1",
  "rustls",
  "tokio",
