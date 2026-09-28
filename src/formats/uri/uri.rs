@@ -26,7 +26,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 )]
 pub(crate) use ctb_utilities::*;
 
-use ctb_utilities::anyhow::ensure;
+use ctb_utilities::anyhow::{anyhow, ensure};
 use ctb_utilities::csv_tools::CsvTable;
 use include_dir::{Dir, include_dir};
 use std::sync::Arc;
@@ -112,25 +112,35 @@ fn list_iana_schemes_by_status(status: &str) -> Result<Vec<String>> {
     Ok(schemes)
 }
 
-static IANA_SCHEMES_SET: std::sync::LazyLock<std::collections::HashSet<String>> =
+static IANA_SCHEMES_SET: std::sync::LazyLock<Result<std::collections::HashSet<String>>> =
     std::sync::LazyLock::new(|| {
-        list_iana_schemes()
-            .expect("IANA schemes database failed to load, but should be provided by asset bundle")
-            .into_iter()
-            .map(|s| s.to_ascii_lowercase())
-            .collect()
+        let schemes = list_iana_schemes().context(
+            "IANA schemes database failed to load, but should be provided by asset bundle",
+        )?;
+        Ok(schemes.into_iter().map(|s| s.to_ascii_lowercase()).collect())
     });
 
+fn get_iana_schemes_set() -> Result<&'static std::collections::HashSet<String>> {
+    IANA_SCHEMES_SET
+        .as_ref()
+        .map_err(|e| anyhow!("Failed to initialize IANA schemes set: {e}"))
+}
+
 /// Checks whether `scheme` matches a known registered IANA URI scheme.
-#[must_use]
-pub fn is_known_scheme(scheme: &str) -> bool {
+///
+/// # Errors
+///
+/// Returns an error if the IANA URI schemes dataset cannot be loaded from the
+/// embedded asset bundle.
+pub fn is_known_scheme(scheme: &str) -> Result<bool> {
     // Reason for fallback: if no trailing colon is present, the trimmed scheme is already bare
     let clean = scheme.trim().strip_suffix(':').unwrap_or(scheme.trim());
     if clean.is_empty() {
-        return false;
+        return Ok(false);
     }
     let lower = clean.to_ascii_lowercase();
-    IANA_SCHEMES_SET.contains(&lower)
+    let schemes = get_iana_schemes_set()?;
+    Ok(schemes.contains(&lower))
 }
 
 /// Result of URI or URI protocol scheme detection.
@@ -147,15 +157,19 @@ pub struct UriDetection {
 }
 
 /// Detects whether `s` represents a full URI or a standalone URI scheme/protocol.
-#[must_use]
-pub fn detect_uri(s: &str) -> Option<UriDetection> {
+///
+/// # Errors
+///
+/// Returns an error if the IANA URI schemes dataset cannot be loaded from the
+/// embedded asset bundle.
+pub fn detect_uri(s: &str) -> Result<Option<UriDetection>> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
-        return None;
+        return Ok(None);
     }
     // URIs and URI schemes must not contain unencoded whitespace
     if trimmed.bytes().any(|b| b.is_ascii_whitespace()) {
-        return None;
+        return Ok(None);
     }
 
     // 1. Check if it's a full URI with scheme prefix (e.g. "https://example.com", "mailto:user@domain.com")
@@ -166,19 +180,19 @@ pub fn detect_uri(s: &str) -> Option<UriDetection> {
                 && scheme
                     .bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
-            if scheme_valid && is_known_scheme(scheme) {
+            if scheme_valid && is_known_scheme(scheme)? {
                 let lower_scheme = scheme.to_ascii_lowercase();
                 let fmt = if lower_scheme == "magnet" {
                     FormatId::Magnet
                 } else {
                     FormatId::Uri
                 };
-                return Some(UriDetection {
+                return Ok(Some(UriDetection {
                     format_id: fmt,
                     description: format!("URI ({lower_scheme})"),
                     scheme: lower_scheme,
                     is_scheme_only: false,
-                });
+                }));
             }
         }
     }
@@ -195,29 +209,33 @@ pub fn detect_uri(s: &str) -> Option<UriDetection> {
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'+' || b == b'-' || b == b'.');
 
-    if is_valid_scheme_syntax && is_known_scheme(scheme_candidate) {
+    if is_valid_scheme_syntax && is_known_scheme(scheme_candidate)? {
         let lower = scheme_candidate.to_ascii_lowercase();
-        return Some(UriDetection {
+        return Ok(Some(UriDetection {
             format_id: FormatId::UriProtocol,
             description: format!("URI protocol ({lower})"),
             scheme: lower,
             is_scheme_only: true,
-        });
+        }));
     }
 
-    None
+    Ok(None)
 }
 
 /// Checks whether `uri` begins with a known registered IANA URI scheme.
-#[must_use]
-pub fn is_iana_scheme(uri: &str) -> bool {
+///
+/// # Errors
+///
+/// Returns an error if the IANA URI schemes dataset cannot be loaded from the
+/// embedded asset bundle.
+pub fn is_iana_scheme(uri: &str) -> Result<bool> {
     if let Some(colon_pos) = uri.find(':') {
         let Some(scheme) = uri.get(..colon_pos) else {
-            return false;
+            return Ok(false);
         };
         return is_known_scheme(scheme);
     }
-    false
+    Ok(false)
 }
 
 #[cfg(test)]
@@ -313,10 +331,10 @@ mod tests {
 
     #[crate::ctb_test]
     fn test_is_iana_scheme_checks() -> Result<()> {
-        if !is_iana_scheme("z39.50s:example") {
+        if !is_iana_scheme("z39.50s:example")? {
             return Err(anyhow!("is_iana_scheme failed for 'z39.50s'"));
         }
-        if is_iana_scheme("URI Scheme:example") {
+        if is_iana_scheme("URI Scheme:example")? {
             return Err(anyhow!(
                 "header 'URI Scheme' incorrectly classified as scheme"
             ));
@@ -325,29 +343,30 @@ mod tests {
     }
 
     #[crate::ctb_test]
-    fn test_detect_uri_and_scheme() {
-        let http_scheme = detect_uri("http").unwrap();
+    fn test_detect_uri_and_scheme() -> Result<()> {
+        let http_scheme = detect_uri("http")?.unwrap();
         assert_eq!(http_scheme.format_id, FormatId::UriProtocol);
         assert!(http_scheme.is_scheme_only);
         assert_eq!(http_scheme.scheme, "http");
 
-        let https_scheme_colon = detect_uri("https:").unwrap();
+        let https_scheme_colon = detect_uri("https:")?.unwrap();
         assert_eq!(https_scheme_colon.format_id, FormatId::UriProtocol);
         assert!(https_scheme_colon.is_scheme_only);
 
-        let full_uri = detect_uri("https://collectivetoolbox.com/path?q=1#top").unwrap();
+        let full_uri = detect_uri("https://collectivetoolbox.com/path?q=1#top")?.unwrap();
         assert_eq!(full_uri.format_id, FormatId::Uri);
         assert!(!full_uri.is_scheme_only);
         assert_eq!(full_uri.scheme, "https");
 
-        let mailto_uri = detect_uri("mailto:info@example.com").unwrap();
+        let mailto_uri = detect_uri("mailto:info@example.com")?.unwrap();
         assert_eq!(mailto_uri.format_id, FormatId::Uri);
         assert!(!mailto_uri.is_scheme_only);
 
-        let magnet = detect_uri("magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a").unwrap();
+        let magnet = detect_uri("magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a")?.unwrap();
         assert_eq!(magnet.format_id, FormatId::Magnet);
 
-        assert!(detect_uri("not a uri with spaces").is_none());
-        assert!(detect_uri("unknownscheme12345:resource").is_none());
+        assert!(detect_uri("not a uri with spaces")?.is_none());
+        assert!(detect_uri("unknownscheme12345:resource")?.is_none());
+        Ok(())
     }
 }

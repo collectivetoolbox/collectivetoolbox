@@ -531,7 +531,7 @@ pub fn detect_small_format_candidates(
     }
 
     // 2. URI and URI Scheme/Protocol detection (via ctb-formats-uri)
-    if let Some(uri_det) = ctb_formats_uri::detect_uri(trimmed) {
+    if let Ok(Some(uri_det)) = ctb_formats_uri::detect_uri(trimmed) {
         let fmt = uri_det.format_id;
         let mapping = FORMAT_CATALOG.lookup_ident(fmt.ident());
         let dc_id = mapping.map(|m| m.dc_id);
