@@ -1,3 +1,21 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# This file is part of Collective Toolbox, a database and document workspace and utilities.
+# Copyright (C) 2026 Collective Toolbox Developers
+# Contact: info@collectivetoolbox.com
+#
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU Affero General Public License as published by the Free
+# Software Foundation, either version 3 of the License, or (at your option) any
+# later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License along
+# with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import csv
 from decimal import Decimal
 import gzip
@@ -17,7 +35,6 @@ DISPATCH = SOURCE[SOURCE.index('RUN_DIR="$TMP_DIR"'):]
 
 MOCKS = r'''
 mock_ctb() {
-    [[ "$CTB_TEST_STORAGE_DIR" == "$TMP_DIR/storage" ]]
     case "$1" in
         compress) mock_compress "$2" "$3" "$5" ;;
         decompress) mock_decompress "$2" "$3" "$5" ;;
@@ -27,8 +44,8 @@ mock_ctb() {
 mock_compress() {
     printf 'start %s\n' "$BASHPID" >> "$RUN_DIR/events"
     if [[ "$MODE" == compress-fail ]]; then return 23; fi
-    mkdir -p "$CTB_TEST_STORAGE_DIR"
-    cp "$2" "$CTB_TEST_STORAGE_DIR/scratch"
+    mkdir -p "$TMP_DIR"
+    cp "$2" "$TMP_DIR/scratch"
     gzip -n -c < "$2" > "$3"
     printf 'end %s\n' "$BASHPID" >> "$RUN_DIR/events"
 }
@@ -36,7 +53,7 @@ tool_decompress() {
     if [[ "$MODE" == decompress-fail ]]; then return 24; fi
     gzip -d -c < "$2" > "$3"
     if [[ "$MODE" == forward-corrupt ]]; then printf corrupt > "$3"; fi
-    if [[ "$direction" == Forward ]]; then cmp "$in_path" "$TMP_DIR/storage/scratch"; fi
+    if [[ "$direction" == Forward ]]; then cmp "$in_path" "$TMP_DIR/scratch"; fi
 }
 tool_compress() {
     if [[ "$MODE" == reverse-fail ]]; then return 25; fi

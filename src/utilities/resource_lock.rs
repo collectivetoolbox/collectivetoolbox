@@ -60,7 +60,7 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 use crate::{debug, debug_fmt, storage::get_storage_dir};
-use crate::{error, warn};
+use crate::{error, warn, warn_fmt};
 use anyhow::{Context, Result, bail};
 use fs2::FileExt; // Cross-platform advisory file locking
 use std::collections::HashMap;
@@ -379,6 +379,40 @@ impl Drop for ResourceLock {
     }
 }
 
+fn clean_stale_lock_probes(locks_dir: &Path) {
+    let Ok(entries) = fs::read_dir(locks_dir) else {
+        return;
+    };
+    let stale_threshold = Duration::from_secs(3600);
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if file_name.starts_with(".lock_probe_")
+            || file_name.starts_with("lock_probe_")
+        {
+            if let Ok(metadata) = fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(elapsed) = modified.elapsed() {
+                        if elapsed > stale_threshold {
+                            let _ = fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Best-effort cleanup of legacy locks/test folder from older versions
+    let legacy_test_dir = locks_dir.join("test");
+    if legacy_test_dir.is_dir() {
+        let _ = fs::remove_file(legacy_test_dir.join("test_lock"));
+        let _ = fs::remove_dir(legacy_test_dir);
+    }
+}
+
+/// Probes the filesystem hosting the storage directory to ensure it reliably
+/// supports file locking and inode-based consistency checks.
 pub fn check_filesystem_lock_support() -> Result<()> {
     // Try to bail early on unsupported OS families
     #[cfg(not(any(unix, windows)))]
@@ -388,24 +422,37 @@ pub fn check_filesystem_lock_support() -> Result<()> {
         );
     }
 
-    // Create a temp test file in your locks dir
-    let test_dir = get_storage_dir()?.join("locks").join("test");
-    fs::create_dir_all(&test_dir)?;
-    let test_path = test_dir.join("test_lock");
+    let locks_dir = get_storage_dir()?.join("locks");
+    fs::create_dir_all(&locks_dir)?;
+
+    // Clean up stale lock probe files from previous crashed runs (older than 1 hour)
+    clean_stale_lock_probes(&locks_dir);
+
+    // Create a unique per-process probe file to avoid concurrency collisions
+    let pid = std::process::id();
+    let rand_id: u64 = rand::random();
+    let test_path = locks_dir.join(format!(".lock_probe_{pid}_{rand_id}"));
 
     // Open and lock the file
     let file = fs::OpenOptions::new()
         .create(true)
-        .truncate(false)
+        .truncate(true)
         .read(true)
         .write(true)
-        .open(&test_path)?;
-    file.lock_exclusive()?;
+        .open(&test_path)
+        .with_context(|| {
+            format!("Failed to create lock probe file {}", test_path.display())
+        })?;
+
+    file.lock_exclusive().with_context(|| {
+        format!("Failed to lock probe file {}", test_path.display())
+    })?;
 
     debug_fmt!(
         "Checking for filesystem lock ability: Created and locked {}",
         test_path.display()
     );
+
     // Check if inodes match
     if !path_and_descriptor_match(&test_path, &file)? {
         error!(
@@ -417,9 +464,14 @@ pub fn check_filesystem_lock_support() -> Result<()> {
     // Clean up: drop file handle before removing as Windows requires it
     drop(file);
     debug_fmt!("Removing {}", test_path.display());
-    fs::remove_file(&test_path)?;
-    debug_fmt!("Removing dir {}", test_dir.display());
-    fs::remove_dir(&test_dir)?;
+    if let Err(e) = fs::remove_file(&test_path) {
+        if e.kind() != std::io::ErrorKind::NotFound {
+            warn_fmt!(
+                "Failed to clean up lock probe file {}: {e}",
+                test_path.display()
+            );
+        }
+    }
     Ok(())
 }
 
@@ -612,5 +664,20 @@ mod tests {
         // This should succeed on supported platforms and typical filesystems
         check_filesystem_lock_support()
             .expect("filesystem lock support check failed");
+    }
+
+    #[crate::ctb_test]
+    fn check_filesystem_lock_support_concurrent() {
+        let mut handles = Vec::new();
+        for _ in 0..8 {
+            let handle = thread::spawn(|| {
+                check_filesystem_lock_support()
+            });
+            handles.push(handle);
+        }
+        for handle in handles {
+            let res = handle.join().expect("thread join failed");
+            assert!(res.is_ok(), "Concurrent lock support check failed: {res:?}");
+        }
     }
 }

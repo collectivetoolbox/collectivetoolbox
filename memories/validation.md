@@ -14,6 +14,6 @@
 
 - Use `python3 -B` (or PYTHONDONTWRITEBYTECODE=1) when importing repository helpers during probes: fixture directories are embedded and operator auto-commits can capture __pycache__ artifacts.
 
-- Parallel compression CLI tests need a distinct CTB_TEST_STORAGE_DIR per case: shared storage/cache caused intermittent `Directory not empty (os error 39)` failures. The override is supported by utilities::storage.
+- Parallel CLI invocations sharing storage/cache previously caused intermittent `Directory not empty (os error 39)` failures due to racy probe cleanup in `utilities::resource_lock`; this was resolved by using distinct per-process probe files and avoiding shared directory removals. CTB_TEST_STORAGE_DIR remains available when explicit test data isolation is desired.
 - Bash errexit may unwind function-local variables before EXIT traps run. Keep failure-report metadata in worker subshell scope, not function locals; test command errors as well as explicit exits.
 

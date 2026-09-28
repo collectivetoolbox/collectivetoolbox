@@ -188,12 +188,12 @@ done
 # 3. Invocation helpers
 ctb_compress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    CTB_TEST_STORAGE_DIR="$TMP_DIR/storage" "${CTB_CMD[@]}" compress "$fmt" "$in_file" -o "$out_file" --force
+    "${CTB_CMD[@]}" compress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 ctb_decompress() {
     local fmt="$1" in_file="$2" out_file="$3"
-    CTB_TEST_STORAGE_DIR="$TMP_DIR/storage" "${CTB_CMD[@]}" decompress "$fmt" "$in_file" -o "$out_file" --force
+    "${CTB_CMD[@]}" decompress "$fmt" "$in_file" -o "$out_file" --force
 }
 
 tool_compress() {
