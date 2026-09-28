@@ -15,6 +15,18 @@ DEST_DIR="${1:-$REPO_ROOT/built/bin_historic_tools}"
 mkdir -p "$DEST_DIR"
 DEST_DIR="$(cd "$DEST_DIR" && pwd)"
 
+for req_tool in gcc python3; do
+    if ! command -v "$req_tool" >/dev/null 2>&1; then
+        echo "Error: Required build tool '$req_tool' not found in PATH." >&2
+        exit 1
+    fi
+done
+
+if [[ ! -d "$REPO_ROOT/old/unix-tools" ]]; then
+    echo "Error: Historical unix tools source directory not found at '$REPO_ROOT/old/unix-tools'." >&2
+    exit 1
+fi
+
 patch_source() {
     python3 -c '
 import sys

@@ -12,6 +12,10 @@ while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do
 done
 
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
+if [[ ! -f "$RAW_FILE" ]]; then
+    echo "Error: Base fixture raw file not found at '$RAW_FILE'." >&2
+    exit 1
+fi
 
 FILTER="${FILTER:-}"
 DATASET_FILTER="${DATASET_FILTER:-}"
@@ -59,12 +63,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Verify required system tools exist upfront; fail immediately if missing
-for req_tool in gzip gunzip bzip2 brotli xz lzip lz4 zstd python3; do
+for req_tool in gcc cmp gzip gunzip bzip2 brotli xz lzip lz4 zstd python3; do
     if ! command -v "$req_tool" >/dev/null 2>&1; then
         echo "Error: Required system tool '$req_tool' not found in PATH." >&2
         exit 1
     fi
 done
+
+if ! python3 -c "import ctypes.util, sys; sys.exit(0 if ctypes.util.find_library('lzo2') else 1)"; then
+    echo "Error: Required library 'liblzo2' not found on system." >&2
+    exit 1
+fi
 
 # Determine ctoolbox binary
 if [ -n "${CTB_BIN:-}" ]; then
@@ -90,6 +99,12 @@ trap cleanup EXIT
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
+for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 compress-apollo ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip; do
+    if [[ ! -x "$TMP_DIR/$hist_tool" ]]; then
+        echo "Error: Historical compression tool '$hist_tool' failed to build or is missing." >&2
+        exit 1
+    fi
+done
 
 # 2. Prepare test datasets
 echo "=== Preparing Test Datasets ==="
@@ -137,6 +152,12 @@ if [[ "$FAST_MODE" -eq 0 ]]; then
 fi
 
 echo "Total test datasets: ${#DATASETS[@]}"
+for ds_path in "${DATASETS[@]}"; do
+    if [[ ! -f "$ds_path" ]]; then
+        echo "Error: Test dataset file '$ds_path' not found." >&2
+        exit 1
+    fi
+done
 
 # 3. Invocation helpers
 ctb_compress() {
@@ -461,15 +482,18 @@ done
 
 if [[ -z "$FILTER" || sco-compress == *"$FILTER"* || gunzip == *"$FILTER"* ]]; then
     archive_dir="$REPO_ROOT/old/archivers/ancient/testing/test_files"
+    if [[ ! -d "$archive_dir" ]]; then
+        echo "Error: Archived SCO fixture corpus directory '$archive_dir' is not installed." >&2
+        exit 1
+    fi
     for pair in "test_C1_sco.Z|test_C1.raw" "test_C2_sco.Z|test_C2.xm"; do
         IFS='|' read -r compressed_name raw_name <<< "$pair"
         if [[ -n "$DATASET_FILTER" && "$compressed_name" != *"$DATASET_FILTER"* ]]; then
             continue
         fi
-        if [[ ! -d "$archive_dir" ]]; then
-            echo "[Skip] Archived SCO fixture corpus is not installed"
-            TOTAL_SKIPS=$((TOTAL_SKIPS + 1))
-            continue
+        if [[ ! -f "$archive_dir/$compressed_name" || ! -f "$archive_dir/$raw_name" ]]; then
+            echo "Error: Archived SCO fixture file '$compressed_name' or '$raw_name' not found in '$archive_dir'." >&2
+            exit 1
         fi
         echo "[Archived] SCO fixture '$compressed_name' -> ctoolbox and gunzip..."
         ctb_decompress sco-compress "$archive_dir/$compressed_name" "$TMP_DIR/archived.pan"

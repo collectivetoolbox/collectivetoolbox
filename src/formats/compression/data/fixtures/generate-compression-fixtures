@@ -11,6 +11,11 @@ while [ "$REPO_ROOT" != "/" ] && [ ! -f "$REPO_ROOT/AGENTS.md" ]; do
 done
 
 RAW_FILE="$REPO_ROOT/src/formats/compression/data/fixtures/example2 with lemurs.pan"
+if [[ ! -f "$RAW_FILE" ]]; then
+    echo "Error: Base fixture raw file not found at '$RAW_FILE'." >&2
+    exit 1
+fi
+
 OUTPUT_DIR="$SCRIPT_DIR"
 VERIFY_ONLY=0
 while [[ $# -gt 0 ]]; do
@@ -24,6 +29,19 @@ while [[ $# -gt 0 ]]; do
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
+
+# Verify required system tools exist upfront; fail immediately if missing
+for req_tool in gcc cmp gzip gunzip bzip2 brotli xz lzip lz4 zstd python3; do
+    if ! command -v "$req_tool" >/dev/null 2>&1; then
+        echo "Error: Required system tool '$req_tool' not found in PATH." >&2
+        exit 1
+    fi
+done
+
+if ! python3 -c "import ctypes.util, sys; sys.exit(0 if ctypes.util.find_library('lzo2') else 1)"; then
+    echo "Error: Required library 'liblzo2' not found on system." >&2
+    exit 1
+fi
 
 mkdir -p "$REPO_ROOT/built"
 TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_gen_fixtures_XXXXXX")"
@@ -54,6 +72,12 @@ fi
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
+for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip; do
+    if [[ ! -x "$TMP_DIR/$hist_tool" ]]; then
+        echo "Error: Historical compression tool '$hist_tool' failed to build or is missing." >&2
+        exit 1
+    fi
+done
 
 if [[ "$VERIFY_ONLY" -eq 0 ]]; then
 echo "=== Generating All Compression Fixtures Into Staging ==="

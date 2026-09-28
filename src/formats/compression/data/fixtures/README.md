@@ -101,9 +101,11 @@ src/formats/compression/data/fixtures/test-compressors
 The quick matrix covers empty and 1/2/3-byte inputs, repetitive data, the raw
 fixture, and deterministic random inputs of 65,535/65,536/65,537 bytes. It tests
 both directions against external implementations, including 12-bit LZW. Full
-mode requires a nonempty `old/corpora` directory and adds its files. The two
-genuine SCO streams in the optional
-ancient corpus are checked against their known raw files and gunzip as well.
+By default (with no arguments), `test-compressors` executes across both the
+quick synthetic datasets and the full corpora from `old/corpora`. The two
+genuine SCO streams in the ancient fixture corpus are checked against their
+known raw files and gunzip as well (missing tools, corpora, or archive fixtures
+are treated as hard failures resulting in exit code 1).
 
 Known historical empty-input defects, one-byte Compact output refusal, and
 pack's explicit trivial/no-savings refusals are reported as skips. Other tool

@@ -38,7 +38,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends \
         acl \
         binutils \
-        brotli \
+        brotli libbz2-dev lzip lz4 zstd liblzo2-dev \
         build-essential \
         ca-certificates \
         clang \
