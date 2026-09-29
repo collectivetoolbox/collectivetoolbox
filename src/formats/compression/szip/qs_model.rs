@@ -93,18 +93,21 @@ impl QsModel {
         } else {
             let mut s = vec![0u16; TBL_SIZE.saturating_add(1)];
             let last_sym = u16::try_from(num_symbols.saturating_sub(1))
-                .unwrap_or(0);
+                .map_err(|e| anyhow!("Symbol conversion: {e}"))?;
             if let Some(slot) = s.get_mut(TBL_SIZE) {
                 *slot = last_sym;
             }
             Some(s)
         };
 
+        let rescale = i32::try_from(num_symbols >> 4)
+            .map_err(|e| anyhow!("Rescale conversion: {e}"))? | 2;
+
         let mut model = Self {
             num_symbols,
             left: 0,
             next_left: 0,
-            rescale: i32::try_from(num_symbols >> 4).unwrap_or(0) | 2,
+            rescale,
             target_rescale,
             incr: 0,
             search_shift,
@@ -119,16 +122,25 @@ impl QsModel {
 
     /// Resets model state with uniform probability distribution.
     fn reset_uniform(&mut self) -> Result<()> {
-        self.rescale = i32::try_from(self.num_symbols >> 4).unwrap_or(0) | 2;
+        self.rescale = i32::try_from(self.num_symbols >> 4)
+            .map_err(|e| anyhow!("Rescale conversion: {e}"))? | 2;
         self.next_left = 0;
-        let tot = self.cf.get(self.num_symbols).copied().unwrap_or(0);
+        let tot = *self
+            .cf
+            .get(self.num_symbols)
+            .ok_or_else(|| anyhow!("Missing cumulative frequency total"))?;
         let n = u16::try_from(self.num_symbols)
             .map_err(|e| anyhow!("Symbol count conversion: {e}"))?;
         if n == 0 {
             bail!("Symbol count cannot be zero");
         }
-        let init_val = tot.checked_div(n).unwrap_or(0);
-        let end = usize::from(tot.checked_rem(n).unwrap_or(0));
+        let init_val = tot
+            .checked_div(n)
+            .ok_or_else(|| anyhow!("Divide by zero in reset_uniform"))?;
+        let end = usize::from(
+            tot.checked_rem(n)
+                .ok_or_else(|| anyhow!("Modulo by zero in reset_uniform"))?,
+        );
 
         for i in 0..end {
             if let Some(slot) = self.new_f.get_mut(i) {
@@ -161,34 +173,50 @@ impl QsModel {
             }
         }
 
+        // Reason for fallback: cumulative frequency total lookup defaults to 0
         let mut cf_val = i32::from(self.cf.get(self.num_symbols).copied().unwrap_or(0));
         let mut missing = cf_val;
 
         let mut i = self.num_symbols.saturating_sub(1);
         while i > 0 {
+            // Reason for fallback: new frequency table lookup defaults to 0
             let tmp = i32::from(self.new_f.get(i).copied().unwrap_or(0));
             cf_val = cf_val.saturating_sub(tmp);
             if let Some(slot) = self.cf.get_mut(i) {
+                // Reason for fallback: cumulative frequency conversion defaults to 0
                 *slot = u16::try_from(cf_val).unwrap_or(0);
             }
             let halved = (tmp >> 1) | 1;
             missing = missing.saturating_sub(halved);
             if let Some(slot) = self.new_f.get_mut(i) {
+                // Reason for fallback: halved frequency conversion defaults to 1
                 *slot = u16::try_from(halved).unwrap_or(1);
             }
             i = i.saturating_sub(1);
         }
 
+        // Reason for fallback: first frequency lookup defaults to 0
         let first_f = i32::from(self.new_f.first().copied().unwrap_or(0));
         let halved_first = (first_f >> 1) | 1;
         missing = missing.saturating_sub(halved_first);
         if let Some(slot) = self.new_f.first_mut() {
+            // Reason for fallback: halved frequency conversion defaults to 1
             *slot = u16::try_from(halved_first).unwrap_or(1);
         }
 
         if self.rescale > 0 {
-            self.incr = missing.checked_div(self.rescale).unwrap_or(0);
-            self.next_left = missing.checked_rem(self.rescale).unwrap_or(0);
+            #[expect(
+                clippy::expect_used,
+                reason = "rescale is strictly positive, so division and remainder are infallible"
+            )]
+            {
+                self.incr = missing
+                    .checked_div(self.rescale)
+                    .expect("Division by positive rescale cannot fail");
+                self.next_left = missing
+                    .checked_rem(self.rescale)
+                    .expect("Modulo by positive rescale cannot fail");
+            }
             self.left = self.rescale.saturating_sub(self.next_left);
         } else {
             self.incr = 1;
@@ -199,12 +227,18 @@ impl QsModel {
         if let Some(search_tbl) = &mut self.search {
             let mut sym_idx = self.num_symbols;
             while sym_idx > 0 {
+                // Reason for fallback: cumulative frequency lookup defaults to 0
                 let cf_cur = self.cf.get(sym_idx).copied().unwrap_or(0);
                 let end = (cf_cur.saturating_sub(1)) >> self.search_shift;
                 sym_idx = sym_idx.saturating_sub(1);
+                // Reason for fallback: cumulative frequency lookup defaults to 0
                 let cf_prev = self.cf.get(sym_idx).copied().unwrap_or(0);
                 let mut start = cf_prev >> self.search_shift;
-                let sym_u16 = u16::try_from(sym_idx).unwrap_or(0);
+                #[expect(
+                    clippy::expect_used,
+                    reason = "sym_idx <= num_symbols which fits in u16 by construction"
+                )]
+                let sym_u16 = u16::try_from(sym_idx).expect("sym_idx fits in u16");
                 while start <= end {
                     if let Some(slot) = search_tbl.get_mut(usize::from(start)) {
                         *slot = sym_u16;
@@ -217,8 +251,10 @@ impl QsModel {
 
     /// Queries the symbol frequency interval: `(symbol_freq, cumulative_freq)`.
     pub fn get_freq(&self, sym: usize) -> (u32, u32) {
+        // Reason for fallback: cumulative frequency lookup defaults to 0
         let lt_f = u32::from(self.cf.get(sym).copied().unwrap_or(0));
         let next_cf = u32::from(
+            // Reason for fallback: cumulative frequency next lookup defaults to 0
             self.cf
                 .get(sym.saturating_add(1))
                 .copied()
@@ -231,9 +267,12 @@ impl QsModel {
     /// Maps cumulative frequency back to symbol index.
     pub fn get_sym(&self, lt_f: u32) -> usize {
         let (mut lo, mut hi) = if let Some(search_tbl) = &self.search {
+            // Reason for fallback: search index conversion defaults to 0
             let idx = usize::try_from(lt_f >> self.search_shift).unwrap_or(0);
+            // Reason for fallback: search table lookup defaults to 0
             let s_lo = usize::from(search_tbl.get(idx).copied().unwrap_or(0));
             let s_hi = usize::from(
+                // Reason for fallback: search table next lookup defaults to 0
                 search_tbl
                     .get(idx.saturating_add(1))
                     .copied()
@@ -245,9 +284,11 @@ impl QsModel {
             (0, self.num_symbols)
         };
 
+        // Reason for fallback: frequency clamped to u16::MAX if search key exceeds u16 range
         let lt_f_u16 = u16::try_from(lt_f).unwrap_or(u16::MAX);
         while lo.saturating_add(1) < hi {
             let mid = (lo.saturating_add(hi)) >> 1;
+            // Reason for fallback: cumulative frequency lookup defaults to 0
             let cf_mid = self.cf.get(mid).copied().unwrap_or(0);
             if lt_f_u16 < cf_mid {
                 hi = mid;
@@ -265,7 +306,11 @@ impl QsModel {
         }
         self.left = self.left.saturating_sub(1);
         if let Some(slot) = self.new_f.get_mut(sym) {
-            let incr_u16 = u16::try_from(self.incr).unwrap_or(1);
+            #[expect(
+                clippy::expect_used,
+                reason = "incr is non-negative and bounded by total cumulative frequency fitting in u16"
+            )]
+            let incr_u16 = u16::try_from(self.incr.max(0)).expect("incr fits in u16");
             *slot = slot.saturating_add(incr_u16);
         }
     }

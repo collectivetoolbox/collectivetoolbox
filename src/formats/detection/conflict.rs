@@ -501,6 +501,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                 || parent_candidate.mime.as_deref() == Some("application/x-ole-storage")
                 || parent_candidate.description.starts_with("OLE 2 Compound Document")
                 || parent_candidate.description.starts_with("Composite Document File")
+                // Reason for fallback: candidate without format_id is not compression category
                 || parent_candidate.format_id.map_or(false, |fid| {
                     fid.category() == ctb_utilities::FormatCategory::Compression
                 });
@@ -520,6 +521,7 @@ pub fn resolve_candidate_conflicts(mut candidates: Vec<DetectionCandidate>) -> V
                                     || detail.contains("Word")
                                     || detail.contains("Excel")
                                     || detail.contains("PowerPoint"))
+                            // Reason for fallback: candidate without format_id is not compression category
                             || (parent_candidate.format_id.map_or(false, |fid| {
                                 fid.category() == ctb_utilities::FormatCategory::Compression
                             }) && (detail.contains("compound format")

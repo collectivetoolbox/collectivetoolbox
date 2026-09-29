@@ -121,7 +121,10 @@ impl<W: Write> RangeEncoder<W> {
         if tot_f == 0 {
             bail!("Range encoder total frequency cannot be zero");
         }
-        let r = self.range.checked_div(tot_f).unwrap_or(0);
+        let r = self
+            .range
+            .checked_div(tot_f)
+            .ok_or_else(|| anyhow!("Divide by zero in encode_freq"))?;
         let tmp = r.saturating_mul(lt_f);
         self.low = self.low.wrapping_add(tmp);
         self.range = r.saturating_mul(sy_f);
@@ -233,11 +236,8 @@ impl<R: Read> RangeDecoder<R> {
         let n2 = reader
             .read(&mut second_buf)
             .context("Failed to read second range coder byte")?;
-        let buffer_byte = if n2 == 0 {
-            0
-        } else {
-            second_buf.first().copied().unwrap_or_default()
-        };
+        let [b] = second_buf;
+        let buffer_byte = if n2 == 0 { 0 } else { b };
 
         let low = u32::from(buffer_byte >> 1); // 8 - EXTRA_BITS = 1
         let range = 1_u32 << EXTRA_BITS; // 128
@@ -257,7 +257,8 @@ impl<R: Read> RangeDecoder<R> {
     /// Renormalizes decoder state, reading incoming bytes into code registers.
     pub fn normalize(&mut self) -> Result<()> {
         while self.range <= BOTTOM_VALUE {
-            let next_byte = self.read_byte_opt()?.unwrap_or_default();
+            // Reason for fallback: range decoder shifts in trailing zeroes at EOF to flush pending bits
+            let next_byte = self.read_byte_opt()?.unwrap_or(0);
             self.low = ((self.low << 8) | u32::from(self.buffer << EXTRA_BITS))
                 | u32::from(next_byte >> 1);
             self.buffer = next_byte;
@@ -272,10 +273,15 @@ impl<R: Read> RangeDecoder<R> {
         if tot_f == 0 {
             bail!("Divide by zero in decode_culfreq");
         }
-        let help = self.range.checked_div(tot_f).unwrap_or(0);
+        let help = self
+            .range
+            .checked_div(tot_f)
+            .ok_or_else(|| anyhow!("Divide by zero in decode_culfreq"))?;
         let help = if help == 0 { 1 } else { help };
         self.help = help;
-        Ok(self.low.checked_div(help).unwrap_or(0))
+        self.low
+            .checked_div(help)
+            .ok_or_else(|| anyhow!("Division failure in decode_culfreq"))
     }
 
     /// Computes cumulative frequency corresponding to next symbol with shift.
@@ -284,7 +290,9 @@ impl<R: Read> RangeDecoder<R> {
         let help = self.range >> shift;
         let help = if help == 0 { 1 } else { help };
         self.help = help;
-        Ok(self.low.checked_div(help).unwrap_or(0))
+        self.low
+            .checked_div(help)
+            .ok_or_else(|| anyhow!("Division failure in decode_culshift"))
     }
 
     /// Updates internal code registers after symbol frequency lookup.

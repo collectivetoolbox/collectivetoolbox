@@ -465,7 +465,7 @@ impl KStruct for Ines_Header_F10 {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.reserved2.borrow_mut() = _io.read_bits_int_be(2)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.tv_system.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc.tv_system.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -632,7 +632,7 @@ impl KStruct for Ines_Header_F6 {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.has_battery_ram.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.mirroring.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc.mirroring.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())
@@ -917,7 +917,7 @@ impl KStruct for Ines_Header_F9 {
         let _io = io;
         *self_rc.reserved.borrow_mut() = _io.read_bits_int_be(7)?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.tv_system.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(1)?).to_ne_bytes()).try_into()?;
+        *self_rc.tv_system.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(1)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc._io.borrow_mut() = io.clone();
         Ok(())

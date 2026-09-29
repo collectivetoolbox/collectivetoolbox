@@ -79,6 +79,7 @@ use rust::formats::process_term_struct::*;
 use rust::test_formats::*;
 
 #[crate::ctb_test]
+#[allow(clippy::approx_constant, clippy::lossy_float_literal, reason = "Upstream KST test assertions")]
 fn test_process_term_struct() -> KResult<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/term_strz.bin"))?;

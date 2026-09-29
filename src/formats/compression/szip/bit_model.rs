@@ -55,7 +55,7 @@ pub struct BitModel {
     num_symbols: usize,
     total_freq: i32,
     max_tot_f: i32,
-    incr: i32,
+    incr: u16,
     mask: usize,
     f: Vec<u16>,
     cf: Vec<u16>,
@@ -68,11 +68,18 @@ impl BitModel {
             .map_err(|e| anyhow!("Symbol count conversion: {e}"))?;
         let min_max = n_i32.saturating_mul(2);
         let max_tot = if max_tot_f < min_max { min_max } else { max_tot_f };
-        let half_max = max_tot.checked_div(2).unwrap_or(max_tot);
-        let mut incr = half_max.checked_div(rescale).unwrap_or(1);
-        if incr < 1 {
-            incr = 1;
+        ensure!(rescale > 0, "Invalid rescale parameter");
+        let half_max = max_tot
+            .checked_div(2)
+            .ok_or_else(|| anyhow!("Math overflow"))?;
+        let mut incr_i32 = half_max
+            .checked_div(rescale)
+            .ok_or_else(|| anyhow!("Math overflow"))?;
+        if incr_i32 < 1 {
+            incr_i32 = 1;
         }
+        let incr = u16::try_from(incr_i32)
+            .map_err(|e| anyhow!("Increment conversion to u16: {e}"))?;
 
         let mut mask = 1usize;
         let mut temp = num_symbols;
@@ -107,6 +114,7 @@ impl BitModel {
             let mut j = i;
             while j <= n {
                 let j_minus_1 = j.saturating_sub(1);
+                // Reason for fallback: symbol frequency array lookup defaults to 0
                 let f_val = self.f.get(j_minus_1).copied().unwrap_or(0);
                 let entry_val = if (f_val & EXCLUSION_MASK) != 0 {
                     0u16
@@ -120,6 +128,7 @@ impl BitModel {
                 }
                 let mut k = i >> 1;
                 while k > 0 {
+                    // Reason for fallback: fenwick tree index predecessor lookup defaults to 0
                     let prev_val = j
                         .checked_sub(k)
                         .and_then(|idx| self.cf.get(idx).copied())
@@ -147,30 +156,41 @@ impl BitModel {
     }
 
     /// Returns current total active frequency.
+    #[expect(
+        clippy::expect_used,
+        reason = "total_freq is range-checked to be strictly positive, and positive i32 fits in u32"
+    )]
     pub fn total_freq(&self) -> u32 {
         if self.total_freq <= 0 {
             0
         } else {
-            u32::try_from(self.total_freq).unwrap_or(0)
+            u32::try_from(self.total_freq).expect("Positive i32 fits in u32")
         }
     }
 
     /// Returns the symbol frequency and strictly less cumulative frequency.
+    #[expect(
+        clippy::expect_used,
+        reason = "lt_f_i32 is range-checked to be non-negative, and non-negative i32 fits in u32"
+    )]
     pub fn get_freq(&self, sym: usize) -> (u32, u32) {
+        // Reason for fallback: out of bounds symbol frequency lookup defaults to 0
         let sy_f_u16 = self.f.get(sym).copied().unwrap_or(0) & FREQ_MASK;
         let mut idx = sym.saturating_add(1);
+        // Reason for fallback: cumulative frequency tree node lookup defaults to 0
         let mut cul = i32::from(self.cf.get(idx).copied().unwrap_or(0));
         idx &= idx.saturating_sub(1);
         while idx > 0 {
+            // Reason for fallback: cumulative frequency tree node lookup defaults to 0
             cul = cul.saturating_add(i32::from(self.cf.get(idx).copied().unwrap_or(0)));
             idx &= idx.saturating_sub(1);
         }
         let sy_f = u32::from(sy_f_u16);
         let lt_f_i32 = cul.saturating_sub(i32::from(sy_f_u16));
-        let lt_f = if lt_f_i32 < 0 {
+        let lt_f = if lt_f_i32 <= 0 {
             0
         } else {
-            u32::try_from(lt_f_i32).unwrap_or(0)
+            u32::try_from(lt_f_i32).expect("Positive i32 fits in u32")
         };
         (sy_f, lt_f)
     }
@@ -182,6 +202,7 @@ impl BitModel {
         let n = self.num_symbols;
         while mask > 0 {
             let x = sym | mask;
+            // Reason for fallback: cumulative frequency tree node lookup defaults to 0
             let cf_val = u32::from(self.cf.get(x).copied().unwrap_or(0));
             if x <= n && lt_f >= cf_val {
                 lt_f = lt_f.saturating_sub(cf_val);
@@ -206,6 +227,7 @@ impl BitModel {
                     *cf_slot = if updated < 0 {
                         0
                     } else {
+                        // Reason for fallback: cumulative frequency clamped to u16::MAX on saturation overflow
                         u16::try_from(updated).unwrap_or(u16::MAX)
                     };
                 }
@@ -220,11 +242,11 @@ impl BitModel {
 
     /// Updates model and deactivates symbol from active model.
     pub fn update_exclude(&mut self, sym: usize) {
+        // Reason for fallback: symbol frequency array lookup defaults to 0
         let current_val = self.f.get(sym).copied().unwrap_or(0);
         let active = current_val & FREQ_MASK;
         let delta = 0i32.wrapping_sub(i32::from(active));
-        let new_f = (active.saturating_add(u16::try_from(self.incr).unwrap_or(1)))
-            | EXCLUSION_MASK;
+        let new_f = (active.saturating_add(self.incr)) | EXCLUSION_MASK;
         if let Some(slot) = self.f.get_mut(sym) {
             *slot = new_f;
         }
@@ -233,6 +255,7 @@ impl BitModel {
 
     /// Deactivates an active symbol, subtracting its frequency from cumulative tree.
     pub fn deactivate(&mut self, sym: usize) {
+        // Reason for fallback: symbol frequency array lookup defaults to 0
         let current_val = self.f.get(sym).copied().unwrap_or(0);
         if (current_val & EXCLUSION_MASK) == 0 {
             let active = current_val & FREQ_MASK;
@@ -246,6 +269,7 @@ impl BitModel {
 
     /// Reactivates an excluded symbol, restoring its frequency to cumulative tree.
     pub fn reactivate(&mut self, sym: usize) {
+        // Reason for fallback: symbol frequency array lookup defaults to 0
         let current_val = self.f.get(sym).copied().unwrap_or(0);
         if (current_val & EXCLUSION_MASK) != 0 {
             let active = current_val & FREQ_MASK;

@@ -85,9 +85,7 @@ fn qscompare(a: usize, b: usize, data: &[u8], minmatch: usize) -> Ordering {
             a1 = a1.saturating_sub(1);
             b1 = b1.saturating_sub(1);
         }
-        let byte_a = data.get(a1).copied().unwrap_or(0);
-        let byte_b = data.get(b1).copied().unwrap_or(0);
-        if byte_a <= byte_b {
+        if data.get(a1) <= data.get(b1) {
             Ordering::Less
         } else {
             Ordering::Greater
@@ -99,9 +97,7 @@ fn qscompare(a: usize, b: usize, data: &[u8], minmatch: usize) -> Ordering {
             a1 = a1.saturating_sub(1);
             b1 = b1.saturating_sub(1);
         }
-        let byte_a = data.get(a1).copied().unwrap_or(0);
-        let byte_b = data.get(b1).copied().unwrap_or(0);
-        if byte_a <= byte_b {
+        if data.get(a1) <= data.get(b1) {
             Ordering::Greater
         } else {
             Ordering::Less
@@ -125,8 +121,12 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
 
     let mut counts1 = [0usize; 256];
     for i in 0..255 {
-        let cur = counts1.get(i).copied().unwrap_or(0);
-        let c_val = counts.get(i).copied().unwrap_or(0);
+        let cur = *counts1
+            .get(i)
+            .ok_or_else(|| anyhow!("Frequency count lookup out of bounds at {i}"))?;
+        let c_val = *counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Frequency count lookup out of bounds at {i}"))?;
         if let Some(next) = counts1.get_mut(i.saturating_add(1)) {
             *next = cur.saturating_add(c_val);
         }
@@ -146,13 +146,19 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
 
     let mut indexfirst = 0u32;
     let mut start = 0usize;
-    let first_byte = inout.first().copied().unwrap_or(0);
-    let last_byte = inout.last().copied().unwrap_or(0);
+    let first_byte = *inout
+        .first()
+        .ok_or_else(|| anyhow!("Empty buffer during sort"))?;
+    let last_byte = *inout
+        .last()
+        .ok_or_else(|| anyhow!("Empty buffer during sort"))?;
 
     for i in 0..256 {
-        let cnt = counts.get(i).copied().unwrap_or(0);
+        let cnt = *counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing frequency count bucket at {i}"))?;
         if cnt > 0 {
-            let i_u8 = u8::try_from(i).unwrap_or(0);
+            let i_u8 = u8::try_from(i).map_err(|e| anyhow!("Index conversion: {e}"))?;
             let minmatch = usize::from(i_u8 != first_byte);
             let end = start.saturating_add(cnt);
             if let Some(slice) = contextp.get_mut(start..end) {
@@ -173,13 +179,22 @@ pub fn sort_bwt(inout: &mut [u8]) -> Result<u32> {
     }
 
     let mut transformed = vec![0u8; length];
-    let idx_first_usize = usize::try_from(indexfirst).unwrap_or(0);
+    let idx_first_usize = usize::try_from(indexfirst)
+        .map_err(|e| anyhow!("Indexfirst conversion: {e}"))?;
     for (i, slot) in transformed.iter_mut().enumerate() {
         if i == idx_first_usize {
-            *slot = inout.first().copied().unwrap_or(0);
+            *slot = *inout
+                .first()
+                .ok_or_else(|| anyhow!("Empty buffer during sort"))?;
         } else {
-            let next_pos = contextp.get(i).copied().unwrap_or(0).saturating_add(1);
-            *slot = inout.get(next_pos).copied().unwrap_or(0);
+            let next_pos = contextp
+                .get(i)
+                .copied()
+                .ok_or_else(|| anyhow!("Context position missing at {i}"))?
+                .saturating_add(1);
+            *slot = *inout
+                .get(next_pos)
+                .ok_or_else(|| anyhow!("Position index out of bounds at {next_pos}"))?;
         }
     }
     inout.copy_from_slice(&transformed);
@@ -206,7 +221,9 @@ pub fn unsort_bwt(input: &[u8], output: &mut [u8], indexfirst: u32) -> Result<()
 
     let mut sum = length;
     for i in (0..256).rev() {
-        let c = counts.get(i).copied().unwrap_or(0);
+        let c = *counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing count bucket {i}"))?;
         sum = sum.saturating_sub(c);
         if let Some(slot) = counts.get_mut(i) {
             *slot = sum;
@@ -222,31 +239,46 @@ pub fn unsort_bwt(input: &[u8], output: &mut [u8], indexfirst: u32) -> Result<()
 
     let get_and_inc = |counts: &mut [usize; 256], b: u8| -> usize {
         let b_idx = usize::from(b);
-        let val = counts.get(b_idx).copied().unwrap_or(0);
         if let Some(slot) = counts.get_mut(b_idx) {
+            let val = *slot;
             *slot = slot.saturating_add(1);
+            val
+        } else {
+            0
         }
-        val
     };
 
     if let Some(slot) = transvec.get_mut(idx_first_usize) {
-        *slot = get_and_inc(&mut counts, input.get(idx_first_usize).copied().unwrap_or(0));
+        let in_byte = *input
+            .get(idx_first_usize)
+            .ok_or_else(|| anyhow!("Indexfirst out of bounds in input"))?;
+        *slot = get_and_inc(&mut counts, in_byte);
     }
     for i in 0..idx_first_usize {
         if let Some(slot) = transvec.get_mut(i) {
-            *slot = get_and_inc(&mut counts, input.get(i).copied().unwrap_or(0));
+            let in_byte = *input
+                .get(i)
+                .ok_or_else(|| anyhow!("Input byte out of bounds at {i}"))?;
+            *slot = get_and_inc(&mut counts, in_byte);
         }
     }
     for i in (idx_first_usize.saturating_add(1))..length {
         if let Some(slot) = transvec.get_mut(i) {
-            *slot = get_and_inc(&mut counts, input.get(i).copied().unwrap_or(0));
+            let in_byte = *input
+                .get(i)
+                .ok_or_else(|| anyhow!("Input byte out of bounds at {i}"))?;
+            *slot = get_and_inc(&mut counts, in_byte);
         }
     }
 
     let mut ic = idx_first_usize;
     for slot in output.iter_mut().take(length) {
-        *slot = input.get(ic).copied().unwrap_or(0);
-        ic = transvec.get(ic).copied().unwrap_or(0);
+        *slot = *input
+            .get(ic)
+            .ok_or_else(|| anyhow!("Corrupted BWT transform: input index {ic} out of bounds"))?;
+        ic = *transvec
+            .get(ic)
+            .ok_or_else(|| anyhow!("Corrupted BWT transform: transvec index {ic} out of bounds"))?;
     }
     if ic != idx_first_usize {
         bail!("Szip BWT cycle verification failed");
@@ -266,7 +298,10 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
     }
 
     let mut counters = vec![0usize; 0x10000];
-    let mut ctx_u16 = usize::from(inout.last().copied().unwrap_or(0)) << 8;
+    let last_byte = *inout
+        .last()
+        .ok_or_else(|| anyhow!("Input buffer empty for order4 sort"))?;
+    let mut ctx_u16 = usize::from(last_byte) << 8;
     for &b in &*inout {
         ctx_u16 = (ctx_u16 >> 8) | (usize::from(b) << 8);
         if let Some(slot) = counters.get_mut(ctx_u16) {
@@ -276,7 +311,9 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
 
     let mut sum = length;
     for i in (0..0x10000).rev() {
-        let cnt = counters.get(i).copied().unwrap_or(0);
+        let cnt = *counters
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing counter at {i}"))?;
         sum = sum.saturating_sub(cnt);
         if let Some(slot) = counters.get_mut(i) {
             *slot = sum;
@@ -286,8 +323,12 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
     let mut context = vec![0u16; length];
     let mut symbols = vec![0u8; length];
 
-    let b_len4 = inout.get(length.saturating_sub(4)).copied().unwrap_or(0);
-    let b_len5 = inout.get(length.saturating_sub(5)).copied().unwrap_or(0);
+    let b_len4 = *inout
+        .get(length.saturating_sub(4))
+        .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
+    let b_len5 = *inout
+        .get(length.saturating_sub(5))
+        .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
     let initial_ctx = (usize::from(b_len4) << 8) | usize::from(b_len5);
 
     let mut indexlast = if initial_ctx == 0xFFFF {
@@ -296,13 +337,19 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
         counters
             .get(initial_ctx.saturating_add(1))
             .copied()
-            .unwrap_or(0)
+            .ok_or_else(|| anyhow!("Missing counter for initial context {initial_ctx}"))?
             .saturating_sub(1)
     };
 
-    let b_len1 = inout.get(length.saturating_sub(1)).copied().unwrap_or(0);
-    let b_len2 = inout.get(length.saturating_sub(2)).copied().unwrap_or(0);
-    let b_len3 = inout.get(length.saturating_sub(3)).copied().unwrap_or(0);
+    let b_len1 = *inout
+        .get(length.saturating_sub(1))
+        .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
+    let b_len2 = *inout
+        .get(length.saturating_sub(2))
+        .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
+    let b_len3 = *inout
+        .get(length.saturating_sub(3))
+        .ok_or_else(|| anyhow!("Input buffer too short for order4 sort"))?;
     let mut full_ctx = ((((usize::from(b_len1) << 8) | usize::from(b_len2)) << 8)
         | usize::from(b_len3))
         << 8
@@ -310,12 +357,16 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
 
     for &b in &*inout {
         let low_ctx = full_ctx & 0xFFFF;
-        let x = counters.get(low_ctx).copied().unwrap_or(0);
+        let x = counters
+            .get(low_ctx)
+            .copied()
+            .ok_or_else(|| anyhow!("Missing counter for low context {low_ctx}"))?;
         if let Some(slot) = counters.get_mut(low_ctx) {
             *slot = slot.saturating_add(1);
         }
         if let Some(c_slot) = context.get_mut(x) {
-            *c_slot = u16::try_from((full_ctx >> 16) & 0xFFFF).unwrap_or(0);
+            *c_slot = u16::try_from((full_ctx >> 16) & 0xFFFF)
+                .map_err(|e| anyhow!("Context conversion: {e}"))?;
         }
         if let Some(s_slot) = symbols.get_mut(x) {
             *s_slot = b;
@@ -327,29 +378,51 @@ pub fn sort_order4(inout: &mut [u8]) -> Result<u32> {
     let last_pos = indexlast;
     while i > last_pos {
         i = i.saturating_sub(1);
-        let c_val = usize::from(context.get(i).copied().unwrap_or(0));
-        if let Some(cnt_slot) = counters.get_mut(c_val) {
-            *cnt_slot = cnt_slot.saturating_sub(1);
-            let pos = *cnt_slot;
-            if let Some(out_slot) = inout.get_mut(pos) {
-                *out_slot = symbols.get(i).copied().unwrap_or(0);
-            }
-        }
+        let c_val = usize::from(
+            *context
+                .get(i)
+                .ok_or_else(|| anyhow!("Context index out of bounds: {i}"))?,
+        );
+        let cnt_slot = counters
+            .get_mut(c_val)
+            .ok_or_else(|| anyhow!("Missing counter for context: {c_val}"))?;
+        *cnt_slot = cnt_slot.saturating_sub(1);
+        let pos = *cnt_slot;
+        let out_slot = inout
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Output buffer position out of bounds: {pos}"))?;
+        *out_slot = *symbols
+            .get(i)
+            .ok_or_else(|| anyhow!("Symbol index out of bounds: {i}"))?;
     }
 
-    let c_val_last = usize::from(context.get(i).copied().unwrap_or(0));
-    indexlast = counters.get(c_val_last).copied().unwrap_or(0);
+    let c_val_last = usize::from(
+        *context
+            .get(i)
+            .ok_or_else(|| anyhow!("Context index out of bounds: {i}"))?,
+    );
+    indexlast = *counters
+        .get(c_val_last)
+        .ok_or_else(|| anyhow!("Missing counter for context: {c_val_last}"))?;
 
     while i > 0 {
         i = i.saturating_sub(1);
-        let c_val = usize::from(context.get(i).copied().unwrap_or(0));
-        if let Some(cnt_slot) = counters.get_mut(c_val) {
-            *cnt_slot = cnt_slot.saturating_sub(1);
-            let pos = *cnt_slot;
-            if let Some(out_slot) = inout.get_mut(pos) {
-                *out_slot = symbols.get(i).copied().unwrap_or(0);
-            }
-        }
+        let c_val = usize::from(
+            *context
+                .get(i)
+                .ok_or_else(|| anyhow!("Context index out of bounds: {i}"))?,
+        );
+        let cnt_slot = counters
+            .get_mut(c_val)
+            .ok_or_else(|| anyhow!("Missing counter for context: {c_val}"))?;
+        *cnt_slot = cnt_slot.saturating_sub(1);
+        let pos = *cnt_slot;
+        let out_slot = inout
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Output buffer position out of bounds: {pos}"))?;
+        *out_slot = *symbols
+            .get(i)
+            .ok_or_else(|| anyhow!("Symbol index out of bounds: {i}"))?;
     }
 
     u32::try_from(indexlast).map_err(|e| anyhow!("Indexlast conversion: {e}"))
@@ -365,11 +438,12 @@ fn sort_order2(
     order: usize,
     mut o2counts: Vec<usize>,
 ) -> Result<(usize, Vec<u32>)> {
-    let b_len_off = in_ext.get(length.saturating_sub(order)).copied().unwrap_or(0);
-    let b_len_off_minus_1 = in_ext
+    let b_len_off = *in_ext
+        .get(length.saturating_sub(order))
+        .ok_or_else(|| anyhow!("Input buffer too short for order2 sort"))?;
+    let b_len_off_minus_1 = *in_ext
         .get(length.saturating_sub(order).saturating_sub(1))
-        .copied()
-        .unwrap_or(0);
+        .ok_or_else(|| anyhow!("Input buffer too short for order2 sort"))?;
     let init_ctx = (usize::from(b_len_off) << 8) | usize::from(b_len_off_minus_1);
 
     let indexlast = if init_ctx == 0xFFFF {
@@ -378,7 +452,7 @@ fn sort_order2(
         o2counts
             .get(init_ctx.saturating_add(1))
             .copied()
-            .unwrap_or(0)
+            .ok_or_else(|| anyhow!("Missing counter for initial order2 context {init_ctx}"))?
             .saturating_sub(1)
     };
 
@@ -387,38 +461,51 @@ fn sort_order2(
     let mut ptrs = vec![0u32; length];
 
     for i in 0..offset {
-        let copy_val = in_ext.get(i).copied().unwrap_or(0);
-        if let Some(dest) = in_ext.get_mut(length.saturating_add(i)) {
-            *dest = copy_val;
-        }
+        let copy_val = *in_ext
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing prefix byte at index {i}"))?;
+        let dest = in_ext
+            .get_mut(length.saturating_add(i))
+            .ok_or_else(|| anyhow!("Extended buffer index out of bounds"))?;
+        *dest = copy_val;
         let sample_idx = length.saturating_add(i).saturating_sub(offset);
-        let sample_byte = in_ext.get(sample_idx).copied().unwrap_or(0);
+        let sample_byte = *in_ext
+            .get(sample_idx)
+            .ok_or_else(|| anyhow!("Missing sample byte at index {sample_idx}"))?;
         context = (context >> 8) | (usize::from(sample_byte) << 8);
 
-        let dest_pos = o2counts.get(context).copied().unwrap_or(0);
+        let dest_pos = *o2counts
+            .get(context)
+            .ok_or_else(|| anyhow!("Missing context count for {context}"))?;
         if let Some(slot) = o2counts.get_mut(context) {
             *slot = slot.saturating_add(1);
         }
         let ptr_val = u32::try_from(length.saturating_add(i))
             .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        if let Some(slot) = ptrs.get_mut(dest_pos) {
-            *slot = ptr_val;
-        }
+        let slot = ptrs
+            .get_mut(dest_pos)
+            .ok_or_else(|| anyhow!("Ptr position {dest_pos} out of bounds"))?;
+        *slot = ptr_val;
     }
 
     for i in offset..length {
         let sample_idx = i.saturating_sub(offset);
-        let sample_byte = in_ext.get(sample_idx).copied().unwrap_or(0);
+        let sample_byte = *in_ext
+            .get(sample_idx)
+            .ok_or_else(|| anyhow!("Missing sample byte at index {sample_idx}"))?;
         context = (context >> 8) | (usize::from(sample_byte) << 8);
 
-        let dest_pos = o2counts.get(context).copied().unwrap_or(0);
+        let dest_pos = *o2counts
+            .get(context)
+            .ok_or_else(|| anyhow!("Missing context count for {context}"))?;
         if let Some(slot) = o2counts.get_mut(context) {
             *slot = slot.saturating_add(1);
         }
         let ptr_val = u32::try_from(i).map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        if let Some(slot) = ptrs.get_mut(dest_pos) {
-            *slot = ptr_val;
-        }
+        let slot = ptrs
+            .get_mut(dest_pos)
+            .ok_or_else(|| anyhow!("Ptr position {dest_pos} out of bounds"))?;
+        *slot = ptr_val;
     }
 
     Ok((indexlast, ptrs))
@@ -437,42 +524,60 @@ fn inc_sort_order(
     let mut last_ch = 0u8;
 
     for i in 0..=old_idxlast {
-        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
+        let tmp = usize::try_from(
+            *ptrs
+                .get(i)
+                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
+        )
+        .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = *in_ext
+            .get(tmp.saturating_sub(off))
+            .ok_or_else(|| anyhow!("Szip sort context index out of bounds"))?;
         last_ch = ch;
         let ch_idx = usize::from(ch);
-        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        let pos = *ct
+            .get(ch_idx)
+            .ok_or_else(|| anyhow!("Invalid character index {ch_idx}"))?;
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
         let tmp_u32 = u32::try_from(tmp)
             .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        if let Some(slot) = next_ptrs.get_mut(pos) {
-            *slot = tmp_u32;
-        }
+        let slot = next_ptrs
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Next pointer index {pos} out of bounds"))?;
+        *slot = tmp_u32;
     }
 
     let new_idxlast = ct
         .get(usize::from(last_ch))
         .copied()
-        .unwrap_or(0)
+        .ok_or_else(|| anyhow!("Invalid character frequency index"))?
         .saturating_sub(1);
 
     for i in (old_idxlast.saturating_add(1))..length {
-        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        let ch = in_ext.get(tmp.saturating_sub(off)).copied().unwrap_or(0);
+        let tmp = usize::try_from(
+            *ptrs
+                .get(i)
+                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
+        )
+        .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = *in_ext
+            .get(tmp.saturating_sub(off))
+            .ok_or_else(|| anyhow!("Szip sort context index out of bounds"))?;
         let ch_idx = usize::from(ch);
-        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        let pos = *ct
+            .get(ch_idx)
+            .ok_or_else(|| anyhow!("Invalid character index {ch_idx}"))?;
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
         let tmp_u32 = u32::try_from(tmp)
             .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        if let Some(slot) = next_ptrs.get_mut(pos) {
-            *slot = tmp_u32;
-        }
+        let slot = next_ptrs
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Next pointer index {pos} out of bounds"))?;
+        *slot = tmp_u32;
     }
 
     Ok((new_idxlast, next_ptrs))
@@ -491,40 +596,62 @@ fn finish_sort(
     let mut out_bytes = vec![0u8; length];
 
     for i in 0..=old_idxlast {
-        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        let ch = in_ext.get(tmp.saturating_sub(1)).copied().unwrap_or(0);
+        let tmp = usize::try_from(
+            *ptrs
+                .get(i)
+                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
+        )
+        .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = *in_ext
+            .get(tmp.saturating_sub(1))
+            .ok_or_else(|| anyhow!("Szip sort context index out of bounds"))?;
         last_ch = ch;
         let ch_idx = usize::from(ch);
-        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        let pos = *ct
+            .get(ch_idx)
+            .ok_or_else(|| anyhow!("Invalid character index {ch_idx}"))?;
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
-        let sym = in_ext.get(tmp).copied().unwrap_or(0);
-        if let Some(slot) = out_bytes.get_mut(pos) {
-            *slot = sym;
-        }
+        let sym = *in_ext
+            .get(tmp)
+            .ok_or_else(|| anyhow!("Szip sort symbol index out of bounds"))?;
+        let slot = out_bytes
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Output position {pos} out of bounds"))?;
+        *slot = sym;
     }
 
     let final_idxlast = ct
         .get(usize::from(last_ch))
         .copied()
-        .unwrap_or(0)
+        .ok_or_else(|| anyhow!("Invalid character frequency index"))?
         .saturating_sub(1);
 
     for i in (old_idxlast.saturating_add(1))..length {
-        let tmp = usize::try_from(ptrs.get(i).copied().unwrap_or(0))
-            .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
-        let ch = in_ext.get(tmp.saturating_sub(1)).copied().unwrap_or(0);
+        let tmp = usize::try_from(
+            *ptrs
+                .get(i)
+                .ok_or_else(|| anyhow!("Szip sort missing pointer at index {i}"))?,
+        )
+        .map_err(|e| anyhow!("Ptr conversion: {e}"))?;
+        let ch = *in_ext
+            .get(tmp.saturating_sub(1))
+            .ok_or_else(|| anyhow!("Szip sort context index out of bounds"))?;
         let ch_idx = usize::from(ch);
-        let pos = ct.get(ch_idx).copied().unwrap_or(0);
+        let pos = *ct
+            .get(ch_idx)
+            .ok_or_else(|| anyhow!("Invalid character index {ch_idx}"))?;
         if let Some(slot) = ct.get_mut(ch_idx) {
             *slot = slot.saturating_add(1);
         }
-        let sym = in_ext.get(tmp).copied().unwrap_or(0);
-        if let Some(slot) = out_bytes.get_mut(pos) {
-            *slot = sym;
-        }
+        let sym = *in_ext
+            .get(tmp)
+            .ok_or_else(|| anyhow!("Szip sort symbol index out of bounds"))?;
+        let slot = out_bytes
+            .get_mut(pos)
+            .ok_or_else(|| anyhow!("Output position {pos} out of bounds"))?;
+        *slot = sym;
     }
 
     inout.copy_from_slice(&out_bytes);
@@ -547,7 +674,9 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
     let mut counts = [0usize; 256];
     let mut o2counts = vec![0usize; 0x10000];
 
-    let last_byte = inout.last().copied().unwrap_or(0);
+    let last_byte = *inout
+        .last()
+        .ok_or_else(|| anyhow!("Input buffer empty for general sort"))?;
     let mut context = usize::from(last_byte) << 8;
 
     for &b in &*inout {
@@ -562,7 +691,9 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
 
     let mut sum = length;
     for i in (0..0x10000).rev() {
-        let cnt = o2counts.get(i).copied().unwrap_or(0);
+        let cnt = *o2counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing o2counts counter at {i}"))?;
         sum = sum.saturating_sub(cnt);
         if let Some(slot) = o2counts.get_mut(i) {
             *slot = sum;
@@ -571,7 +702,9 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
 
     sum = length;
     for i in (0..256).rev() {
-        let cnt = counts.get(i).copied().unwrap_or(0);
+        let cnt = *counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing counts counter at {i}"))?;
         sum = sum.saturating_sub(cnt);
         if let Some(slot) = counts.get_mut(i) {
             *slot = sum;
@@ -592,25 +725,38 @@ pub fn sort_general(inout: &mut [u8], order: usize) -> Result<u32> {
     finish_sort(&in_ext, length, &counts, indexlast, &ptrs, inout)
 }
 
-fn make_order2(flags: &mut [u8], input: &[u8], counts: &[usize; 256]) {
+fn make_order2(flags: &mut [u8], input: &[u8], counts: &[usize; 256]) -> Result<()> {
     let mut ct = *counts;
     for i in 0..256 {
-        set_bit(flags, ct.get(i).copied().unwrap_or(0));
+        let pos = *ct
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing frequency bucket at {i}"))?;
+        set_bit(flags, pos);
     }
     let mut j_pos = 0usize;
     for i in 0usize..255 {
-        let k_limit = counts.get(i.saturating_add(1)).copied().unwrap_or(0);
+        let k_limit = *counts
+            .get(i.saturating_add(1))
+            .ok_or_else(|| anyhow!("Missing frequency bucket limit"))?;
         while j_pos < k_limit {
-            let b = usize::from(input.get(j_pos).copied().unwrap_or(0));
+            let b = usize::from(
+                *input
+                    .get(j_pos)
+                    .ok_or_else(|| anyhow!("Input byte out of bounds at {j_pos}"))?,
+            );
             if let Some(slot) = ct.get_mut(b) {
                 *slot = slot.saturating_add(1);
             }
             j_pos = j_pos.saturating_add(1);
         }
         for k in 0..256 {
-            set_bit(flags, ct.get(k).copied().unwrap_or(0));
+            let pos = *ct
+                .get(k)
+                .ok_or_else(|| anyhow!("Missing cumulative count at {k}"))?;
+            set_bit(flags, pos);
         }
     }
+    Ok(())
 }
 
 fn increase_order(
@@ -618,7 +764,7 @@ fn increase_order(
     flags_out: &mut [u8],
     input: &[u8],
     counts: &[usize; 256],
-) {
+) -> Result<()> {
     flags_out.fill(0);
     let mut ct_inc = *counts;
     let mut context_start = 0usize;
@@ -632,12 +778,16 @@ fn increase_order(
             if let Some(ls_slot) = last_seen.get_mut(b) {
                 *ls_slot = context_start;
             }
-            set_bit(flags_out, ct_inc.get(b).copied().unwrap_or(0));
+            let pos = *ct_inc
+                .get(b)
+                .ok_or_else(|| anyhow!("Missing cumulative count for byte {b}"))?;
+            set_bit(flags_out, pos);
         }
         if let Some(slot) = ct_inc.get_mut(b) {
             *slot = slot.saturating_add(1);
         }
     }
+    Ok(())
 }
 
 fn make_table(
@@ -646,7 +796,7 @@ fn make_table(
     input: &[u8],
     counts: &[usize; 256],
     length: usize,
-) {
+) -> Result<()> {
     let mut ct_tbl = *counts;
     let mut context_start = 0usize;
     let mut first_seen = [0usize; 256];
@@ -655,16 +805,24 @@ fn make_table(
             context_start = i;
         }
         let b = usize::from(b_val);
-        let first = first_seen.get(b).copied().unwrap_or(0);
+        let first = *first_seen
+            .get(b)
+            .ok_or_else(|| anyhow!("First seen index out of bounds"))?;
         if first <= context_start {
             if let Some(slot) = table.get_mut(i) {
-                *slot = u32::try_from(ct_tbl.get(b).copied().unwrap_or(0)).unwrap_or(0);
+                let ct_val = *ct_tbl
+                    .get(b)
+                    .ok_or_else(|| anyhow!("Count table index out of bounds"))?;
+                *slot = u32::try_from(ct_val)
+                    .map_err(|e| anyhow!("Table entry conversion: {e}"))?;
             }
             if let Some(slot) = first_seen.get_mut(b) {
                 *slot = i.saturating_add(1);
             }
         } else if let Some(slot) = table.get_mut(i) {
-            let indirect_val = u32::try_from(first.saturating_sub(1)).unwrap_or(0) | INDIRECT;
+            let indirect_val = u32::try_from(first.saturating_sub(1))
+                .map_err(|e| anyhow!("Indirect pointer conversion: {e}"))?
+                | INDIRECT;
             *slot = indirect_val;
         }
         if let Some(slot) = ct_tbl.get_mut(b) {
@@ -674,6 +832,7 @@ fn make_table(
     if let Some(slot) = table.get_mut(length) {
         *slot = INDIRECT;
     }
+    Ok(())
 }
 
 fn unsort_traverse(
@@ -686,24 +845,37 @@ fn unsort_traverse(
     let mut j_idx = usize::try_from(indexlast)
         .map_err(|e| anyhow!("Indexlast conversion: {e}"))?;
     for slot in output.iter_mut().take(length) {
-        let tmp = table.get(j_idx).copied().unwrap_or(0);
+        let tmp = *table
+            .get(j_idx)
+            .ok_or_else(|| anyhow!("Szip unsort table index out of bounds: {j_idx}"))?;
         if (tmp & INDIRECT) != 0 {
-            let target_idx = usize::try_from(tmp & !INDIRECT).unwrap_or(0);
-            let next_j = usize::try_from(table.get(target_idx).copied().unwrap_or(0)).unwrap_or(0);
-            if let Some(entry) = table.get_mut(target_idx) {
-                *entry = entry.saturating_add(1);
-            }
+            let target_idx = usize::try_from(tmp & !INDIRECT)
+                .map_err(|e| anyhow!("Corrupt indirect index: {e}"))?;
+            let next_j = usize::try_from(
+                *table
+                    .get(target_idx)
+                    .ok_or_else(|| anyhow!("Corrupt indirect target index: {target_idx}"))?,
+            )
+            .map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
+            let entry = table
+                .get_mut(target_idx)
+                .ok_or_else(|| anyhow!("Missing indirect target table entry"))?;
+            *entry = entry.saturating_add(1);
             j_idx = next_j;
         } else {
-            if let Some(entry) = table.get_mut(j_idx) {
-                *entry = entry.saturating_add(1);
-            }
-            j_idx = usize::try_from(tmp).unwrap_or(0);
+            let entry = table
+                .get_mut(j_idx)
+                .ok_or_else(|| anyhow!("Missing table entry at {j_idx}"))?;
+            *entry = entry.saturating_add(1);
+            j_idx = usize::try_from(tmp).map_err(|e| anyhow!("Table entry conversion error: {e}"))?;
         }
-        *slot = input.get(j_idx).copied().unwrap_or(0);
+        *slot = *input
+            .get(j_idx)
+            .ok_or_else(|| anyhow!("Szip unsort input index out of bounds: {j_idx}"))?;
     }
 
-    if u32::try_from(j_idx).unwrap_or(u32::MAX) != indexlast {
+    let final_j = u32::try_from(j_idx).map_err(|e| anyhow!("Final index conversion: {e}"))?;
+    if final_j != indexlast {
         bail!("Szip general unsort cycle verification failed");
     }
 
@@ -735,7 +907,9 @@ pub fn unsort_general(
 
     let mut j = length;
     for i in (0..256).rev() {
-        let cnt = counts.get(i).copied().unwrap_or(0);
+        let cnt = *counts
+            .get(i)
+            .ok_or_else(|| anyhow!("Missing frequency count bucket at {i}"))?;
         j = j.saturating_sub(cnt);
         if let Some(slot) = counts.get_mut(i) {
             *slot = j;
@@ -744,21 +918,31 @@ pub fn unsort_general(
 
     let flags_size = (length.saturating_add(8)) >> 3;
     let mut flags1 = vec![0u8; flags_size];
-    make_order2(&mut flags1, input, &counts);
+    make_order2(&mut flags1, input, &counts)?;
 
     let mut flags2 = vec![0u8; flags_size];
     for _ in 2..(order.saturating_sub(1)) {
-        increase_order(&flags1, &mut flags2, input, &counts);
+        increase_order(&flags1, &mut flags2, input, &counts)?;
         std::mem::swap(&mut flags1, &mut flags2);
     }
 
     let mut table = vec![0u32; length.saturating_add(1)];
-    make_table(&flags1, &mut table, input, &counts, length);
+    make_table(&flags1, &mut table, input, &counts, length)?;
 
     unsort_traverse(input, output, &mut table, indexlast, length)
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 

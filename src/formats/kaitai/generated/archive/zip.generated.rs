@@ -2318,7 +2318,7 @@ impl Zip_LocalFileHeader_GpFlags {
         }
         self.f_deflated_mode.set(true);
         if  ((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::Deflated) || (*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.compression_method() == Zip_Compression::EnhancedDeflated))  {
-            *self.deflated_mode.borrow_mut() = i64::from_ne_bytes((*self.comp_options_raw()).to_ne_bytes()).try_into()?;
+            *self.deflated_mode.borrow_mut() = i64::from_le_bytes((*self.comp_options_raw()).to_le_bytes()).try_into()?;
         }
         Ok(self.deflated_mode.borrow())
     }

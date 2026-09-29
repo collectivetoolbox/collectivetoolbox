@@ -1245,7 +1245,7 @@ impl KStruct for Edid_StdTiming {
         let _io = io;
         *self_rc.horiz_active_pixels_mod.borrow_mut() = _io.read_u1()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.aspect_ratio.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc.aspect_ratio.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.refresh_rate_mod.borrow_mut() = _io.read_bits_int_be(6)?;
         *self_rc._io.borrow_mut() = _io.clone();

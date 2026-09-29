@@ -114,10 +114,8 @@ fn read_u24<R: Read>(reader: &mut R) -> Result<u32> {
     reader
         .read_exact(&mut buf)
         .context("Failed to read 3-byte integer")?;
-    let b1 = u32::from(buf.first().copied().unwrap_or(0));
-    let b2 = u32::from(buf.get(1).copied().unwrap_or(0));
-    let b3 = u32::from(buf.get(2).copied().unwrap_or(0));
-    Ok((b1 << 16) | (b2 << 8) | b3)
+    let [b1, b2, b3] = buf;
+    Ok((u32::from(b1) << 16) | (u32::from(b2) << 8) | u32::from(b3))
 }
 
 /// Compresses a stream from `reader` into `writer` using standard szip 1.11+ format.
@@ -225,7 +223,9 @@ pub fn compress_stream_options(
             let mut pos = 0usize;
             let mut is_first_run = true;
             while pos < bytes_read {
-                let sym = cur_slice.get(pos).copied().unwrap_or(0);
+                let sym = *cur_slice
+                    .get(pos)
+                    .ok_or_else(|| anyhow!("Compression buffer position out of bounds"))?;
                 let mut run_len = 1u32;
                 pos = pos.saturating_add(1);
                 while pos < bytes_read && cur_slice.get(pos) == Some(&sym) {
@@ -275,7 +275,7 @@ fn decompress_szip_block(
     reader
         .read_exact(&mut order_buf)
         .context("Failed reading block order")?;
-    let order = order_buf.first().copied().unwrap_or(0);
+    let [order] = order_buf;
 
     let Some((mut range_dec, record_byte)) = RangeDecoder::new(reader.by_ref())? else {
         bail!("Unexpected EOF in range coder stream");
@@ -368,8 +368,7 @@ pub fn decompress_stream(
             reader
                 .read_exact(&mut ver)
                 .context("Failed reading szip version header")?;
-            let vmay = ver.first().copied().unwrap_or(0);
-            let vmin = ver.get(1).copied().unwrap_or(0);
+            let [vmay, vmin] = ver;
 
             if vmay > 1 || (vmay == 1 && vmin > 12) {
                 bail!("Unsupported future szip version {vmay}.{vmin}");
@@ -383,7 +382,8 @@ pub fn decompress_stream(
             if n2 == 0 {
                 break;
             }
-            ch = next_buf.first().copied().unwrap_or(0);
+            let [next_byte] = next_buf;
+            ch = next_byte;
         }
 
         // Must be block magic "BH"
@@ -394,7 +394,8 @@ pub fn decompress_stream(
         reader
             .read_exact(&mut h_buf)
             .context("Failed reading block header 'H'")?;
-        if h_buf.first().copied().unwrap_or(0) != SZIP_BLOCK_MAGIC[1] {
+        let [h_byte] = h_buf;
+        if h_byte != SZIP_BLOCK_MAGIC[1] {
             bail!("Invalid block magic: expected 'H' (0x48)");
         }
 
@@ -403,7 +404,8 @@ pub fn decompress_stream(
         reader
             .read_exact(&mut term_buf)
             .context("Failed reading block directory terminator")?;
-        if term_buf.first().copied().unwrap_or(0xFF) != 0x00 {
+        let [term_byte] = term_buf;
+        if term_byte != 0x00 {
             bail!("Invalid block directory terminator");
         }
         let dir_size = 6u32;
@@ -414,7 +416,7 @@ pub fn decompress_stream(
         reader
             .read_exact(&mut type_buf)
             .context("Failed reading block type")?;
-        let block_type = type_buf.first().copied().unwrap_or(0xFF);
+        let [block_type] = type_buf;
 
         if block_type == 0 {
             let n = decompress_stored_block(reader, writer, buflen, dir_size, buflen_u32)?;

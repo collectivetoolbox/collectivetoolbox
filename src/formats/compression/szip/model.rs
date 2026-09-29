@@ -102,6 +102,54 @@ pub struct SzModel {
 }
 
 impl SzModel {
+    #[inline]
+    fn cache_next(&self, idx: usize) -> usize {
+        // Reason for fallback: out of bounds cache index defaults to root entry 0 to maintain cyclic linked list invariants and prevent panic
+        self.cache.get(idx).map_or(0, |e| e.next)
+    }
+
+    #[inline]
+    fn cache_prev(&self, idx: usize) -> usize {
+        // Reason for fallback: out of bounds cache index defaults to root entry 0 to maintain cyclic linked list invariants and prevent panic
+        self.cache.get(idx).map_or(0, |e| e.prev)
+    }
+
+    #[inline]
+    fn cache_sym(&self, idx: usize) -> u8 {
+        // Reason for fallback: out of bounds cache node defaults to byte 0 to prevent panic on corrupted internal index
+        self.cache.get(idx).map_or(0, |e| e.symbol)
+    }
+
+    #[inline]
+    fn cache_weight(&self, idx: usize) -> u32 {
+        // Reason for fallback: out of bounds cache node defaults to weight 0 to prevent panic on corrupted internal index
+        self.cache.get(idx).map_or(0, |e| e.weight)
+    }
+
+    #[inline]
+    fn cache_sy_f(&self, idx: usize) -> u32 {
+        // Reason for fallback: out of bounds cache node defaults to frequency 0 to prevent panic on corrupted internal index
+        self.cache.get(idx).map_or(0, |e| e.sy_f)
+    }
+
+    #[inline]
+    fn cache_what(&self, idx: usize) -> usize {
+        // Reason for fallback: out of bounds cache node defaults to submodel 0 to prevent panic on corrupted internal index
+        self.cache.get(idx).map_or(0, |e| e.what)
+    }
+
+    #[inline]
+    fn mtf_next(&self, idx: usize) -> usize {
+        // Reason for fallback: out of bounds MTF history node defaults to root entry 0 to prevent panic on corrupted internal index
+        usize::from(self.mtf_hist.get(idx).map_or(0, |e| e.next))
+    }
+
+    #[inline]
+    fn mtf_sym(&self, idx: usize) -> usize {
+        // Reason for fallback: out of bounds MTF history node defaults to symbol 0 to prevent panic on corrupted internal index
+        self.mtf_hist.get(idx).map_or(0, |e| e.sym)
+    }
+
     /// Initializes model for compression or decompression.
     pub fn new(is_compress: bool) -> Result<Self> {
         let full = BitModel::new(ALPHABET_SIZE, 40 * 256, 10 * 256)?;
@@ -115,10 +163,7 @@ impl SzModel {
             } else {
                 i.saturating_sub(1)
             };
-            let sym = u8::try_from(
-                CACHE_SIZE.saturating_sub(2).saturating_sub(i),
-            )
-            .unwrap_or(0);
+            let sym = u8::try_from(CACHE_SIZE.saturating_sub(2).saturating_sub(i))?;
 
             if let Some(entry) = cache.get_mut(i) {
                 entry.next = next_idx;
@@ -174,12 +219,14 @@ impl SzModel {
 
         let mtf_init_size = MTF_SIZE.saturating_mul(2);
         if let Some(entry) = mtf_hist.first_mut() {
-            entry.next = u16::try_from(MTF_HIST_SIZE.saturating_sub(1)).unwrap_or(0);
+            entry.next = u16::try_from(MTF_HIST_SIZE.saturating_sub(1))
+                .map_err(|e| anyhow!("Constant conversion for MTF history size: {e}"))?;
             entry.sym = CACHE_SIZE;
         }
         for i in 1..mtf_init_size {
             if let Some(entry) = mtf_hist.get_mut(i) {
-                entry.next = u16::try_from(i.saturating_sub(1)).unwrap_or(0);
+                entry.next = u16::try_from(i.saturating_sub(1))
+                    .map_err(|e| anyhow!("Loop index conversion: {e}"))?;
                 entry.sym = CACHE_SIZE.saturating_add(i);
             }
         }
@@ -192,11 +239,14 @@ impl SzModel {
         let rle3 = QsModel::new(7, RL_SHIFT, 150, is_compress)?;
         let rle4 = QsModel::new(7, RL_SHIFT, 150, is_compress)?;
 
+        let cache_tot_f = u32::try_from(CACHE_SIZE)
+            .map_err(|e| anyhow!("Cache size conversion: {e}"))?;
+
         let mut model = Self {
             what_mod,
             newest: CACHE_SIZE.saturating_sub(2),
             last_new: CACHE_SIZE.saturating_sub(7),
-            cache_tot_f: u32::try_from(CACHE_SIZE).unwrap_or(32),
+            cache_tot_f,
             mtf_first: mtf_init_size.saturating_sub(1),
             mtf_size: mtf_init_size,
             mtf_size_act: 0,
@@ -210,7 +260,7 @@ impl SzModel {
 
         // Deactivate cache symbols from full fallback model
         for i in 0..(CACHE_SIZE.saturating_sub(1)) {
-            let sym = model.cache.get(i).map_or(0, |e| e.symbol);
+            let sym = model.cache_sym(i);
             model.full.deactivate(usize::from(sym));
         }
 
@@ -222,14 +272,19 @@ impl SzModel {
         self.cache_tot_f = self.cache_tot_f.saturating_sub(1);
     }
 
+    #[expect(
+        clippy::expect_used,
+        reason = "self.mtf_first is bounded by MTF_HIST_MASK (4095), which provably fits in u16"
+    )]
     fn add_to_mtf(&mut self, sym: usize) {
         let i = (self.mtf_first.saturating_add(1)) & MTF_HIST_MASK;
+        // Reason for fallback: absent or unallocated MTF history slot defaults to EMPTY_ENTRY sentinel
         let entry_next = self.mtf_hist.get(i).map_or(EMPTY_ENTRY, |e| e.next);
         if entry_next == EMPTY_ENTRY {
             self.mtf_size = self.mtf_size.saturating_add(1);
             self.mtf_size_act = self.mtf_size_act.saturating_add(1);
         } else if self.mtf_size_act == self.mtf_size {
-            let old_sym = self.mtf_hist.get(i).map_or(0, |e| e.sym);
+            let old_sym = self.mtf_sym(i);
             if let Some(loc) = self.last_seen.get_mut(old_sym) {
                 *loc = SymbolLocation::Full;
             }
@@ -239,7 +294,7 @@ impl SzModel {
         }
 
         if let Some(entry) = self.mtf_hist.get_mut(i) {
-            entry.next = u16::try_from(self.mtf_first).unwrap_or(0);
+            entry.next = u16::try_from(self.mtf_first).expect("mtf_first fits in u16");
             entry.sym = sym;
         }
         self.mtf_first = i;
@@ -254,20 +309,20 @@ impl SzModel {
         if let Some(loc) = self.last_seen.get_mut(sym_idx) {
             *loc = SymbolLocation::Cache(newest_idx);
         }
-        let newest_weight = self.cache.get(newest_idx).map_or(0, |e| e.weight);
+        let newest_weight = self.cache_weight(newest_idx);
         if let Some(entry) = self.cache.get_mut(newest_idx) {
             entry.symbol = symbol;
         }
         self.cache_tot_f = self.cache_tot_f.saturating_add(newest_weight);
 
-        let to_clear_idx = self.cache.get(newest_idx).map_or(0, |e| e.next);
-        let to_clear_what = self.cache.get(to_clear_idx).map_or(0, |e| e.what);
+        let to_clear_idx = self.cache_next(newest_idx);
+        let to_clear_what = self.cache_what(to_clear_idx);
         if let Some(val) = self.what_mod.get_mut(to_clear_what) {
             *val = val.saturating_sub(1);
         }
 
-        let to_clear_sy_f = self.cache.get(to_clear_idx).map_or(0, |e| e.sy_f);
-        let to_clear_sym = self.cache.get(to_clear_idx).map_or(0, |e| e.symbol);
+        let to_clear_sy_f = self.cache_sy_f(to_clear_idx);
+        let to_clear_sym = self.cache_sym(to_clear_idx);
         let to_clear_sym_idx = usize::from(to_clear_sym);
 
         if to_clear_sy_f == 0 {
@@ -281,15 +336,15 @@ impl SzModel {
         }
 
         let last_new_idx = self.last_new;
-        let ln_what = self.cache.get(last_new_idx).map_or(0, |e| e.what);
+        let ln_what = self.cache_what(last_new_idx);
         if let Some(val) = self.what_mod.get_mut(ln_what) {
             *val = val.saturating_sub(5);
         }
 
-        let ln_weight = self.cache.get(last_new_idx).map_or(0, |e| e.weight);
+        let ln_weight = self.cache_weight(last_new_idx);
         self.cache_tot_f = self.cache_tot_f.saturating_sub(ln_weight);
 
-        let ln_sym = self.cache.get(last_new_idx).map_or(0, |e| e.symbol);
+        let ln_sym = self.cache_sym(last_new_idx);
         let ln_sym_idx = usize::from(ln_sym);
         if let Some(SymbolLocation::Cache(c_idx)) = self.last_seen.get(ln_sym_idx) {
             if let Some(entry) = self.cache.get_mut(*c_idx) {
@@ -300,7 +355,7 @@ impl SzModel {
         if let Some(entry) = self.cache.get_mut(last_new_idx) {
             entry.weight = 1;
         }
-        self.last_new = self.cache.get(last_new_idx).map_or(0, |e| e.next);
+        self.last_new = self.cache_next(last_new_idx);
     }
 
     fn write_run<W: Write>(
@@ -314,7 +369,8 @@ impl SzModel {
             .get_mut(rl_idx)
             .ok_or_else(|| anyhow!("Invalid RLE model index"))?;
         if n <= 4 {
-            let sym = usize::try_from(n.saturating_sub(1)).unwrap_or(0);
+            let sym = usize::try_from(n.saturating_sub(1))
+                .map_err(|e| anyhow!("Symbol index conversion: {e}"))?;
             let (sy_f, lt_f) = rlmod.get_freq(sym);
             encoder.encode_shift(sy_f, lt_f, RL_SHIFT)?;
             rlmod.update(sym);
@@ -366,7 +422,8 @@ impl SzModel {
         rlmod.update(rl);
 
         if rl <= 3 {
-            let run_len = u32::try_from(rl.saturating_add(1)).unwrap_or(1);
+            let run_len = u32::try_from(rl.saturating_add(1))
+                .map_err(|e| anyhow!("Run length conversion: {e}"))?;
             let weight = 1u32.saturating_add(run_len >> 1);
             Ok((weight, run_len))
         } else if rl == 4 {
@@ -408,7 +465,7 @@ impl SzModel {
                     return self.finish_mtf_hit(encoder, sym, i, last, n);
                 }
                 last = i;
-                i = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                i = self.mtf_next(i);
                 n = n.saturating_add(1);
             }
             while n < self.mtf_size_act {
@@ -430,7 +487,7 @@ impl SzModel {
                     return self.finish_mtf_hit(encoder, sym, i, last, n);
                 }
                 last = i;
-                i = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                i = self.mtf_next(i);
                 n = n.saturating_add(1);
             }
             self.mtf_size_act = if self.mtf_size > MTF_SIZE {
@@ -439,7 +496,7 @@ impl SzModel {
                 self.mtf_size
             };
             while n < self.mtf_size_act {
-                let entry_sym = self.mtf_hist.get(i).map_or(0, |e| e.sym);
+                let entry_sym = self.mtf_sym(i);
                 if self.last_seen.get(entry_sym) == Some(&SymbolLocation::Full) {
                     if let Some(loc) = self.last_seen.get_mut(entry_sym) {
                         *loc = SymbolLocation::Mtf;
@@ -450,13 +507,14 @@ impl SzModel {
                         return self.finish_mtf_hit(encoder, sym, i, last, n);
                     }
                     last = i;
-                    i = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                    i = self.mtf_next(i);
                     n = n.saturating_add(1);
                 } else {
-                    let next = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                    let next = self.mtf_next(i);
                     if n > 0 {
                         if let Some(entry) = self.mtf_hist.get_mut(last) {
-                            entry.next = u16::try_from(next).unwrap_or(0);
+                            entry.next = u16::try_from(next)
+                                .map_err(|e| anyhow!("MTF next pointer conversion: {e}"))?;
                         }
                     } else {
                         self.mtf_first = next;
@@ -502,11 +560,12 @@ impl SzModel {
         encoder.encode_shift(sy_f, lt_f, MTF_SHIFT)?;
         self.mtf_mod.update(n);
 
-        let next_idx = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+        let next_idx = self.mtf_next(i);
         if n == 0 {
             self.mtf_first = next_idx;
         } else if let Some(entry) = self.mtf_hist.get_mut(last) {
-            entry.next = u16::try_from(next_idx).unwrap_or(0);
+            entry.next = u16::try_from(next_idx)
+                .map_err(|e| anyhow!("MTF next pointer conversion: {e}"))?;
         }
         if let Some(entry) = self.mtf_hist.get_mut(i) {
             entry.next = EMPTY_ENTRY;
@@ -529,22 +588,24 @@ impl SzModel {
             encoder.encode_shift(what0, 0, 6)?;
             self.what_mod[0] = self.what_mod[0].saturating_add(6);
 
-            let old_sy_f = self.cache.get(old_idx).map_or(0, |e| e.sy_f);
-            let old_weight = self.cache.get(old_idx).map_or(0, |e| e.weight);
+            let old_sy_f = self.cache_sy_f(old_idx);
+            let old_weight = self.cache_weight(old_idx);
 
             let mut lt_f = 0u32;
-            let mut curr = self.cache.get(old_idx).map_or(0, |e| e.next);
+            let mut curr = self.cache_next(old_idx);
             while curr != self.newest {
-                lt_f = lt_f.saturating_add(self.cache.get(curr).map_or(0, |e| e.sy_f));
-                curr = self.cache.get(curr).map_or(0, |e| e.next);
+                lt_f = lt_f.saturating_add(self.cache_sy_f(curr));
+                curr = self.cache_next(curr);
             }
 
-            let newest_sy_f = self.cache.get(self.newest).map_or(0, |e| e.sy_f);
+            let newest_sy_f = self.cache_sy_f(self.newest);
             let tot_f = self.cache_tot_f.saturating_sub(newest_sy_f);
             encoder.encode_freq(old_sy_f, lt_f, tot_f)?;
 
-            let free_idx = self.cache.get(self.newest).map_or(0, |e| e.next);
-            let weight = self.write_run(encoder, usize::try_from(old_weight).unwrap_or(0), runlength)?;
+            let free_idx = self.cache_next(self.newest);
+            let old_weight_usize = usize::try_from(old_weight)
+                .map_err(|e| anyhow!("Cache entry weight conversion: {e}"))?;
+            let weight = self.write_run(encoder, old_weight_usize, runlength)?;
 
             if let Some(entry) = self.cache.get_mut(free_idx) {
                 entry.what = 0;
@@ -556,7 +617,7 @@ impl SzModel {
             }
             self.newest = free_idx;
         } else {
-            let free_idx = self.cache.get(self.newest).map_or(0, |e| e.next);
+            let free_idx = self.cache_next(self.newest);
             let what = self.encode_other(encoder, sym_idx)?;
             let weight = self.write_run(encoder, 0, runlength)?;
 
@@ -574,7 +635,7 @@ impl SzModel {
     fn activate_next(&mut self, next_ref: &mut usize) -> bool {
         while self.mtf_size > self.mtf_size_act {
             let idx = *next_ref;
-            let sym = self.mtf_hist.get(idx).map_or(0, |e| e.sym);
+            let sym = self.mtf_sym(idx);
             if self.last_seen.get(sym) == Some(&SymbolLocation::Full) {
                 self.full.deactivate(sym);
                 if let Some(loc) = self.last_seen.get_mut(sym) {
@@ -583,7 +644,7 @@ impl SzModel {
                 self.mtf_size_act = self.mtf_size_act.saturating_add(1);
                 return true;
             }
-            let next = usize::from(self.mtf_hist.get(idx).map_or(0, |e| e.next));
+            let next = self.mtf_next(idx);
             *next_ref = next;
             if let Some(entry) = self.mtf_hist.get_mut(idx) {
                 entry.next = EMPTY_ENTRY;
@@ -598,27 +659,29 @@ impl SzModel {
         decoder.update(what0, 0);
         self.what_mod[0] = self.what_mod[0].saturating_add(6);
 
-        let newest_sy_f = self.cache.get(self.newest).map_or(0, |e| e.sy_f);
+        let newest_sy_f = self.cache_sy_f(self.newest);
         let tot_f = self.cache_tot_f.saturating_sub(newest_sy_f);
         let target_cul = decoder.decode_culfreq(tot_f)?;
 
-        let mut curr = self.cache.get(self.newest).map_or(0, |e| e.prev);
-        let mut lt_f = self.cache.get(curr).map_or(0, |e| e.sy_f);
+        let mut curr = self.cache_prev(self.newest);
+        let mut lt_f = self.cache_sy_f(curr);
         while lt_f <= target_cul {
-            curr = self.cache.get(curr).map_or(0, |e| e.prev);
-            lt_f = lt_f.saturating_add(self.cache.get(curr).map_or(0, |e| e.sy_f));
+            curr = self.cache_prev(curr);
+            lt_f = lt_f.saturating_add(self.cache_sy_f(curr));
         }
 
-        let curr_sy_f = self.cache.get(curr).map_or(0, |e| e.sy_f);
-        let curr_weight = self.cache.get(curr).map_or(0, |e| e.weight);
-        let curr_sym = self.cache.get(curr).map_or(0, |e| e.symbol);
+        let curr_sy_f = self.cache_sy_f(curr);
+        let curr_weight = self.cache_weight(curr);
+        let curr_sym = self.cache_sym(curr);
 
         decoder.update(curr_sy_f, lt_f.saturating_sub(curr_sy_f));
 
-        let free_idx = self.cache.get(self.newest).map_or(0, |e| e.next);
+        let free_idx = self.cache_next(self.newest);
         self.newest = free_idx;
 
-        let (weight, run_len) = self.read_run(decoder, usize::try_from(curr_weight).unwrap_or(0))?;
+        let curr_weight_usize = usize::try_from(curr_weight)
+            .map_err(|e| anyhow!("Cache entry weight index conversion: {e}"))?;
+        let (weight, run_len) = self.read_run(decoder, curr_weight_usize)?;
         if let Some(entry) = self.cache.get_mut(free_idx) {
             entry.what = 0;
             entry.weight = weight;
@@ -657,10 +720,8 @@ impl SzModel {
                 self.mtf_first = first_ref;
             }
             let first_idx = self.mtf_first;
-            resolved_sym = self.mtf_hist.get(first_idx).map_or(0, |e| e.sym);
-            let next_idx = usize::from(
-                self.mtf_hist.get(first_idx).map_or(0, |e| e.next),
-            );
+            resolved_sym = self.mtf_sym(first_idx);
+            let next_idx = self.mtf_next(first_idx);
             self.mtf_first = next_idx;
             if let Some(entry) = self.mtf_hist.get_mut(first_idx) {
                 entry.next = EMPTY_ENTRY;
@@ -669,39 +730,32 @@ impl SzModel {
             let mut pred = self.mtf_first;
             if sym < self.mtf_size_act {
                 for _ in 0..(sym.saturating_sub(1)) {
-                    pred = usize::from(
-                        self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                    );
+                    pred = self.mtf_next(pred);
                 }
             } else {
                 for _ in 0..(self.mtf_size_act.saturating_sub(1)) {
-                    pred = usize::from(
-                        self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                    );
+                    pred = self.mtf_next(pred);
                 }
                 while self.mtf_size_act < sym {
-                    let mut next_ref = usize::from(
-                        self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                    );
+                    let mut next_ref = self.mtf_next(pred);
                     self.activate_next(&mut next_ref);
                     if let Some(entry) = self.mtf_hist.get_mut(pred) {
-                        entry.next = u16::try_from(next_ref).unwrap_or(0);
+                        entry.next = u16::try_from(next_ref)
+                            .map_err(|e| anyhow!("MTF next pointer conversion: {e}"))?;
                     }
                     pred = next_ref;
                 }
-                let mut next_ref = usize::from(
-                    self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                );
+                let mut next_ref = self.mtf_next(pred);
                 self.activate_next(&mut next_ref);
                 if let Some(entry) = self.mtf_hist.get_mut(pred) {
-                    entry.next = u16::try_from(next_ref).unwrap_or(0);
+                    entry.next = u16::try_from(next_ref)
+                        .map_err(|e| anyhow!("MTF next pointer conversion: {e}"))?;
                 }
             }
-            let target_idx = usize::from(
-                self.mtf_hist.get(pred).map_or(0, |e| e.next),
-            );
-            resolved_sym = self.mtf_hist.get(target_idx).map_or(0, |e| e.sym);
-            let target_next = self.mtf_hist.get(target_idx).map_or(0, |e| e.next);
+            let target_idx = self.mtf_next(pred);
+            resolved_sym = self.mtf_sym(target_idx);
+            // Reason for fallback: absent or unallocated MTF history slot defaults to EMPTY_ENTRY sentinel
+            let target_next = self.mtf_hist.get(target_idx).map_or(EMPTY_ENTRY, |e| e.next);
             if let Some(entry) = self.mtf_hist.get_mut(pred) {
                 entry.next = target_next;
             }
@@ -713,7 +767,7 @@ impl SzModel {
         self.mtf_size_act = self.mtf_size_act.saturating_sub(1);
         self.mtf_size = self.mtf_size.saturating_sub(1);
 
-        let free_idx = self.cache.get(self.newest).map_or(0, |e| e.next);
+        let free_idx = self.cache_next(self.newest);
         self.newest = free_idx;
 
         let (weight, run_len) = self.read_run(decoder, 0)?;
@@ -723,7 +777,8 @@ impl SzModel {
             entry.sy_f = weight;
         }
 
-        let sym_u8 = u8::try_from(resolved_sym).unwrap_or(0);
+        let sym_u8 = u8::try_from(resolved_sym)
+            .map_err(|e| anyhow!("Decoded MTF symbol out of byte range ({resolved_sym}): {e}"))?;
         self.finish_update(sym_u8);
         Ok((sym_u8, run_len))
     }
@@ -737,16 +792,16 @@ impl SzModel {
         if self.mtf_size_act > MTF_SIZE {
             let mut i = self.mtf_first;
             for _ in 0..MTF_SIZE {
-                i = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                i = self.mtf_next(i);
             }
             let mut n = MTF_SIZE;
             while n < self.mtf_size_act {
-                let entry_sym = self.mtf_hist.get(i).map_or(0, |e| e.sym);
+                let entry_sym = self.mtf_sym(i);
                 self.full.reactivate(entry_sym);
                 if let Some(loc) = self.last_seen.get_mut(entry_sym) {
                     *loc = SymbolLocation::Full;
                 }
-                i = usize::from(self.mtf_hist.get(i).map_or(0, |e| e.next));
+                i = self.mtf_next(i);
                 n = n.saturating_add(1);
             }
             self.mtf_size_act = MTF_SIZE;
@@ -759,20 +814,17 @@ impl SzModel {
                 pred = first_ref;
             } else {
                 for _ in 0..(self.mtf_size_act.saturating_sub(1)) {
-                    pred = usize::from(
-                        self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                    );
+                    pred = self.mtf_next(pred);
                 }
             }
             while self.mtf_size_act < MTF_SIZE {
-                let mut next_ref = usize::from(
-                    self.mtf_hist.get(pred).map_or(0, |e| e.next),
-                );
+                let mut next_ref = self.mtf_next(pred);
                 if !self.activate_next(&mut next_ref) {
                     break;
                 }
                 if let Some(entry) = self.mtf_hist.get_mut(pred) {
-                    entry.next = u16::try_from(next_ref).unwrap_or(0);
+                    entry.next = u16::try_from(next_ref)
+                        .map_err(|e| anyhow!("MTF next pointer conversion: {e}"))?;
                 }
                 pred = next_ref;
             }
@@ -784,7 +836,7 @@ impl SzModel {
         decoder.update(sy_f, lt_f);
         self.full.update_exclude(sym);
 
-        let free_idx = self.cache.get(self.newest).map_or(0, |e| e.next);
+        let free_idx = self.cache_next(self.newest);
         self.newest = free_idx;
 
         let (weight, run_len) = self.read_run(decoder, 0)?;
@@ -794,7 +846,8 @@ impl SzModel {
             entry.sy_f = weight;
         }
 
-        let sym_u8 = u8::try_from(sym).unwrap_or(0);
+        let sym_u8 = u8::try_from(sym)
+            .map_err(|e| anyhow!("Decoded full model symbol out of byte range ({sym}): {e}"))?;
         self.finish_update(sym_u8);
         Ok((sym_u8, run_len))
     }
@@ -813,6 +866,16 @@ impl SzModel {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::panic,
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::unwrap_in_result,
+    clippy::panic_in_result_fn,
+    clippy::indexing_slicing,
+    clippy::arithmetic_side_effects,
+    reason = "Standard repository test boilerplate"
+)]
 mod tests {
     use super::*;
 
@@ -855,7 +918,7 @@ mod tests {
                 for _ in 0..run_len {
                     decoded.push(sym);
                 }
-                bytes_left -= run_len as usize;
+                bytes_left = bytes_left.saturating_sub(usize::try_from(run_len).unwrap_or(0));
                 if is_first {
                     model.fix_after_first();
                     is_first = false;

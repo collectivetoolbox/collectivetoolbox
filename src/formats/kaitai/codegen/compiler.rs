@@ -2383,7 +2383,7 @@ fn read_expr_for_type(
                 false
             };
             if is_u64 {
-                format!("i64::from_ne_bytes(({read_call}).to_ne_bytes()).try_into()?")
+                format!("i64::from_le_bytes(({read_call}).to_le_bytes()).try_into()?")
             } else if is_s64 {
                 format!("{read_call}.try_into()?")
             } else {
@@ -2502,7 +2502,7 @@ fn emit_instances(w: &mut CodeWriter, current: &ClassSpec, root: &ClassSpec) {
                                     DataType::Bits { .. }
                                     | DataType::IntMulti { signed: false, width: 8, .. },
                                 ) => {
-                                    format!("i64::from_ne_bytes(({expr_str}).to_ne_bytes()).try_into()?")
+                                    format!("i64::from_le_bytes(({expr_str}).to_le_bytes()).try_into()?")
                                 }
                                 Some(DataType::IntMulti { signed: true, width: 8, .. }) => {
                                     format!("({expr_str}).try_into()?")

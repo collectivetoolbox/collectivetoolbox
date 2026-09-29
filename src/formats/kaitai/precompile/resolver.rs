@@ -188,6 +188,7 @@ pub fn resolve_ksy(
 
     if let Some(reg) = registry {
         for imp in &root_spec.meta_imports {
+            // Reason for fallback: import without slash delimiter uses full import name as stem
             let stem = imp
                 .trim_start_matches('/')
                 .split('/')
@@ -786,12 +787,12 @@ fn resolve_class_spec(
             // Reason for fallback: parse failure on malformed enum key defaults to 0 value
             let num: i64 = if let Some(stripped) = raw_key.strip_prefix("0x") {
                 u64::from_str_radix(stripped, 16)
-                    .map(|v| i64::from_ne_bytes(v.to_ne_bytes()))
+                    .map(|v| i64::from_le_bytes(v.to_le_bytes()))
                     .unwrap_or_else(|_| i64::from_str_radix(stripped, 16).unwrap_or(0))
             } else {
                 raw_key
                     .parse::<u64>()
-                    .map(|v| i64::from_ne_bytes(v.to_ne_bytes()))
+                    .map(|v| i64::from_le_bytes(v.to_le_bytes()))
                     .unwrap_or_else(|_| raw_key.parse::<i64>().unwrap_or(0))
             };
             let (label, doc, doc_ref) = match val_spec {
@@ -1204,6 +1205,7 @@ fn resolve_attr_data_type(
                         "_".to_string(),
                         DataType::Bytes {
                             size: sw_size,
+                            // Reason for fallback: absent size_eos attribute defaults to false
                             size_eos: attr.size_eos.unwrap_or(false),
                             terminator: None,
                             include: false,
@@ -1960,6 +1962,7 @@ fn resolve_instance(
                         "_".to_string(),
                         DataType::Bytes {
                             size: size_expr.clone(),
+                            // Reason for fallback: absent size_eos attribute defaults to false
                             size_eos: inst.size_eos.unwrap_or(false),
                             terminator: None,
                             include: false,
@@ -2513,6 +2516,7 @@ fn infer_expr_type(
                     "u8" => DataType::IntMulti { signed: false, width: 8, endian: None },
                     "s8" => DataType::IntMulti { signed: true, width: 8, endian: None },
                     "f4" | "f8" => DataType::CalcFloatType,
+                    // Reason for fallback: unrecognized array base type defaults to integer calculation type
                     _ => resolve_simple_type(base_str, None, None, scopes, registry)
                         .map(|(dt, _)| dt)
                         .unwrap_or(DataType::CalcIntType),

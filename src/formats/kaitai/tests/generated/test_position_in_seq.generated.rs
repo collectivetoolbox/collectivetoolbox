@@ -79,6 +79,7 @@ use rust::formats::position_in_seq::*;
 use rust::test_formats::*;
 
 #[crate::ctb_test]
+#[allow(clippy::approx_constant, clippy::lossy_float_literal, reason = "Upstream KST test assertions")]
 fn test_position_in_seq() -> KResult<()> {
     let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let bytes = std::fs::read(manifest_dir.join("kaitai_struct_tests/src/position_in_seq.bin"))?;

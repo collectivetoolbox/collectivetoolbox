@@ -291,7 +291,7 @@ Supported compression formats:
   compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress: `compress` format, modern LZW block format
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
-  compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
+  compress16, compress1.6, compress-1.6: `compress` 1.6 (LZW sorted chain format)
   compress2, compress-2: `compress` 2.0 (LZW non-block format)
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
@@ -303,6 +303,8 @@ Supported compression formats:
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  szip: szip (Michael Schindler)
+  szip111, szip-1.11: szip (Michael Schindler) version 1.11+
 ```
 
 ### `ctoolbox cp`
@@ -748,7 +750,7 @@ Supported compression formats:
   compress-h, compress-sco, sco-compress: `compress`: SCO `compress -H` format (LZH)
   compress: `compress` format, modern LZW block format
   compress1, compress-1: `compress` 1.0 (LZW headerless format)
-  compress16, compress1.6, compress-1.6, lzw-sorted-chain: `compress` 1.6 (LZW sorted chain format)
+  compress16, compress1.6, compress-1.6: `compress` 1.6 (LZW sorted chain format)
   compress2, compress-2: `compress` 2.0 (LZW non-block format)
   pack: `pack` format, common version (Huffman)
   oldpack, old-pack, early-pack: `pack` format, early PDP-11 Unix binary tree
@@ -760,6 +762,8 @@ Supported compression formats:
   lzo: LZO (Lempel-Ziv-Oberhumer)
   lzma: LZMA (Lempel–Ziv–Markov chain algorithm)
   lzma2: LZMA container format
+  szip: szip (Michael Schindler)
+  szip111, szip-1.11: szip (Michael Schindler) version 1.11+
 ```
 
 ### `ctoolbox file`
@@ -773,11 +777,13 @@ Arguments:
   [FILE]...  Files to inspect and detect format for (pass '-' for stdin) [default: -]
 
 Options:
-      --compat  Produce output strictly compatible with the standard UNIX `file` command
-  -i, --mime    Output MIME type string instead of human-readable description (like `file -i`)
-  -b, --brief   Do not prepend filenames to output lines (like `file -b`)
-  -k, --all     Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
-  -h, --help    Print help
+      --compat               Produce output strictly compatible with the standard UNIX `file` command
+  -i, --mime                 Output MIME type string instead of human-readable description (like `file -i`)
+  -b, --brief                Do not prepend filenames to output lines (like `file -b`)
+  -k, --all                  Keep going: display all candidate matches rather than only the top candidate (only used with --compat)
+  -z, --uncompress           Try to look inside compressed files (like `file -z`)
+  -Z, --uncompress-noreport  Try to look inside compressed files, but do not report the compression format (like `file -Z`)
+  -h, --help                 Print help
 ```
 
 ### `ctoolbox file2metadatajson`

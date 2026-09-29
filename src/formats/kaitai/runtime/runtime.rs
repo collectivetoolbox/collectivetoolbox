@@ -399,7 +399,8 @@ impl Struct {
     }
 
     pub fn from_opt_rc<T: 'static + Clone>(val: &OptRc<T>) -> OptRc<Self> {
-        if let Some(s) = (val as &dyn Any).downcast_ref::<OptRc<Self>>() {
+        let any_val: &dyn Any = val;
+        if let Some(s) = any_val.downcast_ref::<OptRc<Self>>() {
             return s.clone();
         }
         match val.get_value() {

@@ -5285,9 +5285,9 @@ impl KStruct for Elf_EndianElf_DynsymSectionEntry {
             *self_rc.size_b32.borrow_mut() = if *self_rc._is_le.borrow() == 1 { _io.read_u4le()? } else { _io.read_u4be()? };
             *self_rc._io.borrow_mut() = _io.clone();
         }
-        *self_rc.bind.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc.bind.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.r#type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(4)?).to_ne_bytes()).try_into()?;
+        *self_rc.r#type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(4)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.other.borrow_mut() = _io.read_u1()?;
@@ -6147,7 +6147,7 @@ impl Elf_EndianElf_PhDynamicSectionEntry {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() = i64::from_ne_bytes((self.tag()).to_ne_bytes()).try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
 }
@@ -8901,7 +8901,7 @@ impl Elf_EndianElf_ShDynamicSectionEntry {
             return Ok(self.tag_enum.borrow());
         }
         self.f_tag_enum.set(true);
-        *self.tag_enum.borrow_mut() = i64::from_ne_bytes((self.tag()).to_ne_bytes()).try_into()?;
+        *self.tag_enum.borrow_mut() = i64::from_le_bytes((self.tag()).to_le_bytes()).try_into()?;
         Ok(self.tag_enum.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]

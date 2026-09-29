@@ -997,6 +997,7 @@ pub fn guess_format_report(
         hint,
         |inner_src, inner_h| guess_format_report(inner_src, inner_h),
     ) {
+        // Reason for fallback: default to false if hint is not provided
         if hint.map_or(false, |h| h.compat && (h.uncompress || h.uncompress_noreport)) {
             if !decomp_cands.is_empty() {
                 candidates = decomp_cands;
@@ -1066,9 +1067,8 @@ pub fn guess_format_report(
         let mut sample_buf = vec![0u8; 4096];
         if let Ok(n) = source.read_at(0, &mut sample_buf) {
             if n > 0 {
-                // Reason for fallback: slice up to n bytes read, falling back to full buffer if n exceeds capacity
-                let sample_slice = sample_buf.get(..n).unwrap_or(&sample_buf);
-                let small_cands = detect_small_format_candidates(sample_slice, source.total_len(), hint);
+                sample_buf.truncate(n);
+                let small_cands = detect_small_format_candidates(&sample_buf, source.total_len(), hint);
                 for sc in small_cands {
                     candidates.push(sc);
                 }

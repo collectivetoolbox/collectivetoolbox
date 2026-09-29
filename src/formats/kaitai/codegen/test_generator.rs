@@ -259,6 +259,7 @@ fn find_child_type<'a>(
     }
 
     let check_type_name = |tname: &str| -> Option<&'a KsyFile> {
+        // Reason for fallback: type name without parentheses remains unchanged
         let tname = tname.split('(').next().unwrap_or(tname).trim();
         if let Some(child) = k.types.get(tname) {
             return Some(child);
@@ -352,7 +353,9 @@ fn is_numeric_field(
                     return matches!(
                         t.as_str(),
                         "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8"
-                    ) || (t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit()));
+                    ) || t
+                        .strip_prefix('b')
+                        .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()));
                 }
             }
             if let Some(inst) = curr.instances.get(field_name) {
@@ -363,7 +366,9 @@ fn is_numeric_field(
                     return matches!(
                         t.as_str(),
                         "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8"
-                    ) || (t.starts_with('b') && t[1..].chars().all(|c| c.is_ascii_digit()));
+                    ) || t
+                        .strip_prefix('b')
+                        .is_some_and(|digits| !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()));
                 }
                 match &inst.value {
                     Some(crate::spec::ValueOrExpr::Expr(val_str)) => {
@@ -647,12 +652,14 @@ fn find_type_path<'a>(comp: &str, ksy: &'a KsyFile, prefix: &mut Vec<&'a str>) -
 fn resolve_target_class(raw_target: &str, ksy: Option<&KsyFile>, mod_name: Option<&str>) -> String {
     let components: Vec<&str> = raw_target.split("::").collect();
     let root_id = if let Some(root) = ksy {
+        // Reason for fallback: root without metadata id defaults to module name or empty string
         root.meta
             .as_ref()
             .and_then(|m| m.id.as_deref())
             .or(mod_name)
             .unwrap_or("")
     } else {
+        // Reason for fallback: empty module name defaults to empty string
         mod_name.unwrap_or("")
     };
 
@@ -713,6 +720,7 @@ fn find_nested_ksy<'a>(comp: &str, ksy: &'a KsyFile) -> Option<&'a KsyFile> {
 fn resolve_target_ksy<'a>(raw_target: &str, ksy: Option<&'a KsyFile>) -> Option<&'a KsyFile> {
     let components: Vec<&str> = raw_target.split("::").collect();
     let root = ksy?;
+    // Reason for fallback: root without metadata id defaults to empty string
     let root_id = root.meta.as_ref().and_then(|m| m.id.as_deref()).unwrap_or("");
     let mut curr = root;
     for comp in &components {
@@ -778,8 +786,9 @@ pub fn format_actual_expr(
             }
         }
 
-        if part.starts_with("as<") && part.ends_with('>') {
-            let raw_target = &part[3..part.len().saturating_sub(1)];
+        if let Some(target_with_suffix) = part.strip_prefix("as<")
+            && let Some(raw_target) = target_with_suffix.strip_suffix('>')
+        {
             if matches!(
                 raw_target,
                 "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "f4" | "f8" | "b1" | "str"
@@ -840,6 +849,7 @@ pub fn format_actual_expr(
     let ends_with_index = expr.ends_with(']');
     let is_to_string = expr.ends_with(".to_string()");
     let is_cast_bytes = actual.ends_with(".as<bytes>") || actual.ends_with("as<bytes>");
+    // Reason for fallback: empty components slice defaults to empty string
     let last_part = parts.last().copied().unwrap_or("");
     let last_field = if let Some((f, _)) = last_part.split_once('[') {
         f
@@ -895,6 +905,7 @@ pub fn synthesize_test_from_kst(
     out.push_str("use rust::test_formats::*;\n\n");
 
     out.push_str("#[crate::ctb_test]\n");
+    out.push_str("#[allow(clippy::approx_constant, clippy::lossy_float_literal, reason = \"Upstream KST test assertions\")]\n");
     out.push_str(&format!("fn test_{mod_name}() -> KResult<()> {{\n"));
 
     if let Some(data_file) = &kst.data {
@@ -952,6 +963,7 @@ pub fn synthesize_test_from_kst(
                                 });
                                 if let Ok(imp_content) = content {
                                     if let Ok(imp_file) = crate::parser::parse_ksy_str(&imp_content) {
+                                        // Reason for fallback: path without slash delimiter is already the base name
                                         let base_name = clean_imp.rsplit('/').next().unwrap_or(clean_imp);
                                         imported_ksys.insert(imp.clone(), imp_file.clone());
                                         imported_ksys.insert(clean_imp.to_string(), imp_file.clone());
@@ -996,6 +1008,7 @@ pub fn synthesize_test_from_kst(
                 if expected_expr == "None" {
                     // Reason for fallback: expressions without dereference prefix remain unchanged
                     let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
+                    // Reason for fallback: expressions without surrounding parentheses remain unchanged
                     let actual = actual
                         .strip_prefix('(')
                         .and_then(|s| s.strip_suffix(')'))
@@ -1008,7 +1021,9 @@ pub fn synthesize_test_from_kst(
                 } else if is_enum_field(ksy.as_ref(), &actual_str, Some(&imported_ksys))
                     && is_integer_expected(expected_val)
                 {
+                    // Reason for fallback: expressions without dereference prefix remain unchanged
                     let actual = actual_expr.strip_prefix('*').unwrap_or(&actual_expr);
+                    // Reason for fallback: expressions without surrounding parentheses remain unchanged
                     let actual = actual
                         .strip_prefix('(')
                         .and_then(|s| s.strip_suffix(')'))

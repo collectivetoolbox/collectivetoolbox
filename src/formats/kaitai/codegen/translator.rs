@@ -394,7 +394,11 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
             } else if let Some(user_class) = resolve_user_class_name(base_raw, ctx) {
                 if ctx.current_class.parent_name.as_ref().is_some_and(|p| p.as_slice() == ["KStructUnit"])
                     && ctx.current_class.name.len() > 1
-                    && user_class == types_to_class_name(&ctx.current_class.name[..ctx.current_class.name.len().saturating_sub(1)])
+                    && ctx
+                        .current_class
+                        .name
+                        .get(..ctx.current_class.name.len().saturating_sub(1))
+                        .is_some_and(|prefix| user_class == types_to_class_name(prefix))
                 {
                     if let Some(attr) = ctx.root.seq.iter().find(|a| {
                         if let DataType::UserType { names, .. } = &a.data_type {

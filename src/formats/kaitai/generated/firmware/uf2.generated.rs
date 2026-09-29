@@ -1357,7 +1357,7 @@ impl KStruct for Uf2_ExtensionTag {
             return Err(KError::ValidationFailed(ValidationFailedError { kind: ValidationKind::Expr, src_path: "/types/extension_tag/seq/0".to_string() }));
         }
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.tag_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_le(24)?).to_ne_bytes()).try_into()?;
+        *self_rc.tag_type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_le(24)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc._io.borrow_mut() = _io.clone();

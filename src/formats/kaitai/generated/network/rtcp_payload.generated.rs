@@ -879,7 +879,7 @@ impl RtcpPayload_PsfbPacket {
             return Ok(self.fmt.borrow());
         }
         self.f_fmt.set(true);
-        *self.fmt.borrow_mut() = i64::from_ne_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_ne_bytes()).try_into()?;
+        *self.fmt.borrow_mut() = i64::from_le_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_le_bytes()).try_into()?;
         Ok(self.fmt.borrow())
     }
 }
@@ -1651,7 +1651,7 @@ impl RtcpPayload_RtpfbPacket {
             return Ok(self.fmt.borrow());
         }
         self.f_fmt.set(true);
-        *self.fmt.borrow_mut() = i64::from_ne_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_ne_bytes()).try_into()?;
+        *self.fmt.borrow_mut() = i64::from_le_bytes((*self._parent.get_value().borrow().upgrade().as_ref().ok_or(KError::MissingParent)?.subtype()).to_le_bytes()).try_into()?;
         Ok(self.fmt.borrow())
     }
 }

@@ -493,8 +493,8 @@ impl<'a, S: DetectionSource + ?Sized> Read for DetectionSourceReader<'a, S> {
             .source
             .read_at(self.offset, buf)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
-        // Reason for fallback: byte count conversion to u64 defaults to 0 on 16-bit overflow
-        let advance = u64::try_from(n).unwrap_or(0);
+        let advance = u64::try_from(n)
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e.to_string()))?;
         self.offset = self.offset.saturating_add(advance);
         Ok(n)
     }
@@ -612,10 +612,12 @@ pub fn format_chain_directive(inner_fid: FormatId, outer_fid: FormatId) -> Strin
 #[must_use]
 pub fn format_chain_pretty(inner_fid: FormatId, outer_fid: FormatId) -> String {
     let directive = format_chain_directive(inner_fid, outer_fid);
+    // Reason for fallback: format without catalog entry uses format title or ident as label
     let inner_label = FORMAT_CATALOG
         .lookup_format_id(inner_fid)
         .map(|m| m.label.as_str())
         .unwrap_or_else(|| inner_fid.title().unwrap_or(inner_fid.ident()));
+    // Reason for fallback: format without catalog entry uses format title or ident as label
     let outer_label = FORMAT_CATALOG
         .lookup_format_id(outer_fid)
         .map(|m| m.label.as_str())
@@ -631,6 +633,7 @@ pub fn build_compound_candidate(
     outer_cand: &DetectionCandidate,
 ) -> DetectionCandidate {
     let mapping = FORMAT_CATALOG.lookup_format_id(compound_fid);
+    // Reason for fallback: unmapped compound format defaults to inner and outer descriptions
     let desc = mapping
         .map(|m| m.label.clone())
         .unwrap_or_else(|| format!("{} ({})", inner_cand.description, outer_cand.description));
@@ -665,7 +668,9 @@ pub fn build_format_chain_candidate(
     outer_fid: FormatId,
 ) -> DetectionCandidate {
     let pretty_desc = format_chain_pretty(inner_fid, outer_fid);
+    // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
     let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+    // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
     let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
     let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
 
@@ -702,7 +707,9 @@ pub fn build_compat_candidate(
     } else {
         // -z mode: report `<inner_desc> (<outer_desc>)`
         let desc = format!("{} ({})", inner_cand.description, outer_cand.description);
+        // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
         let inner_mime = inner_cand.mime.as_deref().unwrap_or("application/octet-stream");
+        // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
         let outer_mime = outer_cand.mime.as_deref().unwrap_or("application/octet-stream");
         let mime = format!("{inner_mime} compressed-encoding={outer_mime}");
 
@@ -729,9 +736,13 @@ pub fn probe_decompression_candidates<S: DetectionSource + ?Sized, FReport>(
 where
     FReport: FnMut(&mut dyn DetectionSource, Option<&DetectionHint>) -> Result<DetectionReport>,
 {
+    // Reason for fallback: hint defaults to non-compat mode if omitted
     let compat = hint.map_or(false, |h| h.compat);
+    // Reason for fallback: hint defaults to false for uncompress if omitted
     let uncompress = hint.map_or(false, |h| h.uncompress);
+    // Reason for fallback: hint defaults to false for uncompress_noreport if omitted
     let uncompress_noreport = hint.map_or(false, |h| h.uncompress_noreport);
+    // Reason for fallback: initial decompression depth defaults to 0 if omitted
     let depth = hint.map_or(0, |h| h.recursion_depth);
 
     // In compat mode, do NOT decompress unless -z or -Z is passed
@@ -744,19 +755,24 @@ where
     }
 
     // Locate the candidate outer compression format
+    // Reason for fallback: candidate lacking format_id cannot be a recognized compression algorithm
     let outer_cand = outer_candidates.iter().find(|c| {
         c.format_id
             .map_or(false, ctb_formats_compression::is_supported)
     });
 
     let (outer_fid, outer_candidate_ref) = if let Some(cand) = outer_cand {
-        (cand.format_id.unwrap_or(FormatId::Gzip), cand)
+        let Some(fid) = cand.format_id else {
+            return Ok(Vec::new());
+        };
+        (fid, cand)
     } else {
         // Fallback: check extension from hint
         let ext_fmt = hint
             .and_then(|h| h.extension.as_deref().or(h.filename.as_deref()))
             .and_then(|name| {
                 let clean = name.trim().trim_start_matches('.');
+                // Reason for fallback: filename without period delimiter is already the extension
                 let last_ext = clean.rsplit('.').next().unwrap_or(clean);
                 FormatId::from_ident(last_ext)
             })
@@ -764,6 +780,7 @@ where
 
         if let Some(fid) = ext_fmt {
             // Synthesize an outer candidate
+            // Reason for fallback: unmapped format uses debug format name
             let desc = FORMAT_CATALOG
                 .lookup_format_id(fid)
                 .map(|m| m.label.clone())
@@ -787,6 +804,7 @@ where
         }
     };
 
+    // Reason for fallback: default bounded inspection limit if unspecified in hint
     let limit = hint
         .and_then(|h| h.decompress_byte_limit)
         .unwrap_or(DEFAULT_DECOMPRESS_BYTE_LIMIT);
@@ -800,6 +818,7 @@ where
     }
 
     // Prepare inner detection hint
+    // Reason for fallback: detection hint defaults to empty if not supplied
     let mut inner_hint = hint.cloned().unwrap_or_default();
     inner_hint.recursion_depth = depth.saturating_add(1);
     inner_hint.uncompress = false;
@@ -874,7 +893,9 @@ where
             } else {
                 // Inner candidate has no registered FormatId (e.g. arbitrary text / data)
                 let desc = format!("{} ({})", inner.description, outer_candidate_ref.description);
+                // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
                 let inner_mime = inner.mime.as_deref().unwrap_or("application/octet-stream");
+                // Reason for fallback: candidate without explicit MIME defaults to generic octet-stream
                 let outer_mime = outer_candidate_ref.mime.as_deref().unwrap_or("application/octet-stream");
                 let chain_mime = format!("{inner_mime} compressed-encoding={outer_mime}");
                 results.push(DetectionCandidate {

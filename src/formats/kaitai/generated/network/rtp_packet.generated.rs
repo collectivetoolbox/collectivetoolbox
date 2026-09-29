@@ -95,7 +95,7 @@ impl KStruct for RtpPacket {
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.marker.borrow_mut() = _io.read_bits_int_be(1)? != 0;
         *self_rc._io.borrow_mut() = _io.clone();
-        *self_rc.payload_type.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(7)?).to_ne_bytes()).try_into()?;
+        *self_rc.payload_type.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(7)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         io.align_to_byte()?;
         *self_rc.sequence_number.borrow_mut() = _io.read_u2be()?;

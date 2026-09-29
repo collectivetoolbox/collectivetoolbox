@@ -167,7 +167,7 @@ impl KStruct for ExprBits {
         self_rc._parent.set(parent.get());
         self_rc._self_shared.set(Ok(self_rc.clone()));
         let _io = io;
-        *self_rc.enum_seq.borrow_mut() = i64::from_ne_bytes((_io.read_bits_int_be(2)?).to_ne_bytes()).try_into()?;
+        *self_rc.enum_seq.borrow_mut() = i64::from_le_bytes((_io.read_bits_int_be(2)?).to_le_bytes()).try_into()?;
         *self_rc._io.borrow_mut() = _io.clone();
         *self_rc.a.borrow_mut() = _io.read_bits_int_be(3)?;
         *self_rc._io.borrow_mut() = _io.clone();
@@ -204,7 +204,7 @@ impl ExprBits {
             return Ok(self.enum_inst.borrow());
         }
         self.f_enum_inst.set(true);
-        *self.enum_inst.borrow_mut() = i64::from_ne_bytes((*self.a()).to_ne_bytes()).try_into()?;
+        *self.enum_inst.borrow_mut() = i64::from_le_bytes((*self.a()).to_le_bytes()).try_into()?;
         Ok(self.enum_inst.borrow())
     }
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
