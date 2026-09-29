@@ -551,6 +551,92 @@ mod tests {
     }
 
     #[ctb_test]
+    fn test_magic_detection() {
+        assert_eq!(
+            detect(Some(&[0x1F, 0xA0]), None),
+            Some(FormatId::ScoCompress)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x8B, 0x08, 0x00]), None),
+            Some(FormatId::Gzip)
+        );
+        assert_eq!(
+            detect(Some(&[0x42, 0x5A, 0x68]), None),
+            Some(FormatId::Bzip2)
+        );
+        assert_eq!(
+            detect(Some(&[0x42, 0x5A, 0x30]), None),
+            Some(FormatId::Bzip)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x1E]), None),
+            Some(FormatId::Pack)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x1F]), None),
+            Some(FormatId::OldPack)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9D, 0x90]), None),
+            Some(FormatId::CompressLzw)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9D, 0x10]), None),
+            Some(FormatId::CompressLzw2)
+        );
+        assert_eq!(
+            detect(Some(&[0xFF, 0x1F]), None),
+            Some(FormatId::Compact)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9F]), None),
+            Some(FormatId::Freeze2)
+        );
+        assert_eq!(
+            detect(Some(&[0x1F, 0x9E]), None),
+            Some(FormatId::Freeze1)
+        );
+        assert_eq!(
+            detect(Some(&[0x04, 0x22, 0x4D, 0x18]), None),
+            Some(FormatId::Lz4)
+        );
+        assert_eq!(
+            detect(
+                Some(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]),
+                None
+            ),
+            Some(FormatId::Xz)
+        );
+        assert_eq!(
+            detect(Some(&[0x4C, 0x5A, 0x49, 0x50]), None),
+            Some(FormatId::Lzip)
+        );
+        assert_eq!(
+            detect(Some(&[0x28, 0xB5, 0x2F, 0xFD]), None),
+            Some(FormatId::Zstd)
+        );
+        assert_eq!(
+            detect(
+                Some(&[0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A]),
+                None
+            ),
+            Some(FormatId::Lzo)
+        );
+        assert_eq!(
+            detect(Some(b"RZIP\x02\x01"), None),
+            Some(FormatId::Rzip)
+        );
+        assert_eq!(
+            detect(Some(b"SZ\x0a\x04"), None),
+            Some(FormatId::Szip)
+        );
+        assert_eq!(
+            detect(Some(b"SZ\x0a\x02"), None),
+            Some(FormatId::Szip111)
+        );
+    }
+
+    #[ctb_test]
     fn test_compress_help_table_content() {
         let help_str = crate::COMPRESSION_AFTER_HELP.as_str();
         assert!(help_str.contains("Supported compression formats:"));

@@ -40,6 +40,7 @@ pub use ctb_formats_compression_pack as pack;
 pub use ctb_formats_compression_sco_compress as sco_compress;
 pub use ctb_formats_compression_freeze as freeze;
 pub use ctb_formats_compression_rzip as rzip;
+pub use ctb_formats_compression_szip as szip;
 pub use ctb_formats_compression_libraries as libraries;
 
 static COMPRESSION_DATA_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/data");
@@ -106,6 +107,8 @@ impl CompressionFormatExt for FormatId {
                 | Self::Freeze2
                 | Self::Freeze1
                 | Self::Rzip
+                | Self::Szip
+                | Self::Szip111
         )
     }
 
@@ -167,6 +170,9 @@ pub fn compress_stream_direct(
             freeze::compress_freeze1_stream(reader, writer)
         }
         FormatId::Rzip => rzip::compress_stream(reader, writer),
+        FormatId::Szip | FormatId::Szip111 => {
+            szip::compress_stream(reader, writer)
+        }
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -268,6 +274,9 @@ pub fn decompress_stream(
             freeze::decompress_freeze1_stream(reader, writer)
         }
         FormatId::Rzip => rzip::decompress_stream(reader, writer),
+        FormatId::Szip | FormatId::Szip111 => {
+            szip::decompress_stream(reader, writer)
+        }
         FormatId::Brotli
         | FormatId::Gzip
         | FormatId::Deflate
@@ -363,6 +372,8 @@ mod tests {
             FormatId::Freeze2,
             FormatId::Freeze1,
             FormatId::Rzip,
+            FormatId::Szip,
+            FormatId::Szip111,
         ];
         let crate_formats = [
             FormatId::Brotli,
@@ -513,6 +524,14 @@ mod tests {
             FormatId::Rzip
         );
         assert_eq!(
+            parse_compression_format("szip").unwrap(),
+            FormatId::Szip
+        );
+        assert_eq!(
+            parse_compression_format("sz").unwrap(),
+            FormatId::Szip
+        );
+        assert_eq!(
             parse_compression_format("freeze").unwrap(),
             FormatId::Freeze2
         );
@@ -533,6 +552,8 @@ mod tests {
         assert_eq!(FormatId::Freeze2.extension(), "F");
         assert_eq!(FormatId::Freeze1.extension(), "F");
         assert_eq!(FormatId::Rzip.extension(), "rz");
+        assert_eq!(FormatId::Szip.extension(), "sz");
+        assert_eq!(FormatId::Szip111.extension(), "sz");
         assert_eq!(FormatId::Lz4.extension(), "lz4");
         assert_eq!(FormatId::Lzma.extension(), "lzma");
         assert_eq!(FormatId::Lzma2.extension(), "lzma");
@@ -574,86 +595,13 @@ mod tests {
                 .find(|&fid| is_supported(fid)),
             Some(FormatId::Rzip)
         );
-    }
-
-    #[crate::ctb_test]
-    fn test_magic_detection() {
         assert_eq!(
-            detect(Some(&[0x1F, 0xA0]), None),
-            Some(FormatId::ScoCompress)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x8B, 0x08, 0x00]), None),
-            Some(FormatId::Gzip)
-        );
-        assert_eq!(
-            detect(Some(&[0x42, 0x5A, 0x68]), None),
-            Some(FormatId::Bzip2)
-        );
-        assert_eq!(
-            detect(Some(&[0x42, 0x5A, 0x30]), None),
-            Some(FormatId::Bzip)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x1E]), None),
-            Some(FormatId::Pack)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x1F]), None),
-            Some(FormatId::OldPack)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9D, 0x90]), None),
-            Some(FormatId::CompressLzw)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9D, 0x10]), None),
-            Some(FormatId::CompressLzw2)
-        );
-        assert_eq!(
-            detect(Some(&[0xFF, 0x1F]), None),
-            Some(FormatId::Compact)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9F]), None),
-            Some(FormatId::Freeze2)
-        );
-        assert_eq!(
-            detect(Some(&[0x1F, 0x9E]), None),
-            Some(FormatId::Freeze1)
-        );
-        assert_eq!(
-            detect(Some(&[0x04, 0x22, 0x4D, 0x18]), None),
-            Some(FormatId::Lz4)
-        );
-        assert_eq!(
-            detect(
-                Some(&[0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00]),
-                None
-            ),
-            Some(FormatId::Xz)
-        );
-        assert_eq!(
-            detect(Some(&[0x4C, 0x5A, 0x49, 0x50]), None),
-            Some(FormatId::Lzip)
-        );
-        assert_eq!(
-            detect(Some(&[0x28, 0xB5, 0x2F, 0xFD]), None),
-            Some(FormatId::Zstd)
-        );
-        assert_eq!(
-            detect(
-                Some(&[0x89, 0x4C, 0x5A, 0x4F, 0x00, 0x0D, 0x0A, 0x1A, 0x0A]),
-                None
-            ),
-            Some(FormatId::Lzo)
-        );
-        assert_eq!(
-            detect(Some(b"RZIP\x02\x01"), None),
-            Some(FormatId::Rzip)
+            lookup_format_by_extension("sz")
+                .into_iter()
+                .find(|&fid| is_supported(fid)),
+            Some(FormatId::Szip)
         );
     }
-
     fn run_format_test_suite(format: FormatId) {
         let fixtures: &[&str] = match format {
             FormatId::Brotli => {
@@ -713,6 +661,9 @@ mod tests {
             FormatId::Rzip => {
                 &["fixtures/example2 with lemurs.pan.rz"]
             }
+            FormatId::Szip => {
+                &["fixtures/example2 with lemurs.pan.sz"]
+            }
             FormatId::Lz4 => {
                 &[
                     "fixtures/example2 with lemurs.pan.ctblib.lz4",
@@ -763,6 +714,8 @@ mod tests {
                 | FormatId::Pack
                 | FormatId::OldPack
                 | FormatId::Rzip
+                | FormatId::Szip
+                | FormatId::Szip111
                 | FormatId::ScoCompress
                 | FormatId::CompressLzw
                 | FormatId::CompressLzw2
@@ -929,6 +882,16 @@ mod tests {
     #[crate::ctb_test]
     fn test_format_rzip() {
         run_format_test_suite(FormatId::Rzip);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_szip() {
+        run_format_test_suite(FormatId::Szip);
+    }
+
+    #[crate::ctb_test]
+    fn test_format_szip111() {
+        run_format_test_suite(FormatId::Szip111);
     }
 
     #[crate::ctb_test]
