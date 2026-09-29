@@ -98,8 +98,7 @@ fi
 CANONICAL_BIN="$REPO_ROOT/built/linux-x64/ctoolbox"
 
 get_binary_commit() {
-    local bin="$1"
-    "$bin" --version 2>/dev/null | sed -n 's/.*(build \([0-9a-f]\{7,\}\)).*/\1/p' || true
+    { "$1" --version-json | jq -er '.commit // empty'; } || exit 1
 }
 
 is_binary_stale() {

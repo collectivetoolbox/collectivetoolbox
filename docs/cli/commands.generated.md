@@ -88,6 +88,8 @@ Options:
           Skip CRLite revocation checking for this run only
       --retry-on-host-error <RETRY_ON_HOST_ERROR>
           Number of retry attempts on DNS or host connection errors [default: 3]
+      --version-json
+          Print version information in JSON format and exit
   -h, --help
           Print help
   -V, --version

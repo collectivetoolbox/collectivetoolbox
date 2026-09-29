@@ -61,6 +61,7 @@ impl Default for Invocation {
             insecure_skip_crlite_check: false,
             retry_on_host_error:
                 invocation_settings::DEFAULT_RETRY_ON_HOST_ERROR,
+            version_json: false,
             command: None,
         })
     }
@@ -220,6 +221,10 @@ pub struct Cli {
     )]
     pub retry_on_host_error: usize,
 
+    /// Print version information in JSON format and exit
+    #[arg(long, help = "Print version information in JSON format and exit")]
+    pub version_json: bool,
+
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -233,6 +238,13 @@ pub struct Cli {
 // Returns Ok(None) if we should proceed to heavy boot.
 // Errors bubble up as Err(...).
 pub async fn maybe_run_lightweight(cli: &Cli) -> Result<Option<i32>> {
+    if cli.version_json {
+        let info = ctb_build_info::build_info();
+        let formatted = serde_json::to_string_pretty(&info)?;
+        println!("{formatted}");
+        return Ok(Some(0));
+    }
+
     let Some(cmd) = &cli.command else {
         return Ok(None); // no command => proceed to full app
     };
@@ -459,6 +471,21 @@ mod tests {
             .await
             .expect("maybe_run_lightweight")
             .expect("should return exit code for subcommand");
+        assert_eq!(exit_code, 0);
+    }
+
+    #[crate::ctb_test("tokio")]
+    async fn test_version_json_flag() {
+        let args = vec!["ctoolbox".to_string(), "--version-json".to_string()];
+        let invocation =
+            parse_invocation(Some(args)).expect("parse invocation");
+        let cli = invocation.expect_cli().expect("expect cli");
+        assert!(cli.version_json);
+
+        let exit_code = maybe_run_lightweight(cli)
+            .await
+            .expect("maybe_run_lightweight")
+            .expect("should return exit code for --version-json");
         assert_eq!(exit_code, 0);
     }
 
