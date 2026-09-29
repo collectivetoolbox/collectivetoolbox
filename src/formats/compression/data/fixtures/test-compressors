@@ -94,20 +94,56 @@ if ! python3 -c "import ctypes.util, sys; sys.exit(0 if ctypes.util.find_library
     exit 1
 fi
 
-# Determine ctoolbox binary
+# Determine and validate ctoolbox binary
+CANONICAL_BIN="$REPO_ROOT/built/linux-x64/ctoolbox"
+
+get_binary_commit() {
+    local bin="$1"
+    "$bin" --version 2>/dev/null | sed -n 's/.*(build \([0-9a-f]\{7,\}\)).*/\1/p' || true
+}
+
+is_binary_stale() {
+    local bin="$1"
+    if ! command -v git >/dev/null 2>&1 || [ ! -d "$REPO_ROOT/.git" ]; then
+        return 1
+    fi
+    local bin_commit
+    bin_commit="$(get_binary_commit "$bin")"
+    if [ -z "$bin_commit" ]; then
+        return 0
+    fi
+    local behind_count
+    behind_count="$(git -C "$REPO_ROOT" rev-list --count "${bin_commit}..HEAD" 2>/dev/null || echo 0)"
+    if [ "$behind_count" -gt 0 ]; then
+        return 0
+    fi
+    return 1
+}
+
 if [ -n "${CTB_BIN:-}" ]; then
     CTB_CMD=("$CTB_BIN")
-elif [ -f "$REPO_ROOT/target/release/ctoolbox" ]; then
-    CTB_CMD=("$REPO_ROOT/target/release/ctoolbox")
-elif [ -f "$REPO_ROOT/built/linux-x64/ctoolbox" ]; then
-    CTB_CMD=("$REPO_ROOT/built/linux-x64/ctoolbox")
-# DO NOT USE DEBUG BUILD FOR THIS; IT IS VERY SLOW.
-#elif [ -f "$REPO_ROOT/target/debug/ctoolbox" ]; then
-#    CTB_BIN="$REPO_ROOT/target/debug/ctoolbox"
+    bin_ver="$(get_binary_commit "$CTB_BIN")"
+    if is_binary_stale "$CTB_BIN"; then
+        echo "Warning: Explicit CTB_BIN ($CTB_BIN, build ${bin_ver:-unknown}) is behind current git HEAD." >&2
+    fi
 else
-    export RUSTFLAGS="-Awarnings"
-    CTB_CMD=(cargo run --release -q -p ctoolbox --bin ctoolbox --)
+    if [ ! -x "$CANONICAL_BIN" ] || is_binary_stale "$CANONICAL_BIN"; then
+        if [ ! -x "$CANONICAL_BIN" ]; then
+            echo "Canonical binary not found at $CANONICAL_BIN; building with ./build-quick --release..." >&2
+        else
+            bin_ver="$(get_binary_commit "$CANONICAL_BIN")"
+            behind="$(git -C "$REPO_ROOT" rev-list --count "${bin_ver}..HEAD" 2>/dev/null || echo "?")"
+            echo "Binary at $CANONICAL_BIN is stale (build ${bin_ver:-unknown}, $behind commit(s) behind HEAD); rebuilding with ./build-quick --release..." >&2
+        fi
+        "$REPO_ROOT/build-quick" --release || {
+            echo "Error: Failed to rebuild ctoolbox with ./build-quick --release." >&2
+            exit 1
+        }
+    fi
+    CTB_CMD=("$CANONICAL_BIN")
 fi
+
+echo "Using ctoolbox binary: ${CTB_CMD[*]} ($("${CTB_CMD[@]}" --version 2>/dev/null || echo 'unknown version'))"
 
 mkdir -p "$REPO_ROOT/built"
 TMP_DIR="$(mktemp -d "$REPO_ROOT/built/tmp_test_compressors_XXXXXX")"

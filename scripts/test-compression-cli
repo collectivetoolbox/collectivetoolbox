@@ -42,13 +42,12 @@ CTB_BIN="${1:-${CTOOLBOX_BIN:-}}"
 
 if [[ -n "$CTB_BIN" ]]; then
     CARGO_CMD="$CTB_BIN"
-elif [[ -x "target/release/ctoolbox" ]]; then
-    CARGO_CMD="target/release/ctoolbox"
+elif [[ -x "built/linux-x64/ctoolbox" ]]; then
+    CARGO_CMD="built/linux-x64/ctoolbox"
 elif [[ -x "target/x86_64-unknown-linux-musl/release/ctoolbox" ]]; then
     CARGO_CMD="target/x86_64-unknown-linux-musl/release/ctoolbox"
-elif [[ -x "built/linux-x64/ctoolbox" ]]; then
-    echo "Warning: Reusing existing pre-built binary at built/linux-x64/ctoolbox (may be stale if source changed)" >&2
-    CARGO_CMD="built/linux-x64/ctoolbox"
+elif [[ -x "target/release/ctoolbox" ]]; then
+    CARGO_CMD="target/release/ctoolbox"
 else
     export RUSTFLAGS="-Awarnings"
     CARGO_CMD="cargo run --release -q -p ctoolbox --bin ctoolbox --"
