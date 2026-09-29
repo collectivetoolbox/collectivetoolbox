@@ -2658,6 +2658,7 @@ dependencies = [
  "ctb-build-info",
  "ctb-formats-checksum",
  "ctb-formats-compression",
+ "ctb-formats-compression-cli",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dceutils",
  "ctb-formats-dcstring",
@@ -2711,6 +2712,7 @@ dependencies = [
  "ctb-formats-base64",
  "ctb-formats-checksum",
  "ctb-formats-compression",
+ "ctb-formats-compression-cli",
  "ctb-formats-ctb-asset-bundle",
  "ctb-formats-dcdata",
  "ctb-formats-dceutils",
@@ -2844,7 +2846,6 @@ dependencies = [
 name = "ctb-formats-compression"
 version = "0.0.0"
 dependencies = [
- "clap",
  "ctb-formats-compression-bzip",
  "ctb-formats-compression-compact",
  "ctb-formats-compression-compress",
@@ -2854,7 +2855,6 @@ dependencies = [
  "ctb-formats-compression-rzip",
  "ctb-formats-compression-sco-compress",
  "ctb-formats-compression-szip",
- "ctb-formats-detection",
  "ctb-formats-utilities",
  "ctb-io-file",
  "ctb-utilities",
@@ -2865,6 +2865,19 @@ dependencies = [
 name = "ctb-formats-compression-bzip"
 version = "0.0.0"
 dependencies = [
+ "ctb-utilities",
+]
+
+[[package]]
+name = "ctb-formats-compression-cli"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "ctb-formats-compression",
+ "ctb-formats-detection",
+ "ctb-formats-utilities",
+ "ctb-io-file",
  "ctb-utilities",
 ]
 
@@ -3016,6 +3029,7 @@ dependencies = [
  "clap",
  "ctb-formats-apple-types",
  "ctb-formats-checksum",
+ "ctb-formats-compression",
  "ctb-formats-dcdata",
  "ctb-formats-dcstring",
  "ctb-formats-ipaddr",
@@ -4058,6 +4072,7 @@ dependencies = [
  "ctb-formats-checksum",
  "ctb-formats-compression",
  "ctb-formats-compression-bzip",
+ "ctb-formats-compression-cli",
  "ctb-formats-compression-compact",
  "ctb-formats-compression-compress",
  "ctb-formats-compression-freeze",

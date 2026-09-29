@@ -159,7 +159,7 @@ trap cleanup EXIT
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
 HIST_BINARIES=()
-for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 compress-apollo ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip; do
+for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 compress-apollo ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip szip; do
     if [[ ! -x "$TMP_DIR/$hist_tool" ]]; then
         echo "Error: Historical compression tool '$hist_tool' failed to build or is missing." >&2
         exit 1
@@ -318,6 +318,9 @@ tool_compress() {
         rzip)
             "$TMP_DIR/rzip" -k -f -o "$out_file" "$in_file"
             ;;
+        szip)
+            "$TMP_DIR/szip" "$in_file" "$out_file"
+            ;;
         gzip)
             gzip -n -c < "$in_file" > "$out_file"
             ;;
@@ -398,6 +401,9 @@ tool_decompress() {
         rzip)
             "$TMP_DIR/rzip" -d -k -f -o "$out_file" "$in_file"
             ;;
+        szip)
+            "$TMP_DIR/szip" -d "$in_file" "$out_file"
+            ;;
         gunzip)
             gunzip -c < "$in_file" > "$out_file"
             ;;
@@ -456,11 +462,12 @@ TEST_MATRIX=(
     "old-pack|opack|.old.z|1|1|opack|opcat"
     "compact|compact|.C|1|1|compact|uncompact"
 
-    # Historical Freeze, Bzip, and Rzip
+    # Historical Freeze, Bzip, Rzip, and Szip
     "bzip|bzip-0.21|.bz|1|1|bzip-0.21|bzip-0.21"
     "freeze2|freeze|.2.0.F|1|1|freeze|freeze"
     "freeze1|freeze|.synthetic.1.0.F|1|0||freeze"
     "rzip|rzip|.rz|1|1|rzip|rzip"
+    "szip|szip|.sz|1|1|szip|szip"
 
     # Modern System Tools
     "gzip|gzip|.gz|1|1|gzip|gunzip"

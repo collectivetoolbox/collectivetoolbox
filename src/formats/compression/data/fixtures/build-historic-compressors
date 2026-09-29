@@ -295,4 +295,13 @@ gcc -w -O2 \
     "$RZIP_SRC/crc32.c" \
     -lbz2
 
+# -----------------------------------------------------------------------------
+# 9. szip 1.12a (Michael Schindler 1997-2021)
+# -----------------------------------------------------------------------------
+SZIP_SRC="$REPO_ROOT/old/unix-tools/compression-szip/source"
+gcc -w -O2 \
+    -I"$SZIP_SRC" \
+    -o "$DEST_DIR/szip" \
+    "$SZIP_SRC/comp.c"
+
 echo "All historical tools compiled successfully into $DEST_DIR"

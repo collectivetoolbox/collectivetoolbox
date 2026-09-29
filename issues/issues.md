@@ -53,6 +53,8 @@ Warning: failed to parse /workspaces/ctoolbox/src/formats/kaitai/tests/generated
 
 - [ ] Implement fuzzing harness for format detection, Kaitai, and compression (see [fuzzing-assessment-and-plan.md](fuzzing-assessment-and-plan.md))
 
+- szip docs say the file format supports multiple files, but the program doesn't. It might be something that could be implemented.
+
 - Regenerate Guix packaging in CI
 
 Pull and export oldest container

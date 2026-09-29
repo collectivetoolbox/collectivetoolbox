@@ -20,6 +20,7 @@ ctb-formats-warc = { path = "../formats/warc" }
 ctb-formats-wfscan = { path = "../formats/wfscan" }
 ctb-formats-checksum = { path = "../formats/checksum" }
 ctb-formats-compression = { path = "../formats/compression" }
+ctb-formats-compression-cli = { path = "../formats/compression/cli" }
 ctb-formats-detection = { path = "../formats/detection" }
 ctb-formats-docker = { path = "../formats/docker" }
 ctb-formats-dceutils = { path = "../formats/dceutils" }

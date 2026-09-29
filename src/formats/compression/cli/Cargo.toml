@@ -1,0 +1,20 @@
+[package]
+name = "ctb-formats-compression-cli"
+edition = "2024"
+
+[lib]
+path = "cli.rs"
+crate-type = ["lib"]
+
+[dependencies]
+ctb-utilities = { path = "../../../utilities" }
+ctb-formats-utilities = { path = "../../utilities" }
+ctb-formats-compression = { path = ".." }
+ctb-formats-detection = { path = "../../detection" }
+ctb-io-file = { path = "../../../io/file" }
+
+clap = { version = "4.5.54", features = ["derive"] }
+anyhow = "1.0"
+
+[lints]
+workspace = true

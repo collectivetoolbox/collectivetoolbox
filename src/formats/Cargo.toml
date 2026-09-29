@@ -17,6 +17,7 @@ ctb-formats-base16b = { path = "base16b" }
 ctb-formats-base64 = { path = "base64" }
 ctb-formats-checksum = { path = "checksum" }
 ctb-formats-compression = { path = "compression" }
+ctb-formats-compression-cli = { path = "compression/cli" }
 ctb-formats-ctb-asset-bundle = { path = "ctb_asset_bundle" }
 ctb-formats-dcdata = { path = "dcdata" }
 ctb-formats-dceutils = { path = "dceutils" }

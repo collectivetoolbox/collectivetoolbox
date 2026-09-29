@@ -560,7 +560,7 @@ pub enum Command {
     },
     /// Compress a file or stdin using single-stream compression format
     #[command(name = "compress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
-    Compress(ctb_formats_compression::cli::CliCompressArgs),
+    Compress(ctb_formats_compression_cli::CliCompressArgs),
     /// Decompress a compressed file or stdin
     #[command(name = "decompress", after_help = ctb_formats_compression::COMPRESSION_AFTER_HELP.as_str())]
     Decompress {
@@ -1217,7 +1217,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             read_file_or_stdin,
         ),
         Command::Compress(args) => {
-            ctb_formats_compression::cli::run_compress(
+            ctb_formats_compression_cli::run_compress(
                 args.clone(),
                 read_file_or_stdin,
                 check_overwrite_prompt,
@@ -1228,7 +1228,7 @@ pub async fn run_lightweight_command(cmd: &Command) -> Result<ToolResult> {
             file,
             output,
             force,
-        } => ctb_formats_compression::cli::run_decompress(
+        } => ctb_formats_compression_cli::run_decompress(
             format.clone(),
             file.clone(),
             output.clone(),

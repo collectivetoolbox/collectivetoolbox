@@ -18,11 +18,9 @@ ctb-formats-compression-rzip = { path = "./rzip" }
 ctb-formats-compression-szip = { path = "./szip" }
 ctb-formats-compression-libraries = { path = "./libraries" }
 ctb-formats-utilities = { path = "../utilities" }
-ctb-formats-detection = { path = "../detection" }
 ctb-io-file = { path = "../../io/file" }
 
 include_dir = { version = "0.7.4", features = ["glob"] }
-clap = { version = "4.5.54", features = ["derive"] }
 
 [lints]
 workspace = true

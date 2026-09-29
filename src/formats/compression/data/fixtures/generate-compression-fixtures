@@ -72,7 +72,7 @@ fi
 
 # 1. Compile historical tools using shared build script
 "$SCRIPT_DIR/build-historic-compressors" "$TMP_DIR"
-for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip; do
+for hist_tool in compress-1.0 compress-1.6 compress-2.0 compress-3.0 compress-4.0 ncompress compact uncompact sys3-pack sys3-pcat opack opcat bzip-0.21 freeze rzip szip; do
     if [[ ! -x "$TMP_DIR/$hist_tool" ]]; then
         echo "Error: Historical compression tool '$hist_tool' failed to build or is missing." >&2
         exit 1
@@ -123,6 +123,9 @@ mv "$TMP_DIR/raw_opack.z" "$FIXTURES_DIR/example2 with lemurs.pan.old.z"
 
 # Andrew Tridgell rzip 2.1
 "$TMP_DIR/rzip" -k -f -o "$FIXTURES_DIR/example2 with lemurs.pan.rz" "$RAW_FILE"
+
+# Michael Schindler szip 1.12a
+"$TMP_DIR/szip" "$RAW_FILE" "$FIXTURES_DIR/example2 with lemurs.pan.sz"
 
 # --- Dedicated System Tools ---
 
@@ -205,6 +208,7 @@ unpack_rzip() {
     cat "$TMP_DIR/rzip_out.pan"
 }
 verify_decomp rzip rz unpack_rzip
+verify_decomp szip sz "$TMP_DIR/szip" -d
 verify_decomp gzip gz gunzip -c
 verify_decomp bzip2 bz2 bzip2 -d -c
 verify_decomp brotli br brotli -d -c

@@ -505,6 +505,14 @@ mod tests {
             }
         }
     }
+
+    #[crate::ctb_test]
+    fn test_szip_lemurs_roundtrip() {
+        let lemurs = include_bytes!("../data/fixtures/example2 with lemurs.pan");
+        let compressed = compress(lemurs).unwrap();
+        let decompressed = decompress(&compressed).unwrap();
+        assert_eq!(decompressed, lemurs);
+    }
 }
 
 /*

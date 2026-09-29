@@ -19,16 +19,56 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! CLI execution helpers for compression and decompression.
 
-#[expect(
-    unused_imports,
-    clippy::wildcard_imports,
-    reason = "Standard workspace module prelude"
-)]
-use crate::utilities::*;
-use crate::CompressionFormatExt;
+#[allow(clippy::wildcard_imports)]
+pub(crate) use ctb_utilities::*;
+pub use ctb_formats_compression::*;
+use ctb_formats_detection::{FormatCategory, detect_file_format, detect_format_id};
+use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use anyhow::anyhow;
 use std::path::{Path, PathBuf};
-pub use crate as ctb_formats_compression;
+
+/// Detects the compression format given a FileEntity and PayloadSource.
+pub fn detect_entity(
+    entity: &ctb_io_file::FileEntity,
+    payload: &mut dyn ctb_io_file::PayloadSource,
+) -> Option<FormatId> {
+    detect_file_format(entity, payload, Some(FormatCategory::Compression))
+        .filter(|&id| is_supported(id))
+}
+
+/// Detects the compression format for a given file path (or "-" for stdin).
+pub fn detect_path(path: &Path) -> Result<Option<FormatId>> {
+    if path == Path::new("-") {
+        let entity = ctb_io_file::FileEntity::from_stream(Some("-"));
+        let mut payload = ctb_io_file::ReaderPayloadSource::new(std::io::stdin());
+        Ok(detect_entity(&entity, &mut payload))
+    } else {
+        let entity = ctb_io_file::FileEntity::from_filesystem(path, None)?;
+        let mut payload = ctb_io_file::DiskPayloadSource::open(path)?;
+        Ok(detect_entity(&entity, &mut payload))
+    }
+}
+
+/// Performs multi-signal detection using both header bytes and file extension.
+pub fn detect(
+    data: Option<&[u8]>,
+    filename_or_ext: Option<&str>,
+) -> Option<FormatId> {
+    detect_format_id(
+        data,
+        filename_or_ext,
+        Some(FormatCategory::Compression),
+    )
+    .filter(|&id| is_supported(id))
+    .or_else(|| {
+        filename_or_ext.and_then(|name| {
+            let clean = name.trim().trim_start_matches('.');
+            lookup_format_by_extension(clean)
+                .into_iter()
+                .find(|&fid| is_supported(fid))
+        })
+    })
+}
 
 /// Execution options for compressing a file via the CLI.
 #[derive(clap::Args, Debug, Clone, PartialEq, Eq)]
@@ -223,19 +263,19 @@ where
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
             let cli_output =
-                ctb_formats_compression::cli::execute_cli_compress(
+                execute_cli_compress(
                     args.clone(),
                     read_file_or_stdin,
                     check_overwrite_prompt,
                 )?;
             match cli_output {
-                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
+                CliCompressionOutput::Stdout(bytes) => {
                     Ok(ToolResult::immediate_ok(bytes))
                 }
-                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
+                CliCompressionOutput::FileWritten(_) => {
                     Ok(ToolResult::immediate_ok(Vec::new()))
                 }
-                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
+                CliCompressionOutput::Cancelled => {
                     Ok(ToolResult::immediate_err(
                         "Operation cancelled.\n".as_bytes().to_vec(),
                         1,
@@ -256,31 +296,31 @@ where
     FRead: Fn(&Path) -> Result<Vec<u8>>,
     FOverwrite: Fn(&Path, bool) -> Result<bool>,
 {
-                        let cli_output =
-                ctb_formats_compression::cli::execute_cli_decompress(
-                    ctb_formats_compression::cli::CliDecompressArgs {
-                        format: format.clone(),
-                        input_path: file.clone(),
-                        output_path: output.clone(),
-                        force: force,
-                    },
-                    read_file_or_stdin,
-                    check_overwrite_prompt,
-                )?;
-            match cli_output {
-                ctb_formats_compression::cli::CliCompressionOutput::Stdout(bytes) => {
-                    Ok(ToolResult::immediate_ok(bytes))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::FileWritten(_) => {
-                    Ok(ToolResult::immediate_ok(Vec::new()))
-                }
-                ctb_formats_compression::cli::CliCompressionOutput::Cancelled => {
-                    Ok(ToolResult::immediate_err(
-                        "Operation cancelled.\n".as_bytes().to_vec(),
-                        1,
-                    ))
-                }
-            }
+    let cli_output =
+        execute_cli_decompress(
+            CliDecompressArgs {
+                format: format.clone(),
+                input_path: file.clone(),
+                output_path: output.clone(),
+                force: force,
+            },
+            read_file_or_stdin,
+            check_overwrite_prompt,
+        )?;
+    match cli_output {
+        CliCompressionOutput::Stdout(bytes) => {
+            Ok(ToolResult::immediate_ok(bytes))
+        }
+        CliCompressionOutput::FileWritten(_) => {
+            Ok(ToolResult::immediate_ok(Vec::new()))
+        }
+        CliCompressionOutput::Cancelled => {
+            Ok(ToolResult::immediate_err(
+                "Operation cancelled.\n".as_bytes().to_vec(),
+                1,
+            ))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -499,6 +539,15 @@ mod tests {
             }
             _ => panic!("Expected Stdout output"),
         }
+    }
+
+    #[ctb_test]
+    fn test_reader_payload_source_detection() {
+        let gzip_stream: &[u8] = &[0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04];
+        let entity = ctb_io_file::FileEntity::from_stream(Some("input.gz"));
+        let mut payload = ctb_io_file::ReaderPayloadSource::new(gzip_stream);
+        let detected = detect_entity(&entity, &mut payload);
+        assert_eq!(detected, Some(FormatId::Gzip));
     }
 
     #[ctb_test]

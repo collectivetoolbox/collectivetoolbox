@@ -19,7 +19,6 @@ with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 //! Single-stream compression algorithms (Brotli, Gzip, Deflate, Zlib, SCO Compress -H, etc.).
 
-use ctb_formats_detection::{FormatCategory, detect_file_format, detect_format_id};
 use ctb_formats_utilities::extension_data::lookup_format_by_extension;
 use ctb_formats_utilities::format_id::FormatId;
 use ctb_formats_utilities::format_info::FormatInfoOptionExt;
@@ -35,7 +34,6 @@ use ctb_formats_compression_bzip as bzip;
 use include_dir::{Dir, include_dir};
 use std::io::{Read, Write};
 
-pub mod cli;
 pub use ctb_formats_compression_compact as compact;
 pub use ctb_formats_compression_compress as compress;
 pub use ctb_formats_compression_pack as pack;
@@ -114,49 +112,6 @@ impl CompressionFormatExt for FormatId {
     fn default_verify(&self) -> bool {
         self.is_implemented_in_repo()
     }
-}
-
-/// Detects the compression format given a FileEntity and PayloadSource.
-pub fn detect_entity(
-    entity: &ctb_io_file::FileEntity,
-    payload: &mut dyn ctb_io_file::PayloadSource,
-) -> Option<FormatId> {
-    detect_file_format(entity, payload, Some(FormatCategory::Compression))
-        .filter(|&id| is_supported(id))
-}
-
-/// Detects the compression format for a given file path (or "-" for stdin).
-pub fn detect_path(path: &Path) -> Result<Option<FormatId>> {
-    if path == Path::new("-") {
-        let entity = ctb_io_file::FileEntity::from_stream(Some("-"));
-        let mut payload = ctb_io_file::ReaderPayloadSource::new(std::io::stdin());
-        Ok(detect_entity(&entity, &mut payload))
-    } else {
-        let entity = ctb_io_file::FileEntity::from_filesystem(path, None)?;
-        let mut payload = ctb_io_file::DiskPayloadSource::open(path)?;
-        Ok(detect_entity(&entity, &mut payload))
-    }
-}
-
-/// Performs multi-signal detection using both header bytes and file extension.
-pub fn detect(
-    data: Option<&[u8]>,
-    filename_or_ext: Option<&str>,
-) -> Option<FormatId> {
-    detect_format_id(
-        data,
-        filename_or_ext,
-        Some(FormatCategory::Compression),
-    )
-    .filter(|&id| is_supported(id))
-    .or_else(|| {
-        filename_or_ext.and_then(|name| {
-            let clean = name.trim().trim_start_matches('.');
-            lookup_format_by_extension(clean)
-                .into_iter()
-                .find(|&fid| is_supported(fid))
-        })
-    })
 }
 
 /// Parses a compression format from a format name or extension.
@@ -697,15 +652,6 @@ mod tests {
             detect(Some(b"RZIP\x02\x01"), None),
             Some(FormatId::Rzip)
         );
-    }
-
-    #[crate::ctb_test]
-    fn test_reader_payload_source_detection() {
-        let gzip_stream: &[u8] = &[0x1F, 0x8B, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04];
-        let entity = ctb_io_file::FileEntity::from_stream(Some("input.gz"));
-        let mut payload = ctb_io_file::ReaderPayloadSource::new(gzip_stream);
-        let detected = detect_entity(&entity, &mut payload);
-        assert_eq!(detected, Some(FormatId::Gzip));
     }
 
     fn run_format_test_suite(format: FormatId) {

@@ -842,8 +842,6 @@ mod tests {
             enc.finish().unwrap();
         }
 
-        println!("Encoded bytes len: {}", encoded.len());
-
         let mut decoded = Vec::new();
         {
             let mut cur = std::io::Cursor::new(&encoded);
@@ -854,7 +852,6 @@ mod tests {
             let mut is_first = true;
             while bytes_left > 0 {
                 let (sym, run_len) = model.decode(&mut dec).unwrap();
-                println!("Decoded sym: {sym:02x} ('{}'), run_len: {run_len}", sym as char);
                 for _ in 0..run_len {
                     decoded.push(sym);
                 }

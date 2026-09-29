@@ -777,10 +777,8 @@ mod tests {
     fn test_sort_general_all_orders() {
         let orig = b"Hello, Szip 1.11+ compression!";
         for order in [3, 4, 5, 6] {
-            println!("Testing order {order}...");
             let mut buf = orig.to_vec();
             let idx = sort_general(&mut buf, order).unwrap();
-            println!("Order {order}: idx={idx}");
             assert_eq!(idx, 20);
             let mut out = vec![0u8; orig.len()];
             unsort_general(&buf, &mut out, idx, order).unwrap();
