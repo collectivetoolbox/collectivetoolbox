@@ -357,7 +357,13 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
         } => translate_if_exp(condition, if_true, if_false, ctx),
         Expr::CastToType { value, type_name } => {
             let raw_type = type_name.name_as_str();
-            if raw_type == "bytes" {
+            let is_array = type_name.is_array || raw_type.ends_with("[]");
+            let base_raw = if is_array {
+                raw_type.trim_end_matches("[]")
+            } else {
+                raw_type.as_str()
+            };
+            if base_raw == "bytes" {
                 if let Expr::List(elements) = &**value {
                     let elems = elements
                         .iter()
@@ -375,19 +381,22 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     let inner_str = translate_expr(value, ctx);
                     format!("Into::<Vec<u8>>::into(&{inner_str})")
                 }
-            } else if let Some(user_class) = resolve_user_class_name(&raw_type, ctx) {
+            } else if let Some(user_class) = resolve_user_class_name(base_raw, ctx) {
                 let inner_str = translate_expr(value, ctx);
-                let is_switch = is_switch_type(value, ctx) && !inner_str.ends_with(".as_ref().ok_or(KError::CastError)?");
-                let arg = if is_switch {
-                    let stripped = remove_deref(&inner_str);
-                    format!("*({stripped}).as_ref().ok_or(KError::CastError)?")
+                if is_array {
+                    format!("Vec::<OptRc<{user_class}>>::try_from({inner_str})?")
                 } else {
-                    inner_str
-                };
-                format!("OptRc::<{user_class}>::try_from(&{arg})?")
+                    let is_switch = is_switch_type(value, ctx) && !inner_str.ends_with(".as_ref().ok_or(KError::CastError)?");
+                    let arg = if is_switch {
+                        let stripped = remove_deref(&inner_str);
+                        format!("*({stripped}).as_ref().ok_or(KError::CastError)?")
+                    } else {
+                        inner_str
+                    };
+                    format!("OptRc::<{user_class}>::try_from(&{arg})?")
+                }
             } else {
-                let inner_str = translate_expr(value, ctx);
-                let rust_type = match raw_type.as_str() {
+                let rust_type = match base_raw {
                     "u1" => "u8",
                     "u2" => "u16",
                     "u4" => "u32",
@@ -401,11 +410,30 @@ pub fn translate_expr(expr: &Expr, ctx: &TranslationContext<'_>) -> String {
                     "str" => "String",
                     other => other,
                 };
-                if let Expr::IntNum(n) = &**value {
+                if is_array {
+                    if let Expr::List(elements) = &**value {
+                        let elems = elements
+                            .iter()
+                            .map(|e| match e {
+                                Expr::IntNum(n) => format!("{n}_{rust_type}"),
+                                other => {
+                                    let s = translate_expr(other, ctx);
+                                    format!("{rust_type}::try_from({s})?")
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!("vec![{elems}]")
+                    } else {
+                        let inner_str = translate_expr(value, ctx);
+                        format!("Vec::<{rust_type}>::try_from({inner_str})?")
+                    }
+                } else if let Expr::IntNum(n) = &**value {
                     format!("{n}_{rust_type}")
                 } else {
+                    let inner_str = translate_expr(value, ctx);
                     let val_dt = detect_type_approx(value, ctx);
-                    let target_dt = match raw_type.as_str() {
+                    let target_dt = match base_raw {
                         "u1" | "b1" => Some(DataType::Int1 { signed: false }),
                         "s1" => Some(DataType::Int1 { signed: true }),
                         "u2" => Some(DataType::IntMulti { signed: false, width: 2, endian: None }),

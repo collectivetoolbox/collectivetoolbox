@@ -55,7 +55,7 @@ SOFTWARE.
 
 use kaitai::*;
 use std::cell::{Cell, Ref, RefCell};
-use super::struct::Struct;
+use super::r#struct::Struct;
 
 #[derive(Default, Debug, Clone)]
 pub struct ParamsPassArrayStruct {

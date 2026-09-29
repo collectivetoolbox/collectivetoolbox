@@ -380,6 +380,11 @@ pub fn format_expected_expr(expected: &serde_yaml::Value, current_format: &str) 
                                 format!("{item}u8")
                             } else if let Ok(num) = item.parse::<u8>() {
                                 format!("{num}u8")
+                            } else if let Some(unquoted) = item
+                                .strip_prefix('\'')
+                                .and_then(|t| t.strip_suffix('\''))
+                            {
+                                format!("\"{unquoted}\"")
                             } else {
                                 item.to_string()
                             }
@@ -869,6 +874,9 @@ pub fn regenerate_tests_from_kst(
         if !force && target_path.exists() && ksy_up_to_date {
             if let Some((cached_mtime, cached_size)) = cache.get(&rel_key) {
                 if *cached_mtime == mtime && *cached_size == size {
+                    let content = fs::read_to_string(&target_path)?;
+                    syn::parse_file(&content)
+                        .with_context(|| format!("Generated test {} failed to parse as valid Rust", target_path.display()))?;
                     stats.cache_hits = stats.cache_hits.saturating_add(1);
                     continue;
                 }
@@ -876,6 +884,8 @@ pub fn regenerate_tests_from_kst(
         }
 
         let generated_code = synthesize_test_from_kst(path, formats_dir)?;
+        syn::parse_file(&generated_code)
+            .with_context(|| format!("Generated test {} failed to parse as valid Rust", target_path.display()))?;
         write_if_changed(&target_path, &generated_code)?;
         updated_cache.insert(rel_key, (mtime, size));
         if let Some((k_key, k_mtime, k_size)) = ksy_info {

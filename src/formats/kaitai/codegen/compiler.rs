@@ -105,7 +105,8 @@ fn emit_imports(w: &mut CodeWriter, root_spec: &ClassSpec) {
             if class_name == root_spec.class_type_name() || root_spec.name.first() == Some(first) {
                 continue;
             }
-            w.puts(&format!("use super::{first}::{class_name};"));
+            let first_escaped = escape_rust_keyword(first);
+            w.puts(&format!("use super::{first_escaped}::{class_name};"));
         }
     }
 }

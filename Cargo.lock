@@ -3215,6 +3215,7 @@ dependencies = [
  "kaitai",
  "serde",
  "serde_yaml",
+ "syn 2.0.117",
  "tracing",
  "unicode-segmentation",
  "walkdir",

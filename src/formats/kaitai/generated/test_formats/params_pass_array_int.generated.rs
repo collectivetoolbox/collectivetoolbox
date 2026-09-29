@@ -66,7 +66,7 @@ pub struct ParamsPassArrayInt {
     pass_ints_calc: RefCell<OptRc<ParamsPassArrayInt_WantsInts>>,
     _io: RefCell<BytesReader>,
     f_ints_calc: Cell<bool>,
-    ints_calc: RefCell<i32>,
+    ints_calc: RefCell<Vec<u16>>,
 }
 impl KStruct for ParamsPassArrayInt {
     type Root = ParamsPassArrayInt;
@@ -92,7 +92,7 @@ impl KStruct for ParamsPassArrayInt {
         let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params(self_rc.ints().clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints.borrow_mut() = t;
-        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params((*self_rc.ints_calc()?).try_into().map_err(|_| KError::CastError)?));
+        let f = |t : &mut ParamsPassArrayInt_WantsInts| Ok(t.set_params(*self_rc.ints_calc()?.clone()));
         let t = Self::read_into_with_init::<_, ParamsPassArrayInt_WantsInts>(&*_io, Some(self_rc._root.clone()), Some(self_rc._self_shared.clone()), &f)?.into();
         *self_rc.pass_ints_calc.borrow_mut() = t;
         *self_rc._io.borrow_mut() = io.clone();
@@ -103,13 +103,13 @@ impl ParamsPassArrayInt {
     #[allow(clippy::approx_constant, clippy::unnecessary_fallible_conversions, reason = "Generic instance calculation conversion")]
     pub fn ints_calc(
         &self
-    ) -> KResult<Ref<'_, i32>> {
+    ) -> KResult<Ref<'_, Vec<u16>>> {
         let _io = self._io.borrow();
         if self.f_ints_calc.get() {
             return Ok(self.ints_calc.borrow());
         }
         self.f_ints_calc.set(true);
-        *self.ints_calc.borrow_mut() = (u2[]::try_from(vec![27643, 7])?).try_into()?;
+        *self.ints_calc.borrow_mut() = vec![27643_u16, 7_u16];
         Ok(self.ints_calc.borrow())
     }
 }

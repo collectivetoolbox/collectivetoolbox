@@ -53,6 +53,7 @@ struct AstAnalysisResults {
     unwrap_or_unverified: Vec<(String, usize, String)>,
     unwrap_or_warnings: Vec<(String, usize, String)>,
     io_errors: Vec<String>,
+    parse_errors: Vec<(PathBuf, String)>,
 }
 
 impl AstAnalysisResults {
@@ -65,6 +66,7 @@ impl AstAnalysisResults {
         self.unwrap_or_unverified.extend(other.unwrap_or_unverified);
         self.unwrap_or_warnings.extend(other.unwrap_or_warnings);
         self.io_errors.extend(other.io_errors);
+        self.parse_errors.extend(other.parse_errors);
     }
 }
 
@@ -217,8 +219,7 @@ pub fn run_all(workspace_root: &Path, offline: bool, quick: bool) -> Result<()> 
             let syntax = match syn::parse_file(&content) {
                 Ok(s) => s,
                 Err(e) => {
-                    // Files with syntax errors (e.g. Kaitai partial test templates) warn and skip AST checks
-                    eprintln!("Warning: failed to parse {}: {}", file_path.display(), e);
+                    acc.parse_errors.push((file_path.clone(), e.to_string()));
                     return acc;
                 }
             };
@@ -443,6 +444,15 @@ If you don't understand why that diff is missing the point of this lint, re-read
         eprintln!("\n=== I/O Errors ===");
         for err in &ast_results.io_errors {
             eprintln!("Error: {err}");
+        }
+    }
+
+    if !ast_results.parse_errors.is_empty() {
+        any_failure = true;
+        eprintln!("\n=== Rust Parse Errors ===");
+        for (file, err) in &ast_results.parse_errors {
+            let relative = file.strip_prefix(workspace_root).unwrap_or(file);
+            eprintln!("Error: failed to parse {}: {}", relative.display(), err);
         }
     }
 

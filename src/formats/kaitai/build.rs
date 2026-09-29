@@ -244,6 +244,8 @@ fn main() -> Result<()> {
                         };
                         match compile_to_rust_with_header(&spec, header) {
                             Ok(rust_code) => {
+                                syn::parse_file(&rust_code)
+                                    .with_context(|| format!("Generated format {} failed to parse as valid Rust", out_file.display()))?;
                                 write_if_changed(&out_file, &rust_code)?;
                                 updated_cache.insert(rel_key, (mtime, size));
                             }
@@ -462,6 +464,9 @@ fn compile_test_suite(
         let up_to_date = out_file.exists() && cached == Some(&(mtime, size));
 
         if up_to_date {
+            let content = fs::read_to_string(&out_file)?;
+            syn::parse_file(&content)
+                .with_context(|| format!("Generated file {} failed to parse as valid Rust", out_file.display()))?;
             successfully_compiled_formats.push(stem.clone());
         } else {
             let bytes = fs::read(ksy_path)?;
@@ -476,6 +481,8 @@ fn compile_test_suite(
                         None
                     };
                     if let Ok(rust_code) = compile_to_rust_with_header(&spec, header) {
+                        syn::parse_file(&rust_code)
+                            .with_context(|| format!("Generated code for {} failed to parse as valid Rust", out_file.display()))?;
                         write_if_changed(&out_file, &rust_code)?;
                         updated_cache.insert(rel_key, (mtime, size));
                         successfully_compiled_formats.push(stem.clone());

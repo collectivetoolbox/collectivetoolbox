@@ -90,7 +90,7 @@ fn test_switch_manual_int_size() -> KResult<()> {
     assert_eq!(*r.chunks()[0].body().as_ref().context("Missing optional field")?.title(), "Stuff");
     assert_eq!(*r.chunks()[0].body().as_ref().context("Missing optional field")?.author(), "Me");
     assert_eq!(*r.chunks()[1].code(), 34);
-    assert_eq!(*r.chunks()[1].body().as_ref().context("Missing optional field")?.entries(), vec!['AAAA', 'BBBB', 'CCCC']);
+    assert_eq!(*r.chunks()[1].body().as_ref().context("Missing optional field")?.entries(), vec!["AAAA", "BBBB", "CCCC"]);
     assert_eq!(*r.chunks()[2].code(), 51);
     assert_eq!(*r.chunks()[2].body().as_ref().context("Missing optional field")?, vec![0x10u8, 0x20u8, 0x30u8, 0x40u8, 0x50u8, 0x60u8, 0x70u8, 0x80u8]);
     assert_eq!(*r.chunks()[3].code(), 255);

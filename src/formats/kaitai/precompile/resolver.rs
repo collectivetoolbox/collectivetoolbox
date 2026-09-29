@@ -2378,13 +2378,38 @@ fn infer_expr_type(
         }
         Expr::CastToType { type_name, .. } => {
             let s = type_name.name_as_str();
-            if s == "bytes" {
+            let is_array = type_name.is_array || s.ends_with("[]");
+            let base_str = if is_array {
+                s.trim_end_matches("[]")
+            } else {
+                s.as_str()
+            };
+            if is_array {
+                let elem_dt = match base_str {
+                    "bytes" => DataType::CalcBytesType,
+                    "str" => DataType::CalcStrType,
+                    "u1" => DataType::Int1 { signed: false },
+                    "s1" => DataType::Int1 { signed: true },
+                    "u2" => DataType::IntMulti { signed: false, width: 2, endian: None },
+                    "s2" => DataType::IntMulti { signed: true, width: 2, endian: None },
+                    "u4" => DataType::IntMulti { signed: false, width: 4, endian: None },
+                    "s4" => DataType::IntMulti { signed: true, width: 4, endian: None },
+                    "u8" => DataType::IntMulti { signed: false, width: 8, endian: None },
+                    "s8" => DataType::IntMulti { signed: true, width: 8, endian: None },
+                    "f4" | "f8" => DataType::CalcFloatType,
+                    _ => DataType::CalcIntType,
+                };
+                Some(DataType::ArrayType {
+                    element: Box::new(elem_dt),
+                    repeat: RepeatMode::Expr(Expr::IntNum(0)),
+                })
+            } else if base_str == "bytes" {
                 Some(DataType::CalcBytesType)
-            } else if s == "str" {
+            } else if base_str == "str" {
                 Some(DataType::CalcStrType)
-            } else if matches!(s.as_str(), "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
+            } else if matches!(base_str, "u1" | "u2" | "u4" | "u8" | "s1" | "s2" | "s4" | "s8" | "b1") {
                 Some(DataType::CalcIntType)
-            } else if matches!(s.as_str(), "f4" | "f8") {
+            } else if matches!(base_str, "f4" | "f8") {
                 Some(DataType::CalcFloatType)
             } else {
                 None

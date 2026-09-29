@@ -213,12 +213,11 @@ pub fn run(workspace_root: &Path) -> Result<()> {
         let syntax = match syn::parse_file(&file_content) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "Warning: failed to parse {}: {}",
+                bail!(
+                    "failed to parse {}: {}",
                     file_path.display(),
                     e
                 );
-                continue;
             }
         };
 
